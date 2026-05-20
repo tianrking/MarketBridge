@@ -257,6 +257,7 @@ bybit
 derive
 dexalot
 coinbase
+coinex
 cryptocom
 deribit
 dydx

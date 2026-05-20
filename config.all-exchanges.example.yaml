@@ -313,6 +313,12 @@ exchanges:
     # Perp not implemented in this project.
     fee: { mode: fixed, maker_bps: 40.0, taker_bps: 60.0 }
 
+  coinex:
+    enabled: true
+    symbols: [BTCUSDT, ETHUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee: { mode: fixed, maker_bps: 20.0, taker_bps: 20.0 }
+
   cryptocom:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

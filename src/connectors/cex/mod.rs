@@ -17,6 +17,7 @@ pub mod btc_markets;
 pub mod bybit;
 pub mod bybit_perp;
 pub mod coinbase;
+pub mod coinex;
 pub mod common;
 pub mod cryptocom;
 pub mod cube;

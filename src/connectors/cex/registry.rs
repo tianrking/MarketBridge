@@ -44,6 +44,7 @@ use super::btc_markets::BtcMarketsSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
+use super::coinex::CoinexFeed;
 use super::cryptocom::CryptoComFeed;
 use super::cube::CubeSpotFeed;
 use super::decibel::DecibelPerpFeed;
@@ -327,6 +328,20 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 out.push(Arc::new(CoinbaseTicker::new(
                     spot_symbols.iter().map(|s| to_dash(s)).collect(),
                 )));
+            }
+            "coinex" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(CoinexFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_coinex_market(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(CoinexFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_coinex_market(s)).collect(),
+                    )));
+                }
             }
             "gemini" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(GeminiSpotFeed::new(
@@ -622,6 +637,15 @@ fn to_cryptocom_spot(symbol: &str) -> String {
         base.to_ascii_uppercase(),
         quote.to_ascii_uppercase()
     )
+}
+
+fn to_coinex_market(symbol: &str) -> String {
+    symbol
+        .to_ascii_uppercase()
+        .replace("-PERP", "")
+        .replace("_PERP", "")
+        .replace("PERP", "")
+        .replace(['-', '_', '/'], "")
 }
 
 fn to_cryptocom_perp(symbol: &str) -> String {
@@ -932,6 +956,14 @@ mod tests {
         assert_eq!(to_cryptocom_spot("ETH_USDT"), "ETH_USDT");
         assert_eq!(to_cryptocom_perp("BTCUSDT"), "BTCUSD-PERP");
         assert_eq!(to_cryptocom_perp("ETHUSD-PERP"), "ETHUSD-PERP");
+    }
+
+    #[test]
+    fn coinex_symbol_converter_uses_compact_ids() {
+        assert_eq!(to_coinex_market("BTCUSDT"), "BTCUSDT");
+        assert_eq!(to_coinex_market("BTC-USDT"), "BTCUSDT");
+        assert_eq!(to_coinex_market("BTC_USDT"), "BTCUSDT");
+        assert_eq!(to_coinex_market("BTCUSDT-PERP"), "BTCUSDT");
     }
 
     #[test]

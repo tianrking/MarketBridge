@@ -502,6 +502,16 @@ exchanges:
       maker_bps: 40.0
       taker_bps: 60.0
 
+  coinex:
+    enabled: false
+    # CoinEx public REST uses compact ids like BTCUSDT for spot and futures.
+    symbols: [BTCUSDT, ETHUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 20.0
+      taker_bps: 20.0
+
   cryptocom:
     enabled: false
     # Crypto.com REST uses BTC_USDT for spot and BTCUSD-PERP for perpetuals.

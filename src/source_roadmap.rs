@@ -167,6 +167,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "MarketBridge has Coinbase spot ticker; add Coinbase Advanced L2/trades and Coinbase International separately.",
     },
     RoadmapSource {
+        source: "coinex",
+        source_type: "exchange",
+        product_types: SPOT_PERP,
+        domains: PERP_MARKET,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST ticker, order book, trades, perp funding, and open interest are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "cryptocom",
         source_type: "exchange",
         product_types: SPOT_PERP,
