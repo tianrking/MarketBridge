@@ -70,7 +70,7 @@ use super::htx::HtxBbo;
 use super::htx_perp::HtxPerpBbo;
 use super::hyperliquid::HyperliquidFeed;
 use super::injective::InjectiveFeed;
-use super::kraken::KrakenTicker;
+use super::kraken::{KrakenRestFeed, KrakenTicker};
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::KucoinPerpTicker;
@@ -466,6 +466,9 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 if !spot_symbols.is_empty() {
                     out.push(Arc::new(KrakenTicker::new(
                         spot_symbols.iter().map(|s| to_slash(s)).collect(),
+                    )));
+                    out.push(Arc::new(KrakenRestFeed::new(
+                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
                 }
                 if !perp_symbols.is_empty() {

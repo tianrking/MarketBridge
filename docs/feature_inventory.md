@@ -78,7 +78,7 @@ Status labels:
 | KuCoin | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
 | Gate | implemented | planned | planned | planned | planned | planned | keyless | BookTicker-style BBO today. |
 | Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
-| Kraken | implemented | planned | planned | planned | planned | planned | keyless | Spot V2 ticker and separate futures ticker today. |
+| Kraken | implemented | implemented | implemented | planned | planned | planned | keyless | Spot V2 ticker plus REST order book and recent trades; separate futures ticker today. |
 | HTX | implemented | planned | planned | planned | planned | planned | keyless | BBO only today. |
 | Bitfinex | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
 | Coinbase | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Advanced Trade ticker plus Exchange REST order book and recent trades. |
