@@ -143,7 +143,10 @@ in `src/api/streaming.rs` so new delivery modes can share the same rules.
 The API layer should not know exchange-specific websocket details.
 
 Source/domain discovery lives in `src/catalog.rs`; API routes expose it but do
-not own the registry.
+not own the registry. `GET /v1/catalog/sources` overlays the static source
+inventory with runtime config and reports `enabled`, `available`, or
+`enabled_missing_api_key` so users can see which data sources are actually
+wired for the current process.
 
 ## Canonical Envelope
 

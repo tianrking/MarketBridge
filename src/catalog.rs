@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use crate::config::AppConfig;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CatalogSource {
     pub source_type: &'static str,
@@ -195,6 +197,90 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             status: "implemented",
         },
     ]
+}
+
+pub fn source_catalog_for_config(cfg: &AppConfig) -> Vec<CatalogSource> {
+    source_catalog()
+        .into_iter()
+        .map(|mut source| {
+            source.status = source_runtime_status(cfg, source.source);
+            source
+        })
+        .collect()
+}
+
+fn source_runtime_status(cfg: &AppConfig, source: &str) -> &'static str {
+    match source {
+        "cex_adapters" => {
+            if cfg.exchanges.values().any(|exchange| exchange.enabled) {
+                "enabled"
+            } else {
+                "available"
+            }
+        }
+        "deribit" => enabled_status(cfg.deribit.enabled),
+        "okx" => enabled_status(cfg.okx_options.enabled),
+        "bybit" => enabled_status(cfg.bybit_options.enabled),
+        "binance" => enabled_status(cfg.binance_options.enabled),
+        "polymarket" => enabled_status(cfg.polymarket.enabled),
+        "jupiter" => enabled_status(cfg.defi.jupiter.enabled),
+        "raydium" => enabled_status(cfg.defi.raydium.enabled),
+        "uniswap_v3" => enabled_status(cfg.defi.uniswap_v3.enabled),
+        "paraswap" => enabled_status(cfg.defi.paraswap.enabled),
+        "oneinch" => enabled_status(cfg.defi.oneinch.enabled),
+        "dxy" => enabled_status(cfg.tradfi.dxy.enabled),
+        "vix" => enabled_status(cfg.tradfi.vix.enabled),
+        "us10y" => keyed_status(
+            cfg.tradfi.us10y.enabled,
+            cfg.tradfi.us10y.api_key.as_deref(),
+            &cfg.tradfi.us10y.api_key_env,
+        ),
+        "coingecko" => enabled_status(cfg.aggregates.coingecko.enabled),
+        "coinmarketcap" => keyed_status(
+            cfg.aggregates.coinmarketcap.enabled,
+            cfg.aggregates.coinmarketcap.api_key.as_deref(),
+            &cfg.aggregates.coinmarketcap.api_key_env,
+        ),
+        "coinglass" => keyed_status(
+            cfg.aggregates.coinglass.enabled,
+            cfg.aggregates.coinglass.api_key.as_deref(),
+            &cfg.aggregates.coinglass.api_key_env,
+        ),
+        "fear_greed" => enabled_status(cfg.sentiment.fear_greed.enabled),
+        "cryptopanic" => keyed_status(
+            cfg.sentiment.cryptopanic.enabled,
+            cfg.sentiment.cryptopanic.api_key.as_deref(),
+            &cfg.sentiment.cryptopanic.api_key_env,
+        ),
+        "santiment" => keyed_status(
+            cfg.sentiment.santiment.enabled,
+            cfg.sentiment.santiment.api_key.as_deref(),
+            &cfg.sentiment.santiment.api_key_env,
+        ),
+        "lunarcrush" => keyed_status(
+            cfg.sentiment.lunarcrush.enabled,
+            cfg.sentiment.lunarcrush.api_key.as_deref(),
+            &cfg.sentiment.lunarcrush.api_key_env,
+        ),
+        _ => "available",
+    }
+}
+
+fn enabled_status(enabled: bool) -> &'static str {
+    if enabled { "enabled" } else { "available" }
+}
+
+fn keyed_status(enabled: bool, api_key: Option<&str>, api_key_env: &str) -> &'static str {
+    if !enabled {
+        return "available";
+    }
+    let inline_key = api_key.is_some_and(|key| !key.trim().is_empty());
+    let env_key = std::env::var(api_key_env).is_ok_and(|key| !key.trim().is_empty());
+    if inline_key || env_key {
+        "enabled"
+    } else {
+        "enabled_missing_api_key"
+    }
 }
 
 pub fn domain_catalog() -> Vec<CatalogDomain> {

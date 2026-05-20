@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::get;
 
+use crate::config::AppConfig;
 use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
 use crate::metrics::AppMetrics;
@@ -15,6 +16,7 @@ pub mod utils;
 
 #[derive(Clone)]
 pub struct ApiState {
+    pub config: AppConfig,
     pub bus: EventBus,
     pub metrics: Arc<AppMetrics>,
     pub http: reqwest::Client,

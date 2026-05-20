@@ -7,7 +7,7 @@ use axum::response::IntoResponse;
 use serde::Serialize;
 
 use crate::api::ApiState;
-use crate::catalog::{domain_catalog, health_status, source_catalog};
+use crate::catalog::{domain_catalog, health_status, source_catalog_for_config};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::domains::prediction::book::envelope_from_polymarket_book;
@@ -22,10 +22,10 @@ struct CatalogHealth {
     status: &'static str,
 }
 
-pub async fn sources() -> impl IntoResponse {
+pub async fn sources(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
-        "sources": source_catalog()
+        "sources": source_catalog_for_config(&state.config)
     }))
 }
 

@@ -64,6 +64,7 @@ async fn main() -> anyhow::Result<()> {
     let http = reqwest::Client::new();
 
     let api_router = build_router(ApiState {
+        config: cfg.clone(),
         bus: bus.clone(),
         metrics: metrics.clone(),
         http: http.clone(),
