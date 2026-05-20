@@ -108,7 +108,7 @@ src/api/
     options.rs
     prediction.rs
     onchain.rs
-    external.rs
+    external_event.rs
     stream.rs
 ```
 

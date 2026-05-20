@@ -12,6 +12,10 @@ const XADD_MAX_ATTEMPTS: usize = 8;
 const XADD_INITIAL_BACKOFF_MS: u64 = 100;
 const XADD_MAX_BACKOFF_MS: u64 = 5_000;
 
+fn next_backoff(current: Duration) -> Duration {
+    (current * 2).min(Duration::from_millis(XADD_MAX_BACKOFF_MS))
+}
+
 pub fn spawn_redis_sink(
     bus: EventBus,
     redis_url: String,
@@ -96,8 +100,7 @@ pub fn spawn_redis_sink(
                                     _ = shutdown.cancelled() => return,
                                     _ = tokio::time::sleep(backoff) => {}
                                 }
-                                backoff =
-                                    (backoff * 2).min(Duration::from_millis(XADD_MAX_BACKOFF_MS));
+                                backoff = next_backoff(backoff);
                             }
                         }
                     }
@@ -118,4 +121,16 @@ pub fn spawn_redis_sink(
             }
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{XADD_MAX_BACKOFF_MS, next_backoff};
+    use std::time::Duration;
+
+    #[test]
+    fn retry_backoff_is_capped() {
+        let capped = next_backoff(Duration::from_millis(XADD_MAX_BACKOFF_MS));
+        assert_eq!(capped, Duration::from_millis(XADD_MAX_BACKOFF_MS));
+    }
 }
