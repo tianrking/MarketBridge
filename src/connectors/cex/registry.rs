@@ -60,6 +60,7 @@ use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::KucoinPerpTicker;
 use super::mexc::MexcFeed;
+use super::ndax::NdaxSpotFeed;
 use super::okx::{
     OkxDepthFeed, OkxFundingFeed, OkxLiquidationPoller, OkxOpenInterestFeed, OkxTicker,
     OkxTradeFeed,
@@ -319,6 +320,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "foxbit" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(FoxbitSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                )));
+            }
+            "ndax" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(NdaxSpotFeed::new(
                     spot_symbols.iter().map(|s| to_binance(s)).collect(),
                 )));
             }

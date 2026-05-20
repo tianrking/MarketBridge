@@ -411,6 +411,15 @@ exchanges:
       maker_bps: 25.0
       taker_bps: 50.0
 
+  ndax:
+    enabled: false
+    # NDAX is a Canadian spot venue; registry maps BTCCAD -> InstrumentId via GetInstruments.
+    symbols: [BTCCAD, ETHCAD, USDTCAD]
+    fee:
+      mode: fixed
+      maker_bps: 20.0
+      taker_bps: 20.0
+
   kraken:
     enabled: false
     fee:

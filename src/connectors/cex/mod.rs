@@ -35,6 +35,7 @@ pub mod kraken_perp;
 pub mod kucoin;
 pub mod kucoin_perp;
 pub mod mexc;
+pub mod ndax;
 pub mod okx;
 pub mod okx_perp;
 pub mod pacifica;

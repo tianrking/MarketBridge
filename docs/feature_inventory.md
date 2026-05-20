@@ -71,6 +71,7 @@ Status labels:
 | Coinbase | implemented | planned | planned | n/a | n/a | n/a | keyless | Spot ticker only; Coinbase International not wired. |
 | Cube | partial | implemented | planned | planned | planned | planned | keyless | Public REST MBP snapshots with market metadata scaling; protobuf WS diffs/trades remain planned. |
 | Foxbit | partial | implemented | planned | planned | planned | planned | keyless | Public Brazil spot REST order-book snapshots; WS trades remain planned. |
+| NDAX | partial | implemented | planned | planned | planned | planned | keyless | Public Canadian spot L2 snapshots via GetInstruments/GetL2Snapshot. |
 
 ## Polymarket Coverage
 

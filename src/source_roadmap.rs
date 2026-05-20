@@ -271,9 +271,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P3",
-        notes: "Canadian spot venue; lower priority after global liquidity sources.",
+        notes: "Public Canadian spot L2 snapshots wired via GetInstruments/GetL2Snapshot; trades remain planned.",
     },
     RoadmapSource {
         source: "okx",

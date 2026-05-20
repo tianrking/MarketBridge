@@ -213,3 +213,8 @@ exchanges:
     enabled: true
     symbols: [BTCBRL, ETHBRL, USDTBRL]
     fee: { mode: fixed, maker_bps: 25.0, taker_bps: 50.0 }
+
+  ndax:
+    enabled: true
+    symbols: [BTCCAD, ETHCAD, USDTCAD]
+    fee: { mode: fixed, maker_bps: 20.0, taker_bps: 20.0 }
