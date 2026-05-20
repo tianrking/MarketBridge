@@ -1,5 +1,5 @@
 pub(super) fn split_quote(s: &str) -> (&str, &str) {
-    for q in ["USDT", "USDC", "USD", "KRW", "BTC", "ETH"] {
+    for q in ["USDT", "USDC", "USD", "KRW", "JPY", "BTC", "ETH"] {
         if let Some(base) = s.strip_suffix(q) {
             return (base, q);
         }
@@ -86,5 +86,6 @@ mod tests {
         assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USDTF0");
         assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");
         assert_eq!(to_dydx_market("BTCUSDT"), "BTC-USDT");
+        assert_eq!(to_underscore("BTCJPY"), "BTC_JPY");
     }
 }

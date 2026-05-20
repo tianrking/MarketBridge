@@ -345,6 +345,11 @@ exchanges:
     # Perp not implemented in this project.
     fee: { mode: fixed, maker_bps: 40.0, taker_bps: 60.0 }
 
+  coincheck:
+    enabled: true
+    symbols: [BTCJPY]
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 0.0 }
+
   coinex:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

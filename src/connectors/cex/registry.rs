@@ -47,6 +47,7 @@ use super::bullish::BullishSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
+use super::coincheck::CoincheckSpotFeed;
 use super::coinex::CoinexFeed;
 use super::cryptocom::CryptoComFeed;
 use super::cube::CubeSpotFeed;
@@ -353,6 +354,14 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "coinbase" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CoinbaseTicker::new(
                     spot_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
+            }
+            "coincheck" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(CoincheckSpotFeed::new(
+                    spot_symbols
+                        .iter()
+                        .map(|s| to_underscore(s).to_ascii_lowercase())
+                        .collect(),
                 )));
             }
             "coinex" => {

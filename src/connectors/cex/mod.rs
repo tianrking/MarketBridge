@@ -20,6 +20,7 @@ pub mod bullish;
 pub mod bybit;
 pub mod bybit_perp;
 pub mod coinbase;
+pub mod coincheck;
 pub mod coinex;
 pub mod common;
 pub mod cryptocom;

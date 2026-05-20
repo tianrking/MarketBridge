@@ -558,6 +558,15 @@ exchanges:
       maker_bps: 40.0
       taker_bps: 60.0
 
+  coincheck:
+    enabled: false
+    # Coincheck public REST uses lowercase btc_jpy style ids.
+    symbols: [BTCJPY]
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 0.0
+
   coinex:
     enabled: false
     # CoinEx public REST uses compact ids like BTCUSDT for spot and futures.
