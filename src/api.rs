@@ -12,12 +12,14 @@ use tokio::time::interval;
 use tracing::warn;
 
 use crate::event_bus::{EventBus, NormalizedTick};
+use crate::external::{fetch_deribit_option_summaries, fetch_polymarket_crypto_markets};
 use crate::metrics::AppMetrics;
 
 #[derive(Clone)]
 pub struct ApiState {
     pub bus: EventBus,
     pub metrics: Arc<AppMetrics>,
+    pub http: reqwest::Client,
 }
 
 pub fn build_router(state: ApiState) -> Router {
@@ -26,6 +28,8 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/health", get(health))
         .route("/snapshot", get(snapshot))
         .route("/funding", get(funding))
+        .route("/options/deribit/summary", get(deribit_options_summary))
+        .route("/polymarket/crypto-markets", get(polymarket_crypto_markets))
         .route("/coverage", get(coverage))
         .route("/metrics", get(metrics))
         .route(
@@ -45,6 +49,18 @@ pub struct TickFilterQuery {
 #[derive(Debug, Deserialize, Default)]
 struct SnapshotQuery {
     symbol: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeribitOptionsQuery {
+    currency: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PolymarketCryptoMarketsQuery {
+    gamma_base_url: Option<String>,
+    limit: Option<usize>,
+    max_offset: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -219,6 +235,56 @@ async fn snapshot(
 
 async fn metrics(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     state.metrics.render()
+}
+
+async fn deribit_options_summary(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<DeribitOptionsQuery>,
+) -> impl IntoResponse {
+    let currency = q.currency.unwrap_or_else(|| "BTC".to_string());
+    match fetch_deribit_option_summaries(&state.http, &currency).await {
+        Ok(rows) => Json(serde_json::json!({
+            "source": "deribit",
+            "currency": currency.to_ascii_uppercase(),
+            "summaries": rows
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "deribit",
+            "currency": currency.to_ascii_uppercase(),
+            "error": error.to_string(),
+            "summaries": []
+        })),
+    }
+}
+
+async fn polymarket_crypto_markets(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketCryptoMarketsQuery>,
+) -> impl IntoResponse {
+    let gamma_base_url = q
+        .gamma_base_url
+        .unwrap_or_else(|| "https://gamma-api.polymarket.com/".to_string());
+    let limit = q.limit.unwrap_or(500);
+    let max_offset = q.max_offset.unwrap_or(5000);
+    match fetch_polymarket_crypto_markets(&state.http, &gamma_base_url, limit, max_offset).await {
+        Ok(response) => Json(serde_json::json!({
+            "source": "polymarket_gamma",
+            "gamma_base_url": gamma_base_url,
+            "limit": limit,
+            "max_offset": max_offset,
+            "markets": response.markets,
+            "clob_asset_ids": response.clob_asset_ids
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "polymarket_gamma",
+            "gamma_base_url": gamma_base_url,
+            "limit": limit,
+            "max_offset": max_offset,
+            "error": error.to_string(),
+            "markets": [],
+            "clob_asset_ids": []
+        })),
+    }
 }
 
 async fn funding(

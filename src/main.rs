@@ -3,6 +3,7 @@ mod api;
 mod config;
 mod event_bus;
 mod exchanges;
+mod external;
 mod metrics;
 mod redis_sink;
 mod router;
@@ -50,6 +51,7 @@ async fn main() -> anyhow::Result<()> {
     let api_router = build_router(ApiState {
         bus: bus.clone(),
         metrics: metrics.clone(),
+        http: reqwest::Client::new(),
     });
     let api_addr = cfg.runtime.api_addr.clone();
     let api_task = tokio::spawn(async move {

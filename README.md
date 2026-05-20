@@ -134,6 +134,8 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/health` | Liveness check |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
+| GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
+| GET | `/polymarket/crypto-markets` | Parsed Polymarket BTC/ETH binary markets |
 | GET | `/coverage` | Data quality dashboard model |
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
@@ -222,6 +224,47 @@ Response model per symbol:
 - `min_funding`, `max_funding`, `funding_spread`
 - `updated_at`
 - `points[]` with `exchange/raw_symbol/funding/mark/stale/source_latency_ms/ts`
+
+### `GET /options/deribit/summary`
+
+Unified Deribit option summary feed for crypto binary-pricing models.
+
+Query params:
+
+- `currency=BTC|ETH`, default `BTC`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/options/deribit/summary?currency=BTC" | jq
+```
+
+Key fields in `summaries[]`:
+
+- `instrument_name`, `option_type`, `strike`, `expiry_time`
+- `bid_price`, `ask_price`, `mark_price`, `mark_iv`
+- `underlying_price`, `underlying_index`, `open_interest`
+
+### `GET /polymarket/crypto-markets`
+
+Parsed active Polymarket BTC/ETH binary markets for downstream strategy engines.
+
+Query params:
+
+- `limit`, default `500`
+- `max_offset`, default `5000`
+- `gamma_base_url`, default `https://gamma-api.polymarket.com/`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/crypto-markets?limit=500&max_offset=500" | jq
+```
+
+Response fields:
+
+- `markets[]`: parsed `base_asset`, `strike`, `direction`, `rule_type`, `expiry_time`, Yes/No token ids
+- `clob_asset_ids[]`: token ids that a Polymarket CLOB collector should subscribe to
 
 ### `GET /coverage`
 
@@ -344,4 +387,3 @@ cargo test
 2. Implement `ExchangeSource`
 3. Convert payloads into `MarketTick` (`Spot` or `Perp`)
 4. Register source in `src/exchanges/registry.rs`
-
