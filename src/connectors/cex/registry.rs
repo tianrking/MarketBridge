@@ -32,6 +32,7 @@ use super::bitget::BitgetSpotTicker;
 use super::bitget_perp::BitgetPerpTicker;
 use super::bitmart::{BitmartPerpFeed, BitmartSpotFeed};
 use super::bitstamp::BitstampSpotFeed;
+use super::btc_markets::BtcMarketsSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
@@ -206,6 +207,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "bitstamp" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(BitstampSpotFeed::new(
                     spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                )));
+            }
+            "btc_markets" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(BtcMarketsSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_dash(s)).collect(),
                 )));
             }
             "coinbase" if !spot_symbols.is_empty() => {

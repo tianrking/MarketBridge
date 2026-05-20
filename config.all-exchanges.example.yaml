@@ -87,6 +87,11 @@ exchanges:
     symbols: [BTCUSDT, ETHUSDT]
     fee: { mode: fixed, maker_bps: 30.0, taker_bps: 40.0 }
 
+  btc_markets:
+    enabled: true
+    symbols: [BTCAUD, ETHAUD]
+    fee: { mode: fixed, maker_bps: 85.0, taker_bps: 85.0 }
+
   kucoin:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

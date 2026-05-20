@@ -249,6 +249,7 @@ bitfinex
 bitget
 bitmart
 bitstamp
+btc_markets
 bybit
 coinbase
 deribit

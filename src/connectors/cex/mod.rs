@@ -8,6 +8,7 @@ pub mod bitget;
 pub mod bitget_perp;
 pub mod bitmart;
 pub mod bitstamp;
+pub mod btc_markets;
 pub mod bybit;
 pub mod bybit_perp;
 pub mod coinbase;

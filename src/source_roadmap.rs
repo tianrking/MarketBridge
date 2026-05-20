@@ -131,9 +131,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P3",
-        notes: "Australian spot reference; also has Hummingbot candle feed.",
+        notes: "Public spot order book and trades are wired; candle/backfill parity remains planned.",
     },
     RoadmapSource {
         source: "bybit",
