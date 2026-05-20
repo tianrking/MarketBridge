@@ -141,6 +141,8 @@ Default file: `config.yaml`
 - `exchanges.<name>.fee`: fixed/tiered fee model
 - `defi.<source>.enabled`: DeFi quote/pool source switch
 - `defi.<source>.pairs` / `defi.uniswap_v3.pools`: configured DEX pairs and pools
+- `tradfi.<source>.enabled`: DXY, VIX, and US10Y reference source switch
+- `tradfi.us10y.api_key` or `FRED_API_KEY`: FRED API credential for US10Y
 
 ## Implemented Data Plane
 
@@ -191,6 +193,14 @@ management should stay outside this repo.
 | ParaSwap quotes | Implemented | `GET /v1/market/quotes?exchanges=paraswap` | Polls public `/prices` route and emits executable quote-derived prices. |
 | 1inch quotes | Implemented configurable | `GET /v1/market/quotes?exchanges=oneinch` | Uses configurable legacy public base URL; newer 1inch gateways may require replacing `base_url`. |
 
+### Traditional Finance Reference Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| DXY | Implemented | `GET /v1/market/quotes?exchanges=dxy` | Yahoo Finance chart API, normalized as `symbol=DXY`. Useful as USD strength proxy. |
+| VIX | Implemented | `GET /v1/market/quotes?exchanges=vix` | Yahoo Finance chart API, normalized as `symbol=VIX`. Useful as risk/fear proxy. |
+| US10Y | Implemented | `GET /v1/market/quotes?exchanges=us10y` | FRED `DGS10`; requires `FRED_API_KEY` or `tradfi.us10y.api_key`. |
+
 ## Strategy Readiness Matrix
 
 For the crypto binary fair-value / market-making strategy discussed with
@@ -200,6 +210,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 |---|---|---:|---|
 | BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
 | DEX quote/pool price | CEX vs DEX basis and route sanity check | Implemented | `/v1/market/quotes?exchanges=jupiter,raydium,uniswap_v3,paraswap,oneinch` |
+| Macro reference price | DXY, VIX, US10Y regime filters | Implemented | `/v1/market/quotes?exchanges=dxy,vix,us10y` |
 | Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
 | Options IV / option chain | Theoretical digital probability | Implemented multi-venue REST cache | `/v1/options/chains`, `/options/deribit/summary`, `/options/deribit/live-summary` |
 | Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
@@ -211,6 +222,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 
 Bottom line: `MarketBridge` now provides a first mature data-source surface for
 paper decisions: exchange BBO/funding, DeFi quote and pool prices,
+TradFi macro references,
 multi-venue option chains, Polymarket
 market discovery, REST books, and a live Polymarket CLOB cache. It is still not
 an execution engine: authenticated Polymarket order placement/cancel/replace and
@@ -255,6 +267,12 @@ DeFi quote and pool sources are exposed through the same market quote surface:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/quotes?exchanges=jupiter,raydium,uniswap_v3,paraswap,oneinch" | jq
+```
+
+Traditional finance reference sources use the same quote surface:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/quotes?exchanges=dxy,vix,us10y" | jq
 ```
 
 ### Exchange Public Data Coverage

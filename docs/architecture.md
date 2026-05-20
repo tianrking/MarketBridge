@@ -54,6 +54,9 @@ src/connectors/
     uniswap_v3.rs
     paraswap.rs
     oneinch.rs
+  tradfi/
+    yahoo.rs
+    fred.rs
   external/
     weather.rs
     news.rs
@@ -251,8 +254,16 @@ Purpose: normalize DEX aggregator quotes and AMM pool prices into the same
 `market_quote` domain used by CEX sources. Wallet transfers, raw RPC event
 indexing, and oracle feeds are future domains.
 
-Purpose: wallet flows, DEX state, settlement/oracle references, and public chain
-events.
+### Traditional Finance Reference Data
+
+```text
+GET /v1/market/quotes?exchanges=dxy
+GET /v1/market/quotes?exchanges=vix
+GET /v1/market/quotes?exchanges=us10y
+```
+
+Purpose: normalize macro references such as DXY, VIX, and US10Y into the same
+`market_quote` domain for regime filters and cross-asset context.
 
 ### External Event Data
 
@@ -286,6 +297,7 @@ Implemented today:
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - DeFi aggregator quote and AMM pool snapshots through `GET /v1/market/quotes`.
+- TradFi DXY, VIX, and US10Y snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and multi-venue option background cache.
 - Envelope-based Deribit/OKX/Bybit/Binance option chains through `GET /v1/options/chains`.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.

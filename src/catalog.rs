@@ -114,6 +114,30 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             connector_path: "src/connectors/defi/oneinch.rs",
             status: "implemented",
         },
+        CatalogSource {
+            source_type: "tradfi_reference",
+            source: "dxy",
+            venue: Some("yahoo_finance"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/tradfi/yahoo.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "tradfi_reference",
+            source: "vix",
+            venue: Some("yahoo_finance"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/tradfi/yahoo.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "tradfi_reference",
+            source: "us10y",
+            venue: Some("fred"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/tradfi/fred.rs",
+            status: "implemented",
+        },
     ]
 }
 

@@ -142,6 +142,33 @@ defi:
         dest_decimals: 6
         spread_bps: 5.0
 
+tradfi:
+  dxy:
+    enabled: false
+    base_url: "https://query1.finance.yahoo.com/v8/finance/chart/"
+    yahoo_symbol: "DX-Y.NYB"
+    symbol: DXY
+    poll_secs: 60
+    spread_bps: 1.0
+
+  vix:
+    enabled: false
+    base_url: "https://query1.finance.yahoo.com/v8/finance/chart/"
+    yahoo_symbol: "^VIX"
+    symbol: VIX
+    poll_secs: 60
+    spread_bps: 1.0
+
+  us10y:
+    enabled: false
+    base_url: "https://api.stlouisfed.org/fred/"
+    series_id: DGS10
+    symbol: US10Y
+    # Prefer setting FRED_API_KEY in the environment. You may also set api_key here.
+    api_key_env: FRED_API_KEY
+    poll_secs: 3600
+    spread_bps: 1.0
+
 # Global default symbol list (used when exchange.symbols is omitted).
 # Format should be normalized symbols, e.g. BTCUSDT, ETHUSDT.
 symbols: [BTCUSDT, ETHUSDT]
