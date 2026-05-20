@@ -426,6 +426,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
 | GET | `/v1/market/order-books` | Latest L2 book snapshots |
 | GET | `/v1/market/trades` | Latest public trade snapshots |
+| GET | `/v1/market/order-flow` | Buy/sell pressure metrics derived from live trades |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars from historical REST and realtime tick aggregation |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
@@ -573,6 +574,34 @@ Examples:
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
 ```
+
+### `GET /v1/market/order-flow`
+
+Buy/sell pressure metrics derived from live trade events. No new exchange data
+source is needed; this endpoint aggregates `market_trade` events into rolling
+time buckets.
+
+Query params:
+
+- `exchange=binance|okx|bybit`
+- `market=spot|perp`
+- `symbol=BTCUSDT`
+- `window_ms=60000|300000|900000`
+- `limit`, default `500`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/order-flow?exchange=binance&market=perp&symbol=BTCUSDT&window_ms=60000" | jq
+```
+
+Key fields:
+
+- `buy_qty`, `sell_qty`
+- `buy_notional`, `sell_notional`
+- `delta_qty`, `delta_notional`
+- `cumulative_delta_qty`, `cumulative_delta_notional`
+- `large_trade_count`
 
 ### `GET /v1/market/basis`
 

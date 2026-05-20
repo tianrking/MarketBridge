@@ -22,6 +22,7 @@ Status labels:
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
 | Order books | `/v1/market/order-books` | implemented | keyless | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | keyless | Latest trade per venue/symbol. |
+| Order flow | `/v1/market/order-flow` | implemented | keyless | Derived buy/sell volume, delta, notional, CVD, and large-trade count from live trades. |
 | Klines | `/v1/market/klines` | implemented | keyless | SQLite-backed historical/rest and realtime tick-aggregated OHLCV bars. |
 | Options chains | `/v1/options/chains` | implemented | keyless | Deribit/OKX/Bybit/Binance REST cache. |
 | Prediction books | `/v1/prediction/books` | implemented | keyless | Polymarket live CLOB cache. |

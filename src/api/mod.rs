@@ -8,6 +8,7 @@ use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
 use crate::klines::KlineStore;
 use crate::metrics::AppMetrics;
+use crate::order_flow::OrderFlowStore;
 use crate::polymarket_ws::PolymarketBookCache;
 
 pub mod error;
@@ -24,6 +25,7 @@ pub struct ApiState {
     pub deribit_cache: DeribitOptionCache,
     pub polymarket_cache: PolymarketBookCache,
     pub kline_store: KlineStore,
+    pub order_flow_store: OrderFlowStore,
 }
 
 pub fn build_router(state: ApiState) -> Router {
@@ -42,6 +44,10 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::market::v1_market_open_interest),
         )
         .route("/v1/market/trades", get(routes::market::v1_market_trades))
+        .route(
+            "/v1/market/order-flow",
+            get(routes::market::v1_market_order_flow),
+        )
         .route("/v1/market/klines", get(routes::market::v1_market_klines))
         .route(
             "/v1/market/liquidations",

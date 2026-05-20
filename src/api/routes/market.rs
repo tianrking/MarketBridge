@@ -10,6 +10,7 @@ use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::ProductType;
 use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
+use crate::order_flow::OrderFlowQuery;
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
     symbols: Option<String>,
@@ -33,6 +34,15 @@ pub struct KlinesQuery {
     interval: Option<String>,
     start_ms: Option<u64>,
     end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct OrderFlowHttpQuery {
+    exchange: Option<String>,
+    market: Option<String>,
+    symbol: Option<String>,
+    window_ms: Option<u64>,
     limit: Option<usize>,
 }
 
@@ -251,6 +261,23 @@ pub async fn v1_market_trades(
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
     Json(serde_json::json!({"version":"v1","domain":"market_trade","trades":rows}))
+}
+
+pub async fn v1_market_order_flow(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<OrderFlowHttpQuery>,
+) -> impl IntoResponse {
+    let rows = state
+        .order_flow_store
+        .query(OrderFlowQuery {
+            exchange: q.exchange.map(|x| x.trim().to_ascii_lowercase()),
+            market: q.market.map(|x| x.trim().to_ascii_lowercase()),
+            symbol: q.symbol.map(|x| x.trim().to_ascii_uppercase()),
+            window_ms: q.window_ms,
+            limit: q.limit.unwrap_or(500),
+        })
+        .await;
+    Json(serde_json::json!({"version":"v1","domain":"market_order_flow","order_flow":rows}))
 }
 
 pub async fn v1_market_klines(
