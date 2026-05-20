@@ -1,6 +1,7 @@
 pub mod backpack;
 pub mod binance;
 pub mod binance_perp;
+pub mod bingx;
 pub mod bitfinex;
 pub mod bitfinex_perp;
 pub mod bitget;

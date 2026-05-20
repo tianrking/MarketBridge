@@ -9,6 +9,7 @@ use super::binance::{
     BinanceOpenInterestPoller, BinanceTradeFeed,
 };
 use super::binance_perp::BinancePerpBookTicker;
+use super::bingx::BingxSwapFeed;
 use super::bitfinex::BitfinexTicker;
 use super::bitfinex_perp::BitfinexPerpTicker;
 use super::bitget::BitgetSpotTicker;
@@ -120,6 +121,13 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(MexcFeed::new(
                         crate::types::MarketKind::Perp,
                         perp_symbols.iter().map(|s| to_underscore(s)).collect(),
+                    )));
+                }
+            }
+            "bingx" => {
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(BingxSwapFeed::new(
+                        perp_symbols.iter().map(|s| to_dash(s)).collect(),
                     )));
                 }
             }

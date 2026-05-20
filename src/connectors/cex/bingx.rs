@@ -1,0 +1,241 @@
+use std::time::Duration;
+
+use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
+use flate2::read::GzDecoder;
+use futures_util::{SinkExt, StreamExt};
+use serde_json::{Value, json};
+use std::io::Read;
+use tokio::time::interval;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+
+use crate::connectors::cex::common::emit_tick_ext;
+use crate::source::{ExchangeSource, SourceContext};
+use crate::types::{
+    BookLevel, DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide,
+    TradeTick, now_ms,
+};
+
+pub struct BingxSwapFeed {
+    symbols: Vec<String>,
+}
+
+impl BingxSwapFeed {
+    pub fn new(symbols: Vec<String>) -> Self {
+        Self { symbols }
+    }
+}
+
+#[async_trait]
+impl ExchangeSource for BingxSwapFeed {
+    fn name(&self) -> &'static str {
+        "bingx"
+    }
+
+    async fn run(&self, ctx: SourceContext) -> Result<()> {
+        run_bingx_swap(&self.symbols, ctx).await
+    }
+}
+
+async fn run_bingx_swap(symbols: &[String], ctx: SourceContext) -> Result<()> {
+    if symbols.is_empty() {
+        bail!("bingx symbols empty");
+    }
+    let (ws, _) = connect_async("wss://open-api-swap.bingx.com/swap-api")
+        .await
+        .context("bingx connect failed")?;
+    let (mut sink, mut stream) = ws.split();
+    for symbol in symbols {
+        for data_type in ["ticker", "depth20", "trade"] {
+            sink.send(Message::Text(
+                json!({"id":format!("{symbol}-{data_type}"),"reqType":"sub","dataType":format!("{symbol}@{data_type}")})
+                    .to_string()
+                    .into(),
+            ))
+            .await?;
+        }
+    }
+    let mut ping = interval(Duration::from_secs(20));
+
+    loop {
+        tokio::select! {
+            _ = ping.tick() => {
+                sink.send(Message::Text("Ping".into())).await?;
+                ctx.emit(DataEvent::Heartbeat { exchange: "bingx", ts_ms: now_ms() }).await?;
+            }
+            msg = stream.next() => {
+                let msg = msg.context("bingx stream ended")??;
+                match msg {
+                    Message::Text(text) => {
+                        handle_text(&text, &ctx).await?;
+                    }
+                    Message::Binary(bytes) => {
+                        if let Some(text) = decode_gzip_text(&bytes) {
+                            handle_text(&text, &ctx).await?;
+                        }
+                    }
+                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Close(_) => bail!("bingx closed"),
+                    Message::Pong(_) | Message::Frame(_) => {}
+                }
+            }
+        }
+    }
+}
+
+async fn handle_text(text: &str, ctx: &SourceContext) -> Result<()> {
+    if text == "Ping" || text == "Pong" {
+        return Ok(());
+    }
+    let Ok(value) = serde_json::from_str::<Value>(text) else {
+        return Ok(());
+    };
+    for event in parse_bingx_events(&value, ctx).await? {
+        ctx.emit(event).await?;
+    }
+    Ok(())
+}
+
+async fn parse_bingx_events(value: &Value, ctx: &SourceContext) -> Result<Vec<DataEvent>> {
+    let data_type = value
+        .get("dataType")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let data = value.get("data").unwrap_or(value);
+    let symbol = first_str(data, &["s", "symbol"]).unwrap_or_else(|| {
+        data_type
+            .split('@')
+            .next()
+            .filter(|x| !x.is_empty())
+            .unwrap_or("UNKNOWN")
+    });
+    if data_type.contains("ticker") {
+        let bid = first_str(data, &["bidPrice", "bid", "b"]).unwrap_or("0");
+        let ask = first_str(data, &["askPrice", "ask", "a"]).unwrap_or("0");
+        emit_tick_ext(
+            ctx,
+            "bingx",
+            MarketKind::Perp,
+            symbol,
+            bid,
+            ask,
+            first_str(data, &["markPrice", "mark"]),
+            first_str(data, &["fundingRate"]),
+            data.get("E").and_then(Value::as_u64),
+        )
+        .await?;
+        if let Some(funding_rate) = first_str(data, &["fundingRate"]).and_then(parse_f64) {
+            ctx.emit(DataEvent::FundingRate(FundingRateTick {
+                exchange: "bingx",
+                symbol: symbol.to_string().into_boxed_str(),
+                funding_rate,
+                next_funding_time_ms: data.get("nextFundingTime").and_then(Value::as_u64),
+                mark_price: first_str(data, &["markPrice", "mark"]).and_then(parse_f64),
+                index_price: first_str(data, &["indexPrice"]).and_then(parse_f64),
+                ts_ms: data.get("E").and_then(Value::as_u64).unwrap_or_else(now_ms),
+            }))
+            .await?;
+        }
+        if let Some(open_interest) = first_str(data, &["openInterest"]).and_then(parse_f64) {
+            ctx.emit(DataEvent::OpenInterest(OpenInterestTick {
+                exchange: "bingx",
+                symbol: symbol.to_string().into_boxed_str(),
+                open_interest,
+                open_interest_value: first_str(data, &["openInterestValue"]).and_then(parse_f64),
+                ts_ms: data.get("E").and_then(Value::as_u64).unwrap_or_else(now_ms),
+            }))
+            .await?;
+        }
+        return Ok(Vec::new());
+    }
+    if data_type.contains("depth") {
+        return Ok(vec![DataEvent::OrderBook(OrderBookTick {
+            exchange: "bingx",
+            market: MarketKind::Perp,
+            symbol: symbol.to_string().into_boxed_str(),
+            bids: data
+                .get("bids")
+                .or_else(|| data.get("b"))
+                .and_then(Value::as_array)
+                .map(|x| parse_levels(x))
+                .unwrap_or_default(),
+            asks: data
+                .get("asks")
+                .or_else(|| data.get("a"))
+                .and_then(Value::as_array)
+                .map(|x| parse_levels(x))
+                .unwrap_or_default(),
+            last_update_id: data.get("u").and_then(Value::as_u64),
+            ts_ms: data.get("E").and_then(Value::as_u64).unwrap_or_else(now_ms),
+        })]);
+    }
+    if data_type.contains("trade") {
+        let items = data.as_array().into_iter().flatten();
+        return Ok(items
+            .filter_map(|item| {
+                Some(DataEvent::Trade(TradeTick {
+                    exchange: "bingx",
+                    market: MarketKind::Perp,
+                    symbol: symbol.to_string().into_boxed_str(),
+                    price: first_str(item, &["p", "price"])?.parse::<f64>().ok()?,
+                    qty: first_str(item, &["q", "qty", "quantity"])?
+                        .parse::<f64>()
+                        .ok()?,
+                    side: side_from_str(first_str(item, &["m", "side"]).unwrap_or_default()),
+                    trade_id: first_str(item, &["t", "id"]).map(|x| x.to_string().into_boxed_str()),
+                    ts_ms: item.get("T").and_then(Value::as_u64).unwrap_or_else(now_ms),
+                }))
+            })
+            .collect());
+    }
+    Ok(Vec::new())
+}
+
+fn decode_gzip_text(bytes: &[u8]) -> Option<String> {
+    let mut decoder = GzDecoder::new(bytes);
+    let mut out = String::new();
+    decoder.read_to_string(&mut out).ok()?;
+    Some(out)
+}
+
+fn first_str<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a str> {
+    keys.iter().find_map(|key| value.get(*key)?.as_str())
+}
+
+fn parse_f64(value: &str) -> Option<f64> {
+    value.parse::<f64>().ok()
+}
+
+fn parse_levels(items: &[Value]) -> Vec<BookLevel> {
+    items
+        .iter()
+        .filter_map(|item| {
+            let pair = item.as_array()?;
+            Some(BookLevel {
+                price: pair.first()?.as_str()?.parse::<f64>().ok()?,
+                qty: pair.get(1)?.as_str()?.parse::<f64>().ok()?,
+            })
+        })
+        .collect()
+}
+
+fn side_from_str(side: &str) -> TradeSide {
+    match side {
+        "false" | "buy" | "BUY" => TradeSide::Buy,
+        "true" | "sell" | "SELL" => TradeSide::Sell,
+        _ => TradeSide::Unknown,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::side_from_str;
+    use crate::types::TradeSide;
+
+    #[test]
+    fn bingx_side_parser_accepts_common_labels() {
+        assert_eq!(side_from_str("false"), TradeSide::Buy);
+        assert_eq!(side_from_str("true"), TradeSide::Sell);
+        assert_eq!(side_from_str("?"), TradeSide::Unknown);
+    }
+}
