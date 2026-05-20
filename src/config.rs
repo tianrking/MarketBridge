@@ -96,8 +96,8 @@ pub struct ExchangeConfig {
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum FeeModel {
     Fixed {
-        #[allow(dead_code)]
-        maker_bps: f64,
+        #[serde(rename = "maker_bps")]
+        _maker_bps: f64,
         taker_bps: f64,
     },
     Tiered {
@@ -109,8 +109,8 @@ pub enum FeeModel {
 #[derive(Debug, Clone, Deserialize)]
 pub struct FeeTier {
     pub min_volume_usdt: f64,
-    #[allow(dead_code)]
-    pub maker_bps: f64,
+    #[serde(rename = "maker_bps")]
+    pub _maker_bps: f64,
     pub taker_bps: f64,
 }
 
@@ -182,20 +182,23 @@ impl FeeModel {
             FeeModel::Tiered {
                 volume_30d_usdt,
                 tiers,
-            } => {
-                let mut best: Option<&FeeTier> = None;
-                for t in tiers {
-                    if *volume_30d_usdt >= t.min_volume_usdt {
-                        if best.is_none_or(|x| t.min_volume_usdt > x.min_volume_usdt) {
-                            best = Some(t);
-                        }
-                    }
-                }
-                best.map(|x| x.taker_bps)
-                    .unwrap_or_else(|| tiers.first().map(|x| x.taker_bps).unwrap_or(0.0))
-            }
+            } => select_fee_tier(*volume_30d_usdt, tiers)
+                .map(|x| x.taker_bps)
+                .unwrap_or(0.0),
         }
     }
+}
+
+fn select_fee_tier(volume_30d_usdt: f64, tiers: &[FeeTier]) -> Option<&FeeTier> {
+    let mut best: Option<&FeeTier> = None;
+    for tier in tiers {
+        if volume_30d_usdt >= tier.min_volume_usdt
+            && best.is_none_or(|x| tier.min_volume_usdt > x.min_volume_usdt)
+        {
+            best = Some(tier);
+        }
+    }
+    best.or_else(|| tiers.first())
 }
 
 fn normalize_symbols(input: &[String]) -> Vec<String> {
@@ -301,17 +304,17 @@ mod tests {
             tiers: vec![
                 FeeTier {
                     min_volume_usdt: 0.0,
-                    maker_bps: 10.0,
+                    _maker_bps: 10.0,
                     taker_bps: 12.0,
                 },
                 FeeTier {
                     min_volume_usdt: 1_000_000.0,
-                    maker_bps: 8.0,
+                    _maker_bps: 8.0,
                     taker_bps: 9.0,
                 },
                 FeeTier {
                     min_volume_usdt: 5_000_000.0,
-                    maker_bps: 6.0,
+                    _maker_bps: 6.0,
                     taker_bps: 7.0,
                 },
             ],
