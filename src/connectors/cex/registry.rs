@@ -43,6 +43,7 @@ use super::btc_markets::BtcMarketsSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
+use super::cryptocom::CryptoComFeed;
 use super::cube::CubeSpotFeed;
 use super::decibel::DecibelPerpFeed;
 use super::derive::{DerivePerpFeed, DeriveSpotFeed};
@@ -320,6 +321,20 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     spot_symbols.iter().map(|s| to_dash(s)).collect(),
                 )));
             }
+            "cryptocom" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(CryptoComFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_cryptocom_spot(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(CryptoComFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_cryptocom_perp(s)).collect(),
+                    )));
+                }
+            }
             "cube" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CubeSpotFeed::new(
                     spot_symbols.iter().map(|s| to_binance(s)).collect(),
@@ -583,6 +598,29 @@ fn to_derive_perp(symbol: &str) -> String {
     }
     let (base, _) = split_quote(symbol);
     format!("{}-PERP", base.to_ascii_uppercase())
+}
+
+fn to_cryptocom_spot(symbol: &str) -> String {
+    if symbol.contains('_') {
+        return symbol.to_ascii_uppercase();
+    }
+    let (base, quote) = split_quote(symbol);
+    format!(
+        "{}_{}",
+        base.to_ascii_uppercase(),
+        quote.to_ascii_uppercase()
+    )
+}
+
+fn to_cryptocom_perp(symbol: &str) -> String {
+    if symbol.contains('-') {
+        return symbol.to_ascii_uppercase();
+    }
+    if let Some(base) = symbol.strip_suffix("PERP") {
+        return format!("{}USD-PERP", split_quote(base).0.to_ascii_uppercase());
+    }
+    let (base, _) = split_quote(symbol);
+    format!("{}USD-PERP", base.to_ascii_uppercase())
 }
 
 fn to_aevo_perp(symbol: &str) -> String {
@@ -854,5 +892,13 @@ mod tests {
         assert_eq!(to_evedex_perp("BTCUSDT"), "BTCUSD");
         assert_eq!(to_evedex_perp("ETH-USD"), "ETHUSD");
         assert_eq!(to_evedex_perp("SOLPERP"), "SOLUSD");
+    }
+
+    #[test]
+    fn cryptocom_symbol_converters_use_exchange_ids() {
+        assert_eq!(to_cryptocom_spot("BTCUSDT"), "BTC_USDT");
+        assert_eq!(to_cryptocom_spot("ETH_USDT"), "ETH_USDT");
+        assert_eq!(to_cryptocom_perp("BTCUSDT"), "BTCUSD-PERP");
+        assert_eq!(to_cryptocom_perp("ETHUSD-PERP"), "ETHUSD-PERP");
     }
 }

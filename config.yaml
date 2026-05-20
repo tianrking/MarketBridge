@@ -492,6 +492,16 @@ exchanges:
       maker_bps: 40.0
       taker_bps: 60.0
 
+  cryptocom:
+    enabled: false
+    # Crypto.com REST uses BTC_USDT for spot and BTCUSD-PERP for perpetuals.
+    symbols: [BTCUSDT, ETHUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 25.0
+      taker_bps: 50.0
+
   cube:
     enabled: false
     # Cube's active crypto books are commonly quoted in USDC.
