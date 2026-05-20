@@ -461,6 +461,15 @@ exchanges:
       maker_bps: 1.0
       taker_bps: 6.0
 
+  upbit:
+    enabled: false
+    # Upbit public REST uses quote-base ids; registry maps BTCUSDT -> USDT-BTC.
+    symbols: [BTCUSDT, ETHUSDT, BTCKRW, ETHKRW]
+    fee:
+      mode: fixed
+      maker_bps: 5.0
+      taker_bps: 5.0
+
   bitmex:
     enabled: false
     symbols: []

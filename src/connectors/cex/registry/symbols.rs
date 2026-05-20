@@ -1,5 +1,5 @@
 pub(super) fn split_quote(s: &str) -> (&str, &str) {
-    for q in ["USDT", "USDC", "USD", "BTC", "ETH"] {
+    for q in ["USDT", "USDC", "USD", "KRW", "BTC", "ETH"] {
         if let Some(base) = s.strip_suffix(q) {
             return (base, q);
         }

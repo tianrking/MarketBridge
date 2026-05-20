@@ -74,6 +74,7 @@ use super::okx::{
 use super::okx_perp::OkxPerpTicker;
 use super::pacifica::PacificaPerpFeed;
 use super::phemex::PhemexPerpFeed;
+use super::upbit::UpbitSpotFeed;
 use super::vertex::{VertexFeed, VertexMarket};
 use super::xrpl::{XrplPair, XrplSpotFeed};
 use symbols::{
@@ -348,6 +349,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                         perp_symbols.iter().map(|s| to_coinex_market(s)).collect(),
                     )));
                 }
+            }
+            "upbit" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(UpbitSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_upbit_market(s)).collect(),
+                )));
             }
             "gemini" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(GeminiSpotFeed::new(
@@ -661,6 +667,15 @@ fn to_phemex_perp(symbol: &str) -> String {
         .replace("_PERP", "")
         .replace("PERP", "")
         .replace(['-', '_', '/'], "")
+}
+
+fn to_upbit_market(symbol: &str) -> String {
+    if symbol.contains('-') {
+        return symbol.to_ascii_uppercase();
+    }
+    let compact = symbol.replace(['_', '/'], "").to_ascii_uppercase();
+    let (base, quote) = split_quote(&compact);
+    format!("{quote}-{base}")
 }
 
 fn to_cryptocom_perp(symbol: &str) -> String {
@@ -986,6 +1001,13 @@ mod tests {
         assert_eq!(to_phemex_perp("BTCUSDT"), "BTCUSDT");
         assert_eq!(to_phemex_perp("BTC-USDT"), "BTCUSDT");
         assert_eq!(to_phemex_perp("BTCUSDT-PERP"), "BTCUSDT");
+    }
+
+    #[test]
+    fn upbit_symbol_converter_uses_quote_base_ids() {
+        assert_eq!(to_upbit_market("BTCUSDT"), "USDT-BTC");
+        assert_eq!(to_upbit_market("BTCKRW"), "KRW-BTC");
+        assert_eq!(to_upbit_market("USDT-BTC"), "USDT-BTC");
     }
 
     #[test]

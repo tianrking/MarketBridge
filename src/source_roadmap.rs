@@ -307,6 +307,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "MarketBridge has spot/perp ticker paths; add L2/trades/funding/OI/liquidation parity.",
     },
     RoadmapSource {
+        source: "upbit",
+        source_type: "exchange",
+        product_types: SPOT,
+        domains: QUOTE_BOOK_TRADE,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST spot ticker, order book, and recent trades are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "mexc",
         source_type: "exchange",
         product_types: SPOT_PERP,

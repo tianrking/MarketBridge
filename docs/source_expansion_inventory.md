@@ -273,6 +273,7 @@ mexc
 okx
 pacifica
 phemex
+upbit
 vertex
 xrpl
 ```

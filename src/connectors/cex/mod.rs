@@ -46,6 +46,7 @@ pub mod okx_perp;
 pub mod pacifica;
 pub mod phemex;
 pub mod registry;
+pub mod upbit;
 pub mod vertex;
 pub mod ws;
 pub mod xrpl;
