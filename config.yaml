@@ -507,3 +507,12 @@ exchanges:
       mode: fixed
       maker_bps: -0.005
       taker_bps: 0.05
+
+  xrpl:
+    enabled: false
+    # XRPL issued assets require issuers; built-in mapping currently supports XRPUSD via Bitstamp USD issuer.
+    symbols: [XRPUSD]
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 0.0

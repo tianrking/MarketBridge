@@ -122,6 +122,11 @@ exchanges:
     perp_symbols: [BTCUSDT, ETHUSDT]
     fee: { mode: fixed, maker_bps: -0.005, taker_bps: 0.05 }
 
+  xrpl:
+    enabled: true
+    symbols: [XRPUSD]
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 0.0 }
+
   derive:
     enabled: true
     symbols: [ETHUSDC]

@@ -61,6 +61,7 @@ use super::okx::{
 use super::okx_perp::OkxPerpTicker;
 use super::pacifica::PacificaPerpFeed;
 use super::vertex::{VertexFeed, VertexMarket};
+use super::xrpl::{XrplPair, XrplSpotFeed};
 use symbols::{
     split_quote, to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
     to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_okx, to_okx_swap, to_slash,
@@ -250,6 +251,15 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                         spot_symbols.iter().map(|s| to_injective_spot(s)).collect(),
                         perp_symbols.iter().map(|s| to_injective_perp(s)).collect(),
                     )));
+                }
+            }
+            "xrpl" if !spot_symbols.is_empty() => {
+                let pairs = spot_symbols
+                    .iter()
+                    .filter_map(|symbol| to_xrpl_pair(symbol))
+                    .collect::<Vec<_>>();
+                if !pairs.is_empty() {
+                    out.push(Arc::new(XrplSpotFeed::new(pairs)));
                 }
             }
             "derive" => {
@@ -562,6 +572,14 @@ fn to_injective_spot(symbol: &str) -> String {
 fn to_injective_perp(symbol: &str) -> String {
     let (base, quote) = split_quote(symbol);
     format!("{base}/{quote}-PERP")
+}
+
+fn to_xrpl_pair(symbol: &str) -> Option<XrplPair> {
+    let compact = compact_symbol(symbol);
+    match compact.as_str() {
+        "XRPUSD" => Some(XrplPair::xrp_usd("XRPUSD")),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
