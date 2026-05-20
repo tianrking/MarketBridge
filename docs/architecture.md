@@ -43,6 +43,9 @@ src/connectors/
     bybit.rs
   options/
     deribit.rs
+    okx.rs
+    bybit.rs
+    binance.rs
   prediction/
     polymarket.rs
   onchain/
@@ -57,7 +60,7 @@ Connector output must be normalized into `DataEnvelope<T>` before it reaches the
 shared cache or stream layer.
 
 Status: CEX exchange adapters now live under `src/connectors/cex`.
-Deribit REST client code lives under `src/connectors/options/deribit.rs`.
+Option venue REST client code lives under `src/connectors/options`.
 Polymarket Gamma/CLOB REST client code lives under
 `src/connectors/prediction/polymarket.rs`.
 
@@ -217,7 +220,7 @@ GET /v1/options/iv
 GET /v1/options/instruments
 ```
 
-Purpose: Deribit and future options venues.
+Purpose: Deribit, OKX, Bybit, and Binance option venues.
 
 ### Prediction Market Data
 
@@ -274,11 +277,11 @@ Implemented today:
   through `WS /v1/stream`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
-- Deribit option summary direct REST and background cache.
-- Envelope-based Deribit option chains through `GET /v1/options/chains`.
+- Deribit option summary direct REST and multi-venue option background cache.
+- Envelope-based Deribit/OKX/Bybit/Binance option chains through `GET /v1/options/chains`.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.
 - Envelope-based Polymarket books through `GET /v1/prediction/books`.
-- Freshness fields for exchange ticks, Deribit cache rows, and Polymarket live books.
+- Freshness fields for exchange ticks, option cache rows, and Polymarket live books.
 
 Known architecture gaps:
 

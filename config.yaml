@@ -43,6 +43,28 @@ deribit:
   refresh_secs: 10
   stale_ttl_ms: 30000
 
+okx_options:
+  # Public OKX option chain summary. Exposed through /v1/options/chains?venue=okx
+  enabled: false
+  base_url: "https://www.okx.com/api/v5/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+
+bybit_options:
+  # Public Bybit option tickers. Exposed through /v1/options/chains?venue=bybit
+  enabled: false
+  base_url: "https://api.bybit.com/v5/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+
+binance_options:
+  # Public Binance European options tickers and mark data.
+  # Exposed through /v1/options/chains?venue=binance
+  enabled: false
+  base_url: "https://eapi.binance.com/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+
 polymarket:
   # Mature data-plane path: maintain a live CLOB cache for parsed BTC/ETH
   # binary markets. Disable if you only need exchange aggregation.

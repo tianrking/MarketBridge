@@ -161,7 +161,10 @@ management should stay outside this repo.
 | Capability | Status | Interface | Notes |
 |---|---:|---|---|
 | Deribit option summaries | Implemented | `GET /options/deribit/summary?currency=BTC` | Direct REST fetch. Returns strike, expiry, bid/ask, mark price, `mark_iv`, underlying price. |
-| Deribit option cache | Implemented first version | `GET /options/deribit/live-summary` | Background REST cache for BTC/ETH option chains with `received_at_ms` and `stale`. |
+| Unified option chain cache | Implemented | `GET /v1/options/chains?venue=deribit&currency=BTC` | Background REST cache for Deribit, OKX, Bybit, and Binance option chains with `received_at_ms` and `stale`. |
+| OKX option summaries | Implemented | `GET /v1/options/chains?venue=okx&currency=BTC` | Public `opt-summary`; includes strike, expiry, IV-style fields when venue returns them. |
+| Bybit option tickers | Implemented | `GET /v1/options/chains?venue=bybit&currency=BTC` | Public option tickers; includes bid/ask, mark, mark IV, underlying price, open interest. |
+| Binance option tickers | Implemented | `GET /v1/options/chains?venue=binance&currency=BTC` | Public European option ticker plus optional mark data; open interest is not in this public ticker payload. |
 | Deribit websocket IV | Not implemented | N/A | REST cache is enough for first paper loop; websocket IV cache is future work if REST freshness is not enough. |
 
 ### Polymarket Data
@@ -185,7 +188,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 |---|---|---:|---|
 | BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
 | Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
-| Deribit IV / option chain | Theoretical digital probability | Implemented REST and cache first versions | `/options/deribit/summary`, `/options/deribit/live-summary` |
+| Options IV / option chain | Theoretical digital probability | Implemented multi-venue REST cache | `/v1/options/chains`, `/options/deribit/summary`, `/options/deribit/live-summary` |
 | Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
 | Polymarket Yes/No token ids | Subscribe/query executable prices | Implemented first version | `/polymarket/crypto-markets` |
 | Polymarket Yes/No bid/ask/depth | Entry, exit, pair discount, capacity | Implemented REST and live cache first versions | `/polymarket/book`, `/polymarket/books`, `/polymarket/crypto-books`, `/polymarket/live-books`, `/polymarket/live-crypto-books` |
@@ -194,7 +197,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 | Live execution | Real order submit/cancel/fills | Not implemented | Future execution layer; not approved for live trading. |
 
 Bottom line: `MarketBridge` now provides a first mature data-source surface for
-paper decisions: exchange BBO/funding, Deribit option summaries, Polymarket
+paper decisions: exchange BBO/funding, multi-venue option chains, Polymarket
 market discovery, REST books, and a live Polymarket CLOB cache. It is still not
 an execution engine: authenticated Polymarket order placement/cancel/replace and
 strategy PnL validation belong in later layers.
@@ -217,7 +220,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
 | GET | `/v1/market/order-books` | Latest L2 book snapshots |
 | GET | `/v1/market/trades` | Latest public trade snapshots |
-| GET | `/v1/options/chains` | Envelope-based cached Deribit option chains |
+| GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
@@ -311,10 +314,11 @@ curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=per
 
 ### `GET /v1/options/chains`
 
-Envelope-based option chain snapshots from the Deribit cache.
+Envelope-based option chain snapshots from the unified option cache.
 
 Query params:
 
+- `venue`, optional, `deribit`, `okx`, `bybit`, or `binance`
 - `currency`, optional, e.g. `BTC`
 - `option_type`, optional, `call` or `put`
 - `strike_min`, `strike_max`, optional numeric filters
@@ -324,7 +328,7 @@ Query params:
 Example:
 
 ```bash
-curl -s "http://127.0.0.1:8080/v1/options/chains?currency=BTC&option_type=call" | jq
+curl -s "http://127.0.0.1:8080/v1/options/chains?venue=bybit&currency=BTC&option_type=call" | jq
 ```
 
 ### `GET /v1/prediction/books`
@@ -460,6 +464,24 @@ deribit:
   currencies: [BTC, ETH]
   refresh_secs: 10
   stale_ttl_ms: 30000
+
+okx_options:
+  enabled: true
+  base_url: "https://www.okx.com/api/v5/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+
+bybit_options:
+  enabled: true
+  base_url: "https://api.bybit.com/v5/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+
+binance_options:
+  enabled: true
+  base_url: "https://eapi.binance.com/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
 ```
 
 Query params:
