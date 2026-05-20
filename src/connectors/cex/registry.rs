@@ -15,6 +15,7 @@ use super::bitget_perp::BitgetPerpTicker;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
+use super::dydx::DydxFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
 use super::htx::HtxBbo;
@@ -82,6 +83,13 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                             .iter()
                             .map(|s| to_hyperliquid_coin(s))
                             .collect(),
+                    )));
+                }
+            }
+            "dydx" => {
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(DydxFeed::new(
+                        perp_symbols.iter().map(|s| to_dydx_market(s)).collect(),
                     )));
                 }
             }
@@ -294,6 +302,10 @@ fn to_kraken_perp(s: &str) -> String {
 fn to_hyperliquid_coin(s: &str) -> String {
     split_quote(s).0.to_string()
 }
+fn to_dydx_market(s: &str) -> String {
+    let (base, quote) = split_quote(s);
+    format!("{base}-{quote}")
+}
 
 #[cfg(test)]
 mod tests {
@@ -315,6 +327,7 @@ mod tests {
         assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USDTF0");
         assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");
+        assert_eq!(to_dydx_market("BTCUSDT"), "BTC-USDT");
     }
 
     #[test]
