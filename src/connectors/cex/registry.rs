@@ -209,6 +209,11 @@ fn to_kraken_perp(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{
+        AppConfig, BackpressureConfig, DeribitConfig, ExchangeConfig, FeeModel, PolymarketConfig,
+        RuntimeConfig, StrategyConfig,
+    };
+    use std::collections::HashMap;
 
     #[test]
     fn symbol_converters_work_for_usdt_pairs() {
@@ -220,5 +225,48 @@ mod tests {
         assert_eq!(to_kucoin_perp("BTCUSDT"), "BTCUSDTM");
         assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USDTF0");
+    }
+
+    #[test]
+    fn build_sources_creates_enabled_spot_and_perp_adapters() {
+        let cfg = AppConfig {
+            runtime: RuntimeConfig {
+                queue_capacity: 16,
+                backpressure: BackpressureConfig::Block,
+                report_interval_ms: 1000,
+                stale_ttl_ms: 1000,
+                api_addr: "127.0.0.1:0".to_string(),
+                redis_url: None,
+                redis_stream_prefix: "ticks".to_string(),
+            },
+            strategy: StrategyConfig {
+                min_profit_usdt: 1.0,
+                min_profit_bps: 1.0,
+                min_signal_hold_ms: 0,
+                slippage_bps: 0.0,
+            },
+            deribit: DeribitConfig::default(),
+            polymarket: PolymarketConfig::default(),
+            symbols: vec!["BTCUSDT".to_string()],
+            perp_symbols: Some(vec!["BTCUSDT".to_string()]),
+            exchanges: HashMap::from([(
+                "binance".to_string(),
+                ExchangeConfig {
+                    enabled: true,
+                    symbols: None,
+                    perp_symbols: None,
+                    fee: FeeModel::Fixed {
+                        _maker_bps: 1.0,
+                        taker_bps: 2.0,
+                    },
+                },
+            )]),
+        };
+
+        let source_names = build_sources(&cfg)
+            .into_iter()
+            .map(|source| source.name())
+            .collect::<Vec<_>>();
+        assert_eq!(source_names, vec!["binance", "binance"]);
     }
 }
