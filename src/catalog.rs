@@ -196,6 +196,30 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             connector_path: "src/connectors/sentiment/lunarcrush.rs",
             status: "implemented",
         },
+        CatalogSource {
+            source_type: "onchain",
+            source: "whale_alert",
+            venue: Some("whale_alert"),
+            domains: vec!["onchain_transfer"],
+            connector_path: "src/onchain.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "onchain",
+            source: "mempool_space",
+            venue: Some("mempool_space"),
+            domains: vec!["onchain_transfer"],
+            connector_path: "src/onchain.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "onchain",
+            source: "etherscan",
+            venue: Some("etherscan"),
+            domains: vec!["onchain_transfer"],
+            connector_path: "src/onchain.rs",
+            status: "implemented",
+        },
     ]
 }
 
@@ -261,6 +285,17 @@ fn source_runtime_status(cfg: &AppConfig, source: &str) -> &'static str {
             cfg.sentiment.lunarcrush.enabled,
             cfg.sentiment.lunarcrush.api_key.as_deref(),
             &cfg.sentiment.lunarcrush.api_key_env,
+        ),
+        "whale_alert" => keyed_status(
+            cfg.onchain.whale_alert.enabled,
+            cfg.onchain.whale_alert.api_key.as_deref(),
+            &cfg.onchain.whale_alert.api_key_env,
+        ),
+        "mempool_space" => enabled_status(cfg.onchain.mempool_space.enabled),
+        "etherscan" => keyed_status(
+            cfg.onchain.etherscan.enabled,
+            cfg.onchain.etherscan.api_key.as_deref(),
+            &cfg.onchain.etherscan.api_key_env,
         ),
         _ => "available",
     }
@@ -328,6 +363,11 @@ pub fn domain_catalog() -> Vec<CatalogDomain> {
         CatalogDomain {
             domain: "external_signal",
             endpoint: "/v1/external/signals",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "onchain_transfer",
+            endpoint: "/v1/onchain/transfers",
             status: "implemented",
         },
     ]

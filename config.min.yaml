@@ -39,6 +39,20 @@ klines:
   backfill_on_start: false
   sources: [binance, okx]
 
+onchain:
+  whale_alert:
+    enabled: false
+    api_key_env: WHALE_ALERT_API_KEY
+    min_value_usd: 500000
+  mempool_space:
+    enabled: false
+    min_value_btc: 100
+  etherscan:
+    enabled: false
+    api_key_env: ETHERSCAN_API_KEY
+    min_value_eth: 1000
+    addresses: []
+
 symbols: [BTCUSDT]
 
 exchanges:

@@ -99,6 +99,26 @@ klines:
   backfill_on_start: false
   sources: [binance, okx]
 
+onchain:
+  whale_alert:
+    enabled: false
+    base_url: "https://api.whale-alert.io/v1/"
+    api_key_env: WHALE_ALERT_API_KEY
+    poll_secs: 60
+    min_value_usd: 500000
+  mempool_space:
+    enabled: false
+    base_url: "https://mempool.space/api/"
+    poll_secs: 60
+    min_value_btc: 100
+  etherscan:
+    enabled: false
+    base_url: "https://api.etherscan.io/api"
+    api_key_env: ETHERSCAN_API_KEY
+    poll_secs: 60
+    min_value_eth: 1000
+    addresses: []
+
 defi:
   jupiter:
     enabled: false

@@ -2,6 +2,7 @@ pub mod catalog;
 pub mod external;
 pub mod legacy;
 pub mod market;
+pub mod onchain;
 pub mod options;
 pub mod prediction;
 pub mod stream;

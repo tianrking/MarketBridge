@@ -27,6 +27,7 @@ Status labels:
 | Options chains | `/v1/options/chains` | implemented | keyless | Deribit/OKX/Bybit/Binance REST cache. |
 | Prediction books | `/v1/prediction/books` | implemented | keyless | Polymarket live CLOB cache. |
 | External signals | `/v1/external/signals` | implemented | mixed | CoinGlass, news, social, sentiment. |
+| Onchain transfers | `/v1/onchain/transfers` | implemented | mixed | Whale Alert, mempool.space, and Etherscan large-transfer collectors. |
 
 ## CEX Connector Coverage
 
@@ -86,6 +87,14 @@ Status labels:
 | DXY | market_quote | implemented | keyless | n/a |
 | VIX | market_quote | implemented | keyless | n/a |
 | US10Y | market_quote | implemented | required | `FRED_API_KEY` |
+
+## Onchain Transfer Coverage
+
+| Source | Chain | Status | API key | Notes |
+|---|---|---:|---:|---|
+| Whale Alert | multi-chain | implemented | required | Global large transfer feed; configured by `WHALE_ALERT_API_KEY` and `min_value_usd`. |
+| mempool.space | Bitcoin | implemented | keyless | Recent mempool transaction poller; filters by `min_value_btc` when payload exposes value. |
+| Etherscan | Ethereum | implemented | required | Address watchlist transfer poller; configured by `ETHERSCAN_API_KEY` and `onchain.etherscan.addresses`. |
 
 ## Infrastructure Gaps
 

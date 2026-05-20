@@ -8,6 +8,7 @@ use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
 use crate::klines::KlineStore;
 use crate::metrics::AppMetrics;
+use crate::onchain::OnchainTransferStore;
 use crate::order_flow::OrderFlowStore;
 use crate::polymarket_ws::PolymarketBookCache;
 
@@ -26,6 +27,7 @@ pub struct ApiState {
     pub polymarket_cache: PolymarketBookCache,
     pub kline_store: KlineStore,
     pub order_flow_store: OrderFlowStore,
+    pub onchain_store: OnchainTransferStore,
 }
 
 pub fn build_router(state: ApiState) -> Router {
@@ -68,6 +70,10 @@ pub fn build_router(state: ApiState) -> Router {
         .route(
             "/v1/external/signals",
             get(routes::external::v1_external_signals),
+        )
+        .route(
+            "/v1/onchain/transfers",
+            get(routes::onchain::v1_onchain_transfers),
         )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))

@@ -378,6 +378,14 @@ management should stay outside this repo.
 | Santiment metrics | Implemented | `GET /v1/external/signals?sources=santiment` | Requires `SANTIMENT_API_KEY`; GraphQL metrics are config-driven. |
 | LunarCrush social metrics | Implemented | `GET /v1/external/signals?sources=lunarcrush` | Requires `LUNARCRUSH_API_KEY`; endpoint/base URL is configurable. |
 
+### On-chain Large Transfer Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| Whale Alert large transfers | Implemented | `GET /v1/onchain/transfers?source=whale_alert` | Requires `WHALE_ALERT_API_KEY`; global multi-chain large-transfer feed. |
+| mempool.space BTC large transfers | Implemented | `GET /v1/onchain/transfers?source=mempool_space&chain=bitcoin` | Keyless BTC mempool poller; filters by configured BTC threshold when value is available. |
+| Etherscan watched-address transfers | Implemented | `GET /v1/onchain/transfers?source=etherscan&chain=ethereum` | Requires `ETHERSCAN_API_KEY`; monitors configured addresses, not full-chain firehose. |
+
 ## Strategy Readiness Matrix
 
 For the crypto binary fair-value / market-making strategy discussed with
@@ -431,6 +439,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
+| GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -467,6 +476,12 @@ Aggregate and sentiment sources use the external signal surface:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/external/signals?sources=coinglass,fear_greed,cryptopanic,santiment,lunarcrush" | jq
+```
+
+On-chain transfer sources use their own surface:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&asset=BTC&min_amount_usd=500000" | jq
 ```
 
 ### Exchange Public Data Coverage
@@ -1053,6 +1068,51 @@ Current metrics include:
 - `ws_subscribers`
 - `redis_xadd_total`
 - `ticks_dropped_total`
+
+### `GET /v1/onchain/transfers`
+
+Large transfer cache populated by optional on-chain collectors.
+
+Config:
+
+```yaml
+onchain:
+  whale_alert:
+    enabled: true
+    api_key_env: WHALE_ALERT_API_KEY
+    min_value_usd: 500000
+  mempool_space:
+    enabled: true
+    min_value_btc: 100
+  etherscan:
+    enabled: true
+    api_key_env: ETHERSCAN_API_KEY
+    min_value_eth: 1000
+    addresses:
+      - "0x..."
+```
+
+Query params:
+
+- `source=whale_alert|mempool_space|etherscan`
+- `chain=bitcoin|ethereum|...`
+- `asset=BTC|ETH|USDT`
+- `min_amount_usd`, only applies when the source provides USD value
+- `limit`, default `500`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&min_amount_usd=1000000" | jq
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=mempool_space&chain=bitcoin&asset=BTC" | jq
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=etherscan&chain=ethereum&asset=ETH" | jq
+```
+
+Important source boundaries:
+
+- Whale Alert is the simplest global large-transfer feed but requires an API key.
+- mempool.space is keyless and BTC-focused; its recent mempool endpoint may not expose full address-level transfer semantics.
+- Etherscan in this project monitors configured addresses. It is not a full-chain firehose.
 
 ## Connection Model Matrix
 
