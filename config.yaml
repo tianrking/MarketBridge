@@ -497,6 +497,15 @@ exchanges:
       maker_bps: 9.8
       taker_bps: 9.8
 
+  bithumb:
+    enabled: false
+    # Bithumb public REST uses BTC_KRW style ids; registry maps BTCKRW -> BTC_KRW.
+    symbols: [BTCKRW, ETHKRW]
+    fee:
+      mode: fixed
+      maker_bps: 25.0
+      taker_bps: 25.0
+
   binance:
     enabled: false
     fee:

@@ -206,6 +206,11 @@ exchanges:
     symbols: [BTCUSDT, ETHUSDT]
     fee: { mode: fixed, maker_bps: 9.8, taker_bps: 9.8 }
 
+  bithumb:
+    enabled: true
+    symbols: [BTCKRW, ETHKRW]
+    fee: { mode: fixed, maker_bps: 25.0, taker_bps: 25.0 }
+
   btc_markets:
     enabled: true
     symbols: [BTCAUD, ETHAUD]

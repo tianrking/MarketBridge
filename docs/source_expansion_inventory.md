@@ -251,6 +251,7 @@ bitfinex
 bitget
 bitmart
 bitmex
+bithumb
 bitstamp
 btc_markets
 bybit

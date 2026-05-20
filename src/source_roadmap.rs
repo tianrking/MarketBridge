@@ -127,6 +127,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Public spot simple-depth WS stream wired; trades remain planned.",
     },
     RoadmapSource {
+        source: "bithumb",
+        source_type: "exchange",
+        product_types: SPOT,
+        domains: QUOTE_BOOK_TRADE,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST spot ticker, order book, and recent trades are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "bitstamp",
         source_type: "exchange",
         product_types: SPOT,

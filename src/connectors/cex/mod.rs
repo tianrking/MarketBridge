@@ -9,6 +9,7 @@ pub mod bitfinex;
 pub mod bitfinex_perp;
 pub mod bitget;
 pub mod bitget_perp;
+pub mod bithumb;
 pub mod bitmart;
 pub mod bitmex;
 pub mod bitrue;
