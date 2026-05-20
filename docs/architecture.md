@@ -77,7 +77,9 @@ shared cache or stream layer.
 Status: CEX exchange adapters now live under `src/connectors/cex`.
 Option venue REST client code lives under `src/connectors/options`.
 Polymarket Gamma/CLOB REST client code lives under
-`src/connectors/prediction/polymarket.rs`.
+`src/connectors/prediction/polymarket.rs`. Gamma market parsing lives in
+`src/connectors/prediction/polymarket_parser.rs` so parser heuristics can evolve
+without touching CLOB REST wrappers.
 
 ### 2. Domain Layer
 
@@ -328,6 +330,14 @@ event fanout in `src/event_bus.rs`.
 This split is deliberate: future snapshot optimizations such as ArcSwap,
 pre-serialized bytes, or sharded stores should be implemented in the snapshot
 layer without changing connector code or API route logic.
+
+## Strategy Signal Reporting
+
+MarketBridge does not own strategy decisions, but it does emit operational
+spread signals for data-plane sanity checks. Async aggregation and reporting
+live in `src/aggregator.rs`; reusable spread math, executable depth pricing,
+symbol normalization, and profit breakdowns live in `src/aggregator_signal.rs`.
+This keeps deterministic signal math testable without starting source runtimes.
 
 ## Current State
 
