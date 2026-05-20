@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use anyhow::Result;
 
-use crate::exchanges::bybit::run_bybit;
+use crate::connectors::cex::bybit::run_bybit;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::MarketKind;
 

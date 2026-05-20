@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use anyhow::Result;
 
-use crate::exchanges::okx::run_okx;
+use crate::connectors::cex::okx::run_okx;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::MarketKind;
 

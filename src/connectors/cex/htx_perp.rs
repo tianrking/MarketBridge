@@ -2,27 +2,27 @@ use async_trait::async_trait;
 
 use anyhow::Result;
 
-use crate::exchanges::kraken::run_kraken;
+use crate::connectors::cex::htx::run_htx;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::MarketKind;
 
-pub struct KrakenPerpTicker {
+pub struct HtxPerpBbo {
     pub symbols: Vec<String>,
 }
-impl KrakenPerpTicker {
+impl HtxPerpBbo {
     pub fn new(symbols: Vec<String>) -> Self {
         Self { symbols }
     }
 }
 
 #[async_trait]
-impl ExchangeSource for KrakenPerpTicker {
+impl ExchangeSource for HtxPerpBbo {
     fn name(&self) -> &'static str {
-        "kraken"
+        "htx"
     }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_kraken(
-            "wss://ws.kraken.com/v2",
+        run_htx(
+            "wss://api.hbdm.com/linear-swap-ws",
             self.name(),
             MarketKind::Perp,
             &self.symbols,

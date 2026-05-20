@@ -676,7 +676,7 @@ cargo test
 
 ## Extend New Exchange
 
-1. Add `src/exchanges/<name>.rs`
+1. Add `src/connectors/cex/<name>.rs`
 2. Implement `ExchangeSource`
 3. Convert payloads into `MarketTick` (`Spot` or `Perp`)
-4. Register source in `src/exchanges/registry.rs`
+4. Register source in `src/connectors/cex/registry.rs`

@@ -2,29 +2,27 @@ use async_trait::async_trait;
 
 use anyhow::Result;
 
-use crate::exchanges::gate::run_gate;
+use crate::connectors::cex::kraken::run_kraken;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::MarketKind;
 
-pub struct GatePerpBookTicker {
+pub struct KrakenPerpTicker {
     pub symbols: Vec<String>,
 }
-impl GatePerpBookTicker {
+impl KrakenPerpTicker {
     pub fn new(symbols: Vec<String>) -> Self {
         Self { symbols }
     }
 }
 
 #[async_trait]
-impl ExchangeSource for GatePerpBookTicker {
+impl ExchangeSource for KrakenPerpTicker {
     fn name(&self) -> &'static str {
-        "gate"
+        "kraken"
     }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_gate(
-            "wss://fx-ws.gateio.ws/v4/ws/usdt",
-            "futures.book_ticker",
-            "futures.ping",
+        run_kraken(
+            "wss://ws.kraken.com/v2",
             self.name(),
             MarketKind::Perp,
             &self.symbols,

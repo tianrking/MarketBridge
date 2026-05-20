@@ -56,6 +56,8 @@ src/connectors/
 Connector output must be normalized into `DataEnvelope<T>` before it reaches the
 shared cache or stream layer.
 
+Status: CEX exchange adapters now live under `src/connectors/cex`.
+
 ### 2. Domain Layer
 
 Organized by data type because downstream consumers query by what the data is,

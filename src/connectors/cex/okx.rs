@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::exchanges::common::emit_tick_ext;
+use crate::connectors::cex::common::emit_tick_ext;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{DataEvent, MarketKind, now_ms};
 

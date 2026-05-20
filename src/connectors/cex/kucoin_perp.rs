@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use anyhow::Result;
 
-use crate::exchanges::kucoin::{KucoinConf, run_kucoin};
+use crate::connectors::cex::kucoin::{KucoinConf, run_kucoin};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::MarketKind;
 

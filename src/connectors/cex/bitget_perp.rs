@@ -2,28 +2,27 @@ use async_trait::async_trait;
 
 use anyhow::Result;
 
-use crate::exchanges::binance::run_binance;
+use crate::connectors::cex::bitget::run_bitget;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::MarketKind;
 
-pub struct BinancePerpBookTicker {
-    symbols: Vec<String>,
+pub struct BitgetPerpTicker {
+    pub symbols: Vec<String>,
 }
-
-impl BinancePerpBookTicker {
+impl BitgetPerpTicker {
     pub fn new(symbols: Vec<String>) -> Self {
         Self { symbols }
     }
 }
 
 #[async_trait]
-impl ExchangeSource for BinancePerpBookTicker {
+impl ExchangeSource for BitgetPerpTicker {
     fn name(&self) -> &'static str {
-        "binance"
+        "bitget"
     }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_binance(
-            "wss://fstream.binance.com/stream?",
+        run_bitget(
+            "USDT-FUTURES",
             self.name(),
             MarketKind::Perp,
             &self.symbols,
