@@ -11,6 +11,7 @@ use crate::catalog::{domain_catalog, health_status, source_catalog_for_config};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::domains::prediction::book::envelope_from_polymarket_book;
+use crate::source_roadmap;
 
 #[derive(Debug, Serialize)]
 struct CatalogHealth {
@@ -33,6 +34,14 @@ pub async fn domains() -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
         "domains": domain_catalog()
+    }))
+}
+
+pub async fn source_roadmap() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "version": "v1",
+        "boundary": "data_only_no_execution_no_private_keys",
+        "sources": source_roadmap::source_roadmap()
     }))
 }
 

@@ -85,6 +85,11 @@ domain model.
 The consumer-facing endpoint map is maintained in
 [docs/data_interfaces.md](docs/data_interfaces.md).
 
+The CCXT/Hummingbot expansion inventory is tracked in
+[docs/source_expansion_inventory.md](docs/source_expansion_inventory.md). It is
+a roadmap inventory, not an implementation claim; use
+[docs/feature_inventory.md](docs/feature_inventory.md) for runtime coverage.
+
 ## Tech Stack
 
 - Language: `Rust 2024`

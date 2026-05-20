@@ -35,6 +35,10 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/ws/ticks", get(routes::stream::ws_ticks))
         .route("/v1/stream", get(routes::stream::v1_stream))
         .route("/v1/catalog/sources", get(routes::catalog::sources))
+        .route(
+            "/v1/catalog/source-roadmap",
+            get(routes::catalog::source_roadmap),
+        )
         .route("/v1/catalog/domains", get(routes::catalog::domains))
         .route("/v1/catalog/instruments", get(routes::catalog::instruments))
         .route("/v1/catalog/health", get(routes::catalog::health))

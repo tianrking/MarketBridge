@@ -243,6 +243,7 @@ Base URL: `http://127.0.0.1:8080`
 |---|---|---|
 | GET | `/health` | Service liveness. |
 | GET | `/v1/catalog/sources` | Source availability and API-key status. |
+| GET | `/v1/catalog/source-roadmap` | Hummingbot/CCXT expansion inventory with MarketBridge implementation status. |
 | GET | `/v1/catalog/domains` | Normalized domain inventory. |
 | GET | `/v1/catalog/instruments` | Instruments visible in live caches. |
 | GET | `/v1/catalog/health` | Domain/source counts and freshness. |

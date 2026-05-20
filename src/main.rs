@@ -18,6 +18,7 @@ mod redis_sink;
 mod router;
 mod runtime;
 mod source;
+mod source_roadmap;
 mod types;
 
 use aggregator::SpreadAggregator;
