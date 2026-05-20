@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::config::AppConfig;
 use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
+use crate::connectors::aggregate::coinglass::CoinGlassPoller;
 use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
@@ -336,6 +337,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     if cfg.aggregates.coinmarketcap.enabled {
         out.push(Arc::new(CoinMarketCapPricePoller::new(
             cfg.aggregates.coinmarketcap.clone(),
+        )));
+    }
+    if cfg.aggregates.coinglass.enabled {
+        out.push(Arc::new(CoinGlassPoller::new(
+            cfg.aggregates.coinglass.clone(),
         )));
     }
 
