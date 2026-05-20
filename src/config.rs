@@ -492,7 +492,7 @@ fn default_uniswap_v3_pools() -> Vec<UniswapV3Pool> {
     vec![UniswapV3Pool {
         symbol: "ETHUSDC".to_string(),
         pool_id: "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8".to_string(),
-        invert: true,
+        invert: false,
         spread_bps: default_defi_spread_bps(),
     }]
 }

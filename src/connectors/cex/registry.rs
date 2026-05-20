@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::config::AppConfig;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
+use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
 use crate::source::ExchangeSource;
 
 use super::backpack::BackpackFeed;
@@ -289,6 +290,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     }
     if cfg.defi.raydium.enabled {
         out.push(Arc::new(RaydiumPricePoller::new(cfg.defi.raydium.clone())));
+    }
+    if cfg.defi.uniswap_v3.enabled {
+        out.push(Arc::new(UniswapV3PoolPoller::new(
+            cfg.defi.uniswap_v3.clone(),
+        )));
     }
 
     out
