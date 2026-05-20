@@ -257,6 +257,20 @@ aggregates:
     poll_secs: 60
     symbols: [BTC, ETH]
 
+  # Generic numeric/JSON external signal pollers. Each row emits one
+  # /v1/external/signals item and never touches accounts, wallets, or orders.
+  custom_apis: []
+  # Example:
+  # custom_apis:
+  #   - enabled: true
+  #     name: sample_price
+  #     url: "https://example.com/price.json"
+  #     category: custom
+  #     symbol: BTC
+  #     metric: sample_price
+  #     value_path: data.price
+  #     poll_secs: 5
+
 sentiment:
   fear_greed:
     enabled: false

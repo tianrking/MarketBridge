@@ -531,9 +531,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: DATA_FEED,
         domains: &["external_signal"],
         upstreams: UP_HB_DATA,
-        marketbridge_status: "planned",
+        marketbridge_status: "implemented",
         priority: "P2",
-        notes: "Generic custom API feed pattern; add only with strict schema and source health controls.",
+        notes: "Generic numeric/JSON external signal pollers are wired through aggregates.custom_apis.",
     },
     RoadmapSource {
         source: "binance_liquidations_feed",

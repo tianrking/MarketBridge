@@ -7,6 +7,7 @@ use crate::connectors::aggregate::coincap::CoinCapPricePoller;
 use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
 use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
+use crate::connectors::aggregate::custom_api::CustomApiPoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
@@ -377,6 +378,9 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         out.push(Arc::new(CoinGlassPoller::new(
             cfg.aggregates.coinglass.clone(),
         )));
+    }
+    for custom_api in cfg.aggregates.custom_apis.iter().filter(|api| api.enabled) {
+        out.push(Arc::new(CustomApiPoller::new(custom_api.clone())));
     }
     if cfg.sentiment.fear_greed.enabled {
         out.push(Arc::new(FearGreedPoller::new(

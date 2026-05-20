@@ -295,6 +295,8 @@ pub struct AggregatesConfig {
     pub coinmarketcap: CoinMarketCapConfig,
     #[serde(default)]
     pub coinglass: CoinGlassConfig,
+    #[serde(default)]
+    pub custom_apis: Vec<CustomApiConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -365,6 +367,23 @@ pub struct CoinGlassConfig {
     pub poll_secs: u64,
     #[serde(default = "default_coinglass_symbols")]
     pub symbols: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CustomApiConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    pub name: String,
+    pub url: String,
+    #[serde(default = "default_external_category")]
+    pub category: String,
+    #[serde(default)]
+    pub symbol: Option<String>,
+    pub metric: String,
+    #[serde(default)]
+    pub value_path: String,
+    #[serde(default = "default_custom_api_poll_secs")]
+    pub poll_secs: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -743,8 +762,16 @@ fn default_coinglass_poll_secs() -> u64 {
     60
 }
 
+fn default_custom_api_poll_secs() -> u64 {
+    5
+}
+
 fn default_aggregate_spread_bps() -> f64 {
     2.0
+}
+
+fn default_external_category() -> String {
+    "custom".to_string()
 }
 
 fn default_vs_currency() -> String {

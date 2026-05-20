@@ -90,6 +90,7 @@ Status labels:
 | CoinCap | market_quote | implemented | optional | `COINCAP_API_KEY` |
 | CoinMarketCap | market_quote | implemented | required | `COINMARKETCAP_API_KEY` |
 | CoinGlass | external_signal | implemented | required | `COINGLASS_API_KEY` |
+| Custom API | external_signal | implemented | keyless | Generic numeric/JSON pollers configured by `aggregates.custom_apis`. |
 | Fear & Greed | external_signal | implemented | keyless | n/a |
 | CryptoPanic | external_signal | implemented | required | `CRYPTOPANIC_API_KEY` |
 | Santiment | external_signal | implemented | required | `SANTIMENT_API_KEY` |
