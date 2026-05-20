@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 
 use crate::metrics::AppMetrics;
 use crate::types::{BackpressureMode, DataEvent};
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct SourceContext {
@@ -14,6 +15,11 @@ pub struct SourceContext {
 
 impl SourceContext {
     pub async fn emit(&self, ev: DataEvent) -> Result<()> {
+        if !ev.has_finite_numbers() {
+            warn!("dropping data event with non-finite numeric field");
+            self.metrics.ticks_dropped_total.inc();
+            return Ok(());
+        }
         match self.backpressure {
             BackpressureMode::Block => {
                 self.tx.send(ev).await?;

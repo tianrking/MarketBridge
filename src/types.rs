@@ -116,6 +116,47 @@ pub enum DataEvent {
     Heartbeat { exchange: &'static str, ts_ms: u64 },
 }
 
+impl DataEvent {
+    pub fn has_finite_numbers(&self) -> bool {
+        match self {
+            DataEvent::Tick(t) => {
+                finite(t.bid)
+                    && finite(t.ask)
+                    && t.mark.is_none_or(finite)
+                    && t.funding_rate.is_none_or(finite)
+            }
+            DataEvent::FundingRate(t) => {
+                finite(t.funding_rate)
+                    && t.mark_price.is_none_or(finite)
+                    && t.index_price.is_none_or(finite)
+            }
+            DataEvent::OpenInterest(t) => {
+                finite(t.open_interest) && t.open_interest_value.is_none_or(finite)
+            }
+            DataEvent::Trade(t) => finite(t.price) && finite(t.qty),
+            DataEvent::Liquidation(t) => finite(t.price) && finite(t.qty),
+            DataEvent::OrderBook(t) => {
+                t.bids.iter().all(BookLevel::has_finite_numbers)
+                    && t.asks.iter().all(BookLevel::has_finite_numbers)
+            }
+            DataEvent::ExternalSignal(t) => {
+                t.value.is_none_or(finite) && t.score.is_none_or(finite)
+            }
+            DataEvent::Heartbeat { .. } => true,
+        }
+    }
+}
+
+impl BookLevel {
+    fn has_finite_numbers(&self) -> bool {
+        finite(self.price) && finite(self.qty)
+    }
+}
+
+fn finite(value: f64) -> bool {
+    value.is_finite()
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum BackpressureMode {
     Block,
@@ -133,4 +174,46 @@ pub fn now_ms() -> u64 {
     LAST_NOW_MS
         .fetch_max(current, Ordering::Relaxed)
         .max(current)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn data_event_rejects_non_finite_market_tick() {
+        let event = DataEvent::Tick(MarketTick {
+            exchange: "test",
+            market: MarketKind::Spot,
+            symbol: "BTCUSDT".into(),
+            bid: f64::NAN,
+            ask: 1.0,
+            mark: None,
+            funding_rate: None,
+            ts_ms: 1,
+        });
+
+        assert!(!event.has_finite_numbers());
+    }
+
+    #[test]
+    fn data_event_accepts_finite_order_book() {
+        let event = DataEvent::OrderBook(OrderBookTick {
+            exchange: "test",
+            market: MarketKind::Spot,
+            symbol: "BTCUSDT".into(),
+            bids: vec![BookLevel {
+                price: 1.0,
+                qty: 2.0,
+            }],
+            asks: vec![BookLevel {
+                price: 3.0,
+                qty: 4.0,
+            }],
+            last_update_id: None,
+            ts_ms: 1,
+        });
+
+        assert!(event.has_finite_numbers());
+    }
 }
