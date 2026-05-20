@@ -32,6 +32,7 @@ use super::binance::{
 };
 use super::binance_perp::BinancePerpBookTicker;
 use super::bingx::BingxSwapFeed;
+use super::bitbank::BitbankSpotFeed;
 use super::bitfinex::BitfinexTicker;
 use super::bitfinex_perp::BitfinexPerpTicker;
 use super::bitflyer::BitflyerSpotFeed;
@@ -178,6 +179,14 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "bingx" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(BingxSwapFeed::new(
                     perp_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
+            }
+            "bitbank" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(BitbankSpotFeed::new(
+                    spot_symbols
+                        .iter()
+                        .map(|s| to_underscore(s).to_ascii_lowercase())
+                        .collect(),
                 )));
             }
             "bybit" => {

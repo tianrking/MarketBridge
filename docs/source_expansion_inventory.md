@@ -247,6 +247,7 @@ architect
 backpack
 binance
 bingx / bing_x
+bitbank
 bitfinex
 bitget
 bitmart

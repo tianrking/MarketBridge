@@ -212,6 +212,11 @@ exchanges:
     symbols: [BTCJPY, ETHJPY]
     fee: { mode: fixed, maker_bps: 15.0, taker_bps: 15.0 }
 
+  bitbank:
+    enabled: true
+    symbols: [BTCJPY, ETHJPY]
+    fee: { mode: fixed, maker_bps: -2.0, taker_bps: 12.0 }
+
   ascend_ex:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]
