@@ -6,7 +6,8 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::config::{BybitOptionsConfig, DeribitConfig, OkxOptionsConfig};
+use crate::config::{BinanceOptionsConfig, BybitOptionsConfig, DeribitConfig, OkxOptionsConfig};
+use crate::connectors::options::binance::fetch_binance_option_summaries_from;
 use crate::connectors::options::bybit::fetch_bybit_option_summaries_from;
 use crate::connectors::options::common::OptionSummary;
 use crate::connectors::options::deribit::fetch_deribit_option_summaries_from;
@@ -72,10 +73,6 @@ impl OptionCache {
         }));
     }
 
-    pub async fn replace_currency(&self, currency: &str, rows: Vec<OptionSummary>) {
-        self.replace_venue_currency("deribit", currency, rows).await;
-    }
-
     pub async fn filtered(&self, filter: OptionFilter) -> Vec<CachedOptionSummary> {
         let venue = filter.venue.map(|x| x.trim().to_ascii_lowercase());
         let currency = filter.currency.map(|x| x.trim().to_ascii_uppercase());
@@ -139,7 +136,6 @@ impl OptionCache {
     }
 }
 
-pub type CachedDeribitOptionSummary = CachedOptionSummary;
 pub type DeribitOptionFilter = OptionFilter;
 pub type DeribitOptionCache = OptionCache;
 
@@ -242,6 +238,44 @@ pub fn spawn_bybit_option_cache(
                     }
                     Err(error) => {
                         warn!(currency, %error, "bybit option cache refresh failed");
+                    }
+                }
+            }
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
+            }
+        }
+    })
+}
+
+pub fn spawn_binance_option_cache(
+    cfg: BinanceOptionsConfig,
+    client: reqwest::Client,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let currencies = normalized_currencies(&cfg.currencies);
+        if currencies.is_empty() {
+            warn!("binance option cache enabled with empty currencies");
+            return;
+        }
+        loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            for currency in &currencies {
+                match fetch_binance_option_summaries_from(&client, &cfg.base_url, currency).await {
+                    Ok(rows) => {
+                        let count = rows.len();
+                        cache
+                            .replace_venue_currency("binance", currency, rows)
+                            .await;
+                        info!(currency, count, "binance option cache refreshed");
+                    }
+                    Err(error) => {
+                        warn!(currency, %error, "binance option cache refresh failed");
                     }
                 }
             }

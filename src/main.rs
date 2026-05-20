@@ -20,8 +20,8 @@ use api::{ApiState, build_router};
 use config::AppConfig;
 use connectors::cex::registry::build_sources;
 use deribit_cache::{
-    DeribitOptionCache, spawn_bybit_option_cache, spawn_deribit_option_cache,
-    spawn_okx_option_cache,
+    DeribitOptionCache, spawn_binance_option_cache, spawn_bybit_option_cache,
+    spawn_deribit_option_cache, spawn_okx_option_cache,
 };
 use event_bus::EventBus;
 use metrics::AppMetrics;
@@ -126,6 +126,15 @@ async fn main() -> anyhow::Result<()> {
         )
     });
 
+    let binance_options_task = cfg.binance_options.enabled.then(|| {
+        spawn_binance_option_cache(
+            cfg.binance_options.clone(),
+            http.clone(),
+            deribit_cache.clone(),
+            shutdown.clone(),
+        )
+    });
+
     let polymarket_task = cfg.polymarket.enabled.then(|| {
         spawn_polymarket_ws_cache(
             cfg.polymarket.clone(),
@@ -169,6 +178,10 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(bybit_options_task) = bybit_options_task {
         let _ = bybit_options_task.await;
+    }
+
+    if let Some(binance_options_task) = binance_options_task {
+        let _ = binance_options_task.await;
     }
 
     if let Some(polymarket_task) = polymarket_task {
