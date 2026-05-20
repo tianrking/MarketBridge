@@ -64,17 +64,30 @@ impl EventRouter {
     }
 
     pub async fn run(mut self) {
+        let (bus_tx, mut bus_rx) = mpsc::channel::<DataEvent>(1024);
+        let bus = self.bus.clone();
+        let metrics = self.metrics.clone();
+        let bus_task = tokio::spawn(async move {
+            while let Some(event) = bus_rx.recv().await {
+                bus.publish_from_event(&event);
+                if matches!(&event, DataEvent::Tick(_)) {
+                    metrics.bus_publish_total.inc();
+                }
+            }
+        });
+
         while let Some(event) = self.source_rx.recv().await {
             if matches!(&event, DataEvent::Tick(_)) {
                 self.metrics.ticks_ingested_total.inc();
             }
-            self.bus.publish_from_event(&event).await;
-            if matches!(&event, DataEvent::Tick(_)) {
-                self.metrics.bus_publish_total.inc();
+            if bus_tx.send(event.clone()).await.is_err() {
+                break;
             }
             if self.agg_tx.send(event).await.is_err() {
                 break;
             }
         }
+        drop(bus_tx);
+        let _ = bus_task.await;
     }
 }

@@ -83,7 +83,7 @@ impl EventBus {
         }
     }
 
-    pub async fn publish_from_event(&self, event: &DataEvent) {
+    pub fn publish_from_event(&self, event: &DataEvent) {
         let _ = self.event_tx.send(event.clone());
         match event {
             DataEvent::Tick(t) => {
@@ -177,7 +177,7 @@ mod tests {
             funding_rate: None,
             ts_ms: now_ms(),
         };
-        bus.publish_from_event(&DataEvent::Tick(tick)).await;
+        bus.publish_from_event(&DataEvent::Tick(tick));
         let all = bus.snapshot_all().await;
         assert_eq!(all.len(), 1);
         let t = &all[0];
@@ -188,8 +188,7 @@ mod tests {
         bus.publish_from_event(&DataEvent::Heartbeat {
             exchange: "okx",
             ts_ms: now_ms(),
-        })
-        .await;
+        });
         assert!(matches!(
             rx.recv().await,
             Ok(DataEvent::Heartbeat {
@@ -218,16 +217,14 @@ mod tests {
             mark_price: Some(100.0),
             index_price: Some(99.0),
             ts_ms,
-        }))
-        .await;
+        }));
         bus.publish_from_event(&DataEvent::OpenInterest(OpenInterestTick {
             exchange: "binance",
             symbol: "BTCUSDT".into(),
             open_interest: 10.0,
             open_interest_value: Some(1000.0),
             ts_ms,
-        }))
-        .await;
+        }));
         bus.publish_from_event(&DataEvent::Trade(TradeTick {
             exchange: "binance",
             market: MarketKind::Perp,
@@ -237,8 +234,7 @@ mod tests {
             side: TradeSide::Buy,
             trade_id: Some("1".into()),
             ts_ms,
-        }))
-        .await;
+        }));
         bus.publish_from_event(&DataEvent::Liquidation(LiquidationTick {
             exchange: "binance",
             symbol: "BTCUSDT".into(),
@@ -246,8 +242,7 @@ mod tests {
             price: 90.0,
             qty: 1.0,
             ts_ms,
-        }))
-        .await;
+        }));
         bus.publish_from_event(&DataEvent::OrderBook(OrderBookTick {
             exchange: "binance",
             market: MarketKind::Perp,
@@ -262,8 +257,7 @@ mod tests {
             }],
             last_update_id: Some(7),
             ts_ms,
-        }))
-        .await;
+        }));
 
         assert_eq!(bus.funding_snapshot_all().await.len(), 1);
         assert_eq!(bus.open_interest_snapshot_all().await.len(), 1);
@@ -281,8 +275,7 @@ mod tests {
             url: None,
             ts_ms: now_ms(),
             raw: None,
-        }))
-        .await;
+        }));
         assert_eq!(bus.external_signal_snapshot_all().await.len(), 1);
     }
 
@@ -301,8 +294,7 @@ mod tests {
             mark_price: None,
             index_price: None,
             ts_ms,
-        }))
-        .await;
+        }));
 
         assert!(matches!(
             funding_rx.recv().await,
