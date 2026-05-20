@@ -92,6 +92,7 @@ Status labels:
 | Extended EventBus broadcast | implemented | P1 | `subscribe_events()` broadcasts raw `DataEvent`; high-volume domains also have isolated broadcast channels. |
 | Per-domain websocket subscriptions | implemented | P0 | `/v1/stream` can subscribe to quote/funding/OI/trade/liquidation/book/external_signal domains without unrelated quote receivers. |
 | Large configurable broadcast buffers | implemented | P0 | `runtime.broadcast_capacity` defaults to 65,536; slow subscribers lag only their own receiver. |
+| Slow websocket isolation | implemented | P0 | WS sends have a 3s timeout; slow clients are disconnected without blocking other subscribers. |
 | Order-book level arbitrage | implemented | P1 | Spread engine emits `book_signal` from L2 depth using a conservative fixed 1,000 USDT notional. |
 | Maker fee modeling | implemented | P2 | `strategy.fee_mode` supports `taker`, `maker`, `maker_buy_taker_sell`, and `taker_buy_maker_sell`. |
 | Dynamic catalog from runtime config | planned | P2 | Static catalog documents possible sources, not enabled sources. |

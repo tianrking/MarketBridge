@@ -6,7 +6,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use serde::Deserialize;
-use tokio::time::interval;
+use tokio::time::{interval, timeout};
 use tracing::warn;
 
 use crate::api::ApiState;
@@ -18,6 +18,8 @@ use crate::domains::prediction::book::envelope_from_polymarket_book;
 use crate::event_bus::{EventBus, EventDomain, NormalizedTick};
 use crate::metrics::AppMetrics;
 use crate::types::{DataEvent, MarketKind};
+
+const WS_SEND_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Deserialize, Default)]
 pub struct TickFilterQuery {
@@ -99,7 +101,7 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
     loop {
         tokio::select! {
             _ = hb.tick() => {
-                if socket.send(Message::Ping(vec![])).await.is_err() {
+                if send_ws(&mut socket, Message::Ping(vec![])).await.is_err() {
                     break;
                 }
             }
@@ -224,7 +226,7 @@ async fn ws_loop(
     loop {
         tokio::select! {
             _ = hb.tick() => {
-                if socket.send(Message::Ping(vec![])).await.is_err() {
+                if send_ws(&mut socket, Message::Ping(vec![])).await.is_err() {
                     break;
                 }
             }
@@ -236,7 +238,7 @@ async fn ws_loop(
                         }
                         match serde_json::to_string(&tick) {
                             Ok(line) => {
-                                if socket.send(Message::Text(line)).await.is_err() {
+                                if send_ws(&mut socket, Message::Text(line)).await.is_err() {
                                     break;
                                 }
                             }
@@ -510,7 +512,7 @@ fn event_matches(event: &DataEvent, domains: &DomainFilter, filter: &EnvelopeFil
 
 async fn send_event(socket: &mut WebSocket, event: &DataEvent) -> Result<(), ()> {
     match serde_json::to_string(event) {
-        Ok(line) => socket.send(Message::Text(line)).await.map_err(|_| ()),
+        Ok(line) => send_ws(socket, Message::Text(line)).await,
         Err(error) => {
             warn!(%error, "v1 stream event serialize failed");
             Ok(())
@@ -523,11 +525,18 @@ async fn send_envelope<T: serde::Serialize>(
     envelope: &DataEnvelope<T>,
 ) -> Result<(), ()> {
     match serde_json::to_string(envelope) {
-        Ok(line) => socket.send(Message::Text(line)).await.map_err(|_| ()),
+        Ok(line) => send_ws(socket, Message::Text(line)).await,
         Err(error) => {
             warn!(%error, "v1 stream serialize failed");
             Ok(())
         }
+    }
+}
+
+async fn send_ws(socket: &mut WebSocket, message: Message) -> Result<(), ()> {
+    match timeout(WS_SEND_TIMEOUT, socket.send(message)).await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(_)) | Err(_) => Err(()),
     }
 }
 
