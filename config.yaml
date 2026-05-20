@@ -169,6 +169,70 @@ tradfi:
     poll_secs: 3600
     spread_bps: 1.0
 
+aggregates:
+  coingecko:
+    enabled: false
+    base_url: "https://api.coingecko.com/api/v3/"
+    # Optional. Public API can run without a key; set COINGECKO_API_KEY if needed.
+    api_key_env: COINGECKO_API_KEY
+    poll_secs: 60
+    spread_bps: 2.0
+    assets:
+      - symbol: BTCUSD
+        id: bitcoin
+        vs_currency: usd
+      - symbol: ETHUSD
+        id: ethereum
+        vs_currency: usd
+
+  coinmarketcap:
+    enabled: false
+    base_url: "https://pro-api.coinmarketcap.com/v2/"
+    api_key_env: COINMARKETCAP_API_KEY
+    poll_secs: 60
+    spread_bps: 2.0
+    symbols: [BTC, ETH]
+
+  coinglass:
+    enabled: false
+    base_url: "https://open-api-v4.coinglass.com/"
+    api_key_env: COINGLASS_API_KEY
+    # Free plan is rate-limited; keep this conservative unless your plan allows more.
+    poll_secs: 60
+    symbols: [BTC, ETH]
+
+sentiment:
+  fear_greed:
+    enabled: false
+    url: "https://api.alternative.me/fng/"
+    poll_secs: 300
+
+  cryptopanic:
+    enabled: false
+    base_url: "https://cryptopanic.com/api/v1/"
+    api_key_env: CRYPTOPANIC_API_KEY
+    poll_secs: 300
+    currencies: [BTC, ETH]
+
+  santiment:
+    enabled: false
+    url: "https://api.santiment.net/graphql"
+    api_key_env: SANTIMENT_API_KEY
+    poll_secs: 300
+    metrics:
+      - slug: bitcoin
+        metric: social_volume_total
+        interval: 1h
+        from: utc_now-2h
+        to: utc_now
+
+  lunarcrush:
+    enabled: false
+    base_url: "https://lunarcrush.com/api4/public/"
+    api_key_env: LUNARCRUSH_API_KEY
+    poll_secs: 300
+    symbols: [BTC, ETH]
+
 # Global default symbol list (used when exchange.symbols is omitted).
 # Format should be normalized symbols, e.g. BTCUSDT, ETHUSDT.
 symbols: [BTCUSDT, ETHUSDT]

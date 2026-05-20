@@ -57,6 +57,15 @@ src/connectors/
   tradfi/
     yahoo.rs
     fred.rs
+  aggregate/
+    coingecko.rs
+    coinmarketcap.rs
+    coinglass.rs
+  sentiment/
+    fear_greed.rs
+    cryptopanic.rs
+    santiment.rs
+    lunarcrush.rs
   external/
     weather.rs
     news.rs
@@ -265,6 +274,17 @@ GET /v1/market/quotes?exchanges=us10y
 Purpose: normalize macro references such as DXY, VIX, and US10Y into the same
 `market_quote` domain for regime filters and cross-asset context.
 
+### Aggregate And Sentiment Data
+
+```text
+GET /v1/market/quotes?exchanges=coingecko,coinmarketcap
+GET /v1/external/signals?sources=coinglass,fear_greed,cryptopanic,santiment,lunarcrush
+```
+
+Purpose: normalize aggregate derivatives data, global price references, news,
+and social metrics into stable quote/signal surfaces. API-key-backed sources
+read keys from config first and environment variables second.
+
 ### External Event Data
 
 ```text
@@ -298,6 +318,7 @@ Implemented today:
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - DeFi aggregator quote and AMM pool snapshots through `GET /v1/market/quotes`.
 - TradFi DXY, VIX, and US10Y snapshots through `GET /v1/market/quotes`.
+- Aggregate and sentiment signals through `GET /v1/external/signals`.
 - Deribit option summary direct REST and multi-venue option background cache.
 - Envelope-based Deribit/OKX/Bybit/Binance option chains through `GET /v1/options/chains`.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.

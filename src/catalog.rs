@@ -138,6 +138,62 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             connector_path: "src/connectors/tradfi/fred.rs",
             status: "implemented",
         },
+        CatalogSource {
+            source_type: "aggregate_data",
+            source: "coingecko",
+            venue: Some("coingecko"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/aggregate/coingecko.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "aggregate_data",
+            source: "coinmarketcap",
+            venue: Some("coinmarketcap"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/aggregate/coinmarketcap.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "aggregate_data",
+            source: "coinglass",
+            venue: Some("coinglass"),
+            domains: vec!["external_signal"],
+            connector_path: "src/connectors/aggregate/coinglass.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "sentiment",
+            source: "fear_greed",
+            venue: Some("alternative_me"),
+            domains: vec!["external_signal"],
+            connector_path: "src/connectors/sentiment/fear_greed.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "sentiment",
+            source: "cryptopanic",
+            venue: Some("cryptopanic"),
+            domains: vec!["external_signal"],
+            connector_path: "src/connectors/sentiment/cryptopanic.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "sentiment",
+            source: "santiment",
+            venue: Some("santiment"),
+            domains: vec!["external_signal"],
+            connector_path: "src/connectors/sentiment/santiment.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "sentiment",
+            source: "lunarcrush",
+            venue: Some("lunarcrush"),
+            domains: vec!["external_signal"],
+            connector_path: "src/connectors/sentiment/lunarcrush.rs",
+            status: "implemented",
+        },
     ]
 }
 
@@ -183,6 +239,11 @@ pub fn domain_catalog() -> Vec<CatalogDomain> {
             endpoint: "/v1/prediction/books",
             status: "implemented",
         },
+        CatalogDomain {
+            domain: "external_signal",
+            endpoint: "/v1/external/signals",
+            status: "implemented",
+        },
     ]
 }
 
@@ -211,6 +272,7 @@ mod tests {
         assert!(domains.contains(&"market_quote"));
         assert!(domains.contains(&"options_chain"));
         assert!(domains.contains(&"prediction_book"));
+        assert!(domains.contains(&"external_signal"));
 
         let sources = source_catalog()
             .into_iter()
@@ -219,6 +281,8 @@ mod tests {
         assert!(sources.contains(&"cex_adapters"));
         assert!(sources.contains(&"deribit"));
         assert!(sources.contains(&"polymarket"));
+        assert!(sources.contains(&"coingecko"));
+        assert!(sources.contains(&"fear_greed"));
     }
 
     #[test]

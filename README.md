@@ -143,6 +143,9 @@ Default file: `config.yaml`
 - `defi.<source>.pairs` / `defi.uniswap_v3.pools`: configured DEX pairs and pools
 - `tradfi.<source>.enabled`: DXY, VIX, and US10Y reference source switch
 - `tradfi.us10y.api_key` or `FRED_API_KEY`: FRED API credential for US10Y
+- `aggregates.<source>.enabled`: CoinGecko, CoinMarketCap, and CoinGlass source switch
+- `sentiment.<source>.enabled`: Fear & Greed, CryptoPanic, Santiment, and LunarCrush source switch
+- `*_API_KEY` env vars: optional or required keys for paid/free external APIs
 
 ## Implemented Data Plane
 
@@ -201,6 +204,18 @@ management should stay outside this repo.
 | VIX | Implemented | `GET /v1/market/quotes?exchanges=vix` | Yahoo Finance chart API, normalized as `symbol=VIX`. Useful as risk/fear proxy. |
 | US10Y | Implemented | `GET /v1/market/quotes?exchanges=us10y` | FRED `DGS10`; requires `FRED_API_KEY` or `tradfi.us10y.api_key`. |
 
+### Aggregate / Sentiment Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| CoinGecko prices | Implemented | `GET /v1/market/quotes?exchanges=coingecko` | Public simple price API; optional `COINGECKO_API_KEY`. |
+| CoinMarketCap prices | Implemented | `GET /v1/market/quotes?exchanges=coinmarketcap` | Requires `COINMARKETCAP_API_KEY`. |
+| CoinGlass derivatives aggregate | Implemented | `GET /v1/external/signals?sources=coinglass` | Requires `COINGLASS_API_KEY`; emits funding/OI/liquidation/long-short/basis/options raw aggregate signals. |
+| Crypto Fear & Greed | Implemented | `GET /v1/external/signals?sources=fear_greed` | Public Alternative.me index. |
+| CryptoPanic news | Implemented | `GET /v1/external/signals?sources=cryptopanic` | Requires `CRYPTOPANIC_API_KEY`; emits scored news items. |
+| Santiment metrics | Implemented | `GET /v1/external/signals?sources=santiment` | Requires `SANTIMENT_API_KEY`; GraphQL metrics are config-driven. |
+| LunarCrush social metrics | Implemented | `GET /v1/external/signals?sources=lunarcrush` | Requires `LUNARCRUSH_API_KEY`; endpoint/base URL is configurable. |
+
 ## Strategy Readiness Matrix
 
 For the crypto binary fair-value / market-making strategy discussed with
@@ -211,6 +226,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 | BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
 | DEX quote/pool price | CEX vs DEX basis and route sanity check | Implemented | `/v1/market/quotes?exchanges=jupiter,raydium,uniswap_v3,paraswap,oneinch` |
 | Macro reference price | DXY, VIX, US10Y regime filters | Implemented | `/v1/market/quotes?exchanges=dxy,vix,us10y` |
+| Aggregate and sentiment signals | Derivatives positioning, news and social regime filters | Implemented | `/v1/external/signals?sources=coinglass,fear_greed,cryptopanic,santiment,lunarcrush` |
 | Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
 | Options IV / option chain | Theoretical digital probability | Implemented multi-venue REST cache | `/v1/options/chains`, `/options/deribit/summary`, `/options/deribit/live-summary` |
 | Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
@@ -223,6 +239,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 Bottom line: `MarketBridge` now provides a first mature data-source surface for
 paper decisions: exchange BBO/funding, DeFi quote and pool prices,
 TradFi macro references,
+aggregate market data and sentiment signals,
 multi-venue option chains, Polymarket
 market discovery, REST books, and a live Polymarket CLOB cache. It is still not
 an execution engine: authenticated Polymarket order placement/cancel/replace and
@@ -248,6 +265,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/trades` | Latest public trade snapshots |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
+| GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -273,6 +291,12 @@ Traditional finance reference sources use the same quote surface:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/quotes?exchanges=dxy,vix,us10y" | jq
+```
+
+Aggregate and sentiment sources use the external signal surface:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/external/signals?sources=coinglass,fear_greed,cryptopanic,santiment,lunarcrush" | jq
 ```
 
 ### Exchange Public Data Coverage
