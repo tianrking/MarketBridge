@@ -349,8 +349,9 @@ fn to_dydx_market(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::config::{
-        AppConfig, BackpressureConfig, DeribitConfig, ExchangeConfig, FeeModel, PolymarketConfig,
-        RuntimeConfig, StrategyConfig,
+        AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig, DeribitConfig,
+        ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig, RuntimeConfig,
+        StrategyConfig,
     };
     use std::collections::HashMap;
 
@@ -387,6 +388,9 @@ mod tests {
                 slippage_bps: 0.0,
             },
             deribit: DeribitConfig::default(),
+            okx_options: OkxOptionsConfig::default(),
+            bybit_options: BybitOptionsConfig::default(),
+            binance_options: BinanceOptionsConfig::default(),
             polymarket: PolymarketConfig::default(),
             symbols: vec!["BTCUSDT".to_string()],
             perp_symbols: Some(vec!["BTCUSDT".to_string()]),

@@ -13,6 +13,12 @@ pub struct AppConfig {
     #[serde(default)]
     pub deribit: DeribitConfig,
     #[serde(default)]
+    pub okx_options: OkxOptionsConfig,
+    #[serde(default)]
+    pub bybit_options: BybitOptionsConfig,
+    #[serde(default)]
+    pub binance_options: BinanceOptionsConfig,
+    #[serde(default)]
     pub polymarket: PolymarketConfig,
     pub symbols: Vec<String>,
     pub perp_symbols: Option<Vec<String>>,
@@ -60,6 +66,42 @@ pub struct DeribitConfig {
     pub refresh_secs: u64,
     #[serde(default = "default_deribit_stale_ttl_ms")]
     pub stale_ttl_ms: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OkxOptionsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_okx_options_base_url")]
+    pub base_url: String,
+    #[serde(default = "default_deribit_currencies")]
+    pub currencies: Vec<String>,
+    #[serde(default = "default_deribit_refresh_secs")]
+    pub refresh_secs: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BybitOptionsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_bybit_options_base_url")]
+    pub base_url: String,
+    #[serde(default = "default_deribit_currencies")]
+    pub currencies: Vec<String>,
+    #[serde(default = "default_deribit_refresh_secs")]
+    pub refresh_secs: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BinanceOptionsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_binance_options_base_url")]
+    pub base_url: String,
+    #[serde(default = "default_deribit_currencies")]
+    pub currencies: Vec<String>,
+    #[serde(default = "default_deribit_refresh_secs")]
+    pub refresh_secs: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -233,6 +275,18 @@ fn default_deribit_stale_ttl_ms() -> u64 {
     30_000
 }
 
+fn default_okx_options_base_url() -> String {
+    "https://www.okx.com/api/v5/".to_string()
+}
+
+fn default_bybit_options_base_url() -> String {
+    "https://api.bybit.com/v5/".to_string()
+}
+
+fn default_binance_options_base_url() -> String {
+    "https://eapi.binance.com/".to_string()
+}
+
 fn default_polymarket_ws_url() -> String {
     "wss://ws-subscriptions-clob.polymarket.com/ws/market".to_string()
 }
@@ -289,6 +343,39 @@ impl Default for DeribitConfig {
             currencies: default_deribit_currencies(),
             refresh_secs: default_deribit_refresh_secs(),
             stale_ttl_ms: default_deribit_stale_ttl_ms(),
+        }
+    }
+}
+
+impl Default for OkxOptionsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_okx_options_base_url(),
+            currencies: default_deribit_currencies(),
+            refresh_secs: default_deribit_refresh_secs(),
+        }
+    }
+}
+
+impl Default for BybitOptionsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_bybit_options_base_url(),
+            currencies: default_deribit_currencies(),
+            refresh_secs: default_deribit_refresh_secs(),
+        }
+    }
+}
+
+impl Default for BinanceOptionsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_binance_options_base_url(),
+            currencies: default_deribit_currencies(),
+            refresh_secs: default_deribit_refresh_secs(),
         }
     }
 }
