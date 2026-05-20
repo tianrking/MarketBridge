@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::config::AppConfig;
 use crate::source::ExchangeSource;
 
+use super::backpack::BackpackFeed;
 use super::binance::{
     BinanceBookTicker, BinanceDepthFeed, BinanceFundingTicker, BinanceLiquidationFeed,
     BinanceOpenInterestPoller, BinanceTradeFeed,
@@ -90,6 +91,20 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(DydxFeed::new(
                         perp_symbols.iter().map(|s| to_dydx_market(s)).collect(),
+                    )));
+                }
+            }
+            "backpack" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(BackpackFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_underscore(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(BackpackFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_underscore(s)).collect(),
                     )));
                 }
             }
