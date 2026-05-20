@@ -7,10 +7,11 @@ use serde_json::{Value, json};
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use crate::connectors::cex::common::{parse_object_levels, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
+    now_ms,
 };
 
 pub struct HyperliquidFeed {
@@ -99,12 +100,12 @@ fn parse_l2_book(data: &Value) -> Option<DataEvent> {
     let bids = levels
         .first()
         .and_then(Value::as_array)
-        .map(|items| parse_levels(items))
+        .map(|items| parse_object_levels(items, "px", "sz"))
         .unwrap_or_default();
     let asks = levels
         .get(1)
         .and_then(Value::as_array)
-        .map(|items| parse_levels(items))
+        .map(|items| parse_object_levels(items, "px", "sz"))
         .unwrap_or_default();
     Some(DataEvent::OrderBook(OrderBookTick {
         exchange: "hyperliquid",
@@ -118,18 +119,6 @@ fn parse_l2_book(data: &Value) -> Option<DataEvent> {
             .and_then(Value::as_u64)
             .unwrap_or_else(now_ms),
     }))
-}
-
-fn parse_levels(items: &[Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            Some(BookLevel {
-                price: item.get("px")?.as_str()?.parse::<f64>().ok()?,
-                qty: item.get("sz")?.as_str()?.parse::<f64>().ok()?,
-            })
-        })
-        .collect()
 }
 
 fn parse_trades(data: &Value) -> Vec<DataEvent> {
@@ -197,11 +186,7 @@ fn parse_active_asset_ctx(data: &Value) -> Option<DataEvent> {
 }
 
 fn side_from_str(side: &str) -> TradeSide {
-    match side {
-        "B" | "Buy" | "buy" => TradeSide::Buy,
-        "A" | "Sell" | "sell" => TradeSide::Sell,
-        _ => TradeSide::Unknown,
-    }
+    side_from_labels(side, &["b", "buy"], &["a", "sell"])
 }
 
 #[cfg(test)]

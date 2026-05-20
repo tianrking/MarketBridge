@@ -9,11 +9,13 @@ use std::io::Read;
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::emit_tick_ext;
+use crate::connectors::cex::common::{
+    emit_tick_ext, first_str, parse_array_levels, side_from_labels,
+};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
+    now_ms,
 };
 
 pub struct BingxSwapFeed {
@@ -157,13 +159,13 @@ async fn parse_bingx_events(value: &Value, ctx: &SourceContext) -> Result<Vec<Da
                 .get("bids")
                 .or_else(|| data.get("b"))
                 .and_then(Value::as_array)
-                .map(|x| parse_levels(x))
+                .map(|x| parse_array_levels(x))
                 .unwrap_or_default(),
             asks: data
                 .get("asks")
                 .or_else(|| data.get("a"))
                 .and_then(Value::as_array)
-                .map(|x| parse_levels(x))
+                .map(|x| parse_array_levels(x))
                 .unwrap_or_default(),
             last_update_id: data.get("u").and_then(Value::as_u64),
             ts_ms: data.get("E").and_then(Value::as_u64).unwrap_or_else(now_ms),
@@ -198,33 +200,12 @@ fn decode_gzip_text(bytes: &[u8]) -> Option<String> {
     Some(out)
 }
 
-fn first_str<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a str> {
-    keys.iter().find_map(|key| value.get(*key)?.as_str())
-}
-
 fn parse_f64(value: &str) -> Option<f64> {
     value.parse::<f64>().ok()
 }
 
-fn parse_levels(items: &[Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            let pair = item.as_array()?;
-            Some(BookLevel {
-                price: pair.first()?.as_str()?.parse::<f64>().ok()?,
-                qty: pair.get(1)?.as_str()?.parse::<f64>().ok()?,
-            })
-        })
-        .collect()
-}
-
 fn side_from_str(side: &str) -> TradeSide {
-    match side {
-        "false" | "buy" | "BUY" => TradeSide::Buy,
-        "true" | "sell" | "SELL" => TradeSide::Sell,
-        _ => TradeSide::Unknown,
-    }
+    side_from_labels(side, &["false", "buy"], &["true", "sell"])
 }
 
 #[cfg(test)]

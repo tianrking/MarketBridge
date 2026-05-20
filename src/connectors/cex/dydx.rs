@@ -7,10 +7,11 @@ use serde_json::{Value, json};
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use crate::connectors::cex::common::{parse_object_levels, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
+    now_ms,
 };
 
 pub struct DydxFeed {
@@ -157,12 +158,12 @@ fn parse_orderbook(market: &str, contents: &Value) -> Option<DataEvent> {
     let bids = contents
         .get("bids")
         .and_then(Value::as_array)
-        .map(|items| parse_levels(items))
+        .map(|items| parse_object_levels(items, "price", "size"))
         .unwrap_or_default();
     let asks = contents
         .get("asks")
         .and_then(Value::as_array)
-        .map(|items| parse_levels(items))
+        .map(|items| parse_object_levels(items, "price", "size"))
         .unwrap_or_default();
     Some(DataEvent::OrderBook(OrderBookTick {
         exchange: "dydx",
@@ -173,26 +174,6 @@ fn parse_orderbook(market: &str, contents: &Value) -> Option<DataEvent> {
         last_update_id: None,
         ts_ms: now_ms(),
     }))
-}
-
-fn parse_levels(items: &[Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            let price = item
-                .get("price")
-                .or_else(|| item.get("price"))
-                .and_then(Value::as_str)?;
-            let qty = item
-                .get("size")
-                .or_else(|| item.get("size"))
-                .and_then(Value::as_str)?;
-            Some(BookLevel {
-                price: price.parse::<f64>().ok()?,
-                qty: qty.parse::<f64>().ok()?,
-            })
-        })
-        .collect()
 }
 
 fn parse_trades(market: &str, contents: &Value) -> Vec<DataEvent> {
@@ -226,11 +207,7 @@ fn string_f64(value: &Value, key: &str) -> Option<f64> {
 }
 
 fn side_from_str(side: &str) -> TradeSide {
-    match side {
-        "BUY" | "buy" => TradeSide::Buy,
-        "SELL" | "sell" => TradeSide::Sell,
-        _ => TradeSide::Unknown,
-    }
+    side_from_labels(side, &["buy"], &["sell"])
 }
 
 #[cfg(test)]

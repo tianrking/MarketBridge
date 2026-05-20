@@ -8,11 +8,13 @@ use serde_json::{Value, json};
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::emit_tick_ext;
+use crate::connectors::cex::common::{
+    emit_tick_ext, first_str, parse_array_levels, side_from_labels,
+};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
+    now_ms,
 };
 
 // ── Shared parsing ────────────────────────────────────────────────────
@@ -182,12 +184,12 @@ async fn parse_bitget_events(
             bids: data
                 .get("bids")
                 .and_then(Value::as_array)
-                .map(|items| parse_levels(items))
+                .map(|items| parse_array_levels(items))
                 .unwrap_or_default(),
             asks: data
                 .get("asks")
                 .and_then(Value::as_array)
-                .map(|items| parse_levels(items))
+                .map(|items| parse_array_levels(items))
                 .unwrap_or_default(),
             last_update_id: None,
             ts_ms,
@@ -217,39 +219,8 @@ async fn parse_bitget_events(
     Ok(Vec::new())
 }
 
-fn first_str<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a str> {
-    keys.iter().find_map(|key| match value.get(*key)? {
-        Value::String(text) => Some(text.as_str()),
-        _ => None,
-    })
-}
-
-fn parse_levels(items: &[Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            let pair = item.as_array()?;
-            Some(BookLevel {
-                price: value_to_f64(pair.first()?)?,
-                qty: value_to_f64(pair.get(1)?)?,
-            })
-        })
-        .collect()
-}
-
-fn value_to_f64(value: &Value) -> Option<f64> {
-    value
-        .as_str()
-        .and_then(|x| x.parse::<f64>().ok())
-        .or_else(|| value.as_f64())
-}
-
 fn side_from_str(side: &str) -> TradeSide {
-    match side.to_ascii_lowercase().as_str() {
-        "buy" | "b" | "1" => TradeSide::Buy,
-        "sell" | "s" | "2" => TradeSide::Sell,
-        _ => TradeSide::Unknown,
-    }
+    side_from_labels(side, &["buy", "b", "1"], &["sell", "s", "2"])
 }
 
 // ── Spot ──────────────────────────────────────────────────────────────
@@ -275,7 +246,8 @@ impl ExchangeSource for BitgetSpotTicker {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_levels, side_from_str};
+    use super::side_from_str;
+    use crate::connectors::cex::common::parse_array_levels;
     use crate::types::TradeSide;
     use serde_json::json;
 
@@ -288,7 +260,7 @@ mod tests {
 
     #[test]
     fn bitget_level_parser_accepts_strings_and_numbers() {
-        let levels = parse_levels(&[json!(["100.5", "2"]), json!([99.5, 3.0])]);
+        let levels = parse_array_levels(&[json!(["100.5", "2"]), json!([99.5, 3.0])]);
 
         assert_eq!(levels.len(), 2);
         assert_eq!(levels[0].price, 100.5);
