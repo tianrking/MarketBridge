@@ -137,6 +137,20 @@ pub struct DefiConfig {
     pub paraswap: ParaswapConfig,
     #[serde(default)]
     pub oneinch: OneInchConfig,
+    #[serde(default)]
+    pub pancakeswap: DexScreenerConfig,
+    #[serde(default)]
+    pub balancer: DexScreenerConfig,
+    #[serde(default)]
+    pub curve: DexScreenerConfig,
+    #[serde(default)]
+    pub sushiswap: DexScreenerConfig,
+    #[serde(default)]
+    pub quickswap: DexScreenerConfig,
+    #[serde(default)]
+    pub traderjoe: DexScreenerConfig,
+    #[serde(default)]
+    pub etcswap: DexScreenerConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]

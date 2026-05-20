@@ -467,6 +467,48 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     if cfg.defi.oneinch.enabled {
         out.push(Arc::new(OneInchQuotePoller::new(cfg.defi.oneinch.clone())));
     }
+    if cfg.defi.pancakeswap.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "pancakeswap",
+            cfg.defi.pancakeswap.clone(),
+        )));
+    }
+    if cfg.defi.balancer.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "balancer",
+            cfg.defi.balancer.clone(),
+        )));
+    }
+    if cfg.defi.curve.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "curve",
+            cfg.defi.curve.clone(),
+        )));
+    }
+    if cfg.defi.sushiswap.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "sushiswap",
+            cfg.defi.sushiswap.clone(),
+        )));
+    }
+    if cfg.defi.quickswap.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "quickswap",
+            cfg.defi.quickswap.clone(),
+        )));
+    }
+    if cfg.defi.traderjoe.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "traderjoe",
+            cfg.defi.traderjoe.clone(),
+        )));
+    }
+    if cfg.defi.etcswap.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "etcswap",
+            cfg.defi.etcswap.clone(),
+        )));
+    }
     if cfg.tradfi.dxy.enabled {
         out.push(Arc::new(YahooChartPoller::new(
             "dxy",

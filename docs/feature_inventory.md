@@ -85,6 +85,13 @@ Status labels:
 | Uniswap V3 | implemented | partial | planned | keyless | Subgraph pool price snapshot. |
 | ParaSwap | implemented | planned | planned | keyless | EVM aggregator quote API. |
 | 1inch | implemented | planned | planned | keyless | EVM aggregator quote API. |
+| PancakeSwap | implemented | partial | planned | keyless | DexScreener-backed BSC pool quote snapshots for Gateway coverage. |
+| Balancer | implemented | partial | planned | keyless | DexScreener-backed Ethereum pool quote snapshots for Gateway coverage. |
+| Curve | implemented | partial | planned | keyless | DexScreener-backed Ethereum stable-pool quote snapshots for Gateway coverage. |
+| SushiSwap | implemented | partial | planned | keyless | DexScreener-backed Ethereum pool quote snapshots for Gateway coverage. |
+| QuickSwap | implemented | partial | planned | keyless | DexScreener-backed Polygon pool quote snapshots for Gateway coverage. |
+| Trader Joe | implemented | partial | planned | keyless | DexScreener-backed Avalanche pool quote snapshots for Gateway coverage. |
+| ETCSwap | implemented | partial | planned | keyless | DexScreener-backed Ethereum Classic pool quote snapshots for Gateway coverage. |
 
 ## Polymarket Coverage
 

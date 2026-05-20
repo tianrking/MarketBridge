@@ -72,6 +72,76 @@ defi:
         dex_id: orca
         query: "SOL USDC"
         spread_bps: 5.0
+  pancakeswap:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: BNBUSDT
+        chain_id: bsc
+        dex_id: pancakeswap
+        query: "WBNB USDT"
+        spread_bps: 5.0
+  balancer:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: ETHUSDC
+        chain_id: ethereum
+        dex_id: balancer
+        query: "WETH USDC"
+        spread_bps: 5.0
+  curve:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: USDCUSDT
+        chain_id: ethereum
+        dex_id: curve
+        query: "USDC USDT"
+        spread_bps: 2.0
+  sushiswap:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: ETHUSDC
+        chain_id: ethereum
+        dex_id: sushiswap
+        query: "WETH USDC"
+        spread_bps: 5.0
+  quickswap:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: MATICUSDC
+        chain_id: polygon
+        dex_id: quickswap
+        query: "WMATIC USDC"
+        spread_bps: 5.0
+  traderjoe:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: AVAXUSDC
+        chain_id: avalanche
+        dex_id: traderjoe
+        query: "WAVAX USDC"
+        spread_bps: 5.0
+  etcswap:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: ETCUSDC
+        chain_id: ethereumclassic
+        dex_id: etcswap
+        query: "WETC USDC"
+        spread_bps: 10.0
 
 exchanges:
   binance:
