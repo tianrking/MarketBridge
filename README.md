@@ -98,35 +98,46 @@ The consumer-facing endpoint map is maintained in
 
 ```mermaid
 flowchart LR
-  subgraph S[Exchange Sources]
-    S1[Binance/OKX/Bybit/... Spot]
-    S2[Binance/OKX/Bybit/... Perp]
+  subgraph C[Public Data Connectors]
+    CEX[CEX Spot/Perp\nBBO/L2/Trades/Funding/OI/Liquidations]
+    OPT[Options REST\nDeribit/OKX/Bybit/Binance]
+    PM[Polymarket\nGamma + CLOB REST/WS]
+    DEFI[DeFi Quotes/Pools\nJupiter/Raydium/Uniswap/ParaSwap/1inch]
+    EXT[Macro/Aggregates/Sentiment\nDXY/VIX/US10Y/CoinGlass/News/Social]
+    ON[On-chain Transfers\nWhale Alert/mempool.space/Etherscan]
   end
 
-  S --> RT[SourceRuntime\nReconnect + Backpressure]
+  C --> RT[SourceRuntime\nReconnect + Backpressure]
   RT --> Q[mpsc Queue]
   Q --> R[EventRouter]
 
-  R --> BUS[EventBus\nBroadcast + Snapshot Store]
-  R --> AGG[SpreadAggregator]
+  R --> BUS[EventBus\nArcSwap Snapshots + Domain Broadcast]
+  R --> AGG[SpreadAggregator\nBBO + L2 Signals]
+  BUS --> OF[OrderFlow Store\nTrade Windows + CVD]
+  BUS --> K[SQLite Klines\nREST Backfill + Live Buckets]
 
   AGG --> LOG[Signal Logs\nFILTERED/HOLDING/TRIGGER]
   BUS --> API[Axum API\n/v1 REST + /v1/stream]
-  BUS --> REDIS[Optional Redis Sink\nbatched XADD]
+  BUS --> REDIS[Optional Redis Sink\nbatched XADD + JSONL Dead Letters]
 
-  CFG[config.yaml] --> RT
+  CFG[config.yaml\nsrc/config/*] --> RT
   CFG --> AGG
+  CFG --> K
+  CFG --> OF
   MET[Prometheus Metrics] --> API
 ```
 
 ## Runtime Pipeline
 
-1. Exchange adapters subscribe to public market WS channels.
+1. Public connectors collect CEX, options, prediction-market, DeFi, macro,
+   sentiment, aggregate, and on-chain data.
 2. `SourceRuntime` supervises source tasks and reconnects with backoff.
 3. `EventRouter` fans data to both `EventBus` and `SpreadAggregator`.
 4. `EventBus` maintains ArcSwap latest snapshots and per-domain broadcast streams.
-5. `SpreadAggregator` computes cross-exchange opportunity signals with fee/slippage logic.
-6. API/WebSocket/optional Redis expose normalized data to quant consumers.
+5. `OrderFlowStore` and `KlineStore` derive reusable market features from live
+   trade/quote events.
+6. `SpreadAggregator` computes cross-exchange opportunity signals with fee/slippage logic.
+7. API/WebSocket/optional Redis expose normalized data to quant consumers.
 
 ## Quick Start
 
