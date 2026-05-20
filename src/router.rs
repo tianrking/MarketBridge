@@ -33,6 +33,10 @@ impl EventRouter {
         let bus_task = tokio::spawn(async move {
             while let Some(event) = bus_rx.recv().await {
                 bus.publish_from_event(&event);
+                metrics
+                    .bus_events_published_total
+                    .with_label_values(&[event_type(&event)])
+                    .inc();
                 if matches!(&event, DataEvent::Tick(_)) {
                     metrics.bus_publish_total.inc();
                 }
@@ -40,6 +44,10 @@ impl EventRouter {
         });
 
         while let Some(event) = self.source_rx.recv().await {
+            self.metrics
+                .events_ingested_total
+                .with_label_values(&[event_type(&event)])
+                .inc();
             if matches!(&event, DataEvent::Tick(_)) {
                 self.metrics.ticks_ingested_total.inc();
             }
@@ -55,12 +63,25 @@ impl EventRouter {
     }
 }
 
+fn event_type(event: &DataEvent) -> &'static str {
+    match event {
+        DataEvent::Tick(_) => "tick",
+        DataEvent::FundingRate(_) => "funding_rate",
+        DataEvent::OpenInterest(_) => "open_interest",
+        DataEvent::Trade(_) => "trade",
+        DataEvent::Liquidation(_) => "liquidation",
+        DataEvent::OrderBook(_) => "order_book",
+        DataEvent::ExternalSignal(_) => "external_signal",
+        DataEvent::Heartbeat { .. } => "heartbeat",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::EventRouter;
     use crate::event_bus::EventBus;
     use crate::metrics::AppMetrics;
-    use crate::types::{DataEvent, MarketKind, MarketTick, now_ms};
+    use crate::types::{DataEvent, FundingRateTick, MarketKind, MarketTick, now_ms};
     use tokio::sync::mpsc;
 
     #[tokio::test]
@@ -89,5 +110,45 @@ mod tests {
         assert!(matches!(agg_rx.recv().await, Some(DataEvent::Tick(_))));
         router_task.await.expect("router task should finish");
         assert_eq!(bus.snapshot_all().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn router_counts_non_tick_events() {
+        let (source_tx, source_rx) = mpsc::channel(4);
+        let (agg_tx, mut agg_rx) = mpsc::channel(4);
+        let bus = EventBus::new(16, 1_000);
+        let metrics = AppMetrics::new();
+        let router = EventRouter::new(source_rx, agg_tx, bus, metrics.clone());
+        let router_task = tokio::spawn(router.run());
+
+        source_tx
+            .send(DataEvent::FundingRate(FundingRateTick {
+                exchange: "binance",
+                symbol: "BTCUSDT".into(),
+                funding_rate: 0.01,
+                next_funding_time_ms: None,
+                mark_price: None,
+                index_price: None,
+                ts_ms: now_ms(),
+            }))
+            .await
+            .expect("source channel should accept funding tick");
+        drop(source_tx);
+
+        assert!(matches!(
+            agg_rx.recv().await,
+            Some(DataEvent::FundingRate(_))
+        ));
+        router_task.await.expect("router task should finish");
+        assert!(
+            metrics
+                .render()
+                .contains("events_ingested_total{event_type=\"funding_rate\"} 1")
+        );
+        assert!(
+            metrics
+                .render()
+                .contains("bus_events_published_total{event_type=\"funding_rate\"} 1")
+        );
     }
 }

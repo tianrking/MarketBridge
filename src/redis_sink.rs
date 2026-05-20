@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::Serialize;
+use std::io::Write;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -14,8 +16,9 @@ const XADD_INITIAL_BACKOFF_MS: u64 = 100;
 const XADD_MAX_BACKOFF_MS: u64 = 5_000;
 const XADD_BATCH_MAX: usize = 100;
 const XADD_BATCH_FLUSH_MS: u64 = 50;
+const REDIS_DEAD_LETTER_FILE: &str = "data/redis_dead_letters.jsonl";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct RedisEventRow {
     stream: String,
     source: &'static str,
@@ -172,14 +175,40 @@ async fn flush_redis_batch(
     }
 
     metrics.redis_dead_letter_total.inc_by(batch.len() as u64);
+    let last_error = last_error.unwrap_or_else(|| "unknown".to_string());
+    if let Err(error) = write_dead_letter_file(batch, &last_error).await {
+        error!(
+            error = %error,
+            path = REDIS_DEAD_LETTER_FILE,
+            "redis dead-letter file write failed"
+        );
+    }
     error!(
         batch_len = batch.len(),
         attempts = XADD_MAX_ATTEMPTS,
-        last_error = last_error.as_deref().unwrap_or("unknown"),
+        last_error = last_error,
         "redis xadd moved batch to dead letter after retries"
     );
     batch.clear();
     true
+}
+
+async fn write_dead_letter_file(batch: &[RedisEventRow], error: &str) -> std::io::Result<()> {
+    std::fs::create_dir_all("data")?;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(REDIS_DEAD_LETTER_FILE)?;
+    for row in batch {
+        let record = serde_json::json!({
+            "reason": "redis_xadd_failed",
+            "error": error,
+            "row": row,
+        });
+        file.write_all(record.to_string().as_bytes())?;
+        file.write_all(b"\n")?;
+    }
+    file.flush()
 }
 
 fn redis_stream_name(prefix: &str, event: &DataEvent) -> String {
@@ -238,7 +267,8 @@ fn market_domain(market: MarketKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{
-        RedisEventRow, XADD_MAX_BACKOFF_MS, next_backoff, redis_event_row, redis_stream_name,
+        REDIS_DEAD_LETTER_FILE, RedisEventRow, XADD_MAX_BACKOFF_MS, next_backoff, redis_event_row,
+        redis_stream_name, write_dead_letter_file,
     };
     use std::time::Duration;
 
@@ -291,5 +321,28 @@ mod tests {
                 payload: serde_json::to_string(&event).expect("test event serializes"),
             }
         );
+    }
+
+    #[tokio::test]
+    async fn redis_dead_letters_are_written_to_jsonl() {
+        let _ = std::fs::remove_file(REDIS_DEAD_LETTER_FILE);
+        let row = RedisEventRow {
+            stream: "ticks:funding:binance:BTCUSDT".into(),
+            source: "binance",
+            domain: "funding",
+            symbol: "BTCUSDT".into(),
+            ts: 1,
+            payload: "{}".into(),
+        };
+
+        write_dead_letter_file(&[row], "boom")
+            .await
+            .expect("dead-letter file should be writable in test workspace");
+
+        let content =
+            std::fs::read_to_string(REDIS_DEAD_LETTER_FILE).expect("dead-letter file should exist");
+        assert!(content.contains("\"reason\":\"redis_xadd_failed\""));
+        assert!(content.contains("\"error\":\"boom\""));
+        let _ = std::fs::remove_file(REDIS_DEAD_LETTER_FILE);
     }
 }

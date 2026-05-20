@@ -1070,9 +1070,16 @@ Current metrics include:
 
 - `ticks_ingested_total`
 - `bus_publish_total`
+- `events_ingested_total{event_type=...}`
+- `bus_events_published_total{event_type=...}`
 - `ws_subscribers`
 - `redis_xadd_total`
+- `redis_dead_letter_total`
 - `ticks_dropped_total`
+
+When Redis is enabled and a batch still cannot be written after retries,
+MarketBridge appends the failed rows to `data/redis_dead_letters.jsonl` for
+operator inspection.
 
 ### `GET /v1/onchain/transfers`
 

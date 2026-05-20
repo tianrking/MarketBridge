@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use prometheus::{Encoder, IntCounter, IntGauge, Registry, TextEncoder};
+use prometheus::{Encoder, IntCounter, IntCounterVec, IntGauge, Opts, Registry, TextEncoder};
 
 #[derive(Clone)]
 pub struct AppMetrics {
     registry: Registry,
     pub ticks_ingested_total: IntCounter,
     pub bus_publish_total: IntCounter,
+    pub events_ingested_total: IntCounterVec,
+    pub bus_events_published_total: IntCounterVec,
     pub ws_subscribers: IntGauge,
     pub redis_xadd_total: IntCounter,
     pub redis_dead_letter_total: IntCounter,
@@ -24,6 +26,22 @@ impl AppMetrics {
             "Total normalized events published to bus",
         )
         .expect("bus_publish_total metric definition must be valid");
+        let events_ingested_total = IntCounterVec::new(
+            Opts::new(
+                "events_ingested_total",
+                "Total ingested events by normalized event type",
+            ),
+            &["event_type"],
+        )
+        .expect("events_ingested_total metric definition must be valid");
+        let bus_events_published_total = IntCounterVec::new(
+            Opts::new(
+                "bus_events_published_total",
+                "Total bus-published events by normalized event type",
+            ),
+            &["event_type"],
+        )
+        .expect("bus_events_published_total metric definition must be valid");
         let ws_subscribers = IntGauge::new("ws_subscribers", "Current websocket subscribers")
             .expect("ws_subscribers metric definition must be valid");
         let redis_xadd_total = IntCounter::new("redis_xadd_total", "Total redis xadd writes")
@@ -44,6 +62,12 @@ impl AppMetrics {
             .register(Box::new(bus_publish_total.clone()))
             .expect("bus_publish_total registration must not conflict");
         registry
+            .register(Box::new(events_ingested_total.clone()))
+            .expect("events_ingested_total registration must not conflict");
+        registry
+            .register(Box::new(bus_events_published_total.clone()))
+            .expect("bus_events_published_total registration must not conflict");
+        registry
             .register(Box::new(ws_subscribers.clone()))
             .expect("ws_subscribers registration must not conflict");
         registry
@@ -60,6 +84,8 @@ impl AppMetrics {
             registry,
             ticks_ingested_total,
             bus_publish_total,
+            events_ingested_total,
+            bus_events_published_total,
             ws_subscribers,
             redis_xadd_total,
             redis_dead_letter_total,

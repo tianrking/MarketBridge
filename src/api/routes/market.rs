@@ -4,6 +4,7 @@ use axum::Json;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 use crate::api::ApiState;
 use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
@@ -183,25 +184,14 @@ pub async fn v1_market_funding(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<MarketDataQuery>,
 ) -> impl IntoResponse {
-    let symbols = q.symbols.map(parse_csv_set_upper);
-    let exchanges = q.exchanges.map(parse_csv_set_lower);
-    let mut rows = state
-        .bus
-        .funding_snapshot_all()
-        .await
-        .into_iter()
-        .filter(|row| {
-            symbols
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.symbol.to_ascii_uppercase()))
-        })
-        .filter(|row| {
-            exchanges
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.exchange.to_ascii_lowercase()))
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
+    let rows = filtered_market_rows(
+        state.bus.funding_snapshot_all().await,
+        &q,
+        |row| &row.symbol,
+        |row| row.exchange,
+        |_| None,
+        |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
+    );
     Json(serde_json::json!({"version":"v1","domain":"market_funding","funding":rows}))
 }
 
@@ -209,25 +199,14 @@ pub async fn v1_market_open_interest(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<MarketDataQuery>,
 ) -> impl IntoResponse {
-    let symbols = q.symbols.map(parse_csv_set_upper);
-    let exchanges = q.exchanges.map(parse_csv_set_lower);
-    let mut rows = state
-        .bus
-        .open_interest_snapshot_all()
-        .await
-        .into_iter()
-        .filter(|row| {
-            symbols
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.symbol.to_ascii_uppercase()))
-        })
-        .filter(|row| {
-            exchanges
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.exchange.to_ascii_lowercase()))
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
+    let rows = filtered_market_rows(
+        state.bus.open_interest_snapshot_all().await,
+        &q,
+        |row| &row.symbol,
+        |row| row.exchange,
+        |_| None,
+        |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
+    );
     Json(serde_json::json!({"version":"v1","domain":"market_open_interest","open_interest":rows}))
 }
 
@@ -235,31 +214,14 @@ pub async fn v1_market_trades(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<MarketDataQuery>,
 ) -> impl IntoResponse {
-    let symbols = q.symbols.map(parse_csv_set_upper);
-    let exchanges = q.exchanges.map(parse_csv_set_lower);
-    let market = q.market.map(|x| x.trim().to_ascii_lowercase());
-    let mut rows = state
-        .bus
-        .trade_snapshot_all()
-        .await
-        .into_iter()
-        .filter(|row| {
-            symbols
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.symbol.to_ascii_uppercase()))
-        })
-        .filter(|row| {
-            exchanges
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.exchange.to_ascii_lowercase()))
-        })
-        .filter(|row| {
-            market
-                .as_ref()
-                .is_none_or(|value| market_kind_label(row.market) == value)
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
+    let rows = filtered_market_rows(
+        state.bus.trade_snapshot_all().await,
+        &q,
+        |row| &row.symbol,
+        |row| row.exchange,
+        |row| Some(row.market),
+        |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
+    );
     Json(serde_json::json!({"version":"v1","domain":"market_trade","trades":rows}))
 }
 
@@ -318,25 +280,14 @@ pub async fn v1_market_liquidations(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<MarketDataQuery>,
 ) -> impl IntoResponse {
-    let symbols = q.symbols.map(parse_csv_set_upper);
-    let exchanges = q.exchanges.map(parse_csv_set_lower);
-    let mut rows = state
-        .bus
-        .liquidation_snapshot_all()
-        .await
-        .into_iter()
-        .filter(|row| {
-            symbols
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.symbol.to_ascii_uppercase()))
-        })
-        .filter(|row| {
-            exchanges
-                .as_ref()
-                .is_none_or(|set| set.contains(&row.exchange.to_ascii_lowercase()))
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
+    let rows = filtered_market_rows(
+        state.bus.liquidation_snapshot_all().await,
+        &q,
+        |row| &row.symbol,
+        |row| row.exchange,
+        |_| None,
+        |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
+    );
     Json(serde_json::json!({"version":"v1","domain":"market_liquidation","liquidations":rows}))
 }
 
@@ -344,32 +295,65 @@ pub async fn v1_market_order_books(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<MarketDataQuery>,
 ) -> impl IntoResponse {
-    let symbols = q.symbols.map(parse_csv_set_upper);
-    let exchanges = q.exchanges.map(parse_csv_set_lower);
-    let market = q.market.map(|x| x.trim().to_ascii_lowercase());
-    let mut rows = state
-        .bus
-        .order_book_snapshot_all()
-        .await
+    let rows = filtered_market_rows(
+        state.bus.order_book_snapshot_all().await,
+        &q,
+        |row| &row.symbol,
+        |row| row.exchange,
+        |row| Some(row.market),
+        |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
+    );
+    Json(serde_json::json!({"version":"v1","domain":"market_order_book","books":rows}))
+}
+
+fn filtered_market_rows<T, Symbol, Exchange, Market, Sort>(
+    rows: Vec<T>,
+    query: &MarketDataQuery,
+    symbol_of: Symbol,
+    exchange_of: Exchange,
+    market_of: Market,
+    sort_by: Sort,
+) -> Vec<T>
+where
+    Symbol: Fn(&T) -> &str,
+    Exchange: Fn(&T) -> &str,
+    Market: Fn(&T) -> Option<crate::types::MarketKind>,
+    Sort: Fn(&T, &T) -> Ordering,
+{
+    let symbols = query.symbols.as_ref().cloned().map(parse_csv_set_upper);
+    let exchanges = query.exchanges.as_ref().cloned().map(parse_csv_set_lower);
+    let market = query.market.as_ref().map(|x| x.trim().to_ascii_lowercase());
+    let mut filtered = rows
         .into_iter()
         .filter(|row| {
             symbols
                 .as_ref()
-                .is_none_or(|set| set.contains(&row.symbol.to_ascii_uppercase()))
+                .is_none_or(|set| set.contains(&symbol_of(row).to_ascii_uppercase()))
         })
         .filter(|row| {
             exchanges
                 .as_ref()
-                .is_none_or(|set| set.contains(&row.exchange.to_ascii_lowercase()))
+                .is_none_or(|set| set.contains(&exchange_of(row).to_ascii_lowercase()))
         })
         .filter(|row| {
-            market
-                .as_ref()
-                .is_none_or(|value| market_kind_label(row.market) == value)
+            market.as_ref().is_none_or(|value| {
+                market_of(row).is_none_or(|kind| market_kind_label(kind) == value)
+            })
         })
         .collect::<Vec<_>>();
-    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
-    Json(serde_json::json!({"version":"v1","domain":"market_order_book","books":rows}))
+    filtered.sort_by(sort_by);
+    filtered
+}
+
+fn cmp_symbol_exchange(
+    left_symbol: &str,
+    left_exchange: &str,
+    right_symbol: &str,
+    right_exchange: &str,
+) -> Ordering {
+    left_symbol
+        .cmp(right_symbol)
+        .then(left_exchange.cmp(right_exchange))
 }
 
 fn product_type_label(product_type: ProductType) -> &'static str {

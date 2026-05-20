@@ -352,7 +352,9 @@ event fanout in `src/event_bus.rs`.
 - `router.rs`: source fanout into the spread aggregator and an asynchronous
   bus worker so snapshot publication does not sit on the router hot path.
 - `redis_sink.rs`: optional Redis Stream persistence with batched `XADD`
-  pipelines; the service remains a live data bridge when Redis is disabled.
+  pipelines and local JSONL dead-letter fallback at
+  `data/redis_dead_letters.jsonl`; the service remains a live data bridge when
+  Redis is disabled.
 - `klines.rs`: SQLite-backed OHLCV storage, historical Binance/OKX REST
   backfill, and realtime tick-to-candle aggregation.
 
