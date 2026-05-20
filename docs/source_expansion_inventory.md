@@ -250,6 +250,7 @@ bingx / bing_x
 bitfinex
 bitget
 bitmart
+bitmex
 bitstamp
 btc_markets
 bybit
@@ -302,13 +303,12 @@ yahoo/vix
 
 The next practical implementation wave should be:
 
-1. BitMEX perp: important derivatives reference, strong public market data.
-2. Gemini spot: regulated US reference venue.
-3. CoinEx spot/perp: CCXT certified, useful long-tail liquidity.
-4. Phemex spot/perp: derivatives venue with clear public feeds.
-5. Upbit/Bithumb spot: KRW market regime signal.
-6. Injective/Vertex/Dexalot: CLOB DEX sources from Hummingbot coverage.
-7. Meteora/Orca/PancakeSwap/Balancer/Curve/SushiSwap: DeFi depth and pool-state expansion.
+1. Gemini spot: regulated US reference venue.
+2. CoinEx spot/perp: CCXT certified, useful long-tail liquidity.
+3. Phemex spot/perp: derivatives venue with clear public feeds.
+4. Upbit/Bithumb spot: KRW market regime signal.
+5. Injective/Vertex/Dexalot: CLOB DEX sources from Hummingbot coverage.
+6. Meteora/Orca/PancakeSwap/Balancer/Curve/SushiSwap: DeFi depth and pool-state expansion.
 
 For each new CEX source, implement in this order:
 

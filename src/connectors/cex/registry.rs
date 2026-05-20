@@ -37,6 +37,7 @@ use super::bitfinex_perp::BitfinexPerpTicker;
 use super::bitget::BitgetSpotTicker;
 use super::bitget_perp::BitgetPerpTicker;
 use super::bitmart::{BitmartPerpFeed, BitmartSpotFeed};
+use super::bitmex::BitmexPerpFeed;
 use super::bitrue::BitrueSpotFeed;
 use super::bitstamp::BitstampSpotFeed;
 use super::btc_markets::BtcMarketsSpotFeed;
@@ -223,6 +224,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                         perp_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
                 }
+            }
+            "bitmex" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(BitmexPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_bitmex_perp(s)).collect(),
+                )));
             }
             "bitstamp" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(BitstampSpotFeed::new(
@@ -623,6 +629,26 @@ fn to_cryptocom_perp(symbol: &str) -> String {
     format!("{}USD-PERP", base.to_ascii_uppercase())
 }
 
+fn to_bitmex_perp(symbol: &str) -> String {
+    let upper = symbol.to_ascii_uppercase();
+    if upper.starts_with("XBT") || upper.ends_with("USD") {
+        return upper;
+    }
+    if let Some(base) = upper.strip_suffix("PERP") {
+        return format!("{}USD", bitmex_base(base));
+    }
+    let (base, _) = split_quote(&upper);
+    format!("{}USD", bitmex_base(base))
+}
+
+fn bitmex_base(base: &str) -> String {
+    if base == "BTC" {
+        "XBT".to_string()
+    } else {
+        base.to_ascii_uppercase()
+    }
+}
+
 fn to_aevo_perp(symbol: &str) -> String {
     if symbol.contains('-') {
         return symbol.to_ascii_uppercase();
@@ -900,5 +926,12 @@ mod tests {
         assert_eq!(to_cryptocom_spot("ETH_USDT"), "ETH_USDT");
         assert_eq!(to_cryptocom_perp("BTCUSDT"), "BTCUSD-PERP");
         assert_eq!(to_cryptocom_perp("ETHUSD-PERP"), "ETHUSD-PERP");
+    }
+
+    #[test]
+    fn bitmex_perp_symbol_converter_uses_inverse_ids() {
+        assert_eq!(to_bitmex_perp("BTCUSDT"), "XBTUSD");
+        assert_eq!(to_bitmex_perp("XBTUSD"), "XBTUSD");
+        assert_eq!(to_bitmex_perp("ETHUSDT"), "ETHUSD");
     }
 }

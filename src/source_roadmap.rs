@@ -106,6 +106,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Public spot depth/trades and perp depth/trades/funding/ticker are wired; OI/liquidation remain planned.",
     },
     RoadmapSource {
+        source: "bitmex",
+        source_type: "exchange",
+        product_types: PERP,
+        domains: PERP_MARKET,
+        upstreams: UP_HB_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST instrument, order book, trades, funding, OI, and liquidation data are wired without CCXT runtime dependency.",
+    },
+    RoadmapSource {
         source: "bitrue",
         source_type: "exchange",
         product_types: SPOT,

@@ -49,6 +49,7 @@ Status labels:
 | BingX | partial | implemented | implemented | partial | partial | planned | keyless | Swap ticker/depth/trade. |
 | Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
+| BitMEX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST instrument/book/trades/liquidations for perpetual markets. |
 | Bitstamp | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades. |
 | Bitrue | partial | implemented | planned | planned | planned | planned | keyless | Public spot simple-depth stream from Hummingbot connector. |
 | AscendEX | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint. |
