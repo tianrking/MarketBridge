@@ -11,6 +11,8 @@ pub struct AppConfig {
     pub runtime: RuntimeConfig,
     pub strategy: StrategyConfig,
     #[serde(default)]
+    pub deribit: DeribitConfig,
+    #[serde(default)]
     pub polymarket: PolymarketConfig,
     pub symbols: Vec<String>,
     pub perp_symbols: Option<Vec<String>>,
@@ -44,6 +46,20 @@ pub struct StrategyConfig {
     pub min_profit_bps: f64,
     pub min_signal_hold_ms: u64,
     pub slippage_bps: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DeribitConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_deribit_base_url")]
+    pub base_url: String,
+    #[serde(default = "default_deribit_currencies")]
+    pub currencies: Vec<String>,
+    #[serde(default = "default_deribit_refresh_secs")]
+    pub refresh_secs: u64,
+    #[serde(default = "default_deribit_stale_ttl_ms")]
+    pub stale_ttl_ms: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -197,6 +213,22 @@ fn default_redis_stream_prefix() -> String {
     "ticks".to_string()
 }
 
+fn default_deribit_base_url() -> String {
+    "https://www.deribit.com/api/v2/".to_string()
+}
+
+fn default_deribit_currencies() -> Vec<String> {
+    vec!["BTC".to_string(), "ETH".to_string()]
+}
+
+fn default_deribit_refresh_secs() -> u64 {
+    10
+}
+
+fn default_deribit_stale_ttl_ms() -> u64 {
+    30_000
+}
+
 fn default_polymarket_ws_url() -> String {
     "wss://ws-subscriptions-clob.polymarket.com/ws/market".to_string()
 }
@@ -241,6 +273,18 @@ impl Default for PolymarketConfig {
             ping_secs: default_polymarket_ping_secs(),
             chunk_size: default_polymarket_chunk_size(),
             stale_ttl_ms: default_polymarket_stale_ttl_ms(),
+        }
+    }
+}
+
+impl Default for DeribitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_deribit_base_url(),
+            currencies: default_deribit_currencies(),
+            refresh_secs: default_deribit_refresh_secs(),
+            stale_ttl_ms: default_deribit_stale_ttl_ms(),
         }
     }
 }

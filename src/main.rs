@@ -1,6 +1,7 @@
 mod aggregator;
 mod api;
 mod config;
+mod deribit_cache;
 mod event_bus;
 mod exchanges;
 mod external;
@@ -15,6 +16,7 @@ mod types;
 use aggregator::SpreadAggregator;
 use api::{ApiState, build_router};
 use config::AppConfig;
+use deribit_cache::{DeribitOptionCache, spawn_deribit_option_cache};
 use event_bus::EventBus;
 use exchanges::registry::build_sources;
 use metrics::AppMetrics;
@@ -50,6 +52,7 @@ async fn main() -> anyhow::Result<()> {
 
     let bus = EventBus::new(8192, cfg.runtime.stale_ttl_ms);
 
+    let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
     let http = reqwest::Client::new();
 
@@ -57,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
         bus: bus.clone(),
         metrics: metrics.clone(),
         http: http.clone(),
+        deribit_cache: deribit_cache.clone(),
         polymarket_cache: polymarket_cache.clone(),
     });
     let api_addr = cfg.runtime.api_addr.clone();
@@ -82,6 +86,11 @@ async fn main() -> anyhow::Result<()> {
             metrics.clone(),
         )
     });
+
+    let deribit_task = cfg
+        .deribit
+        .enabled
+        .then(|| spawn_deribit_option_cache(cfg.deribit.clone(), http.clone(), deribit_cache));
 
     let polymarket_task = cfg
         .polymarket
@@ -117,6 +126,11 @@ async fn main() -> anyhow::Result<()> {
     if let Some(redis_task) = redis_task {
         redis_task.abort();
         let _ = redis_task.await;
+    }
+
+    if let Some(deribit_task) = deribit_task {
+        deribit_task.abort();
+        let _ = deribit_task.await;
     }
 
     if let Some(polymarket_task) = polymarket_task {

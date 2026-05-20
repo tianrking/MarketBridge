@@ -113,10 +113,19 @@ pub async fn fetch_deribit_option_summaries(
     client: &reqwest::Client,
     currency: &str,
 ) -> Result<Vec<DeribitOptionSummary>> {
+    fetch_deribit_option_summaries_from(client, "https://www.deribit.com/api/v2/", currency).await
+}
+
+pub async fn fetch_deribit_option_summaries_from(
+    client: &reqwest::Client,
+    base_url: &str,
+    currency: &str,
+) -> Result<Vec<DeribitOptionSummary>> {
     let currency = currency.trim().to_ascii_uppercase();
-    let url = format!(
-        "https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency={currency}&kind=option"
-    );
+    let mut url = Url::parse(base_url)?.join("public/get_book_summary_by_currency")?;
+    url.query_pairs_mut()
+        .append_pair("currency", &currency)
+        .append_pair("kind", "option");
     let response = client
         .get(url)
         .send()

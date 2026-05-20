@@ -13,6 +13,13 @@ strategy:
   min_signal_hold_ms: 0
   slippage_bps: 0.0
 
+deribit:
+  enabled: false
+  base_url: "https://www.deribit.com/api/v2/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+  stale_ttl_ms: 30000
+
 polymarket:
   enabled: false
   ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/market"

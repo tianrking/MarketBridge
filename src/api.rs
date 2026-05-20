@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use tokio::time::interval;
 use tracing::warn;
 
+use crate::deribit_cache::{DeribitOptionCache, DeribitOptionFilter};
 use crate::event_bus::{EventBus, NormalizedTick};
 use crate::external::{
     fetch_deribit_option_summaries, fetch_polymarket_book, fetch_polymarket_books,
@@ -24,6 +25,7 @@ pub struct ApiState {
     pub bus: EventBus,
     pub metrics: Arc<AppMetrics>,
     pub http: reqwest::Client,
+    pub deribit_cache: DeribitOptionCache,
     pub polymarket_cache: PolymarketBookCache,
 }
 
@@ -34,6 +36,10 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/snapshot", get(snapshot))
         .route("/funding", get(funding))
         .route("/options/deribit/summary", get(deribit_options_summary))
+        .route(
+            "/options/deribit/live-summary",
+            get(deribit_live_options_summary),
+        )
         .route("/polymarket/crypto-markets", get(polymarket_crypto_markets))
         .route("/polymarket/book", get(polymarket_book))
         .route("/polymarket/books", get(polymarket_books))
@@ -67,6 +73,17 @@ struct SnapshotQuery {
 #[derive(Debug, Deserialize)]
 struct DeribitOptionsQuery {
     currency: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct DeribitLiveOptionsQuery {
+    currency: Option<String>,
+    option_type: Option<String>,
+    strike_min: Option<f64>,
+    strike_max: Option<f64>,
+    expiry_after: Option<String>,
+    expiry_before: Option<String>,
+    include_stale: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -278,6 +295,29 @@ async fn deribit_options_summary(
             "summaries": []
         })),
     }
+}
+
+async fn deribit_live_options_summary(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<DeribitLiveOptionsQuery>,
+) -> impl IntoResponse {
+    let rows = state
+        .deribit_cache
+        .filtered(DeribitOptionFilter {
+            currency: q.currency.clone(),
+            option_type: q.option_type,
+            strike_min: q.strike_min,
+            strike_max: q.strike_max,
+            expiry_after: q.expiry_after,
+            expiry_before: q.expiry_before,
+            include_stale: q.include_stale.unwrap_or(false),
+        })
+        .await;
+    Json(serde_json::json!({
+        "source": "deribit_rest_cache",
+        "currency": q.currency.map(|x| x.to_ascii_uppercase()),
+        "summaries": rows
+    }))
 }
 
 async fn polymarket_crypto_markets(

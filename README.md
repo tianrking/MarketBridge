@@ -146,8 +146,9 @@ management should stay outside this repo.
 
 | Capability | Status | Interface | Notes |
 |---|---:|---|---|
-| Deribit option summaries | Implemented | `GET /options/deribit/summary?currency=BTC` | Returns strike, expiry, bid/ask, mark price, `mark_iv`, underlying price. |
-| Deribit websocket IV | Not implemented | N/A | REST summary is enough for first paper loop; high-frequency IV cache is future work. |
+| Deribit option summaries | Implemented | `GET /options/deribit/summary?currency=BTC` | Direct REST fetch. Returns strike, expiry, bid/ask, mark price, `mark_iv`, underlying price. |
+| Deribit option cache | Implemented first version | `GET /options/deribit/live-summary` | Background REST cache for BTC/ETH option chains with `received_at_ms` and `stale`. |
+| Deribit websocket IV | Not implemented | N/A | REST cache is enough for first paper loop; websocket IV cache is future work if REST freshness is not enough. |
 
 ### Polymarket Data
 
@@ -170,7 +171,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 |---|---|---:|---|
 | BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
 | Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
-| Deribit IV / option chain | Theoretical digital probability | Implemented REST first version | `/options/deribit/summary` |
+| Deribit IV / option chain | Theoretical digital probability | Implemented REST and cache first versions | `/options/deribit/summary`, `/options/deribit/live-summary` |
 | Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
 | Polymarket Yes/No token ids | Subscribe/query executable prices | Implemented first version | `/polymarket/crypto-markets` |
 | Polymarket Yes/No bid/ask/depth | Entry, exit, pair discount, capacity | Implemented REST and live cache first versions | `/polymarket/book`, `/polymarket/books`, `/polymarket/crypto-books`, `/polymarket/live-books`, `/polymarket/live-crypto-books` |
@@ -195,6 +196,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
+| GET | `/options/deribit/live-summary` | Cached Deribit option summaries with freshness fields |
 | GET | `/polymarket/crypto-markets` | Parsed Polymarket BTC/ETH binary markets |
 | GET | `/polymarket/book` | Polymarket CLOB book summary for one token |
 | GET | `/polymarket/books` | Polymarket CLOB book summaries for token ids |
@@ -309,6 +311,42 @@ Key fields in `summaries[]`:
 - `instrument_name`, `option_type`, `strike`, `expiry_time`
 - `bid_price`, `ask_price`, `mark_price`, `mark_iv`
 - `underlying_price`, `underlying_index`, `open_interest`
+
+### `GET /options/deribit/live-summary`
+
+Cached Deribit option summary feed. This endpoint reads the in-process data
+cache instead of hitting Deribit on every strategy decision.
+
+Enable the background cache in config:
+
+```yaml
+deribit:
+  enabled: true
+  base_url: "https://www.deribit.com/api/v2/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+  stale_ttl_ms: 30000
+```
+
+Query params:
+
+- `currency`, optional, e.g. `BTC`
+- `option_type`, optional, `call` or `put`
+- `strike_min`, `strike_max`, optional numeric filters
+- `expiry_after`, `expiry_before`, optional ISO timestamp string filters
+- `include_stale=true|false`, default `false`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/options/deribit/live-summary?currency=BTC&option_type=call&strike_min=90000&strike_max=120000" | jq
+```
+
+Key fields in `summaries[]`:
+
+- `source`: `deribit_rest_cache`
+- `received_at_ms`, `stale`
+- all direct Deribit summary fields from `/options/deribit/summary`
 
 ### `GET /polymarket/crypto-markets`
 

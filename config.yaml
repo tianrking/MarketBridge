@@ -35,6 +35,14 @@ strategy:
   # Conservative default for live trading realism.
   slippage_bps: 0.5
 
+deribit:
+  # Data-source cache for option IV used by downstream fair-value models.
+  enabled: true
+  base_url: "https://www.deribit.com/api/v2/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+  stale_ttl_ms: 30000
+
 polymarket:
   # Mature data-plane path: maintain a live CLOB cache for parsed BTC/ETH
   # binary markets. Disable if you only need exchange aggregation.
