@@ -7,23 +7,23 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::config::DeribitConfig;
-use crate::connectors::options::deribit::{
-    DeribitOptionSummary, fetch_deribit_option_summaries_from,
-};
+use crate::connectors::options::common::OptionSummary;
+use crate::connectors::options::deribit::fetch_deribit_option_summaries_from;
 use crate::types::now_ms;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct CachedDeribitOptionSummary {
+pub struct CachedOptionSummary {
     pub version: &'static str,
-    pub source: &'static str,
+    pub source: String,
     pub received_at_ms: u64,
     pub stale: bool,
     #[serde(flatten)]
-    pub summary: DeribitOptionSummary,
+    pub summary: OptionSummary,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct DeribitOptionFilter {
+pub struct OptionFilter {
+    pub venue: Option<String>,
     pub currency: Option<String>,
     pub option_type: Option<String>,
     pub strike_min: Option<f64>,
@@ -34,12 +34,12 @@ pub struct DeribitOptionFilter {
 }
 
 #[derive(Clone)]
-pub struct DeribitOptionCache {
-    inner: Arc<RwLock<Vec<CachedDeribitOptionSummary>>>,
+pub struct OptionCache {
+    inner: Arc<RwLock<Vec<CachedOptionSummary>>>,
     stale_ttl_ms: u64,
 }
 
-impl DeribitOptionCache {
+impl OptionCache {
     pub fn new(stale_ttl_ms: u64) -> Self {
         Self {
             inner: Arc::new(RwLock::new(Vec::new())),
@@ -47,21 +47,35 @@ impl DeribitOptionCache {
         }
     }
 
-    pub async fn replace_currency(&self, currency: &str, rows: Vec<DeribitOptionSummary>) {
+    pub async fn replace_venue_currency(
+        &self,
+        venue: &str,
+        currency: &str,
+        rows: Vec<OptionSummary>,
+    ) {
+        let venue = venue.trim().to_ascii_lowercase();
         let currency = currency.trim().to_ascii_uppercase();
         let received_at_ms = now_ms();
         let mut guard = self.inner.write().await;
-        guard.retain(|row| row.summary.currency != currency);
-        guard.extend(rows.into_iter().map(|summary| CachedDeribitOptionSummary {
+        guard.retain(|row| {
+            !(row.summary.venue.eq_ignore_ascii_case(&venue) && row.summary.currency == currency)
+        });
+        let source = format!("{venue}_rest_cache");
+        guard.extend(rows.into_iter().map(|summary| CachedOptionSummary {
             version: "v1",
-            source: "deribit_rest_cache",
+            source: source.clone(),
             received_at_ms,
             stale: false,
             summary,
         }));
     }
 
-    pub async fn filtered(&self, filter: DeribitOptionFilter) -> Vec<CachedDeribitOptionSummary> {
+    pub async fn replace_currency(&self, currency: &str, rows: Vec<OptionSummary>) {
+        self.replace_venue_currency("deribit", currency, rows).await;
+    }
+
+    pub async fn filtered(&self, filter: OptionFilter) -> Vec<CachedOptionSummary> {
+        let venue = filter.venue.map(|x| x.trim().to_ascii_lowercase());
         let currency = filter.currency.map(|x| x.trim().to_ascii_uppercase());
         let option_type = filter.option_type.map(|x| x.trim().to_ascii_lowercase());
         let guard = self.inner.read().await;
@@ -70,6 +84,11 @@ impl DeribitOptionCache {
             .cloned()
             .map(|row| self.with_stale(row))
             .filter(|row| filter.include_stale || !row.stale)
+            .filter(|row| {
+                venue
+                    .as_ref()
+                    .is_none_or(|value| row.summary.venue.eq_ignore_ascii_case(value))
+            })
             .filter(|row| {
                 currency
                     .as_ref()
@@ -112,16 +131,20 @@ impl DeribitOptionCache {
             .collect()
     }
 
-    fn with_stale(&self, mut row: CachedDeribitOptionSummary) -> CachedDeribitOptionSummary {
+    fn with_stale(&self, mut row: CachedOptionSummary) -> CachedOptionSummary {
         row.stale = now_ms().saturating_sub(row.received_at_ms) > self.stale_ttl_ms;
         row
     }
 }
 
+pub type CachedDeribitOptionSummary = CachedOptionSummary;
+pub type DeribitOptionFilter = OptionFilter;
+pub type DeribitOptionCache = OptionCache;
+
 pub fn spawn_deribit_option_cache(
     cfg: DeribitConfig,
     client: reqwest::Client,
-    cache: DeribitOptionCache,
+    cache: OptionCache,
     shutdown: CancellationToken,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
@@ -143,7 +166,9 @@ pub fn spawn_deribit_option_cache(
                 match fetch_deribit_option_summaries_from(&client, &cfg.base_url, currency).await {
                     Ok(rows) => {
                         let count = rows.len();
-                        cache.replace_currency(currency, rows).await;
+                        cache
+                            .replace_venue_currency("deribit", currency, rows)
+                            .await;
                         info!(currency, count, "deribit option cache refreshed");
                     }
                     Err(error) => {
@@ -163,8 +188,9 @@ pub fn spawn_deribit_option_cache(
 mod tests {
     use super::*;
 
-    fn row(currency: &str, strike: f64, option_type: &str) -> DeribitOptionSummary {
-        DeribitOptionSummary {
+    fn row(currency: &str, strike: f64, option_type: &str) -> OptionSummary {
+        OptionSummary {
+            venue: "deribit".to_string(),
             currency: currency.to_string(),
             instrument_name: format!("{currency}-TEST-{strike}-{option_type}"),
             option_type: Some(option_type.to_string()),
@@ -182,15 +208,17 @@ mod tests {
 
     #[tokio::test]
     async fn filters_cached_options() {
-        let cache = DeribitOptionCache::new(30_000);
+        let cache = OptionCache::new(30_000);
         cache
-            .replace_currency(
+            .replace_venue_currency(
+                "deribit",
                 "BTC",
                 vec![row("BTC", 90_000.0, "call"), row("BTC", 120_000.0, "put")],
             )
             .await;
         let rows = cache
-            .filtered(DeribitOptionFilter {
+            .filtered(OptionFilter {
+                venue: Some("DERIBIT".to_string()),
                 currency: Some("btc".to_string()),
                 option_type: Some("CALL".to_string()),
                 strike_min: Some(80_000.0),

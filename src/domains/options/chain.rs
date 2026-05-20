@@ -1,14 +1,13 @@
-use crate::connectors::options::deribit::DeribitOptionSummary;
+use crate::connectors::options::common::OptionSummary;
 use crate::core::schema::{
     AssetClass, DataDomain, DataEnvelope, Freshness, InstrumentRef, ProductType, SourceRef,
     SourceType,
 };
-use crate::deribit_cache::CachedDeribitOptionSummary;
+use crate::deribit_cache::CachedOptionSummary;
 
-pub fn envelope_from_deribit_summary(
-    row: CachedDeribitOptionSummary,
-) -> DataEnvelope<DeribitOptionSummary> {
+pub fn envelope_from_option_summary(row: CachedOptionSummary) -> DataEnvelope<OptionSummary> {
     let summary = row.summary;
+    let venue = summary.venue.clone();
     let instrument_id = summary.instrument_name.clone();
     let symbol = Some(summary.instrument_name.clone());
     let base = Some(summary.currency.clone());
@@ -17,8 +16,8 @@ pub fn envelope_from_deribit_summary(
         DataDomain::OptionsChain,
         SourceRef {
             source_type: SourceType::OptionsVenue,
-            source: "deribit".to_string(),
-            venue: Some("deribit".to_string()),
+            source: venue.clone(),
+            venue: Some(venue),
             chain: None,
             protocol: None,
         },
@@ -41,18 +40,23 @@ pub fn envelope_from_deribit_summary(
     )
 }
 
+pub fn envelope_from_deribit_summary(row: CachedOptionSummary) -> DataEnvelope<OptionSummary> {
+    envelope_from_option_summary(row)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn converts_deribit_summary_to_envelope() {
-        let envelope = envelope_from_deribit_summary(CachedDeribitOptionSummary {
+        let envelope = envelope_from_option_summary(CachedOptionSummary {
             version: "v1",
-            source: "deribit_rest_cache",
+            source: "deribit_rest_cache".to_string(),
             received_at_ms: 1_000,
             stale: false,
-            summary: DeribitOptionSummary {
+            summary: OptionSummary {
+                venue: "deribit".to_string(),
                 currency: "BTC".to_string(),
                 instrument_name: "BTC-25DEC26-100000-C".to_string(),
                 option_type: Some("call".to_string()),

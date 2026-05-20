@@ -1,22 +1,8 @@
 use anyhow::{Context, Result};
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct DeribitOptionSummary {
-    pub currency: String,
-    pub instrument_name: String,
-    pub option_type: Option<String>,
-    pub strike: Option<f64>,
-    pub expiry_time: Option<String>,
-    pub bid_price: Option<f64>,
-    pub ask_price: Option<f64>,
-    pub mark_price: Option<f64>,
-    pub mark_iv: Option<f64>,
-    pub underlying_price: Option<f64>,
-    pub underlying_index: Option<String>,
-    pub open_interest: Option<f64>,
-}
+use super::common::{OptionSummary, option_side_from_code, parse_day_month_year_expiry};
 
 #[derive(Debug, Deserialize)]
 struct DeribitResponse<T> {
@@ -38,7 +24,7 @@ struct DeribitRawSummary {
 pub async fn fetch_deribit_option_summaries(
     client: &reqwest::Client,
     currency: &str,
-) -> Result<Vec<DeribitOptionSummary>> {
+) -> Result<Vec<OptionSummary>> {
     fetch_deribit_option_summaries_from(client, "https://www.deribit.com/api/v2/", currency).await
 }
 
@@ -46,7 +32,7 @@ pub async fn fetch_deribit_option_summaries_from(
     client: &reqwest::Client,
     base_url: &str,
     currency: &str,
-) -> Result<Vec<DeribitOptionSummary>> {
+) -> Result<Vec<OptionSummary>> {
     let currency = currency.trim().to_ascii_uppercase();
     let mut url = Url::parse(base_url)?.join("public/get_book_summary_by_currency")?;
     url.query_pairs_mut()
@@ -66,7 +52,8 @@ pub async fn fetch_deribit_option_summaries_from(
         .into_iter()
         .map(|raw| {
             let parsed = parse_deribit_instrument(&raw.instrument_name);
-            DeribitOptionSummary {
+            OptionSummary {
+                venue: "deribit".to_string(),
                 currency: currency.clone(),
                 instrument_name: raw.instrument_name,
                 option_type: parsed.as_ref().map(|p| p.2.clone()),
@@ -91,35 +78,10 @@ fn parse_deribit_instrument(name: &str) -> Option<(String, f64, String)> {
     }
     let expiry_time = parse_deribit_date(parts[1])?;
     let strike = parts[2].parse::<f64>().ok()?;
-    let option_type = match parts[3] {
-        "C" => "call",
-        "P" => "put",
-        other => other,
-    }
-    .to_string();
+    let option_type = option_side_from_code(parts[3]);
     Some((expiry_time, strike, option_type))
 }
 
 fn parse_deribit_date(text: &str) -> Option<String> {
-    if text.len() < 7 {
-        return None;
-    }
-    let day = text[0..2].parse::<u32>().ok()?;
-    let month = match &text[2..5].to_uppercase()[..] {
-        "JAN" => 1,
-        "FEB" => 2,
-        "MAR" => 3,
-        "APR" => 4,
-        "MAY" => 5,
-        "JUN" => 6,
-        "JUL" => 7,
-        "AUG" => 8,
-        "SEP" => 9,
-        "OCT" => 10,
-        "NOV" => 11,
-        "DEC" => 12,
-        _ => return None,
-    };
-    let year = 2000 + text[5..7].parse::<i32>().ok()?;
-    Some(format!("{year:04}-{month:02}-{day:02}T08:00:00Z"))
+    parse_day_month_year_expiry(text)
 }

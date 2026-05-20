@@ -7,8 +7,8 @@ use serde::Deserialize;
 
 use crate::api::ApiState;
 use crate::connectors::options::deribit::fetch_deribit_option_summaries;
-use crate::deribit_cache::DeribitOptionFilter;
-use crate::domains::options::chain::envelope_from_deribit_summary;
+use crate::deribit_cache::OptionFilter;
+use crate::domains::options::chain::envelope_from_option_summary;
 
 #[derive(Debug, Deserialize)]
 pub struct DeribitOptionsQuery {
@@ -17,6 +17,7 @@ pub struct DeribitOptionsQuery {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct DeribitLiveOptionsQuery {
+    venue: Option<String>,
     currency: Option<String>,
     option_type: Option<String>,
     strike_min: Option<f64>,
@@ -52,7 +53,8 @@ pub async fn v1_options_chains(
 ) -> impl IntoResponse {
     let rows = state
         .deribit_cache
-        .filtered(DeribitOptionFilter {
+        .filtered(OptionFilter {
+            venue: q.venue.clone(),
             currency: q.currency.clone(),
             option_type: q.option_type,
             strike_min: q.strike_min,
@@ -63,7 +65,7 @@ pub async fn v1_options_chains(
         })
         .await
         .into_iter()
-        .map(envelope_from_deribit_summary)
+        .map(envelope_from_option_summary)
         .collect::<Vec<_>>();
 
     Json(serde_json::json!({
@@ -79,7 +81,8 @@ pub async fn deribit_live_options_summary(
 ) -> impl IntoResponse {
     let rows = state
         .deribit_cache
-        .filtered(DeribitOptionFilter {
+        .filtered(OptionFilter {
+            venue: Some("deribit".to_string()),
             currency: q.currency.clone(),
             option_type: q.option_type,
             strike_min: q.strike_min,
