@@ -323,13 +323,17 @@ MarketBridge keeps current-state snapshots in `src/event_snapshots.rs` and
 event fanout in `src/event_bus.rs`.
 
 - `event_snapshots.rs`: latest quote/funding/OI/trade/liquidation/book/external
-  signal rows and cache key rules.
+  signal rows, cache key rules, and ArcSwap copy-on-write snapshot maps.
 - `event_bus.rs`: raw event broadcast, per-domain broadcast channels, and
   update orchestration.
+- `router.rs`: source fanout into the spread aggregator and an asynchronous
+  bus worker so snapshot publication does not sit on the router hot path.
+- `redis_sink.rs`: optional Redis Stream persistence with batched `XADD`
+  pipelines; the service remains a live data bridge when Redis is disabled.
 
-This split is deliberate: future snapshot optimizations such as ArcSwap,
-pre-serialized bytes, or sharded stores should be implemented in the snapshot
-layer without changing connector code or API route logic.
+This split is deliberate: future optimizations such as pre-serialized bytes or
+sharded stores should stay in the runtime state layer without changing
+connector code or API route logic.
 
 ## Strategy Signal Reporting
 
