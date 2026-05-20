@@ -384,7 +384,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "MarketBridge has spot/perp ticker paths; add L2/trades/funding/OI/liquidation parity.",
+        notes: "Spot/perp ticker plus spot REST order book and recent trades are wired; add perp L2/trades/funding/OI/liquidation parity.",
     },
     RoadmapSource {
         source: "upbit",

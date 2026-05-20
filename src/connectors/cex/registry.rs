@@ -74,6 +74,7 @@ use super::kraken::{KrakenRestFeed, KrakenTicker};
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::KucoinPerpTicker;
+use super::kucoin_rest::KucoinRestFeed;
 use super::mexc::MexcFeed;
 use super::ndax::NdaxSpotFeed;
 use super::okx::{
@@ -479,9 +480,9 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "kucoin" => {
                 if !spot_symbols.is_empty() {
-                    out.push(Arc::new(KucoinTicker::new(
-                        spot_symbols.iter().map(|s| to_dash(s)).collect(),
-                    )));
+                    let spot_markets = spot_symbols.iter().map(|s| to_dash(s)).collect::<Vec<_>>();
+                    out.push(Arc::new(KucoinTicker::new(spot_markets.clone())));
+                    out.push(Arc::new(KucoinRestFeed::new(spot_markets)));
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(KucoinPerpTicker::new(

@@ -48,6 +48,7 @@ pub mod kraken;
 pub mod kraken_perp;
 pub mod kucoin;
 pub mod kucoin_perp;
+pub mod kucoin_rest;
 pub mod mexc;
 pub mod ndax;
 pub mod okx;
