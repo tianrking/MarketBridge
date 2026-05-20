@@ -241,9 +241,10 @@ Base URL: `http://127.0.0.1:8080`
 
 | Method | Path | Data |
 |---|---|---|
+| GET | `/` | Service metadata. |
 | GET | `/health` | Service liveness. |
 | GET | `/v1/catalog/sources` | Source availability and API-key status. |
-| GET | `/v1/catalog/source-roadmap` | Hummingbot/CCXT expansion inventory with MarketBridge implementation status. |
+| GET | `/v1/catalog/source-roadmap` | External source expansion inventory with MarketBridge implementation status; reference-only, not a runtime dependency. |
 | GET | `/v1/catalog/domains` | Normalized domain inventory. |
 | GET | `/v1/catalog/instruments` | Instruments visible in live caches. |
 | GET | `/v1/catalog/health` | Domain/source counts and freshness. |
@@ -260,6 +261,22 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/prediction/books` | Cached Polymarket books. |
 | GET | `/v1/external/signals` | Aggregates, macro, news, and sentiment. |
 | GET | `/v1/onchain/transfers` | Large transfer feed. |
+| GET | `/snapshot` | Legacy latest quote tick snapshot. |
+| GET | `/funding` | Legacy unified funding view. |
+| GET | `/options/deribit/summary` | Live Deribit REST option summary. |
+| GET | `/options/deribit/live-summary` | Cached Deribit option summary with freshness fields. |
+| GET | `/polymarket/crypto-markets` | Parsed BTC/ETH Polymarket crypto markets. |
+| GET | `/polymarket/book` | Single Polymarket token order book. |
+| GET | `/polymarket/books` | Batch Polymarket token order books. |
+| GET | `/polymarket/midpoints` | Batch public midpoint prices. |
+| GET | `/polymarket/spreads` | Batch public spreads. |
+| GET | `/polymarket/last-trade-prices` | Batch public last-trade prices. |
+| GET | `/polymarket/prices` | Batch public BUY/SELL executable prices. |
+| GET | `/polymarket/prices-history` | Single or batch public price history. |
+| GET | `/polymarket/crypto-books` | Crypto markets plus REST books. |
+| GET | `/polymarket/live-books` | Cached Polymarket books seeded by REST and patched by websocket. |
+| GET | `/polymarket/live-crypto-books` | Crypto markets plus cached books. |
+| GET | `/coverage` | Data quality dashboard model. |
 | GET | `/metrics` | Prometheus metrics. |
 | WS | `/v1/stream` | Domain-filtered live stream. |
 | WS | `/ws/ticks` | Legacy quote tick stream. |

@@ -3,10 +3,11 @@
 This document is the operating checklist for MarketBridge coverage. Update it in
 the same commit as every connector, API, or infrastructure change.
 
-Broader CCXT/Hummingbot source coverage candidates are tracked in
-[`source_expansion_inventory.md`](source_expansion_inventory.md). That file is a
-roadmap inventory only; this document remains the source of truth for what is
-implemented and wired into the runtime/API.
+Broader external source coverage candidates are tracked in
+[`source_expansion_inventory.md`](source_expansion_inventory.md). That file uses
+CCXT and Hummingbot only as reference inventories. MarketBridge does not call,
+embed, bridge, or depend on them at runtime. This document remains the source of
+truth for what is implemented and wired into the runtime/API.
 
 Status labels:
 
@@ -21,7 +22,7 @@ Status labels:
 | Domain | Endpoint | Status | API key | Notes |
 |---|---|---:|---:|---|
 | Market quotes | `/v1/market/quotes` | implemented | mixed | CEX, DeFi, TradFi, CoinGecko, CoinMarketCap. |
-| Source roadmap | `/v1/catalog/source-roadmap` | implemented | keyless | Hummingbot/CCXT expansion inventory; not runtime data coverage. |
+| Source roadmap | `/v1/catalog/source-roadmap` | implemented | keyless | External source expansion inventory; not runtime data coverage. |
 | Spot-perp basis | `/v1/market/basis` | implemented | keyless | Derived from current spot/perp quote snapshots per exchange/symbol. |
 | Funding rates | `/v1/market/funding` | implemented | mixed | Native CEX feeds plus future aggregate feeds. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |

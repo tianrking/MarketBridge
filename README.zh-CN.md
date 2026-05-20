@@ -233,18 +233,17 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 
 ### CEX
 
-| 交易所 | BBO | L2 | Trades | Funding | OI | Liquidations |
-|---|---:|---:|---:|---:|---:|---:|
-| Binance | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 |
-| Bybit | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 |
-| OKX | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 |
-| Hyperliquid | 部分 | 已实现 | 已实现 | 已实现 | 已实现 | 计划中 |
-| dYdX v4 | 部分 | 已实现 | 已实现 | 已实现 | 已实现 | 计划中 |
-| Backpack | 部分 | 已实现 | 已实现 | 计划中 | 计划中 | 计划中 |
-| MEXC | 部分 | 已实现 | 已实现 | 部分 | 计划中 | 计划中 |
-| BingX | 部分 | 已实现 | 已实现 | 部分 | 部分 | 计划中 |
-| Bitget | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 计划中 |
-| KuCoin / Gate / Kraken / HTX / Bitfinex / Coinbase | 已实现 BBO | 计划中 | 计划中 | 视交易所而定 | 视交易所而定 | 计划中 |
+当前运行覆盖以 [`docs/feature_inventory.md`](docs/feature_inventory.md) 为准。下面是 README 里的快速矩阵：
+
+| 交易所 / 交易所组 | BBO | L2 | Trades | Funding | OI | Liquidations | 说明 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Binance / Bybit / OKX | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 核心高流动性 spot/perp 公共数据。 |
+| Hyperliquid / dYdX / Backpack / MEXC / BingX / Bitget / Bitmart | 已实现或部分 | 已实现 | 已实现 | 部分到已实现 | 部分到已实现 | 计划中或交易所不提供稳定公共流 | 公共 feed 优先，缺口保持显式。 |
+| BitMEX / Deribit / Phemex / CoinEx / Crypto.com / WOO X / BloFin / Aevo / Pacifica / GRVT / Injective / Derive / Evedex | 已实现或部分 | 已实现 | 已实现 | 已实现或交易所提供时已实现 | 已实现或计划中 | BitMEX 已实现，其余按公共能力推进 | 原生 Rust perp/derivatives 数据路径。 |
+| Coinbase / Kraken / KuCoin / Gemini / Bithumb / Bitvavo / bitFlyer / bitbank / Coincheck / Coinone / Upbit / Bullish | 已实现 | 已实现 | 已实现 | 不适用或计划中 | 不适用或计划中 | 不适用或计划中 | 原生 spot REST/WS 公共行情、订单簿、成交。 |
+| Gate / HTX / Bitfinex / Bitstamp / Bitrue / AscendEX / BTC Markets / Dexalot / Vertex / XRPL / Cube / Foxbit / NDAX | 已实现或部分 | 已实现或计划中 | 已实现或计划中 | 适用时计划中 | 适用时计划中 | 计划中 | 长尾和 CLOB/DEX 数据源按公共数据契约继续补强。 |
+
+所有交易所连接器只做公开数据，不签名、不下单、不撤单，也不在运行时依赖第三方交易库。交易所没有稳定公共数据的 domain 会保持为空，不伪造信号。
 
 ### 期权
 
@@ -310,6 +309,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/` | 服务元信息。 |
 | GET | `/health` | 健康检查。 |
 | GET | `/v1/catalog/sources` | 数据源启用状态和 API key 状态。 |
+| GET | `/v1/catalog/source-roadmap` | 外部数据源清单和 MarketBridge 实现状态。 |
 | GET | `/v1/catalog/domains` | 标准化 domain 清单。 |
 | GET | `/v1/catalog/instruments` | 当前缓存中可见的 instruments。 |
 | GET | `/v1/catalog/health` | source/domain 记录数和 freshness。 |
@@ -328,6 +328,19 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/onchain/transfers` | 链上大额转账。 |
 | GET | `/snapshot` | legacy 最新 tick 快照。 |
 | GET | `/funding` | legacy funding view。 |
+| GET | `/options/deribit/summary` | Deribit 实时 REST option summary。 |
+| GET | `/options/deribit/live-summary` | Deribit 缓存 option summary。 |
+| GET | `/polymarket/crypto-markets` | Polymarket BTC/ETH crypto market discovery。 |
+| GET | `/polymarket/book` | 单个 Polymarket token order book。 |
+| GET | `/polymarket/books` | 批量 Polymarket token order books。 |
+| GET | `/polymarket/midpoints` | 批量 midpoint。 |
+| GET | `/polymarket/spreads` | 批量 spread。 |
+| GET | `/polymarket/last-trade-prices` | 批量 last trade price。 |
+| GET | `/polymarket/prices` | 批量 BUY/SELL executable price。 |
+| GET | `/polymarket/prices-history` | 单个或批量历史价格。 |
+| GET | `/polymarket/crypto-books` | Crypto markets + REST books。 |
+| GET | `/polymarket/live-books` | WebSocket 缓存 books。 |
+| GET | `/polymarket/live-crypto-books` | Crypto markets + WebSocket 缓存 books。 |
 | GET | `/coverage` | 数据质量 dashboard model。 |
 | GET | `/metrics` | Prometheus metrics。 |
 | WS | `/ws/ticks` | legacy tick stream。 |
@@ -341,10 +354,36 @@ Base URL：`http://127.0.0.1:8080`
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=perp" | jq
 ```
 
+### Catalog
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/health" | jq
+```
+
 ### Spot-perp basis
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/basis?symbols=BTCUSDT&exchanges=binance,okx" | jq
+```
+
+### Funding / OI / L2 / Trades / Liquidations
+
+这些端点共享常用过滤参数：
+
+- `symbols=BTCUSDT,ETHUSDT`
+- `exchanges=binance,okx,deribit`
+- `market=spot|perp`，用于 `order-books` 和 `trades`
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/funding?symbols=BTCUSDT&exchanges=binance,okx,deribit" | jq
+curl -s "http://127.0.0.1:8080/v1/market/open-interest?symbols=BTCUSDT&exchanges=binance,okx,deribit" | jq
+curl -s "http://127.0.0.1:8080/v1/market/order-books?symbols=BTCUSDT&market=perp&exchanges=binance,okx" | jq
+curl -s "http://127.0.0.1:8080/v1/market/trades?symbols=BTCUSDT&market=perp&exchanges=binance,okx" | jq
+curl -s "http://127.0.0.1:8080/v1/market/liquidations?symbols=BTCUSDT&exchanges=binance,bybit,okx" | jq
 ```
 
 ### Order flow
@@ -368,9 +407,25 @@ curl -s "http://127.0.0.1:8080/v1/options/chains?venue=bybit&currency=BTC&option
 ### Polymarket
 
 ```bash
+curl -s "http://127.0.0.1:8080/polymarket/crypto-markets?limit=500&max_offset=500" | jq
+curl -s "http://127.0.0.1:8080/polymarket/book?token_id=YES_TOKEN" | jq
 curl -s "http://127.0.0.1:8080/polymarket/books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/polymarket/midpoints?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/polymarket/spreads?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/polymarket/last-trade-prices?token_ids=YES_TOKEN,NO_TOKEN" | jq
 curl -s "http://127.0.0.1:8080/polymarket/prices?token_ids=YES_TOKEN&sides=BUY,SELL" | jq
 curl -s "http://127.0.0.1:8080/polymarket/prices-history?token_id=YES_TOKEN&interval=1h&fidelity=1" | jq
+curl -s "http://127.0.0.1:8080/polymarket/live-books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/v1/prediction/books?token_ids=YES_TOKEN,NO_TOKEN&include_stale=false" | jq
+```
+
+### DeFi / 宏观 / 聚合 / 情绪
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/quotes?exchanges=jupiter,raydium,uniswap_v3,paraswap,oneinch" | jq
+curl -s "http://127.0.0.1:8080/v1/market/quotes?exchanges=dxy,vix,us10y" | jq
+curl -s "http://127.0.0.1:8080/v1/external/signals?sources=coinglass,fear_greed,cryptopanic,santiment,lunarcrush" | jq
+curl -s "http://127.0.0.1:8080/v1/external/signals?sources=coinglass&symbols=BTC&metrics=funding,open_interest" | jq
 ```
 
 ### On-chain transfers

@@ -37,8 +37,8 @@ visibility. A source enters the runtime only after it has at least:
 |---|---|---|
 | P0 | Finish depth on existing high-liquidity sources: Binance, OKX, Bybit, Bitget, KuCoin, Gate, Kraken, HTX, Bitfinex, Coinbase, MEXC, BingX, Backpack, Hyperliquid, dYdX | Highest immediate value; reduces partial rows before adding long tail. |
 | P1 | Harden newly added Hummingbot overlap: Vertex, Injective, XRPL, Architect, Decibel | Connector code paths are wired; keyed venues and partial fields still need credentialed runtime validation and deeper edge-case coverage. |
-| P2 | Add liquid CCXT/CEX venues: BitMEX, Crypto.com, CoinEx, Gemini, HashKey, Bitvavo, Bullish, WOO X, Phemex, Poloniex, Upbit, Bithumb | Strong market-data utility; good candidates for REST-first then WS. |
-| P3 | Add CCXT long-tail venues as REST snapshot sources | Broad coverage for research, but lower operational priority. |
+| P2 | Add liquid centralized venues from the reference inventory: BitMEX, Crypto.com, CoinEx, Gemini, HashKey, Bitvavo, Bullish, WOO X, Phemex, Poloniex, Upbit, Bithumb | Strong market-data utility; good candidates for REST-first then WS. |
+| P3 | Add long-tail centralized venues as native REST snapshot sources | Broad coverage for research, but lower operational priority. |
 | P4 | Wallet/order/account-only capabilities | Out of scope unless MarketBridge grows an execution subsystem. |
 
 ## CCXT Exchange Ids

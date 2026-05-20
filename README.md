@@ -85,9 +85,10 @@ domain model.
 The consumer-facing endpoint map is maintained in
 [docs/data_interfaces.md](docs/data_interfaces.md).
 
-The CCXT/Hummingbot expansion inventory is tracked in
-[docs/source_expansion_inventory.md](docs/source_expansion_inventory.md). It is
-a roadmap inventory, not an implementation claim; use
+The external source expansion inventory is tracked in
+[docs/source_expansion_inventory.md](docs/source_expansion_inventory.md). It uses
+third-party projects only as reference lists; MarketBridge does not call, embed,
+bridge, or depend on them at runtime. Use
 [docs/feature_inventory.md](docs/feature_inventory.md) for runtime coverage.
 
 ## Tech Stack
@@ -364,11 +365,14 @@ management should stay outside this repo.
 
 | Capability | Status | Interface | Notes |
 |---|---:|---|---|
-| Spot BBO | Implemented | `GET /snapshot`, `WS /ws/ticks` | Normalized `bid`, `ask`, `symbol`, `exchange`, `market=spot`. |
-| Perp BBO | Implemented | `GET /snapshot`, `WS /ws/ticks` | Normalized `market=perp`; symbol mapping differs by venue internally. |
-| Perp mark/funding | Implemented where venue provides it | `GET /funding`, `GET /coverage` | Coverage depends on exchange adapter support and live venue payloads. |
+| Spot and perp BBO | Implemented | `GET /v1/market/quotes`, `GET /snapshot`, `WS /v1/stream`, `WS /ws/ticks` | Normalized `bid`, `ask`, `symbol`, `exchange`, and product type. |
+| L2 order books | Implemented where public venue data exists | `GET /v1/market/order-books`, `WS /v1/stream?domains=order_book` | Latest normalized depth snapshots with venue/source metadata. |
+| Public trades | Implemented where public venue data exists | `GET /v1/market/trades`, `WS /v1/stream?domains=trade` | Latest trade cache per venue/symbol plus rolling order-flow metrics. |
+| Perp funding | Implemented where venue provides it | `GET /v1/market/funding`, `GET /funding`, `WS /v1/stream?domains=funding` | Native public feeds and REST pollers; no trading credentials required. |
+| Open interest | Implemented where venue provides it | `GET /v1/market/open-interest`, `WS /v1/stream?domains=open_interest` | Native public perp metadata/ticker feeds. |
+| Liquidations | Implemented where venue exposes a stable public feed | `GET /v1/market/liquidations`, `WS /v1/stream?domains=liquidation` | Empty when a venue has no reliable public all-market signal. |
 | Multi-exchange quality | Implemented | `GET /coverage` | Stale ratio, latency percentiles, funding coverage, alerts. |
-| Redis stream sink | Implemented optional | `runtime.redis_url` | Emits normalized ticks to Redis streams when configured. |
+| Redis stream sink | Implemented optional | `runtime.redis_url` | Emits normalized ticks and domain events to Redis streams when configured. |
 
 ### Option / IV Data
 
@@ -469,6 +473,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
 | GET | `/v1/catalog/sources` | Implemented public data sources |
+| GET | `/v1/catalog/source-roadmap` | External source roadmap inventory and implementation status |
 | GET | `/v1/catalog/domains` | Implemented normalized data domains |
 | GET | `/v1/catalog/instruments` | Instruments currently visible in live caches |
 | GET | `/v1/catalog/health` | Source/domain record counts and freshness status |
@@ -531,25 +536,21 @@ curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&asset=BTC
 
 ### Exchange Public Data Coverage
 
-| Venue | Funding | Open interest | Liquidations | L2 book | Trades |
-|---|---|---|---|---|---|
-| Binance | WS `markPrice@1s` | REST poll `openInterest` | WS `forceOrder` | WS `depth20@100ms` | WS `aggTrade` |
-| Bybit | WS `tickers` | WS `tickers` | WS `allLiquidation` | WS `orderbook.50` | WS `publicTrade` |
-| OKX | WS `funding-rate` | WS `open-interest` | REST poll `liquidation-orders` | WS `books5` | WS `trades` |
-| Hyperliquid | WS `activeAssetCtx` | WS `activeAssetCtx` | Not exposed as a stable all-market public channel | WS `l2Book` | WS `trades` |
-| dYdX v4 | REST poll `perpetualMarkets` | REST poll `perpetualMarkets` | Not exposed as a stable all-market public channel | WS `v4_orderbook` | WS `v4_trades` |
-| Backpack | Product-dependent | Product-dependent | Not exposed as a stable all-market public channel | WS `depth` | WS `trade` |
-| MEXC | Perp ticker when field is present | Not yet exposed | Not yet exposed | WS spot/futures depth | WS spot/futures deals |
-| BingX | Swap ticker when field is present | Swap ticker when field is present | Not yet exposed | WS `depth20` | WS `trade` |
+The table below is the current runtime/API coverage. The full operating matrix
+is maintained in [docs/feature_inventory.md](docs/feature_inventory.md) and must
+be updated with every connector change.
 
-Other CEX adapters still provide BBO and venue-specific mark/funding fields where
-their ticker feed includes them. The new typed feeds are wired first for
-Binance, Bybit, and OKX because they cover the highest-volume public derivatives
-venues and the exact sources needed for funding/OI/liquidation/depth/trade
-research.
+| Venue group | BBO | L2 book | Trades | Funding | OI | Liquidations | Notes |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Binance / Bybit / OKX | implemented | implemented | implemented | implemented | implemented | implemented | Highest-volume public derivatives venues. |
+| Hyperliquid / dYdX / Backpack / MEXC / BingX / Bitget / Bitmart | implemented or partial | implemented | implemented | partial to implemented | partial to implemented | planned except venue support | Public feeds first; venue-specific gaps stay explicit. |
+| BitMEX / Deribit / Phemex / CoinEx / Crypto.com / WOO X / BloFin / Aevo / Pacifica / GRVT / Injective / Derive / Evedex | implemented or partial | implemented | implemented | implemented where venue provides it | implemented or planned | planned except BitMEX | Native public perp/derivatives data paths. |
+| Coinbase / Kraken / KuCoin / Gemini / Bithumb / Bitvavo / bitFlyer / bitbank / Coincheck / Coinone / Upbit / Bullish | implemented | implemented | implemented | n/a or planned | n/a or planned | n/a or planned | Native spot REST/WS public market data. |
+| Gate / HTX / Bitfinex / Bitstamp / Bitrue / AscendEX / BTC Markets / Dexalot / Vertex / XRPL / Cube / Foxbit / NDAX | implemented or partial | implemented or planned | implemented or planned | planned where applicable | planned where applicable | planned | Long-tail and CLOB/DEX venues are added as public data contracts mature. |
 
-The newer venue connectors are public-data only and keyless. Where a venue does
-not provide a stable all-market liquidation stream, MarketBridge leaves that
+All exchange connectors are data-only. They do not sign requests, place orders,
+cancel orders, or depend on third-party trading libraries at runtime. Where a
+venue does not provide a stable public feed for a domain, MarketBridge leaves the
 domain empty instead of fabricating a signal.
 
 ## API Details
@@ -582,8 +583,10 @@ Examples:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/health" | jq
 ```
 
 ### `GET /v1/market/quotes`
@@ -602,6 +605,27 @@ Examples:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=perp" | jq
+```
+
+### `GET /v1/market/funding`, `/open-interest`, `/order-books`, `/trades`, `/liquidations`
+
+These market domain endpoints expose the latest normalized rows from live public
+feeds and REST pollers.
+
+Shared query params:
+
+- `symbols=BTCUSDT,ETHUSDT`
+- `exchanges=binance,okx,deribit`
+- `market=spot|perp` for trade and order-book endpoints
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/funding?symbols=BTCUSDT&exchanges=binance,okx,deribit" | jq
+curl -s "http://127.0.0.1:8080/v1/market/open-interest?symbols=BTCUSDT&exchanges=binance,okx,deribit" | jq
+curl -s "http://127.0.0.1:8080/v1/market/order-books?symbols=BTCUSDT&market=perp&exchanges=binance,okx" | jq
+curl -s "http://127.0.0.1:8080/v1/market/trades?symbols=BTCUSDT&market=perp&exchanges=binance,okx" | jq
+curl -s "http://127.0.0.1:8080/v1/market/liquidations?symbols=BTCUSDT&exchanges=binance,bybit,okx" | jq
 ```
 
 ### `GET /v1/market/klines`
