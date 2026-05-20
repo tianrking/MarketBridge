@@ -206,6 +206,9 @@ GET /v1/market/liquidations
 Purpose: CEX and DEX market data by source, venue, asset, product, symbol, and
 instrument.
 
+Current public connector coverage includes Binance, Bybit, OKX, Hyperliquid,
+dYdX v4, Backpack, MEXC, and BingX in addition to the existing CEX adapters.
+
 ### Options Data
 
 ```text

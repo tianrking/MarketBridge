@@ -241,12 +241,21 @@ Base URL: `http://127.0.0.1:8080`
 | Binance | WS `markPrice@1s` | REST poll `openInterest` | WS `forceOrder` | WS `depth20@100ms` | WS `aggTrade` |
 | Bybit | WS `tickers` | WS `tickers` | WS `allLiquidation` | WS `orderbook.50` | WS `publicTrade` |
 | OKX | WS `funding-rate` | WS `open-interest` | REST poll `liquidation-orders` | WS `books5` | WS `trades` |
+| Hyperliquid | WS `activeAssetCtx` | WS `activeAssetCtx` | Not exposed as a stable all-market public channel | WS `l2Book` | WS `trades` |
+| dYdX v4 | REST poll `perpetualMarkets` | REST poll `perpetualMarkets` | Not exposed as a stable all-market public channel | WS `v4_orderbook` | WS `v4_trades` |
+| Backpack | Product-dependent | Product-dependent | Not exposed as a stable all-market public channel | WS `depth` | WS `trade` |
+| MEXC | Perp ticker when field is present | Not yet exposed | Not yet exposed | WS spot/futures depth | WS spot/futures deals |
+| BingX | Swap ticker when field is present | Swap ticker when field is present | Not yet exposed | WS `depth20` | WS `trade` |
 
 Other CEX adapters still provide BBO and venue-specific mark/funding fields where
 their ticker feed includes them. The new typed feeds are wired first for
 Binance, Bybit, and OKX because they cover the highest-volume public derivatives
 venues and the exact sources needed for funding/OI/liquidation/depth/trade
 research.
+
+The newer venue connectors are public-data only and keyless. Where a venue does
+not provide a stable all-market liquidation stream, MarketBridge leaves that
+domain empty instead of fabricating a signal.
 
 ## API Details
 
