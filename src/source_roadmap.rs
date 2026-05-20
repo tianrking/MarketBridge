@@ -341,9 +341,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_PERP,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P2",
-        notes: "Hummingbot perp connector and candle feed exist.",
+        notes: "Read-only Aptos Decibel perp depth/trade/market_price streams wired; bearer token required.",
     },
     RoadmapSource {
         source: "evedex",

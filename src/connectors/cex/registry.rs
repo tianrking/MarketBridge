@@ -40,6 +40,7 @@ use super::btc_markets::BtcMarketsSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
+use super::decibel::DecibelPerpFeed;
 use super::derive::{DerivePerpFeed, DeriveSpotFeed};
 use super::dexalot::DexalotSpotFeed;
 use super::dydx::DydxFeed;
@@ -266,6 +267,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "architect" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(ArchitectPerpFeed::new(
                     perp_symbols.iter().map(|s| to_architect_perp(s)).collect(),
+                    exchange_api_key(cfg, &ex),
+                )));
+            }
+            "decibel" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(DecibelPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_decibel_perp(s)).collect(),
                     exchange_api_key(cfg, &ex),
                 )));
             }
@@ -600,6 +607,20 @@ fn to_architect_perp(symbol: &str) -> String {
     format!("{}-PERP", base.to_ascii_uppercase())
 }
 
+fn to_decibel_perp(symbol: &str) -> String {
+    if symbol.starts_with("0x") || symbol.contains('@') {
+        return symbol.to_string();
+    }
+    if symbol.contains('/') {
+        return symbol.to_ascii_uppercase().replace('/', "-");
+    }
+    if symbol.contains('-') {
+        return symbol.to_ascii_uppercase();
+    }
+    let (base, _) = split_quote(symbol);
+    format!("{}-USD", base.to_ascii_uppercase())
+}
+
 fn exchange_api_key(cfg: &AppConfig, exchange: &str) -> Option<String> {
     let ex = cfg.exchanges.get(exchange)?;
     ex.api_key.clone().or_else(|| {
@@ -713,5 +734,12 @@ mod tests {
             .map(|market| market.product_id)
             .collect::<Vec<_>>();
         assert_eq!(ids, vec![1, 3, 2, 4]);
+    }
+
+    #[test]
+    fn decibel_perp_symbol_converter_uses_market_name_or_direct_address() {
+        assert_eq!(to_decibel_perp("BTCUSDT"), "BTC-USD");
+        assert_eq!(to_decibel_perp("ETH/USD"), "ETH-USD");
+        assert_eq!(to_decibel_perp("BTC-USD@0xabc"), "BTC-USD@0xabc");
     }
 }

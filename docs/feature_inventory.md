@@ -23,11 +23,11 @@ Status labels:
 | Market quotes | `/v1/market/quotes` | implemented | mixed | CEX, DeFi, TradFi, CoinGecko, CoinMarketCap. |
 | Source roadmap | `/v1/catalog/source-roadmap` | implemented | keyless | Hummingbot/CCXT expansion inventory; not runtime data coverage. |
 | Spot-perp basis | `/v1/market/basis` | implemented | keyless | Derived from current spot/perp quote snapshots per exchange/symbol. |
-| Funding rates | `/v1/market/funding` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
+| Funding rates | `/v1/market/funding` | implemented | mixed | Native CEX feeds plus future aggregate feeds. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
-| Order books | `/v1/market/order-books` | implemented | keyless | Latest L2 snapshot per venue/symbol. |
-| Trades | `/v1/market/trades` | implemented | keyless | Latest trade per venue/symbol. |
+| Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
+| Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |
 | Order flow | `/v1/market/order-flow` | implemented | keyless | Derived buy/sell volume, delta, notional, CVD, and large-trade count from live trades. |
 | Klines | `/v1/market/klines` | implemented | keyless | SQLite-backed historical/rest and realtime tick-aggregated OHLCV bars. |
 | Options chains | `/v1/options/chains` | implemented | keyless | Deribit/OKX/Bybit/Binance REST cache. |
@@ -58,6 +58,7 @@ Status labels:
 | Injective | partial | implemented | implemented | implemented | planned | planned | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding poller. |
 | XRPL | partial | implemented | planned | planned | planned | planned | keyless | Public book_offers snapshots; issuer-aware mapping currently includes XRP/USD. |
 | Architect | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. |
+| Decibel | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. |
 | Derive | partial | implemented | implemented | implemented | planned | planned | keyless | Public spot/perp order books and trades plus perp ticker funding. |
 | Dexalot | partial | implemented | implemented | planned | planned | planned | keyless | Public CLOB DEX spot order books and trades. |
 | KuCoin | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |

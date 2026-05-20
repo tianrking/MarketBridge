@@ -134,6 +134,13 @@ exchanges:
     api_key_env: ARCHITECT_API_TOKEN
     fee: { mode: fixed, maker_bps: 0.0, taker_bps: 2.0 }
 
+  decibel:
+    enabled: false
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    api_key_env: DECIBEL_API_TOKEN
+    fee: { mode: fixed, maker_bps: 1.1, taker_bps: 3.4 }
+
   derive:
     enabled: true
     symbols: [ETHUSDC]
