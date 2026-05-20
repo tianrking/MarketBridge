@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::api::ApiState;
 use crate::deribit_cache::DeribitOptionFilter;
+use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::external::fetch_deribit_option_summaries;
 
 #[derive(Debug, Deserialize)]
@@ -43,6 +44,33 @@ pub async fn deribit_options_summary(
             "summaries": []
         })),
     }
+}
+
+pub async fn v1_options_chains(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<DeribitLiveOptionsQuery>,
+) -> impl IntoResponse {
+    let rows = state
+        .deribit_cache
+        .filtered(DeribitOptionFilter {
+            currency: q.currency.clone(),
+            option_type: q.option_type,
+            strike_min: q.strike_min,
+            strike_max: q.strike_max,
+            expiry_after: q.expiry_after,
+            expiry_before: q.expiry_before,
+            include_stale: q.include_stale.unwrap_or(false),
+        })
+        .await
+        .into_iter()
+        .map(envelope_from_deribit_summary)
+        .collect::<Vec<_>>();
+
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "options_chain",
+        "chains": rows
+    }))
 }
 
 pub async fn deribit_live_options_summary(

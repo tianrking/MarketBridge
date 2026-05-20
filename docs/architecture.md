@@ -258,6 +258,7 @@ Implemented today:
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and background cache.
+- Envelope-based Deribit option chains through `GET /v1/options/chains`.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.
 - Freshness fields for exchange ticks, Deribit cache rows, and Polymarket live books.
 
@@ -292,6 +293,9 @@ Status: partially implemented. `domains/market/quote.rs` and
 - Move Deribit cache payload into `domains/options/chain.rs`.
 - Move Polymarket book payload into `domains/prediction/book.rs`.
 - Add `/v1/options/chains` and `/v1/prediction/books`.
+
+Status: partially implemented. `domains/options/chain.rs` and
+`GET /v1/options/chains` exist. Prediction book migration is still pending.
 
 ### Phase 4: Catalog and Source Registry
 

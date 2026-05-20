@@ -208,6 +208,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
 | GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
+| GET | `/v1/options/chains` | Envelope-based cached Deribit option chains |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -260,6 +261,24 @@ Examples:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=perp" | jq
+```
+
+### `GET /v1/options/chains`
+
+Envelope-based option chain snapshots from the Deribit cache.
+
+Query params:
+
+- `currency`, optional, e.g. `BTC`
+- `option_type`, optional, `call` or `put`
+- `strike_min`, `strike_max`, optional numeric filters
+- `expiry_after`, `expiry_before`, optional ISO timestamp string filters
+- `include_stale=true|false`, default `false`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/options/chains?currency=BTC&option_type=call" | jq
 ```
 
 ### `GET /snapshot`

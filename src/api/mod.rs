@@ -23,6 +23,10 @@ pub fn build_router(state: ApiState) -> Router {
     Router::new()
         .route("/ws/ticks", get(routes::stream::ws_ticks))
         .route("/v1/market/quotes", get(routes::market::v1_market_quotes))
+        .route(
+            "/v1/options/chains",
+            get(routes::options::v1_options_chains),
+        )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))
         .route("/funding", get(routes::legacy::funding))
