@@ -9,6 +9,7 @@ pub struct AppMetrics {
     pub bus_publish_total: IntCounter,
     pub ws_subscribers: IntGauge,
     pub redis_xadd_total: IntCounter,
+    pub redis_dead_letter_total: IntCounter,
     pub ticks_dropped_total: IntCounter,
 }
 
@@ -27,6 +28,11 @@ impl AppMetrics {
             .expect("ws_subscribers metric definition must be valid");
         let redis_xadd_total = IntCounter::new("redis_xadd_total", "Total redis xadd writes")
             .expect("redis_xadd_total metric definition must be valid");
+        let redis_dead_letter_total = IntCounter::new(
+            "redis_dead_letter_total",
+            "Total redis sink events moved to dead letter after retries",
+        )
+        .expect("redis_dead_letter_total metric definition must be valid");
         let ticks_dropped_total =
             IntCounter::new("ticks_dropped_total", "Total ticks dropped by backpressure")
                 .expect("ticks_dropped_total metric definition must be valid");
@@ -44,6 +50,9 @@ impl AppMetrics {
             .register(Box::new(redis_xadd_total.clone()))
             .expect("redis_xadd_total registration must not conflict");
         registry
+            .register(Box::new(redis_dead_letter_total.clone()))
+            .expect("redis_dead_letter_total registration must not conflict");
+        registry
             .register(Box::new(ticks_dropped_total.clone()))
             .expect("ticks_dropped_total registration must not conflict");
 
@@ -53,6 +62,7 @@ impl AppMetrics {
             bus_publish_total,
             ws_subscribers,
             redis_xadd_total,
+            redis_dead_letter_total,
             ticks_dropped_total,
         })
     }

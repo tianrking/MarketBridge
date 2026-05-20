@@ -7,6 +7,10 @@ use tracing::{error, info, warn};
 use crate::event_bus::EventBus;
 use crate::metrics::AppMetrics;
 
+const XADD_MAX_ATTEMPTS: usize = 8;
+const XADD_INITIAL_BACKOFF_MS: u64 = 100;
+const XADD_MAX_BACKOFF_MS: u64 = 5_000;
+
 pub fn spawn_redis_sink(
     bus: EventBus,
     redis_url: String,
@@ -43,7 +47,9 @@ pub fn spawn_redis_sink(
                     let stream = format!("{}:{}", stream_prefix, t.symbol.to_ascii_uppercase());
                     let payload = serde_json::to_string(&t).unwrap_or_else(|_| "{}".to_string());
                     let mut wrote = false;
-                    for _ in 0..2 {
+                    let mut backoff = Duration::from_millis(XADD_INITIAL_BACKOFF_MS);
+                    let mut last_error = None;
+                    for attempt in 1..=XADD_MAX_ATTEMPTS {
                         let res: redis::RedisResult<String> = redis::cmd("XADD")
                             .arg(&stream)
                             .arg("*")
@@ -66,19 +72,28 @@ pub fn spawn_redis_sink(
                                 break;
                             }
                             Err(e) => {
-                                warn!(error=%e, stream=%stream, "redis xadd failed, reconnecting");
+                                last_error = Some(e.to_string());
+                                warn!(error=%e, stream=%stream, attempt, "redis xadd failed, reconnecting");
                                 match client.get_multiplexed_tokio_connection().await {
                                     Ok(c) => conn = c,
                                     Err(e2) => {
                                         warn!(error=%e2, "redis reconnect failed");
-                                        tokio::time::sleep(Duration::from_secs(1)).await;
                                     }
                                 }
+                                tokio::time::sleep(backoff).await;
+                                backoff =
+                                    (backoff * 2).min(Duration::from_millis(XADD_MAX_BACKOFF_MS));
                             }
                         }
                     }
                     if !wrote {
-                        error!(stream=%stream, "redis xadd dropped event after retries");
+                        metrics.redis_dead_letter_total.inc();
+                        error!(
+                            stream=%stream,
+                            attempts = XADD_MAX_ATTEMPTS,
+                            last_error = last_error.as_deref().unwrap_or("unknown"),
+                            "redis xadd moved event to dead letter after retries"
+                        );
                     }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
