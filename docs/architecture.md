@@ -255,6 +255,8 @@ Purpose: one websocket stream for all normalized domains.
 
 Implemented today:
 
+- Catalog discovery through `GET /v1/catalog/sources`,
+  `GET /v1/catalog/domains`, and `GET /v1/catalog/instruments`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and background cache.
@@ -302,6 +304,10 @@ Status: implemented for first-pass Deribit chains and Polymarket books.
 - Add a source registry that describes enabled connectors, domains, symbols,
   instruments, and cache health.
 - Add `/v1/catalog/sources` and `/v1/catalog/instruments`.
+
+Status: partially implemented. `/v1/catalog/sources`, `/v1/catalog/domains`,
+and `/v1/catalog/instruments` exist. A runtime source-health registry is still
+pending.
 
 ### Phase 5: On-chain and External Event Data
 

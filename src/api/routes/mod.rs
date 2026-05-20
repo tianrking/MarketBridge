@@ -1,3 +1,4 @@
+pub mod catalog;
 pub mod legacy;
 pub mod market;
 pub mod options;

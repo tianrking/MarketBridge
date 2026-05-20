@@ -22,6 +22,9 @@ pub struct ApiState {
 pub fn build_router(state: ApiState) -> Router {
     Router::new()
         .route("/ws/ticks", get(routes::stream::ws_ticks))
+        .route("/v1/catalog/sources", get(routes::catalog::sources))
+        .route("/v1/catalog/domains", get(routes::catalog::domains))
+        .route("/v1/catalog/instruments", get(routes::catalog::instruments))
         .route("/v1/market/quotes", get(routes::market::v1_market_quotes))
         .route(
             "/v1/options/chains",

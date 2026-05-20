@@ -207,6 +207,9 @@ Base URL: `http://127.0.0.1:8080`
 |---|---|---|
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
+| GET | `/v1/catalog/sources` | Implemented public data sources |
+| GET | `/v1/catalog/domains` | Implemented normalized data domains |
+| GET | `/v1/catalog/instruments` | Instruments currently visible in live caches |
 | GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
@@ -244,6 +247,18 @@ Example:
 
 ```bash
 curl -s http://127.0.0.1:8080/health
+```
+
+### `GET /v1/catalog/*`
+
+Catalog endpoints for discovering what MarketBridge can provide right now.
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
 ```
 
 ### `GET /v1/market/quotes`
