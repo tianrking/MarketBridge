@@ -5,6 +5,10 @@ pub struct ExchangeConfig {
     pub enabled: bool,
     pub symbols: Option<Vec<String>>,      // spot symbols override
     pub perp_symbols: Option<Vec<String>>, // perp symbols override
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub api_key_env: Option<String>,
     pub fee: FeeModel,
 }
 

@@ -22,6 +22,7 @@ use crate::connectors::tradfi::yahoo::YahooChartPoller;
 use crate::source::ExchangeSource;
 
 use super::aevo::AevoPerpFeed;
+use super::architect::ArchitectPerpFeed;
 use super::backpack::BackpackFeed;
 use super::binance::{
     BinanceBookTicker, BinanceDepthFeed, BinanceFundingTicker, BinanceLiquidationFeed,
@@ -261,6 +262,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 if !pairs.is_empty() {
                     out.push(Arc::new(XrplSpotFeed::new(pairs)));
                 }
+            }
+            "architect" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(ArchitectPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_architect_perp(s)).collect(),
+                    exchange_api_key(cfg, &ex),
+                )));
             }
             "derive" => {
                 if !spot_symbols.is_empty() {
@@ -582,6 +589,26 @@ fn to_xrpl_pair(symbol: &str) -> Option<XrplPair> {
     }
 }
 
+fn to_architect_perp(symbol: &str) -> String {
+    if symbol.contains('-') {
+        return symbol.to_ascii_uppercase();
+    }
+    if let Some(base) = symbol.strip_suffix("PERP") {
+        return format!("{}-PERP", base.to_ascii_uppercase());
+    }
+    let (base, _) = split_quote(symbol);
+    format!("{}-PERP", base.to_ascii_uppercase())
+}
+
+fn exchange_api_key(cfg: &AppConfig, exchange: &str) -> Option<String> {
+    let ex = cfg.exchanges.get(exchange)?;
+    ex.api_key.clone().or_else(|| {
+        ex.api_key_env
+            .as_ref()
+            .and_then(|env| std::env::var(env).ok())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -632,6 +659,8 @@ mod tests {
                     enabled: true,
                     symbols: None,
                     perp_symbols: None,
+                    api_key: None,
+                    api_key_env: None,
                     fee: FeeModel::Fixed {
                         maker_bps: 1.0,
                         taker_bps: 2.0,

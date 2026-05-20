@@ -516,3 +516,14 @@ exchanges:
       mode: fixed
       maker_bps: 0.0
       taker_bps: 0.0
+
+  architect:
+    enabled: false
+    # Architect market data endpoints require a bearer token even for read-only data.
+    symbols: []
+    perp_symbols: [NVDAUSDT, SPYUSDT]
+    api_key_env: ARCHITECT_API_TOKEN
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 2.0

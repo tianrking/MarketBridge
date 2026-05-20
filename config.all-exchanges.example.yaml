@@ -127,6 +127,13 @@ exchanges:
     symbols: [XRPUSD]
     fee: { mode: fixed, maker_bps: 0.0, taker_bps: 0.0 }
 
+  architect:
+    enabled: false
+    symbols: []
+    perp_symbols: [NVDAUSDT, SPYUSDT]
+    api_key_env: ARCHITECT_API_TOKEN
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 2.0 }
+
   derive:
     enabled: true
     symbols: [ETHUSDC]
