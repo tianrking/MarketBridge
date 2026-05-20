@@ -226,7 +226,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/coverage` | Data quality dashboard model |
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
-| WS | `/v1/stream` | Envelope-based stream, first version supports `market_quote` |
+| WS | `/v1/stream` | Envelope-based stream for `market_quote`, `options_chain`, and `prediction_book` |
 
 ## API Details
 
@@ -352,12 +352,23 @@ wscat -c "ws://127.0.0.1:8080/ws/ticks?market=perp&symbols=BTCUSDT"
 
 ### `WS /v1/stream`
 
-Envelope-based websocket stream. The first version supports `market_quote`.
+Envelope-based websocket stream. It supports live `market_quote` events and
+cached snapshot streaming for `options_chain` and `prediction_book`.
+
+Query params:
+
+- `domains=market_quote,options_chain,prediction_book`
+- `symbols=BTCUSDT`
+- `exchanges=okx,deribit,polymarket`
+- `product_type=spot|perp|option|binary_outcome`
+- `include_stale=true|false` default `false`
+- `snapshot_interval_ms=1000` for cached domains, clamped to `250..60000`
 
 Example:
 
 ```bash
 wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote&symbols=BTCUSDT&product_type=perp"
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=options_chain,prediction_book&include_stale=false"
 ```
 
 ### `GET /funding`

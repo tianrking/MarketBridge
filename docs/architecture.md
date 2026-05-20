@@ -265,7 +265,8 @@ Implemented today:
 
 - Catalog discovery through `GET /v1/catalog/sources`,
   `GET /v1/catalog/domains`, and `GET /v1/catalog/instruments`.
-- Envelope-based market quote streaming through `WS /v1/stream`.
+- Envelope-based market quote, options chain, and prediction book streaming
+  through `WS /v1/stream`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and background cache.
@@ -276,11 +277,10 @@ Implemented today:
 
 Known architecture gaps:
 
-- `DataEvent` only supports `MarketTick`.
-- `EventBus` only stores quote snapshots.
-- `api.rs` contains too many route domains in one file.
-- `external.rs` mixes unrelated source clients.
 - Legacy endpoints are source-specific rather than `/v1` domain APIs.
+- Options and prediction stream domains currently emit cached snapshots rather
+  than push-native connector events.
+- Runtime source-health registry is still first-pass catalog metadata.
 
 ## Migration Plan
 
@@ -297,8 +297,7 @@ Known architecture gaps:
 - Add `GET /v1/market/quotes`.
 - Add `WS /v1/stream` support for `market_quote`.
 
-Status: partially implemented. `domains/market/quote.rs` and
-`GET /v1/market/quotes` exist. `WS /v1/stream` is still pending.
+Status: implemented for first-pass exchange quote snapshots and streaming.
 
 ### Phase 3: Options and Prediction Domains
 
@@ -315,9 +314,8 @@ Status: implemented for first-pass Deribit chains and Polymarket books.
 - Add `/v1/catalog/sources` and `/v1/catalog/instruments`.
 
 Status: partially implemented. `/v1/catalog/sources`, `/v1/catalog/domains`,
-`/v1/catalog/instruments`, and a first `market_quote` version of `WS /v1/stream`
-exist. A runtime source-health registry and non-quote stream domains are still
-pending.
+`/v1/catalog/instruments`, and multi-domain `WS /v1/stream` exist. A runtime
+source-health registry is still pending.
 
 ### Phase 5: On-chain and External Event Data
 
