@@ -1,6 +1,6 @@
-# Full-exchange example config for arb-hunter-rs
+# Full-exchange example config for MarketBridge
 # Usage:
-#   ARB_CONFIG=./config.all-exchanges.example.yaml cargo run
+#   MARKETBRIDGE_CONFIG=./config.all-exchanges.example.yaml cargo run
 #
 # Note:
 # - This file enables all currently implemented exchanges in this project.

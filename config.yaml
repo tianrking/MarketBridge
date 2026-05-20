@@ -1,5 +1,5 @@
-# arb-hunter-rs unified configuration
-# Use with: ARB_CONFIG=./config.yaml cargo run
+# MarketBridge unified configuration
+# Use with: MARKETBRIDGE_CONFIG=./config.yaml cargo run
 
 runtime:
   # mpsc channel capacity between source tasks and aggregator.

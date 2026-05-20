@@ -116,7 +116,8 @@ pub struct FeeTier {
 
 impl AppConfig {
     pub fn load() -> Result<Self> {
-        let path = std::env::var("ARB_CONFIG").unwrap_or_else(|_| "config.yaml".to_string());
+        let path =
+            std::env::var("MARKETBRIDGE_CONFIG").unwrap_or_else(|_| "config.yaml".to_string());
         let content = fs::read_to_string(&path)
             .with_context(|| format!("failed to read config file: {path}"))?;
         let mut cfg: AppConfig =

@@ -53,7 +53,7 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/metrics", get(metrics))
         .route(
             "/",
-            get(|| async { Json(serde_json::json!({"service":"arb-hunter-rs"})) }),
+            get(|| async { Json(serde_json::json!({"service":"MarketBridge"})) }),
         )
         .with_state(Arc::new(state))
 }

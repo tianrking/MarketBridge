@@ -1,6 +1,6 @@
-# arb-hunter-rs
+# MarketBridge
 
-Production-style Rust market data plane for multi-exchange crypto spot/perp aggregation, normalized APIs, funding coverage, and quality observability.
+Independent Rust data-source bridge for exchange, options, prediction-market, and external market data aggregation. MarketBridge normalizes public data, caches it, marks freshness, and exposes one API surface for downstream research systems.
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)
 ![Tokio](https://img.shields.io/badge/Runtime-Tokio-333333?logo=rust)
@@ -30,7 +30,7 @@ Production-style Rust market data plane for multi-exchange crypto spot/perp aggr
 
 ## Why This Project
 
-`arb-hunter-rs` solves three hard problems for quant teams:
+`MarketBridge` solves three hard problems for quant research teams:
 
 - Unified market model across multiple exchanges and both `spot` / `perp`
 - Unified API layer (`REST + WebSocket + Redis`) for downstream strategy systems
@@ -86,13 +86,13 @@ flowchart LR
 ### 1) Run
 
 ```bash
-ARB_CONFIG=./config.yaml cargo run
+MARKETBRIDGE_CONFIG=./config.yaml cargo run
 ```
 
 Use full-exchange sample:
 
 ```bash
-ARB_CONFIG=./config.all-exchanges.example.yaml cargo run
+MARKETBRIDGE_CONFIG=./config.all-exchanges.example.yaml cargo run
 ```
 
 ### 2) Smoke check
@@ -167,7 +167,7 @@ management should stay outside this repo.
 For the crypto binary fair-value / market-making strategy discussed with
 `PolyAlpha`, the required inputs are:
 
-| Strategy Input | Needed For | Status in `arb-hunter-rs` | Current Interface |
+| Strategy Input | Needed For | Status in `MarketBridge` | Current Interface |
 |---|---|---:|---|
 | BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
 | Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
@@ -179,7 +179,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 | Paper decision/PnL loop | Validate signal after 5 minutes | Not implemented here | Belongs in `PolyAlpha`. |
 | Live execution | Real order submit/cancel/fills | Not implemented | Future execution layer; not approved for live trading. |
 
-Bottom line: `arb-hunter-rs` now provides a first mature data-plane surface for
+Bottom line: `MarketBridge` now provides a first mature data-source surface for
 paper decisions: exchange BBO/funding, Deribit option summaries, Polymarket
 market discovery, REST books, and a live Polymarket CLOB cache. It is still not
 an execution engine: authenticated Polymarket order placement/cancel/replace and
