@@ -19,6 +19,8 @@ Production-style Rust market data plane for multi-exchange crypto spot/perp aggr
 - [Runtime Pipeline](#runtime-pipeline)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
+- [Implemented Data Plane](#implemented-data-plane)
+- [Strategy Readiness Matrix](#strategy-readiness-matrix)
 - [API Overview](#api-overview)
 - [API Details](#api-details)
 - [Connection Model Matrix](#connection-model-matrix)
@@ -123,6 +125,63 @@ Default file: `config.yaml`
 - `exchanges.<name>.enabled`: source switch
 - `exchanges.<name>.symbols/perp_symbols`: per-exchange override
 - `exchanges.<name>.fee`: fixed/tiered fee model
+
+## Implemented Data Plane
+
+This service is the unified data plane for downstream strategy engines such as
+`PolyAlpha`. Strategy logic, factor validation, paper execution, and live order
+management should stay outside this repo.
+
+### Exchange Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| Spot BBO | Implemented | `GET /snapshot`, `WS /ws/ticks` | Normalized `bid`, `ask`, `symbol`, `exchange`, `market=spot`. |
+| Perp BBO | Implemented | `GET /snapshot`, `WS /ws/ticks` | Normalized `market=perp`; symbol mapping differs by venue internally. |
+| Perp mark/funding | Implemented where venue provides it | `GET /funding`, `GET /coverage` | Coverage depends on exchange adapter support and live venue payloads. |
+| Multi-exchange quality | Implemented | `GET /coverage` | Stale ratio, latency percentiles, funding coverage, alerts. |
+| Redis stream sink | Implemented optional | `runtime.redis_url` | Emits normalized ticks to Redis streams when configured. |
+
+### Option / IV Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| Deribit option summaries | Implemented | `GET /options/deribit/summary?currency=BTC` | Returns strike, expiry, bid/ask, mark price, `mark_iv`, underlying price. |
+| Deribit websocket IV | Not implemented | N/A | REST summary is enough for first paper loop; high-frequency IV cache is future work. |
+
+### Polymarket Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| Active BTC/ETH binary market discovery | Implemented first version | `GET /polymarket/crypto-markets` | Parses `base_asset`, strike, direction, rule type, expiry, Yes/No token ids from Gamma. |
+| Single outcome CLOB book | Implemented | `GET /polymarket/book?token_id=...` | Returns full book plus best bid/ask, spread, bid/ask depth. |
+| Batch outcome CLOB books | Implemented | `GET /polymarket/books?token_ids=...` | Useful for Yes/No pair checks. |
+| Crypto markets plus books | Implemented | `GET /polymarket/crypto-books` | Convenience endpoint for strategy engines. |
+| Polymarket CLOB websocket cache | Not implemented | N/A | REST snapshots are available; low-latency maker logic still needs WS book cache. |
+| Polymarket official SDK/CLI integration | Not implemented | N/A | Current implementation uses public REST endpoints. SDK/CLI integration is future work for authenticated execution and schema safety. |
+| Live order placement / cancel / replace | Not implemented | N/A | Execution belongs in a later trading/execution layer, not in this data-plane pass. |
+
+## Strategy Readiness Matrix
+
+For the crypto binary fair-value / market-making strategy discussed with
+`PolyAlpha`, the required inputs are:
+
+| Strategy Input | Needed For | Status in `arb-hunter-rs` | Current Interface |
+|---|---|---:|---|
+| BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
+| Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
+| Deribit IV / option chain | Theoretical digital probability | Implemented REST first version | `/options/deribit/summary` |
+| Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
+| Polymarket Yes/No token ids | Subscribe/query executable prices | Implemented first version | `/polymarket/crypto-markets` |
+| Polymarket Yes/No bid/ask/depth | Entry, exit, pair discount, capacity | Implemented REST snapshot | `/polymarket/book`, `/polymarket/books`, `/polymarket/crypto-books` |
+| Stale/latency health | Decision input hygiene | Partially implemented | Exchange ticks have stale/latency; Polymarket REST book freshness is timestamp-only. |
+| Paper decision/PnL loop | Validate signal after 5 minutes | Not implemented here | Belongs in `PolyAlpha`. |
+| Live execution | Real order submit/cancel/fills | Not implemented | Future execution layer; not approved for live trading. |
+
+Bottom line: `arb-hunter-rs` now provides the first complete REST-based data
+surface for paper decisions. It is not yet a low-latency production market-maker
+data plane because Polymarket CLOB websocket caching and authenticated execution
+are not implemented.
 
 ## API Overview
 
