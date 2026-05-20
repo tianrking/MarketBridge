@@ -178,8 +178,11 @@ pub fn spawn_order_flow_service(
                 _ = shutdown.cancelled() => break,
                 received = rx.recv() => {
                     match received {
-                        Ok(DataEvent::Trade(trade)) => store.update_trade(&trade).await,
-                        Ok(_) => {}
+                        Ok(event) => {
+                            if let DataEvent::Trade(trade) = event.as_ref() {
+                                store.update_trade(trade).await;
+                            }
+                        }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
                             warn!(skipped, "order-flow subscriber lagged");
                         }

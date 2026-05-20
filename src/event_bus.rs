@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tokio::sync::broadcast;
 
 use crate::core::schema::DataEnvelope;
@@ -12,14 +14,14 @@ use crate::types::{
 #[derive(Clone)]
 pub struct EventBus {
     tx: broadcast::Sender<NormalizedTick>,
-    event_tx: broadcast::Sender<DataEvent>,
+    event_tx: broadcast::Sender<Arc<DataEvent>>,
     quote_tx: broadcast::Sender<DataEnvelope<QuotePayload>>,
-    funding_tx: broadcast::Sender<DataEvent>,
-    open_interest_tx: broadcast::Sender<DataEvent>,
-    trade_tx: broadcast::Sender<DataEvent>,
-    liquidation_tx: broadcast::Sender<DataEvent>,
-    order_book_tx: broadcast::Sender<DataEvent>,
-    external_signal_tx: broadcast::Sender<DataEvent>,
+    funding_tx: broadcast::Sender<Arc<DataEvent>>,
+    open_interest_tx: broadcast::Sender<Arc<DataEvent>>,
+    trade_tx: broadcast::Sender<Arc<DataEvent>>,
+    liquidation_tx: broadcast::Sender<Arc<DataEvent>>,
+    order_book_tx: broadcast::Sender<Arc<DataEvent>>,
+    external_signal_tx: broadcast::Sender<Arc<DataEvent>>,
     snapshots: EventSnapshotStore,
     stale_ttl_ms: u64,
 }
@@ -64,7 +66,7 @@ impl EventBus {
         self.tx.subscribe()
     }
 
-    pub fn subscribe_events(&self) -> broadcast::Receiver<DataEvent> {
+    pub fn subscribe_events(&self) -> broadcast::Receiver<Arc<DataEvent>> {
         self.event_tx.subscribe()
     }
 
@@ -72,7 +74,7 @@ impl EventBus {
         self.quote_tx.subscribe()
     }
 
-    pub fn subscribe_domain(&self, domain: EventDomain) -> broadcast::Receiver<DataEvent> {
+    pub fn subscribe_domain(&self, domain: EventDomain) -> broadcast::Receiver<Arc<DataEvent>> {
         match domain {
             EventDomain::Funding => self.funding_tx.subscribe(),
             EventDomain::OpenInterest => self.open_interest_tx.subscribe(),
@@ -84,7 +86,8 @@ impl EventBus {
     }
 
     pub fn publish_from_event(&self, event: &DataEvent) {
-        let _ = self.event_tx.send(event.clone());
+        let shared = Arc::new(event.clone());
+        let _ = self.event_tx.send(shared.clone());
         match event {
             DataEvent::Tick(t) => {
                 let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
@@ -92,27 +95,27 @@ impl EventBus {
                 let _ = self.quote_tx.send(quote_envelope);
             }
             DataEvent::FundingRate(t) => {
-                let _ = self.funding_tx.send(event.clone());
+                let _ = self.funding_tx.send(shared);
                 self.snapshots.upsert_funding(t);
             }
             DataEvent::OpenInterest(t) => {
-                let _ = self.open_interest_tx.send(event.clone());
+                let _ = self.open_interest_tx.send(shared);
                 self.snapshots.upsert_open_interest(t);
             }
             DataEvent::Trade(t) => {
-                let _ = self.trade_tx.send(event.clone());
+                let _ = self.trade_tx.send(shared);
                 self.snapshots.upsert_trade(t);
             }
             DataEvent::Liquidation(t) => {
-                let _ = self.liquidation_tx.send(event.clone());
+                let _ = self.liquidation_tx.send(shared);
                 self.snapshots.upsert_liquidation(t);
             }
             DataEvent::OrderBook(t) => {
-                let _ = self.order_book_tx.send(event.clone());
+                let _ = self.order_book_tx.send(shared);
                 self.snapshots.upsert_order_book(t);
             }
             DataEvent::ExternalSignal(t) => {
-                let _ = self.external_signal_tx.send(event.clone());
+                let _ = self.external_signal_tx.send(shared);
                 self.snapshots.upsert_external_signal(t);
             }
             DataEvent::Heartbeat { .. } => {}
@@ -189,12 +192,13 @@ mod tests {
             exchange: "okx",
             ts_ms: now_ms(),
         });
+        let received = rx.recv().await.expect("heartbeat event should publish");
         assert!(matches!(
-            rx.recv().await,
-            Ok(DataEvent::Heartbeat {
+            received.as_ref(),
+            DataEvent::Heartbeat {
                 exchange: "okx",
                 ..
-            })
+            }
         ));
         assert!(t.source_latency_ms <= 1000);
         let quotes = bus.quote_snapshot_all().await;
@@ -296,10 +300,8 @@ mod tests {
             ts_ms,
         }));
 
-        assert!(matches!(
-            funding_rx.recv().await,
-            Ok(DataEvent::FundingRate(_))
-        ));
+        let received = funding_rx.recv().await.expect("funding event");
+        assert!(matches!(received.as_ref(), DataEvent::FundingRate(_)));
         assert!(trade_rx.try_recv().is_err());
     }
 }

@@ -119,8 +119,8 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
             }, if domain_rx.is_some() => {
                 match msg {
                     Some(Ok(event))
-                        if event_matches(&event, &domains, &filter)
-                            && send_event(&mut socket, &event).await.is_err() =>
+                        if event_matches(event.as_ref(), &domains, &filter)
+                            && send_event(&mut socket, event.as_ref()).await.is_err() =>
                     {
                         break;
                     }
@@ -141,8 +141,8 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
             }, if all_event_rx.is_some() => {
                 match msg {
                     Some(Ok(event))
-                        if event_matches(&event, &domains, &filter)
-                            && send_event(&mut socket, &event).await.is_err() =>
+                        if event_matches(event.as_ref(), &domains, &filter)
+                            && send_event(&mut socket, event.as_ref()).await.is_err() =>
                     {
                         break;
                     }

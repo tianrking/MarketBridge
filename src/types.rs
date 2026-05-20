@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
@@ -121,9 +122,15 @@ pub enum BackpressureMode {
     DropNewest,
 }
 
+static LAST_NOW_MS: AtomicU64 = AtomicU64::new(1);
+
 pub fn now_ms() -> u64 {
-    SystemTime::now()
+    let current = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+        .unwrap_or_else(|_| LAST_NOW_MS.load(Ordering::Relaxed))
+        .max(1);
+    LAST_NOW_MS
+        .fetch_max(current, Ordering::Relaxed)
+        .max(current)
 }

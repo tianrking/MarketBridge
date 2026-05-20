@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
-use std::io::Write;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -86,7 +85,7 @@ pub fn spawn_redis_sink(
             };
             match received {
                 Ok(event) => {
-                    batch.push(redis_event_row(&stream_prefix, &event));
+                    batch.push(redis_event_row(&stream_prefix, event.as_ref()));
                     if batch.len() >= XADD_BATCH_MAX
                         && !flush_redis_batch(&client, &mut conn, &mut batch, &metrics).await
                     {
@@ -108,13 +107,28 @@ pub fn spawn_redis_sink(
 
 fn redis_event_row(prefix: &str, event: &DataEvent) -> RedisEventRow {
     let (source, domain, symbol, ts) = redis_event_fields(event);
+    let payload = match serde_json::to_string(event) {
+        Ok(payload) => payload,
+        Err(error) => {
+            error!(%error, domain, source, "redis payload serialization failed");
+            serde_json::json!({
+                "type": "serialization_error",
+                "source": source,
+                "domain": domain,
+                "symbol": symbol.as_deref(),
+                "ts": ts,
+                "error": error.to_string(),
+            })
+            .to_string()
+        }
+    };
     RedisEventRow {
         stream: redis_stream_name(prefix, event),
         source,
         domain,
         symbol: symbol.unwrap_or_else(|| "*".to_string()),
         ts,
-        payload: serde_json::to_string(event).unwrap_or_else(|_| "{}".to_string()),
+        payload,
     }
 }
 
@@ -194,6 +208,16 @@ async fn flush_redis_batch(
 }
 
 async fn write_dead_letter_file(batch: &[RedisEventRow], error: &str) -> std::io::Result<()> {
+    let rows = batch.to_vec();
+    let error = error.to_string();
+    tokio::task::spawn_blocking(move || write_dead_letter_file_blocking(&rows, &error))
+        .await
+        .map_err(std::io::Error::other)?
+}
+
+fn write_dead_letter_file_blocking(batch: &[RedisEventRow], error: &str) -> std::io::Result<()> {
+    use std::io::Write;
+
     std::fs::create_dir_all("data")?;
     let mut file = std::fs::OpenOptions::new()
         .create(true)

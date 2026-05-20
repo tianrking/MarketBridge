@@ -66,12 +66,12 @@ impl TickFilter {
 
     pub fn matches(&self, t: &NormalizedTick) -> bool {
         if let Some(symbols) = &self.symbols
-            && !symbols.contains(&t.symbol.to_ascii_uppercase())
+            && !contains_ascii_case(symbols, &t.symbol)
         {
             return false;
         }
         if let Some(exchanges) = &self.exchanges
-            && !exchanges.contains(&t.exchange.to_ascii_lowercase())
+            && !contains_ascii_case(exchanges, t.exchange)
         {
             return false;
         }
@@ -106,12 +106,12 @@ impl EnvelopeFilter {
                 .instrument_ref
                 .symbol
                 .as_deref()
-                .is_some_and(|symbol| symbols.contains(&symbol.to_ascii_uppercase()))
+                .is_some_and(|symbol| contains_ascii_case(symbols, symbol))
         {
             return false;
         }
         if let Some(exchanges) = &self.exchanges
-            && !exchanges.contains(&envelope.source_ref.source.to_ascii_lowercase())
+            && !contains_ascii_case(exchanges, &envelope.source_ref.source)
         {
             return false;
         }
@@ -126,12 +126,12 @@ impl EnvelopeFilter {
 
     fn matches_raw(&self, exchange: &str, market: MarketKind, symbol: &str) -> bool {
         if let Some(symbols) = &self.symbols
-            && !symbols.contains(&symbol.to_ascii_uppercase())
+            && !contains_ascii_case(symbols, symbol)
         {
             return false;
         }
         if let Some(exchanges) = &self.exchanges
-            && !exchanges.contains(&exchange.to_ascii_lowercase())
+            && !contains_ascii_case(exchanges, exchange)
         {
             return false;
         }
@@ -148,12 +148,12 @@ impl EnvelopeFilter {
             let Some(symbol) = symbol else {
                 return false;
             };
-            if !symbols.contains(&symbol.to_ascii_uppercase()) {
+            if !contains_ascii_case(symbols, symbol) {
                 return false;
             }
         }
         if let Some(exchanges) = &self.exchanges
-            && !exchanges.contains(&source.to_ascii_lowercase())
+            && !contains_ascii_case(exchanges, source)
         {
             return false;
         }
@@ -314,6 +314,10 @@ fn market_kind_label(market: MarketKind) -> &'static str {
         MarketKind::Spot => "spot",
         MarketKind::Perp => "perp",
     }
+}
+
+fn contains_ascii_case(set: &HashSet<String>, value: &str) -> bool {
+    set.iter().any(|item| item.eq_ignore_ascii_case(value))
 }
 
 #[cfg(test)]
