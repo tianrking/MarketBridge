@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::config::AppConfig;
+use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::source::ExchangeSource;
 
 use super::backpack::BackpackFeed;
@@ -282,6 +283,10 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         }
     }
 
+    if cfg.defi.jupiter.enabled {
+        out.push(Arc::new(JupiterQuotePoller::new(cfg.defi.jupiter.clone())));
+    }
+
     out
 }
 
@@ -349,8 +354,8 @@ fn to_dydx_market(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::config::{
-        AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig, DeribitConfig,
-        ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig, RuntimeConfig,
+        AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig, DefiConfig,
+        DeribitConfig, ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig, RuntimeConfig,
         StrategyConfig,
     };
     use std::collections::HashMap;
@@ -392,6 +397,7 @@ mod tests {
             bybit_options: BybitOptionsConfig::default(),
             binance_options: BinanceOptionsConfig::default(),
             polymarket: PolymarketConfig::default(),
+            defi: DefiConfig::default(),
             symbols: vec!["BTCUSDT".to_string()],
             perp_symbols: Some(vec!["BTCUSDT".to_string()]),
             exchanges: HashMap::from([(
