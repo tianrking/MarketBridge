@@ -23,7 +23,10 @@ use super::kraken::KrakenTicker;
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::KucoinPerpTicker;
-use super::okx::OkxTicker;
+use super::okx::{
+    OkxDepthFeed, OkxFundingFeed, OkxLiquidationPoller, OkxOpenInterestFeed, OkxTicker,
+    OkxTradeFeed,
+};
 use super::okx_perp::OkxPerpTicker;
 
 pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
@@ -39,9 +42,34 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(OkxTicker::new(
                         spot_symbols.iter().map(|s| to_okx(s)).collect(),
                     )));
+                    out.push(Arc::new(OkxDepthFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_okx(s)).collect(),
+                    )));
+                    out.push(Arc::new(OkxTradeFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_okx(s)).collect(),
+                    )));
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(OkxPerpTicker::new(
+                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
+                    )));
+                    out.push(Arc::new(OkxFundingFeed::new(
+                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
+                    )));
+                    out.push(Arc::new(OkxOpenInterestFeed::new(
+                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
+                    )));
+                    out.push(Arc::new(OkxLiquidationPoller::new(
+                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
+                    )));
+                    out.push(Arc::new(OkxDepthFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
+                    )));
+                    out.push(Arc::new(OkxTradeFeed::new(
+                        crate::types::MarketKind::Perp,
                         perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
                     )));
                 }
