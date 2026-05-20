@@ -31,6 +31,7 @@ pub struct NormalizedTick {
 #[derive(Clone)]
 pub struct EventBus {
     tx: broadcast::Sender<NormalizedTick>,
+    event_tx: broadcast::Sender<DataEvent>,
     quote_tx: broadcast::Sender<DataEnvelope<QuotePayload>>,
     snapshots: Arc<RwLock<HashMap<String, NormalizedTick>>>,
     quote_snapshots: Arc<RwLock<HashMap<String, DataEnvelope<QuotePayload>>>>,
@@ -46,9 +47,11 @@ pub struct EventBus {
 impl EventBus {
     pub fn new(capacity: usize, stale_ttl_ms: u64) -> Self {
         let (tx, _) = broadcast::channel(capacity);
+        let (event_tx, _) = broadcast::channel(capacity);
         let (quote_tx, _) = broadcast::channel(capacity);
         Self {
             tx,
+            event_tx,
             quote_tx,
             snapshots: Arc::new(RwLock::new(HashMap::new())),
             quote_snapshots: Arc::new(RwLock::new(HashMap::new())),
@@ -66,11 +69,16 @@ impl EventBus {
         self.tx.subscribe()
     }
 
+    pub fn subscribe_events(&self) -> broadcast::Receiver<DataEvent> {
+        self.event_tx.subscribe()
+    }
+
     pub fn subscribe_quotes(&self) -> broadcast::Receiver<DataEnvelope<QuotePayload>> {
         self.quote_tx.subscribe()
     }
 
     pub async fn publish_from_event(&self, event: &DataEvent) {
+        let _ = self.event_tx.send(event.clone());
         match event {
             DataEvent::Tick(t) => {
                 let now = now_ms();
@@ -258,6 +266,19 @@ mod tests {
         assert_eq!(t.exchange, "okx");
         assert_eq!(t.market, "spot");
         assert_eq!(t.symbol, "BTCUSDT");
+        let mut rx = bus.subscribe_events();
+        bus.publish_from_event(&DataEvent::Heartbeat {
+            exchange: "okx",
+            ts_ms: now_ms(),
+        })
+        .await;
+        assert!(matches!(
+            rx.recv().await,
+            Ok(DataEvent::Heartbeat {
+                exchange: "okx",
+                ..
+            })
+        ));
         assert!(t.source_latency_ms <= 1000);
         let quotes = bus.quote_snapshot_all().await;
         assert_eq!(quotes.len(), 1);
