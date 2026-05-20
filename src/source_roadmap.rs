@@ -147,6 +147,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Public spot order-book diff and trade feed are wired; REST snapshot/backfill remains planned.",
     },
     RoadmapSource {
+        source: "bitvavo",
+        source_type: "exchange",
+        product_types: SPOT,
+        domains: QUOTE_BOOK_TRADE,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST spot ticker, order book, and recent trades are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "btc_markets",
         source_type: "exchange",
         product_types: SPOT,

@@ -14,6 +14,7 @@ pub mod bitmart;
 pub mod bitmex;
 pub mod bitrue;
 pub mod bitstamp;
+pub mod bitvavo;
 pub mod btc_markets;
 pub mod bybit;
 pub mod bybit_perp;

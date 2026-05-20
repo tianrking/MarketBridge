@@ -506,6 +506,15 @@ exchanges:
       maker_bps: 25.0
       taker_bps: 25.0
 
+  bitvavo:
+    enabled: false
+    # Bitvavo public REST uses BTC-EUR style ids.
+    symbols: [BTCEUR, ETHEUR]
+    fee:
+      mode: fixed
+      maker_bps: 15.0
+      taker_bps: 25.0
+
   binance:
     enabled: false
     fee:

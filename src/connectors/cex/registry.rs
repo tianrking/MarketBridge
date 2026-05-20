@@ -41,6 +41,7 @@ use super::bitmart::{BitmartPerpFeed, BitmartSpotFeed};
 use super::bitmex::BitmexPerpFeed;
 use super::bitrue::BitrueSpotFeed;
 use super::bitstamp::BitstampSpotFeed;
+use super::bitvavo::BitvavoSpotFeed;
 use super::btc_markets::BtcMarketsSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
@@ -243,6 +244,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "bitstamp" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(BitstampSpotFeed::new(
                     spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                )));
+            }
+            "bitvavo" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(BitvavoSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_dash(s)).collect(),
                 )));
             }
             "bitrue" if !spot_symbols.is_empty() => {

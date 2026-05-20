@@ -253,6 +253,7 @@ bitmart
 bitmex
 bithumb
 bitstamp
+bitvavo
 btc_markets
 bybit
 derive
