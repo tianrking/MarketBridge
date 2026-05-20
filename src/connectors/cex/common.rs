@@ -134,9 +134,47 @@ pub fn side_from_labels(side: &str, buy_labels: &[&str], sell_labels: &[&str]) -
     }
 }
 
+pub fn parse_exchange_datetime_ms(text: &str) -> Option<u64> {
+    let cleaned = text.trim_end_matches('Z').replace('T', " ");
+    let cleaned = cleaned.split('.').next().unwrap_or(&cleaned);
+    let mut parts = cleaned.split([' ', '-', ':']);
+    let year = parts.next()?.parse::<i64>().ok()?;
+    let month = parts.next()?.parse::<i64>().ok()?;
+    let day = parts.next()?.parse::<i64>().ok()?;
+    let hour = parts.next()?.parse::<i64>().ok()?;
+    let minute = parts.next()?.parse::<i64>().ok()?;
+    let second = parts.next()?.parse::<i64>().ok()?;
+    Some(datetime_to_unix_ms(year, month, day, hour, minute, second))
+}
+
+fn datetime_to_unix_ms(
+    year: i64,
+    month: i64,
+    day: i64,
+    hour: i64,
+    minute: i64,
+    second: i64,
+) -> u64 {
+    let days = days_from_civil(year, month, day);
+    ((days * 86_400 + hour * 3_600 + minute * 60 + second) * 1_000) as u64
+}
+
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let year = year - i64::from(month <= 2);
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let yoe = year - era * 400;
+    let month_prime = month + if month > 2 { -3 } else { 9 };
+    let doy = (153 * month_prime + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{first_str, parse_array_levels, parse_object_levels, side_from_labels};
+    use super::{
+        first_str, parse_array_levels, parse_exchange_datetime_ms, parse_object_levels,
+        side_from_labels,
+    };
     use crate::types::TradeSide;
     use serde_json::json;
 
@@ -155,6 +193,14 @@ mod tests {
         assert_eq!(
             side_from_labels("BUY", &["buy", "b"], &["sell", "s"]),
             TradeSide::Buy
+        );
+        assert_eq!(
+            parse_exchange_datetime_ms("2026-05-20T16:58:43.000Z"),
+            Some(1_779_296_323_000)
+        );
+        assert_eq!(
+            parse_exchange_datetime_ms("2026-05-21 01:45:46"),
+            Some(1_779_327_946_000)
         );
     }
 }

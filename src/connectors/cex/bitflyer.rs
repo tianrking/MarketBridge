@@ -6,7 +6,9 @@ use serde_json::Value;
 use tokio::time::interval;
 use tracing::warn;
 
-use crate::connectors::cex::common::{parse_object_levels, parse_value_f64, side_from_labels};
+use crate::connectors::cex::common::{
+    parse_exchange_datetime_ms, parse_object_levels, parse_value_f64, side_from_labels,
+};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{DataEvent, MarketKind, MarketTick, OrderBookTick, TradeTick, now_ms};
 
@@ -111,7 +113,7 @@ fn parse_bitflyer_ticker(symbol: &str, value: &Value) -> Vec<DataEvent> {
             ts_ms: value
                 .get("timestamp")
                 .and_then(Value::as_str)
-                .and_then(parse_iso_datetime_ms)
+                .and_then(parse_exchange_datetime_ms)
                 .unwrap_or_else(now_ms),
         })],
         _ => Vec::new(),
@@ -191,46 +193,11 @@ fn parse_bitflyer_trades(symbol: &str, value: &Value) -> Vec<DataEvent> {
                 ts_ms: trade
                     .get("exec_date")
                     .and_then(Value::as_str)
-                    .and_then(parse_iso_datetime_ms)
+                    .and_then(parse_exchange_datetime_ms)
                     .unwrap_or_else(now_ms),
             }))
         })
         .collect()
-}
-
-fn parse_iso_datetime_ms(text: &str) -> Option<u64> {
-    let cleaned = text.trim_end_matches('Z').replace('T', " ");
-    let cleaned = cleaned.split('.').next().unwrap_or(&cleaned);
-    let mut parts = cleaned.split([' ', '-', ':']);
-    let year = parts.next()?.parse::<i64>().ok()?;
-    let month = parts.next()?.parse::<i64>().ok()?;
-    let day = parts.next()?.parse::<i64>().ok()?;
-    let hour = parts.next()?.parse::<i64>().ok()?;
-    let minute = parts.next()?.parse::<i64>().ok()?;
-    let second = parts.next()?.parse::<i64>().ok()?;
-    Some(datetime_to_unix_ms(year, month, day, hour, minute, second))
-}
-
-fn datetime_to_unix_ms(
-    year: i64,
-    month: i64,
-    day: i64,
-    hour: i64,
-    minute: i64,
-    second: i64,
-) -> u64 {
-    let days = days_from_civil(year, month, day);
-    ((days * 86_400 + hour * 3_600 + minute * 60 + second) * 1_000) as u64
-}
-
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let year = year - i64::from(month <= 2);
-    let era = if year >= 0 { year } else { year - 399 } / 400;
-    let yoe = year - era * 400;
-    let month_prime = month + if month > 2 { -3 } else { 9 };
-    let doy = (153 * month_prime + 2) / 5 + day - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
 }
 
 #[cfg(test)]
