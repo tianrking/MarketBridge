@@ -16,33 +16,36 @@ impl AppMetrics {
     pub fn new() -> Arc<Self> {
         let registry = Registry::new();
 
-        let ticks_ingested_total =
-            IntCounter::new("ticks_ingested_total", "Total ingested ticks").unwrap();
+        let ticks_ingested_total = IntCounter::new("ticks_ingested_total", "Total ingested ticks")
+            .expect("ticks_ingested_total metric definition must be valid");
         let bus_publish_total = IntCounter::new(
             "bus_publish_total",
             "Total normalized events published to bus",
         )
-        .unwrap();
-        let ws_subscribers =
-            IntGauge::new("ws_subscribers", "Current websocket subscribers").unwrap();
-        let redis_xadd_total =
-            IntCounter::new("redis_xadd_total", "Total redis xadd writes").unwrap();
+        .expect("bus_publish_total metric definition must be valid");
+        let ws_subscribers = IntGauge::new("ws_subscribers", "Current websocket subscribers")
+            .expect("ws_subscribers metric definition must be valid");
+        let redis_xadd_total = IntCounter::new("redis_xadd_total", "Total redis xadd writes")
+            .expect("redis_xadd_total metric definition must be valid");
         let ticks_dropped_total =
-            IntCounter::new("ticks_dropped_total", "Total ticks dropped by backpressure").unwrap();
+            IntCounter::new("ticks_dropped_total", "Total ticks dropped by backpressure")
+                .expect("ticks_dropped_total metric definition must be valid");
 
         registry
             .register(Box::new(ticks_ingested_total.clone()))
-            .unwrap();
+            .expect("ticks_ingested_total registration must not conflict");
         registry
             .register(Box::new(bus_publish_total.clone()))
-            .unwrap();
-        registry.register(Box::new(ws_subscribers.clone())).unwrap();
+            .expect("bus_publish_total registration must not conflict");
+        registry
+            .register(Box::new(ws_subscribers.clone()))
+            .expect("ws_subscribers registration must not conflict");
         registry
             .register(Box::new(redis_xadd_total.clone()))
-            .unwrap();
+            .expect("redis_xadd_total registration must not conflict");
         registry
             .register(Box::new(ticks_dropped_total.clone()))
-            .unwrap();
+            .expect("ticks_dropped_total registration must not conflict");
 
         Arc::new(Self {
             registry,

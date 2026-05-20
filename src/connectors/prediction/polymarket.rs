@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use futures_util::future::join_all;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -129,11 +130,12 @@ pub async fn fetch_polymarket_books(
     client: &reqwest::Client,
     token_ids: &[String],
 ) -> Vec<Result<PolymarketBookSummary>> {
-    let mut out = Vec::with_capacity(token_ids.len());
-    for token_id in token_ids {
-        out.push(fetch_polymarket_book(client, token_id).await);
-    }
-    out
+    join_all(
+        token_ids
+            .iter()
+            .map(|token_id| fetch_polymarket_book(client, token_id)),
+    )
+    .await
 }
 
 pub fn summarize_book(book: PolymarketOrderBook) -> PolymarketBookSummary {

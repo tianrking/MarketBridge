@@ -1,8 +1,4 @@
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
-
-use crate::types::now_ms;
 
 pub const ENVELOPE_VERSION: &str = "v1";
 
@@ -86,19 +82,6 @@ pub struct Freshness {
     pub stale: bool,
 }
 
-impl Freshness {
-    pub fn from_source_ts(ts_source: u64, stale_ttl_ms: u64) -> Self {
-        let ts_received = now_ms();
-        let latency_ms = ts_received.saturating_sub(ts_source);
-        Self {
-            ts_source,
-            ts_received,
-            latency_ms,
-            stale: latency_ms > stale_ttl_ms,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataEnvelope<T> {
     pub version: &'static str,
@@ -158,7 +141,12 @@ mod tests {
                 quote: Some("USDT".to_string()),
                 market_id: None,
             },
-            Freshness::from_source_ts(now_ms(), 1_000),
+            Freshness {
+                ts_source: 1_000,
+                ts_received: 1_010,
+                latency_ms: 10,
+                stale: false,
+            },
             QuotePayload { bid: 1.0, ask: 2.0 },
         );
 
