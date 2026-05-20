@@ -235,13 +235,8 @@ pub fn source_catalog_for_config(cfg: &AppConfig) -> Vec<CatalogSource> {
 
 fn source_runtime_status(cfg: &AppConfig, source: &str) -> &'static str {
     match source {
-        "cex_adapters" => {
-            if cfg.exchanges.values().any(|exchange| exchange.enabled) {
-                "enabled"
-            } else {
-                "available"
-            }
-        }
+        "cex_adapters" if cfg.exchanges.values().any(|exchange| exchange.enabled) => "enabled",
+        "cex_adapters" => "available",
         "deribit" => enabled_status(cfg.deribit.enabled),
         "okx" => enabled_status(cfg.okx_options.enabled),
         "bybit" => enabled_status(cfg.bybit_options.enabled),
