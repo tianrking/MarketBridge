@@ -74,37 +74,18 @@ impl EventBus {
             };
 
             let key = snapshot_key(&normalized.exchange, normalized.market, &normalized.symbol);
+            let quote_envelope = envelope_from_tick(normalized.clone());
+            let quote_key = quote_snapshot_key(&quote_envelope);
             {
                 let mut guard = self.snapshots.write().await;
                 guard.insert(key, normalized.clone());
             }
-            let _ = self.tx.send(normalized);
-
-            let quote_envelope = envelope_from_tick(self.with_current_stale(t));
-            let quote_key = quote_snapshot_key(&quote_envelope);
             {
                 let mut guard = self.quote_snapshots.write().await;
                 guard.insert(quote_key, quote_envelope.clone());
             }
+            let _ = self.tx.send(normalized);
             let _ = self.quote_tx.send(quote_envelope);
-        }
-    }
-
-    fn with_current_stale(&self, t: &crate::types::MarketTick) -> NormalizedTick {
-        let now = now_ms();
-        let latency = now.saturating_sub(t.ts_ms);
-        NormalizedTick {
-            version: SCHEMA_VERSION,
-            exchange: t.exchange,
-            market: market_to_str(t.market),
-            symbol: t.symbol.to_string(),
-            bid: t.bid,
-            ask: t.ask,
-            mark: t.mark,
-            funding: t.funding_rate,
-            ts: t.ts_ms,
-            source_latency_ms: latency,
-            stale: latency > self.stale_ttl_ms,
         }
     }
 
