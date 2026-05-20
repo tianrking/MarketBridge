@@ -57,6 +57,7 @@ use super::okx::{
     OkxTradeFeed,
 };
 use super::okx_perp::OkxPerpTicker;
+use super::pacifica::PacificaPerpFeed;
 use symbols::{
     split_quote, to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
     to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_okx, to_okx_swap, to_slash,
@@ -222,6 +223,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "aevo" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(AevoPerpFeed::new(
                     perp_symbols.iter().map(|s| to_aevo_perp(s)).collect(),
+                )));
+            }
+            "pacifica" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(PacificaPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_pacifica_perp(s)).collect(),
                 )));
             }
             "derive" => {
@@ -453,6 +459,17 @@ fn to_aevo_perp(symbol: &str) -> String {
     format!("{}-PERP", base.to_ascii_uppercase())
 }
 
+fn to_pacifica_perp(symbol: &str) -> String {
+    if let Some((base, _)) = symbol.split_once('-') {
+        return base.to_ascii_uppercase();
+    }
+    let upper = symbol.to_ascii_uppercase();
+    if let Some(base) = upper.strip_suffix("PERP") {
+        return base.to_string();
+    }
+    split_quote(&upper).0.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -529,5 +546,12 @@ mod tests {
         assert_eq!(to_aevo_perp("ETHUSDT"), "ETH-PERP");
         assert_eq!(to_aevo_perp("BTC-PERP"), "BTC-PERP");
         assert_eq!(to_aevo_perp("SOLPERP"), "SOL-PERP");
+    }
+
+    #[test]
+    fn pacifica_perp_symbol_converter_uses_base_symbol() {
+        assert_eq!(to_pacifica_perp("BTCUSDT"), "BTC");
+        assert_eq!(to_pacifica_perp("ETH-PERP"), "ETH");
+        assert_eq!(to_pacifica_perp("SOLPERP"), "SOL");
     }
 }

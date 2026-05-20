@@ -371,9 +371,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "Hummingbot perp connector and CCXT id exist; add as CLOB DEX derivatives source.",
+        notes: "Public perp book/trades/prices wired; prices emit funding and open interest.",
     },
     RoadmapSource {
         source: "jupiter",

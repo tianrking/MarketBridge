@@ -467,3 +467,13 @@ exchanges:
       mode: fixed
       maker_bps: 0.0
       taker_bps: 5.0
+
+  pacifica:
+    enabled: false
+    # Pacifica public API uses base symbols like BTC; registry maps BTCUSDT -> BTC.
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT, SOLUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 2.5
+      taker_bps: 5.0

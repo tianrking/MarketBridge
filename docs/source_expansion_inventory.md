@@ -36,7 +36,7 @@ visibility. A source enters the runtime only after it has at least:
 | Priority | Scope | Rationale |
 |---|---|---|
 | P0 | Finish depth on existing high-liquidity sources: Binance, OKX, Bybit, Bitget, KuCoin, Gate, Kraken, HTX, Bitfinex, Coinbase, MEXC, BingX, Backpack, Hyperliquid, dYdX | Highest immediate value; reduces partial rows before adding long tail. |
-| P1 | Add Hummingbot overlap not yet implemented: Injective, Vertex, XRPL, Architect, Decibel, GRVT, Pacifica | Hummingbot already validates these as trading connectors, useful for implementation patterns and liquidity discovery. |
+| P1 | Add Hummingbot overlap not yet implemented: Injective, Vertex, XRPL, Architect, Decibel, GRVT | Hummingbot already validates these as trading connectors, useful for implementation patterns and liquidity discovery. |
 | P2 | Add liquid CCXT/CEX venues: BitMEX, Crypto.com, CoinEx, Gemini, HashKey, Bitvavo, Bullish, WOO X, Phemex, Poloniex, Upbit, Bithumb | Strong market-data utility; good candidates for REST-first then WS. |
 | P3 | Add CCXT long-tail venues as REST snapshot sources | Broad coverage for research, but lower operational priority. |
 | P4 | Wallet/order/account-only capabilities | Out of scope unless MarketBridge grows an execution subsystem. |
@@ -264,6 +264,7 @@ kraken
 kucoin
 mexc
 okx
+pacifica
 ```
 
 Already implemented non-CLOB or external sources:
