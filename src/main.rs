@@ -1,5 +1,6 @@
 mod aggregator;
 mod api;
+mod catalog;
 mod config;
 mod connectors;
 mod core;

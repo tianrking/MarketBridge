@@ -1,0 +1,91 @@
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CatalogSource {
+    pub source_type: &'static str,
+    pub source: &'static str,
+    pub venue: Option<&'static str>,
+    pub domains: Vec<&'static str>,
+    pub connector_path: &'static str,
+    pub status: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CatalogDomain {
+    pub domain: &'static str,
+    pub endpoint: &'static str,
+    pub status: &'static str,
+}
+
+pub fn source_catalog() -> Vec<CatalogSource> {
+    vec![
+        CatalogSource {
+            source_type: "exchange",
+            source: "cex_adapters",
+            venue: None,
+            domains: vec!["market_quote", "market_funding"],
+            connector_path: "src/connectors/cex",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "options_venue",
+            source: "deribit",
+            venue: Some("deribit"),
+            domains: vec!["options_chain"],
+            connector_path: "src/connectors/options/deribit.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "prediction_market",
+            source: "polymarket",
+            venue: Some("polymarket"),
+            domains: vec!["prediction_market", "prediction_book"],
+            connector_path: "src/connectors/prediction/polymarket.rs",
+            status: "implemented",
+        },
+    ]
+}
+
+pub fn domain_catalog() -> Vec<CatalogDomain> {
+    vec![
+        CatalogDomain {
+            domain: "market_quote",
+            endpoint: "/v1/market/quotes",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "options_chain",
+            endpoint: "/v1/options/chains",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "prediction_book",
+            endpoint: "/v1/prediction/books",
+            status: "implemented",
+        },
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{domain_catalog, source_catalog};
+
+    #[test]
+    fn catalogs_expose_current_public_domains() {
+        let domains = domain_catalog()
+            .into_iter()
+            .map(|domain| domain.domain)
+            .collect::<Vec<_>>();
+        assert!(domains.contains(&"market_quote"));
+        assert!(domains.contains(&"options_chain"));
+        assert!(domains.contains(&"prediction_book"));
+
+        let sources = source_catalog()
+            .into_iter()
+            .map(|source| source.source)
+            .collect::<Vec<_>>();
+        assert!(sources.contains(&"cex_adapters"));
+        assert!(sources.contains(&"deribit"));
+        assert!(sources.contains(&"polymarket"));
+    }
+}

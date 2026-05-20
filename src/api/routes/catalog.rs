@@ -4,78 +4,24 @@ use std::sync::Arc;
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use serde::Serialize;
 
 use crate::api::ApiState;
+use crate::catalog::{domain_catalog, source_catalog};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::domains::prediction::book::envelope_from_polymarket_book;
 
-#[derive(Debug, Serialize)]
-struct CatalogSource {
-    source_type: &'static str,
-    source: &'static str,
-    venue: Option<&'static str>,
-    domains: Vec<&'static str>,
-    status: &'static str,
-}
-
-#[derive(Debug, Serialize)]
-struct CatalogDomain {
-    domain: &'static str,
-    endpoint: &'static str,
-    status: &'static str,
-}
-
 pub async fn sources() -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
-        "sources": [
-            CatalogSource {
-                source_type: "exchange",
-                source: "cex_adapters",
-                venue: None,
-                domains: vec!["market_quote", "market_funding"],
-                status: "implemented"
-            },
-            CatalogSource {
-                source_type: "options_venue",
-                source: "deribit",
-                venue: Some("deribit"),
-                domains: vec!["options_chain"],
-                status: "implemented"
-            },
-            CatalogSource {
-                source_type: "prediction_market",
-                source: "polymarket",
-                venue: Some("polymarket"),
-                domains: vec!["prediction_market", "prediction_book"],
-                status: "implemented"
-            }
-        ]
+        "sources": source_catalog()
     }))
 }
 
 pub async fn domains() -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
-        "domains": [
-            CatalogDomain {
-                domain: "market_quote",
-                endpoint: "/v1/market/quotes",
-                status: "implemented"
-            },
-            CatalogDomain {
-                domain: "options_chain",
-                endpoint: "/v1/options/chains",
-                status: "implemented"
-            },
-            CatalogDomain {
-                domain: "prediction_book",
-                endpoint: "/v1/prediction/books",
-                status: "implemented"
-            }
-        ]
+        "domains": domain_catalog()
     }))
 }
 

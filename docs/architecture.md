@@ -114,6 +114,9 @@ src/api/
 
 The API layer should not know exchange-specific websocket details.
 
+Source/domain discovery lives in `src/catalog.rs`; API routes expose it but do
+not own the registry.
+
 ## Canonical Envelope
 
 Every normalized record should eventually use:
