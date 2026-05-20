@@ -50,6 +50,7 @@ Status labels:
 | Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
 | Bitstamp | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades. |
+| Bitrue | partial | implemented | planned | planned | planned | planned | keyless | Public spot simple-depth stream from Hummingbot connector. |
 | AscendEX | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint. |
 | BTC Markets | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order book and trades. |
 | Aevo | partial | implemented | implemented | implemented | planned | planned | keyless | Public perp order books/trades plus REST funding and instrument BBO. |

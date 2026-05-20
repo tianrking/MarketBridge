@@ -111,9 +111,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P3",
-        notes: "Spot connector in Hummingbot; add after higher-liquidity P1/P2 venues.",
+        notes: "Public spot simple-depth WS stream wired; trades remain planned.",
     },
     RoadmapSource {
         source: "bitstamp",

@@ -361,6 +361,14 @@ exchanges:
       maker_bps: 10.0
       taker_bps: 10.0
 
+  bitrue:
+    enabled: false
+    symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 9.8
+      taker_bps: 9.8
+
   binance:
     enabled: false
     fee:
