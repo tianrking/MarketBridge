@@ -477,3 +477,13 @@ exchanges:
       mode: fixed
       maker_bps: 2.5
       taker_bps: 5.0
+
+  grvt:
+    enabled: false
+    # GRVT public API uses instrument names like BTC_USDT_Perp.
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT, SOLUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 1.0
+      taker_bps: 3.0

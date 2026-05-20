@@ -361,9 +361,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "Hummingbot and CCXT both include GRVT; good derivatives expansion candidate.",
+        notes: "Public perp book/trade/ticker streams wired; ticker emits funding and open interest.",
     },
     RoadmapSource {
         source: "pacifica",

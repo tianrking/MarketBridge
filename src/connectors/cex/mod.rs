@@ -19,6 +19,7 @@ pub mod dexalot;
 pub mod dydx;
 pub mod gate;
 pub mod gate_perp;
+pub mod grvt;
 pub mod htx;
 pub mod htx_perp;
 pub mod hyperliquid;

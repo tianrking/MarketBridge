@@ -44,6 +44,7 @@ use super::dexalot::DexalotSpotFeed;
 use super::dydx::DydxFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
+use super::grvt::GrvtPerpFeed;
 use super::htx::HtxBbo;
 use super::htx_perp::HtxPerpBbo;
 use super::hyperliquid::HyperliquidFeed;
@@ -228,6 +229,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "pacifica" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(PacificaPerpFeed::new(
                     perp_symbols.iter().map(|s| to_pacifica_perp(s)).collect(),
+                )));
+            }
+            "grvt" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(GrvtPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_grvt_perp(s)).collect(),
                 )));
             }
             "derive" => {
@@ -470,6 +476,20 @@ fn to_pacifica_perp(symbol: &str) -> String {
     split_quote(&upper).0.to_string()
 }
 
+fn to_grvt_perp(symbol: &str) -> String {
+    if symbol.contains("_") {
+        return symbol.to_string();
+    }
+    if let Some(base) = symbol.strip_suffix("-PERP") {
+        let compact = base.replace('-', "");
+        let (base, quote) = split_quote(&compact);
+        return format!("{}_{}_Perp", base, quote);
+    }
+    let upper = symbol.to_ascii_uppercase();
+    let (base, quote) = split_quote(&upper);
+    format!("{}_{}_Perp", base, quote)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -553,5 +573,12 @@ mod tests {
         assert_eq!(to_pacifica_perp("BTCUSDT"), "BTC");
         assert_eq!(to_pacifica_perp("ETH-PERP"), "ETH");
         assert_eq!(to_pacifica_perp("SOLPERP"), "SOL");
+    }
+
+    #[test]
+    fn grvt_perp_symbol_converter_uses_instrument_name() {
+        assert_eq!(to_grvt_perp("BTCUSDT"), "BTC_USDT_Perp");
+        assert_eq!(to_grvt_perp("ETHUSDT"), "ETH_USDT_Perp");
+        assert_eq!(to_grvt_perp("SOL_USDT_Perp"), "SOL_USDT_Perp");
     }
 }
