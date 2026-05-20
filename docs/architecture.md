@@ -120,6 +120,7 @@ Target layout:
 
 ```text
 src/api/
+  streaming.rs
   routes/
     catalog.rs
     market.rs
@@ -129,6 +130,10 @@ src/api/
     external_event.rs
     stream.rs
 ```
+
+`src/api/routes/*` owns HTTP/WebSocket routing and connection lifecycle.
+Reusable stream filtering, domain selection, and bounded websocket sending live
+in `src/api/streaming.rs` so new delivery modes can share the same rules.
 
 The API layer should not know exchange-specific websocket details.
 
@@ -305,6 +310,25 @@ WS /v1/stream?domains=market_quote,prediction_book&symbols=BTCUSDT&include_stale
 
 Purpose: one websocket stream for all normalized domains.
 
+`/v1/stream` uses domain-specific broadcast channels for high-volume live
+domains such as `funding`, `trade`, and `order_book`. Slow clients skip their
+own buffered messages or are disconnected on send timeout; they do not block
+publishers or other subscribers.
+
+## Runtime State
+
+MarketBridge keeps current-state snapshots in `src/event_snapshots.rs` and
+event fanout in `src/event_bus.rs`.
+
+- `event_snapshots.rs`: latest quote/funding/OI/trade/liquidation/book/external
+  signal rows and cache key rules.
+- `event_bus.rs`: raw event broadcast, per-domain broadcast channels, and
+  update orchestration.
+
+This split is deliberate: future snapshot optimizations such as ArcSwap,
+pre-serialized bytes, or sharded stores should be implemented in the snapshot
+layer without changing connector code or API route logic.
+
 ## Current State
 
 Implemented today:
@@ -312,8 +336,9 @@ Implemented today:
 - Catalog discovery through `GET /v1/catalog/sources`,
   `GET /v1/catalog/domains`, `GET /v1/catalog/instruments`, and
   `GET /v1/catalog/health`.
-- Envelope-based market quote, options chain, and prediction book streaming
-  through `WS /v1/stream`.
+- Domain-filtered market quote, funding, OI, trade, liquidation, order-book,
+  external signal, options chain, and prediction book streaming through
+  `WS /v1/stream`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - DeFi aggregator quote and AMM pool snapshots through `GET /v1/market/quotes`.
