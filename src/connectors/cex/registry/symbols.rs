@@ -25,26 +25,26 @@ pub(super) fn to_okx_swap(s: &str) -> String {
 
 pub(super) fn to_dash(s: &str) -> String {
     let (b, q) = split_quote(s);
-    format!("{}-{}", b, q)
+    format!("{b}-{q}")
 }
 
 pub(super) fn to_slash(s: &str) -> String {
     let (b, q) = split_quote(s);
-    format!("{}/{}", b, q)
+    format!("{b}/{q}")
 }
 
 pub(super) fn to_underscore(s: &str) -> String {
     let (b, q) = split_quote(s);
-    format!("{}_{}", b, q)
+    format!("{b}_{q}")
 }
 
 pub(super) fn to_bitfinex(s: &str) -> String {
     let (b, q) = split_quote(s);
-    format!("t{}{}", b, q)
+    format!("t{b}{q}")
 }
 
 pub(super) fn to_kucoin_perp(s: &str) -> String {
-    format!("{}M", s)
+    format!("{s}M")
 }
 
 pub(super) fn to_htx_perp(s: &str) -> String {
@@ -53,7 +53,7 @@ pub(super) fn to_htx_perp(s: &str) -> String {
 
 pub(super) fn to_bitfinex_perp(s: &str) -> String {
     let (b, q) = split_quote(s);
-    format!("t{}F0:{}F0", b, q)
+    format!("t{b}F0:{q}F0")
 }
 
 pub(super) fn to_kraken_perp(s: &str) -> String {

@@ -157,7 +157,7 @@ impl SpreadAggregator {
                 .map(|(ex, _)| {
                     let c = *count_snapshot.get(ex).unwrap_or(&0);
                     let hz = (c as f64 / secs).round() as u64;
-                    format!("{}:{}msg/s", ex, hz)
+                    format!("{ex}:{hz}msg/s")
                 })
                 .collect::<Vec<_>>()
                 .join(" | ");

@@ -235,8 +235,8 @@ fn parse_dexalot_trades(
     };
 
     rows.iter()
-        .filter_map(|row| {
-            Some(DataEvent::Trade(TradeTick {
+        .map(|row| {
+            DataEvent::Trade(TradeTick {
                 exchange: "dexalot",
                 market: MarketKind::Spot,
                 symbol: symbol.clone().into_boxed_str(),
@@ -265,7 +265,7 @@ fn parse_dexalot_trades(
                     .and_then(Value::as_str)
                     .map(|x| x.to_string().into_boxed_str()),
                 ts_ms: now_ms(),
-            }))
+            })
         })
         .collect()
 }

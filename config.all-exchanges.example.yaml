@@ -360,6 +360,11 @@ exchanges:
     symbols: [BTCJPY]
     fee: { mode: fixed, maker_bps: 0.0, taker_bps: 0.0 }
 
+  coinone:
+    enabled: true
+    symbols: [BTCKRW, ETHKRW]
+    fee: { mode: fixed, maker_bps: 20.0, taker_bps: 20.0 }
+
   coinex:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

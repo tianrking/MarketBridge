@@ -82,6 +82,7 @@ Status labels:
 | Coinbase | implemented | planned | planned | n/a | n/a | n/a | keyless | Spot ticker only; Coinbase International not wired. |
 | Coincheck | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | CoinEx | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
+| Coinone | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Crypto.com | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
 | Cube | partial | implemented | planned | planned | planned | planned | keyless | Public REST MBP snapshots with market metadata scaling; protobuf WS diffs/trades remain planned. |
 | Foxbit | partial | implemented | planned | planned | planned | planned | keyless | Public Brazil spot REST order-book snapshots; WS trades remain planned. |

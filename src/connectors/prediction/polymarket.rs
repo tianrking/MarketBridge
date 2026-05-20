@@ -260,8 +260,7 @@ pub async fn fetch_polymarket_batch_prices_history(
     }
     if request.markets.len() > POLYMARKET_HISTORY_BATCH_LIMIT {
         bail!(
-            "polymarket batch price history supports at most {} token ids",
-            POLYMARKET_HISTORY_BATCH_LIMIT
+            "polymarket batch price history supports at most {POLYMARKET_HISTORY_BATCH_LIMIT} token ids"
         );
     }
     post_clob_json(client, "batch-prices-history", request)

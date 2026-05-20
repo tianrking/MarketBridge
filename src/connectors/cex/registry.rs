@@ -51,6 +51,7 @@ use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
 use super::coincheck::CoincheckSpotFeed;
 use super::coinex::CoinexFeed;
+use super::coinone::CoinoneSpotFeed;
 use super::cryptocom::CryptoComFeed;
 use super::cube::CubeSpotFeed;
 use super::decibel::DecibelPerpFeed;
@@ -368,6 +369,14 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "coincheck" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CoincheckSpotFeed::new(
+                    spot_symbols
+                        .iter()
+                        .map(|s| to_underscore(s).to_ascii_lowercase())
+                        .collect(),
+                )));
+            }
+            "coinone" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(CoinoneSpotFeed::new(
                     spot_symbols
                         .iter()
                         .map(|s| to_underscore(s).to_ascii_lowercase())
@@ -819,11 +828,11 @@ fn to_grvt_perp(symbol: &str) -> String {
     if let Some(base) = symbol.strip_suffix("-PERP") {
         let compact = base.replace('-', "");
         let (base, quote) = split_quote(&compact);
-        return format!("{}_{}_Perp", base, quote);
+        return format!("{base}_{quote}_Perp");
     }
     let upper = symbol.to_ascii_uppercase();
     let (base, quote) = split_quote(&upper);
-    format!("{}_{}_Perp", base, quote)
+    format!("{base}_{quote}_Perp")
 }
 
 fn vertex_markets(spot_symbols: &[String], perp_symbols: &[String]) -> Vec<VertexMarket> {

@@ -440,7 +440,7 @@ fn assess_symbol_health(
         return ("critical".to_string(), alerts);
     }
     if latency_ms_p95 >= CRIT_LATENCY_MS {
-        alerts.push(format!("critical p95 latency {}ms", latency_ms_p95));
+        alerts.push(format!("critical p95 latency {latency_ms_p95}ms"));
         return ("critical".to_string(), alerts);
     }
 
@@ -455,13 +455,12 @@ fn assess_symbol_health(
     }
     if latency_ms_p95 >= WARN_LATENCY_MS {
         warning = true;
-        alerts.push(format!("elevated p95 latency {}ms", latency_ms_p95));
+        alerts.push(format!("elevated p95 latency {latency_ms_p95}ms"));
     }
     if market == "perp" && exchanges_with_funding < WARN_PERP_FUNDING_EXCHANGES {
         warning = true;
         alerts.push(format!(
-            "low funding coverage ({}/{})",
-            exchanges_with_funding, exchanges_total
+            "low funding coverage ({exchanges_with_funding}/{exchanges_total})"
         ));
     }
 

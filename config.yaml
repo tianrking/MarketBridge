@@ -585,6 +585,15 @@ exchanges:
       maker_bps: 0.0
       taker_bps: 0.0
 
+  coinone:
+    enabled: false
+    # Coinone public REST uses BASE_QUOTE symbols converted to KRW/BTC URL paths.
+    symbols: [BTCKRW, ETHKRW]
+    fee:
+      mode: fixed
+      maker_bps: 20.0
+      taker_bps: 20.0
+
   coinex:
     enabled: false
     # CoinEx public REST uses compact ids like BTCUSDT for spot and futures.

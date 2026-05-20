@@ -93,7 +93,6 @@ coincheck
 coinex
 coinmate
 coinmetro
-coinone
 coinsph
 coinspot
 cryptocom
@@ -264,6 +263,7 @@ dexalot
 coinbase
 coincheck
 coinex
+coinone
 cryptocom
 deribit
 dydx

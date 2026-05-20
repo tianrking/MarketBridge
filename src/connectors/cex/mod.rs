@@ -24,6 +24,7 @@ pub mod bybit_perp;
 pub mod coinbase;
 pub mod coincheck;
 pub mod coinex;
+pub mod coinone;
 pub mod common;
 pub mod cryptocom;
 pub mod cube;
