@@ -101,9 +101,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "High-value next connector because Hummingbot has spot/perp connectors and perp candles.",
+        notes: "Public spot depth/trades and perp depth/trades/funding/ticker are wired; OI/liquidation remain planned.",
     },
     RoadmapSource {
         source: "bitrue",

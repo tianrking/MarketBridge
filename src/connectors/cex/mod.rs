@@ -6,6 +6,7 @@ pub mod bitfinex;
 pub mod bitfinex_perp;
 pub mod bitget;
 pub mod bitget_perp;
+pub mod bitmart;
 pub mod bybit;
 pub mod bybit_perp;
 pub mod coinbase;

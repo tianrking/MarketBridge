@@ -30,6 +30,7 @@ use super::bitfinex::BitfinexTicker;
 use super::bitfinex_perp::BitfinexPerpTicker;
 use super::bitget::BitgetSpotTicker;
 use super::bitget_perp::BitgetPerpTicker;
+use super::bitmart::{BitmartPerpFeed, BitmartSpotFeed};
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
@@ -185,6 +186,18 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(BitgetPerpTicker::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                }
+            }
+            "bitmart" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(BitmartSpotFeed::new(
+                        spot_symbols.iter().map(|s| to_underscore(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(BitmartPerpFeed::new(
                         perp_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
                 }
