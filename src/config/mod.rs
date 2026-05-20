@@ -290,6 +290,8 @@ pub struct AggregatesConfig {
     #[serde(default)]
     pub coingecko: CoinGeckoConfig,
     #[serde(default)]
+    pub coincap: CoinCapConfig,
+    #[serde(default)]
     pub coinmarketcap: CoinMarketCapConfig,
     #[serde(default)]
     pub coinglass: CoinGlassConfig,
@@ -304,6 +306,24 @@ pub struct CoinGeckoConfig {
     #[serde(default)]
     pub api_key: Option<String>,
     #[serde(default = "default_coingecko_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_aggregate_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_coin_assets")]
+    pub assets: Vec<CoinPriceAsset>,
+    #[serde(default = "default_aggregate_spread_bps")]
+    pub spread_bps: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CoinCapConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_coincap_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_coincap_api_key_env")]
     pub api_key_env: String,
     #[serde(default = "default_aggregate_poll_secs")]
     pub poll_secs: u64,
@@ -687,6 +707,10 @@ fn default_coingecko_base_url() -> String {
     "https://api.coingecko.com/api/v3/".to_string()
 }
 
+fn default_coincap_base_url() -> String {
+    "https://api.coincap.io/v2/".to_string()
+}
+
 fn default_coinmarketcap_base_url() -> String {
     "https://pro-api.coinmarketcap.com/v2/".to_string()
 }
@@ -697,6 +721,10 @@ fn default_coinglass_base_url() -> String {
 
 fn default_coingecko_api_key_env() -> String {
     "COINGECKO_API_KEY".to_string()
+}
+
+fn default_coincap_api_key_env() -> String {
+    "COINCAP_API_KEY".to_string()
 }
 
 fn default_coinmarketcap_api_key_env() -> String {
@@ -977,6 +1005,20 @@ impl Default for CoinGeckoConfig {
             base_url: default_coingecko_base_url(),
             api_key: None,
             api_key_env: default_coingecko_api_key_env(),
+            poll_secs: default_aggregate_poll_secs(),
+            assets: default_coin_assets(),
+            spread_bps: default_aggregate_spread_bps(),
+        }
+    }
+}
+
+impl Default for CoinCapConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_coincap_base_url(),
+            api_key: None,
+            api_key_env: default_coincap_api_key_env(),
             poll_secs: default_aggregate_poll_secs(),
             assets: default_coin_assets(),
             spread_bps: default_aggregate_spread_bps(),

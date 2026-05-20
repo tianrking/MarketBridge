@@ -87,6 +87,7 @@ Status labels:
 | Source | Domain | Status | API key | Env var |
 |---|---|---:|---:|---|
 | CoinGecko | market_quote | implemented | optional | `COINGECKO_API_KEY` |
+| CoinCap | market_quote | implemented | optional | `COINCAP_API_KEY` |
 | CoinMarketCap | market_quote | implemented | required | `COINMARKETCAP_API_KEY` |
 | CoinGlass | external_signal | implemented | required | `COINGLASS_API_KEY` |
 | Fear & Greed | external_signal | implemented | keyless | n/a |

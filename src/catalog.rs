@@ -150,6 +150,14 @@ pub fn source_catalog() -> Vec<CatalogSource> {
         },
         CatalogSource {
             source_type: "aggregate_data",
+            source: "coincap",
+            venue: Some("coincap"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/aggregate/coincap.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "aggregate_data",
             source: "coinmarketcap",
             venue: Some("coinmarketcap"),
             domains: vec!["market_quote"],
@@ -255,6 +263,7 @@ fn source_runtime_status(cfg: &AppConfig, source: &str) -> &'static str {
             &cfg.tradfi.us10y.api_key_env,
         ),
         "coingecko" => enabled_status(cfg.aggregates.coingecko.enabled),
+        "coincap" => enabled_status(cfg.aggregates.coincap.enabled),
         "coinmarketcap" => keyed_status(
             cfg.aggregates.coinmarketcap.enabled,
             cfg.aggregates.coinmarketcap.api_key.as_deref(),

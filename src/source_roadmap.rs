@@ -511,9 +511,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: DATA_FEED,
         domains: EXTERNAL_PRICE,
         upstreams: UP_HB_DATA,
-        marketbridge_status: "planned",
+        marketbridge_status: "implemented",
         priority: "P2",
-        notes: "Hummingbot aggregate price feed; add as optional market quote/reference source.",
+        notes: "Optional REST aggregate USD price feed is wired as market_quote.",
     },
     RoadmapSource {
         source: "coin_gecko",

@@ -3,6 +3,7 @@ use std::sync::Arc;
 mod symbols;
 
 use crate::config::AppConfig;
+use crate::connectors::aggregate::coincap::CoinCapPricePoller;
 use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
 use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
@@ -360,6 +361,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     if cfg.aggregates.coingecko.enabled {
         out.push(Arc::new(CoinGeckoPricePoller::new(
             cfg.aggregates.coingecko.clone(),
+        )));
+    }
+    if cfg.aggregates.coincap.enabled {
+        out.push(Arc::new(CoinCapPricePoller::new(
+            cfg.aggregates.coincap.clone(),
         )));
     }
     if cfg.aggregates.coinmarketcap.enabled {

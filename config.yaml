@@ -226,6 +226,21 @@ aggregates:
         id: ethereum
         vs_currency: usd
 
+  coincap:
+    enabled: false
+    base_url: "https://api.coincap.io/v2/"
+    # Optional. Public API can run without a key; set COINCAP_API_KEY if needed.
+    api_key_env: COINCAP_API_KEY
+    poll_secs: 60
+    spread_bps: 2.0
+    assets:
+      - symbol: BTCUSD
+        id: bitcoin
+        vs_currency: usd
+      - symbol: ETHUSD
+        id: ethereum
+        vs_currency: usd
+
   coinmarketcap:
     enabled: false
     base_url: "https://pro-api.coinmarketcap.com/v2/"

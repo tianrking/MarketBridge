@@ -1,3 +1,4 @@
+pub mod coincap;
 pub mod coingecko;
 pub mod coinglass;
 pub mod coinmarketcap;

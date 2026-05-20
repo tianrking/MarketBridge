@@ -267,6 +267,7 @@ Already implemented non-CLOB or external sources:
 
 ```text
 coingecko
+coincap
 coinmarketcap
 coinglass
 cryptopanic
