@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::get;
 
-use crate::config::AppConfig;
+use crate::catalog::CatalogSource;
 use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
 use crate::klines::KlineStore;
@@ -19,7 +19,7 @@ pub mod utils;
 
 #[derive(Clone)]
 pub struct ApiState {
-    pub config: AppConfig,
+    pub source_catalog: Vec<CatalogSource>,
     pub bus: EventBus,
     pub metrics: Arc<AppMetrics>,
     pub http: reqwest::Client,

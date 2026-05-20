@@ -75,10 +75,11 @@ async fn main() -> anyhow::Result<()> {
 
     let order_flow_store = OrderFlowStore::new(cfg.runtime.order_flow_large_trade_notional_usdt);
     let onchain_store = OnchainTransferStore::default();
+    let source_catalog = catalog::source_catalog_for_config(&cfg);
     let http = reqwest::Client::new();
 
     let api_router = build_router(ApiState {
-        config: cfg.clone(),
+        source_catalog,
         bus: bus.clone(),
         metrics: metrics.clone(),
         http: http.clone(),
