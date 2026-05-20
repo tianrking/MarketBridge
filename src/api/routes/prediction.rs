@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
 
@@ -9,7 +10,10 @@ use crate::api::ApiState;
 use crate::api::error::{multi_status, upstream_error};
 use crate::api::utils::parse_csv_vec;
 use crate::connectors::prediction::polymarket::{
+    PolymarketBatchPriceHistoryRequest, fetch_polymarket_batch_prices_history,
     fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
+    fetch_polymarket_last_trade_prices, fetch_polymarket_market_prices, fetch_polymarket_midpoints,
+    fetch_polymarket_prices_history, fetch_polymarket_spreads,
 };
 use crate::domains::prediction::book::envelope_from_polymarket_book;
 
@@ -28,6 +32,22 @@ pub struct PolymarketBookQuery {
 #[derive(Debug, Deserialize)]
 pub struct PolymarketBooksQuery {
     token_ids: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PolymarketPricesQuery {
+    token_ids: String,
+    sides: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PolymarketPricesHistoryQuery {
+    token_id: Option<String>,
+    token_ids: Option<String>,
+    start_ts: Option<f64>,
+    end_ts: Option<f64>,
+    interval: Option<String>,
+    fidelity: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -123,6 +143,126 @@ pub async fn polymarket_books(
         Json(body).into_response()
     } else {
         multi_status(body)
+    }
+}
+
+pub async fn polymarket_midpoints(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketBooksQuery>,
+) -> impl IntoResponse {
+    let token_ids = parse_csv_vec(&q.token_ids);
+    match fetch_polymarket_midpoints(&state.http, &token_ids).await {
+        Ok(midpoints) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "endpoint": "midpoints",
+            "api_key_required": false,
+            "midpoints": midpoints
+        }))
+        .into_response(),
+        Err(error) => invalid_or_upstream("polymarket_clob", error),
+    }
+}
+
+pub async fn polymarket_spreads(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketBooksQuery>,
+) -> impl IntoResponse {
+    let token_ids = parse_csv_vec(&q.token_ids);
+    match fetch_polymarket_spreads(&state.http, &token_ids).await {
+        Ok(spreads) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "endpoint": "spreads",
+            "api_key_required": false,
+            "spreads": spreads
+        }))
+        .into_response(),
+        Err(error) => invalid_or_upstream("polymarket_clob", error),
+    }
+}
+
+pub async fn polymarket_last_trade_prices(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketBooksQuery>,
+) -> impl IntoResponse {
+    let token_ids = parse_csv_vec(&q.token_ids);
+    match fetch_polymarket_last_trade_prices(&state.http, &token_ids).await {
+        Ok(last_trade_prices) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "endpoint": "last-trades-prices",
+            "api_key_required": false,
+            "last_trade_prices": last_trade_prices
+        }))
+        .into_response(),
+        Err(error) => invalid_or_upstream("polymarket_clob", error),
+    }
+}
+
+pub async fn polymarket_market_prices(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketPricesQuery>,
+) -> impl IntoResponse {
+    let token_ids = parse_csv_vec(&q.token_ids);
+    let sides = q.sides.map(|s| parse_csv_vec(&s)).unwrap_or_default();
+    match fetch_polymarket_market_prices(&state.http, &token_ids, &sides).await {
+        Ok(prices) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "endpoint": "prices",
+            "api_key_required": false,
+            "prices": prices
+        }))
+        .into_response(),
+        Err(error) => invalid_or_upstream("polymarket_clob", error),
+    }
+}
+
+pub async fn polymarket_prices_history(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketPricesHistoryQuery>,
+) -> impl IntoResponse {
+    if let Some(token_ids) = q.token_ids {
+        let token_ids = parse_csv_vec(&token_ids);
+        let request = PolymarketBatchPriceHistoryRequest {
+            markets: token_ids,
+            start_ts: q.start_ts,
+            end_ts: q.end_ts,
+            interval: q.interval,
+            fidelity: q.fidelity,
+        };
+        return match fetch_polymarket_batch_prices_history(&state.http, &request).await {
+            Ok(history) => Json(serde_json::json!({
+                "source": "polymarket_clob",
+                "endpoint": "batch-prices-history",
+                "api_key_required": false,
+                "history": history.history
+            }))
+            .into_response(),
+            Err(error) => invalid_or_upstream("polymarket_clob", error),
+        };
+    }
+
+    let Some(token_id) = q.token_id else {
+        return invalid_request("token_id or token_ids is required");
+    };
+
+    match fetch_polymarket_prices_history(
+        &state.http,
+        &token_id,
+        q.start_ts,
+        q.end_ts,
+        q.interval.as_deref(),
+        q.fidelity,
+    )
+    .await
+    {
+        Ok(history) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "endpoint": "prices-history",
+            "api_key_required": false,
+            "token_id": token_id,
+            "history": history.history
+        }))
+        .into_response(),
+        Err(error) => invalid_or_upstream("polymarket_clob", error),
     }
 }
 
@@ -222,4 +362,27 @@ pub async fn polymarket_live_crypto_books(
         "books": books
     }))
     .into_response()
+}
+
+fn invalid_request(error: impl ToString) -> axum::response::Response {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({
+            "source": "market_bridge",
+            "error": error.to_string()
+        })),
+    )
+        .into_response()
+}
+
+fn invalid_or_upstream(source: &'static str, error: anyhow::Error) -> axum::response::Response {
+    let message = error.to_string();
+    if message.contains("at least one")
+        || message.contains("at most")
+        || message.contains("sides must")
+    {
+        invalid_request(message)
+    } else {
+        upstream_error(source, message)
+    }
 }

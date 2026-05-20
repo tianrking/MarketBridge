@@ -52,11 +52,11 @@ Status labels:
 | Gamma market discovery | implemented | keyless | BTC/ETH crypto binary parser today. |
 | REST book | implemented | keyless | `/polymarket/book`, `/polymarket/books`. |
 | Live CLOB cache | implemented | keyless | `/polymarket/live-books`, `/v1/prediction/books`. |
-| Midpoint batch | planned | keyless | CLOB `/midpoint` wrapper needed. |
-| Last trade price batch | planned | keyless | CLOB `/last-trade-price` wrapper needed. |
-| Spread batch | planned | keyless | CLOB `/spread` wrapper needed. |
-| Market prices batch | planned | keyless | CLOB `/market-prices` wrapper needed. |
-| Historical prices/OHLCV | planned | keyless | CLOB price history wrapper needed. |
+| Midpoint batch | implemented | keyless | `/polymarket/midpoints` wraps CLOB `POST /midpoints`, max 500 token ids. |
+| Last trade price batch | implemented | keyless | `/polymarket/last-trade-prices` wraps CLOB `POST /last-trades-prices`, max 500 token ids. |
+| Spread batch | implemented | keyless | `/polymarket/spreads` wraps CLOB `POST /spreads`, max 500 token ids. |
+| Market prices batch | implemented | keyless | `/polymarket/prices` wraps CLOB `POST /prices`, default sides `BUY,SELL`. |
+| Historical prices/OHLCV | implemented | keyless | `/polymarket/prices-history` wraps CLOB `GET /prices-history` and `POST /batch-prices-history`, batch max 20 token ids. |
 | Full category coverage | planned | keyless | Politics/sports/tech/general parser needed. |
 | Open interest/live volume | planned | keyless | Endpoint support needs confirmation per market. |
 

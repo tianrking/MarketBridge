@@ -77,6 +77,26 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::prediction::polymarket_books),
         )
         .route(
+            "/polymarket/midpoints",
+            get(routes::prediction::polymarket_midpoints),
+        )
+        .route(
+            "/polymarket/spreads",
+            get(routes::prediction::polymarket_spreads),
+        )
+        .route(
+            "/polymarket/last-trade-prices",
+            get(routes::prediction::polymarket_last_trade_prices),
+        )
+        .route(
+            "/polymarket/prices",
+            get(routes::prediction::polymarket_market_prices),
+        )
+        .route(
+            "/polymarket/prices-history",
+            get(routes::prediction::polymarket_prices_history),
+        )
+        .route(
             "/polymarket/crypto-books",
             get(routes::prediction::polymarket_crypto_books),
         )

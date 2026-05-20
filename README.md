@@ -273,6 +273,11 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/polymarket/crypto-markets` | Parsed Polymarket BTC/ETH binary markets |
 | GET | `/polymarket/book` | Polymarket CLOB book summary for one token |
 | GET | `/polymarket/books` | Polymarket CLOB book summaries for token ids |
+| GET | `/polymarket/midpoints` | Batch public CLOB midpoint prices; no API key |
+| GET | `/polymarket/spreads` | Batch public CLOB spreads; no API key |
+| GET | `/polymarket/last-trade-prices` | Batch public CLOB last trade prices; no API key |
+| GET | `/polymarket/prices` | Batch public CLOB executable BUY/SELL prices; no API key |
+| GET | `/polymarket/prices-history` | Single or batch public CLOB price history; no API key |
 | GET | `/polymarket/crypto-books` | Parsed crypto markets plus Yes/No CLOB books |
 | GET | `/polymarket/live-books` | Cached Polymarket CLOB books seeded by REST and patched by websocket |
 | GET | `/polymarket/live-crypto-books` | Parsed crypto markets plus cached Yes/No CLOB books |
@@ -620,6 +625,57 @@ Example:
 
 ```bash
 curl -s "http://127.0.0.1:8080/polymarket/books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+```
+
+### `GET /polymarket/midpoints`
+
+Batch wrapper for public Polymarket CLOB `POST /midpoints`.
+
+Query params:
+
+- `token_ids` comma-separated token ids, max 500
+
+### `GET /polymarket/spreads`
+
+Batch wrapper for public Polymarket CLOB `POST /spreads`.
+
+Query params:
+
+- `token_ids` comma-separated token ids, max 500
+
+### `GET /polymarket/last-trade-prices`
+
+Batch wrapper for public Polymarket CLOB `POST /last-trades-prices`.
+
+Query params:
+
+- `token_ids` comma-separated token ids, max 500
+
+### `GET /polymarket/prices`
+
+Batch wrapper for public Polymarket CLOB `POST /prices`.
+
+Query params:
+
+- `token_ids` comma-separated token ids, max 500
+- `sides` optional comma-separated sides, `BUY`, `SELL`, or omitted for both
+
+### `GET /polymarket/prices-history`
+
+Wrapper for public Polymarket CLOB `GET /prices-history` and `POST
+/batch-prices-history`.
+
+Query params:
+
+- `token_id` for a single token, or `token_ids` comma-separated for batch, max 20
+- `start_ts`, `end_ts`, `interval`, `fidelity` optional history controls
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/midpoints?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/polymarket/prices?token_ids=YES_TOKEN&sides=BUY,SELL" | jq
+curl -s "http://127.0.0.1:8080/polymarket/prices-history?token_id=YES_TOKEN&interval=1h&fidelity=1" | jq
 ```
 
 ### `GET /polymarket/crypto-books`
