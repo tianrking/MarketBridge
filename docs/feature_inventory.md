@@ -67,6 +67,7 @@ Status labels:
 | Dexalot | partial | implemented | implemented | planned | planned | planned | keyless | Public CLOB DEX spot order books and trades. |
 | KuCoin | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
 | Gate | implemented | planned | planned | planned | planned | planned | keyless | BookTicker-style BBO today. |
+| Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
 | Kraken | implemented | planned | planned | planned | planned | planned | keyless | Spot V2 ticker and separate futures ticker today. |
 | HTX | implemented | planned | planned | planned | planned | planned | keyless | BBO only today. |
 | Bitfinex | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |

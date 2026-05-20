@@ -280,6 +280,11 @@ exchanges:
     perp_symbols: [BTCUSDT, ETHUSDT]
     fee: { mode: fixed, maker_bps: 15.0, taker_bps: 15.0 }
 
+  gemini:
+    enabled: true
+    symbols: [BTCUSD, ETHUSD]
+    fee: { mode: fixed, maker_bps: 20.0, taker_bps: 40.0 }
+
   kraken:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

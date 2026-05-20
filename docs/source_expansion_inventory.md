@@ -261,6 +261,7 @@ cryptocom
 deribit
 dydx
 gate / gate_io
+gemini
 grvt
 htx
 hyperliquid
@@ -303,12 +304,11 @@ yahoo/vix
 
 The next practical implementation wave should be:
 
-1. Gemini spot: regulated US reference venue.
-2. CoinEx spot/perp: CCXT certified, useful long-tail liquidity.
-3. Phemex spot/perp: derivatives venue with clear public feeds.
-4. Upbit/Bithumb spot: KRW market regime signal.
-5. Injective/Vertex/Dexalot: CLOB DEX sources from Hummingbot coverage.
-6. Meteora/Orca/PancakeSwap/Balancer/Curve/SushiSwap: DeFi depth and pool-state expansion.
+1. CoinEx spot/perp: CCXT certified, useful long-tail liquidity.
+2. Phemex spot/perp: derivatives venue with clear public feeds.
+3. Upbit/Bithumb spot: KRW market regime signal.
+4. Injective/Vertex/Dexalot: CLOB DEX sources from Hummingbot coverage.
+5. Meteora/Orca/PancakeSwap/Balancer/Curve/SushiSwap: DeFi depth and pool-state expansion.
 
 For each new CEX source, implement in this order:
 

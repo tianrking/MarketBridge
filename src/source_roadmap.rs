@@ -39,6 +39,7 @@ const UP_HB_CANDLES: &[&str] = &["hummingbot_candles_feed"];
 const UP_HB_GATEWAY: &[&str] = &["hummingbot_gateway"];
 const UP_HB_DATA: &[&str] = &["hummingbot_data_feed"];
 const UP_HB_CCXT: &[&str] = &["hummingbot", "ccxt"];
+const UP_CCXT: &[&str] = &["ccxt"];
 
 pub fn source_roadmap() -> &'static [RoadmapSource] {
     ROADMAP
@@ -224,6 +225,16 @@ const ROADMAP: &[RoadmapSource] = &[
         marketbridge_status: "partial",
         priority: "P0",
         notes: "MarketBridge has BBO paths; expand L2/trades/funding/OI/liquidation parity.",
+    },
+    RoadmapSource {
+        source: "gemini",
+        source_type: "exchange",
+        product_types: SPOT,
+        domains: QUOTE_BOOK_TRADE,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST spot ticker, order book, and trades are wired without CCXT runtime dependency.",
     },
     RoadmapSource {
         source: "htx",

@@ -28,6 +28,7 @@ pub mod evedex;
 pub mod foxbit;
 pub mod gate;
 pub mod gate_perp;
+pub mod gemini;
 pub mod grvt;
 pub mod htx;
 pub mod htx_perp;

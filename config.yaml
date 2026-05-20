@@ -568,6 +568,15 @@ exchanges:
       maker_bps: 15.0
       taker_bps: 15.0
 
+  gemini:
+    enabled: false
+    # Gemini public REST uses lowercase compact ids like btcusd.
+    symbols: [BTCUSD, ETHUSD]
+    fee:
+      mode: fixed
+      maker_bps: 20.0
+      taker_bps: 40.0
+
   bitfinex:
     enabled: false
     fee:

@@ -54,6 +54,7 @@ use super::evedex::EvedexPerpFeed;
 use super::foxbit::FoxbitSpotFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
+use super::gemini::GeminiSpotFeed;
 use super::grvt::GrvtPerpFeed;
 use super::htx::HtxBbo;
 use super::htx_perp::HtxPerpBbo;
@@ -325,6 +326,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "coinbase" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CoinbaseTicker::new(
                     spot_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
+            }
+            "gemini" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(GeminiSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_binance(s)).collect(),
                 )));
             }
             "cryptocom" => {
