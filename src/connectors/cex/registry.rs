@@ -33,7 +33,7 @@ use super::binance::{
 use super::binance_perp::BinancePerpBookTicker;
 use super::bingx::BingxSwapFeed;
 use super::bitbank::BitbankSpotFeed;
-use super::bitfinex::BitfinexTicker;
+use super::bitfinex::{BitfinexSpotRestFeed, BitfinexTicker};
 use super::bitfinex_perp::BitfinexPerpTicker;
 use super::bitflyer::BitflyerSpotFeed;
 use super::bitget::BitgetSpotTicker;
@@ -559,9 +559,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "bitfinex" => {
                 if !spot_symbols.is_empty() {
-                    out.push(Arc::new(BitfinexTicker::new(
-                        spot_symbols.iter().map(|s| to_bitfinex(s)).collect(),
-                    )));
+                    let bitfinex_spot_symbols = spot_symbols
+                        .iter()
+                        .map(|s| to_bitfinex(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(BitfinexTicker::new(bitfinex_spot_symbols.clone())));
+                    out.push(Arc::new(BitfinexSpotRestFeed::new(bitfinex_spot_symbols)));
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(BitfinexPerpTicker::new(

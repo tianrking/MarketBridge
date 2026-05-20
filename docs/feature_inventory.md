@@ -81,7 +81,7 @@ Status labels:
 | Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
 | Kraken | implemented | implemented | implemented | planned | planned | planned | keyless | Spot V2 ticker plus REST order book and recent trades; separate futures ticker today. |
 | HTX | implemented | implemented | implemented | planned | planned | planned | keyless | Spot BBO plus native public REST order book and recent trades. |
-| Bitfinex | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
+| Bitfinex | implemented | implemented | implemented | planned | planned | planned | keyless | Spot/perp ticker plus native public spot REST order book and recent trades. |
 | Coinbase | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Advanced Trade ticker plus Exchange REST order book and recent trades. |
 | Coincheck | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | CoinEx | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
