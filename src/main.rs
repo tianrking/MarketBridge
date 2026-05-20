@@ -1,4 +1,5 @@
 mod aggregator;
+mod aggregator_signal;
 mod api;
 mod catalog;
 mod config;
