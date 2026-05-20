@@ -26,6 +26,7 @@ use super::kraken::KrakenTicker;
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::KucoinPerpTicker;
+use super::mexc::MexcFeed;
 use super::okx::{
     OkxDepthFeed, OkxFundingFeed, OkxLiquidationPoller, OkxOpenInterestFeed, OkxTicker,
     OkxTradeFeed,
@@ -103,6 +104,20 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(BackpackFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_underscore(s)).collect(),
+                    )));
+                }
+            }
+            "mexc" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(MexcFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(MexcFeed::new(
                         crate::types::MarketKind::Perp,
                         perp_symbols.iter().map(|s| to_underscore(s)).collect(),
                     )));
