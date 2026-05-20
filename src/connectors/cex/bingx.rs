@@ -51,8 +51,7 @@ async fn run_bingx_swap(symbols: &[String], ctx: SourceContext) -> Result<()> {
         for data_type in ["ticker", "depth20", "trade"] {
             sink.send(Message::Text(
                 json!({"id":format!("{symbol}-{data_type}"),"reqType":"sub","dataType":format!("{symbol}@{data_type}")})
-                    .to_string()
-                    .into(),
+                    .to_string(),
             ))
             .await?;
         }

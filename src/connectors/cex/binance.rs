@@ -228,7 +228,7 @@ pub async fn run_binance(
                 if last_pong.elapsed() > Duration::from_secs(60) {
                     anyhow::bail!("binance {} pong timeout", market_label(market));
                 }
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {
@@ -269,7 +269,7 @@ async fn run_binance_funding(symbols: &[String], ctx: SourceContext) -> Result<(
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "binance", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {
@@ -320,7 +320,7 @@ async fn run_binance_depth(
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "binance", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {
@@ -368,7 +368,7 @@ async fn run_binance_trades(
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "binance", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {
@@ -411,7 +411,7 @@ async fn run_binance_liquidations(symbols: &[String], ctx: SourceContext) -> Res
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "binance", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

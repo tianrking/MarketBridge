@@ -202,6 +202,7 @@ impl PolymarketBookCache {
         .await;
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn upsert_patch(
         &self,
         asset_id: String,
@@ -332,8 +333,7 @@ async fn run_ws_connection(
                     "type": "market",
                     "custom_feature_enabled": true
                 })
-                .to_string()
-                .into(),
+                .to_string(),
             ))
             .await?;
     }
@@ -354,10 +354,10 @@ async fn run_ws_connection(
             message = socket.next() => {
                 let Some(message) = message else { return Ok(()); };
                 let message = message?;
-                if let Some(payload) = payload_text(message)? {
-                    if let Err(error) = cache.apply_ws_payload(&payload).await {
-                        warn!(%error, "failed to apply polymarket ws payload");
-                    }
+                if let Some(payload) = payload_text(message)?
+                    && let Err(error) = cache.apply_ws_payload(&payload).await
+                {
+                    warn!(%error, "failed to apply polymarket ws payload");
                 }
             }
         }

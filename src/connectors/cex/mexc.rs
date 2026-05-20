@@ -57,9 +57,7 @@ async fn run_mexc_spot(symbols: &[String], ctx: SourceContext) -> Result<()> {
         })
         .collect::<Vec<_>>();
     sink.send(Message::Text(
-        json!({"method":"SUBSCRIPTION","params":params})
-            .to_string()
-            .into(),
+        json!({"method":"SUBSCRIPTION","params":params}).to_string(),
     ))
     .await?;
     run_json_loop("mexc", MarketKind::Spot, sink, stream, ctx).await
@@ -76,9 +74,7 @@ async fn run_mexc_contract(symbols: &[String], ctx: SourceContext) -> Result<()>
     for symbol in symbols {
         for method in ["sub.ticker", "sub.depth.full", "sub.deal"] {
             sink.send(Message::Text(
-                json!({"method":method,"param":{"symbol":symbol}})
-                    .to_string()
-                    .into(),
+                json!({"method":method,"param":{"symbol":symbol}}).to_string(),
             ))
             .await?;
         }
@@ -105,7 +101,7 @@ where
     loop {
         tokio::select! {
             _ = ping.tick() => {
-                sink.send(Message::Text(json!({"method":"PING"}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"method":"PING"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

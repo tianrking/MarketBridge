@@ -61,9 +61,7 @@ pub async fn run_kraken(
     let (ws, _) = connect_async(url).await?;
     let (mut sink, mut stream) = ws.split();
     sink.send(Message::Text(
-        json!({"method":"subscribe","params":{"channel":"ticker","symbol":symbols}})
-            .to_string()
-            .into(),
+        json!({"method":"subscribe","params":{"channel":"ticker","symbol":symbols}}).to_string(),
     ))
     .await?;
 
@@ -76,7 +74,7 @@ pub async fn run_kraken(
                 if last_pong.elapsed() > Duration::from_secs(90) {
                     anyhow::bail!("kraken {label} heartbeat timeout");
                 }
-                sink.send(Message::Text(json!({"method":"ping"}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"method":"ping"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

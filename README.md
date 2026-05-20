@@ -1,6 +1,11 @@
 # MarketBridge
 
-Independent Rust data-source bridge for exchange, options, prediction-market, and external market data aggregation. MarketBridge normalizes public data, caches it, marks freshness, and exposes one API surface for downstream research systems.
+Independent Rust data-source bridge for exchange, options, prediction-market,
+DeFi, macro, aggregate, and sentiment data. MarketBridge normalizes public data,
+caches fresh state, marks stale records, and exposes one stable API surface for
+downstream research systems.
+
+Current version: `v0.0.1`
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)
 ![Tokio](https://img.shields.io/badge/Runtime-Tokio-333333?logo=rust)
@@ -14,11 +19,14 @@ Independent Rust data-source bridge for exchange, options, prediction-market, an
 ## Table of Contents
 
 - [Why This Project](#why-this-project)
+- [Tool Positioning](#tool-positioning)
 - [Architecture Contract](#architecture-contract)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Runtime Pipeline](#runtime-pipeline)
 - [Quick Start](#quick-start)
+- [Use Downloaded Binaries](#use-downloaded-binaries)
+- [Release Builds](#release-builds)
 - [Configuration](#configuration)
 - [Implemented Data Plane](#implemented-data-plane)
 - [Strategy Readiness Matrix](#strategy-readiness-matrix)
@@ -36,6 +44,28 @@ Independent Rust data-source bridge for exchange, options, prediction-market, an
 - Unified market model across multiple exchanges and both `spot` / `perp`
 - Unified API layer (`REST + WebSocket + Redis`) for downstream strategy systems
 - Data quality visibility (funding coverage, stale ratio, latency percentiles, health status, alerts)
+
+## Tool Positioning
+
+MarketBridge is a data-plane tool, not a trading bot.
+
+It owns:
+
+- public market-data collection from CEX, DeFi, options, Polymarket, macro, aggregate, and sentiment sources
+- normalization into source-agnostic REST/WebSocket APIs
+- latest-state caches, freshness flags, source health, and optional Redis Stream persistence
+- operational spread signals used as data sanity checks
+
+It does not own:
+
+- factor approval or alpha research decisions
+- paper/live PnL attribution
+- wallet signing or authenticated order placement
+- Polymarket order submit/cancel/replace
+
+Downstream systems such as `PolyAlpha` should call MarketBridge for data, then
+run strategy logic, factor validation, paper execution, and live execution in
+their own layer.
 
 ## Architecture Contract
 
@@ -78,8 +108,8 @@ flowchart LR
   R --> AGG[SpreadAggregator]
 
   AGG --> LOG[Signal Logs\nFILTERED/HOLDING/TRIGGER]
-  BUS --> API[Axum API\n/health /snapshot /funding /coverage /ws/ticks]
-  BUS --> REDIS[Redis Sink\nXADD ticks:*]
+  BUS --> API[Axum API\n/v1 REST + /v1/stream]
+  BUS --> REDIS[Optional Redis Sink\nbatched XADD]
 
   CFG[config.yaml] --> RT
   CFG --> AGG
@@ -91,13 +121,37 @@ flowchart LR
 1. Exchange adapters subscribe to public market WS channels.
 2. `SourceRuntime` supervises source tasks and reconnects with backoff.
 3. `EventRouter` fans data to both `EventBus` and `SpreadAggregator`.
-4. `EventBus` maintains latest snapshots and real-time broadcast stream.
+4. `EventBus` maintains ArcSwap latest snapshots and per-domain broadcast streams.
 5. `SpreadAggregator` computes cross-exchange opportunity signals with fee/slippage logic.
-6. API/Redis expose normalized data to quant consumers.
+6. API/WebSocket/optional Redis expose normalized data to quant consumers.
 
 ## Quick Start
 
-### 1) Run
+### 1) Build From Source
+
+Requirements:
+
+- Rust stable toolchain
+- Linux, macOS, or Windows
+- Optional: Redis if `runtime.redis_url` is configured
+
+```bash
+cargo build --release
+```
+
+The binary is created at:
+
+```text
+target/release/market-bridge
+```
+
+On Windows:
+
+```text
+target\release\market-bridge.exe
+```
+
+### 2) Run From Source
 
 ```bash
 MARKETBRIDGE_CONFIG=./config.yaml cargo run
@@ -109,19 +163,124 @@ Use full-exchange sample:
 MARKETBRIDGE_CONFIG=./config.all-exchanges.example.yaml cargo run
 ```
 
-### 2) Smoke check
+Or run the built binary directly:
+
+```bash
+MARKETBRIDGE_CONFIG=./config.yaml ./target/release/market-bridge
+```
+
+### 3) Smoke Check
 
 ```bash
 curl -s http://127.0.0.1:8080/health
 ```
 
-### 3) First data checks
+### 4) First Data Checks
 
 ```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/snapshot?symbol=BTCUSDT" | jq
 curl -s "http://127.0.0.1:8080/funding?symbols=BTCUSDT" | jq
 curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
 ```
+
+## Use Downloaded Binaries
+
+GitHub Actions builds release packages for:
+
+- `linux-x86_64`
+- `macos-x86_64`
+- `macos-aarch64`
+- `windows-x86_64`
+
+Each package contains:
+
+- `market-bridge` or `market-bridge.exe`
+- `README.md`
+- `config.yaml`
+- `config.min.yaml`
+- `config.all-exchanges.example.yaml`
+- `docs/`
+- `VERSION`
+
+Linux/macOS:
+
+```bash
+tar -xzf market-bridge-v0.0.1-linux-x86_64.tar.gz
+cd market-bridge-v0.0.1-linux-x86_64
+chmod +x ./market-bridge
+MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
+```
+
+macOS may require allowing the downloaded binary:
+
+```bash
+xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
+```
+
+Windows PowerShell:
+
+```powershell
+Expand-Archive .\market-bridge-v0.0.1-windows-x86_64.zip
+cd .\market-bridge-v0.0.1-windows-x86_64\market-bridge-v0.0.1-windows-x86_64
+$env:MARKETBRIDGE_CONFIG = ".\config.yaml"
+.\market-bridge.exe
+```
+
+After startup, open another terminal and check:
+
+```bash
+curl -s http://127.0.0.1:8080/health
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+```
+
+If you use keyed sources, set the relevant environment variables before
+starting the binary:
+
+```bash
+export COINGLASS_API_KEY="..."
+export COINMARKETCAP_API_KEY="..."
+export FRED_API_KEY="..."
+export CRYPTOPANIC_API_KEY="..."
+export SANTIMENT_API_KEY="..."
+export LUNARCRUSH_API_KEY="..."
+```
+
+`GET /v1/catalog/sources` reports runtime status:
+
+- `enabled`: source is enabled and has required key material if needed
+- `available`: connector exists but is disabled in config
+- `enabled_missing_api_key`: source is enabled but required API key is absent
+
+## Release Builds
+
+CI has two workflows:
+
+- `.github/workflows/ci.yml`: runs `cargo fmt`, `cargo clippy`, and tests on pull requests and pushes.
+- `.github/workflows/release.yml`: builds cross-platform release packages and uploads artifacts.
+
+Automatic package builds run on pushes to `main` or `master`, tag pushes like
+`v0.0.1`, and manual `workflow_dispatch`.
+
+To publish `v0.0.1`:
+
+```bash
+git tag v0.0.1
+git push origin v0.0.1
+```
+
+The release workflow builds:
+
+```text
+market-bridge-v0.0.1-linux-x86_64.tar.gz
+market-bridge-v0.0.1-macos-x86_64.tar.gz
+market-bridge-v0.0.1-macos-aarch64.tar.gz
+market-bridge-v0.0.1-windows-x86_64.zip
+```
+
+For normal branch pushes, download the packages from the workflow run
+artifacts. For tag pushes, the same packages are also attached to the GitHub
+Release.
 
 ## Configuration
 
@@ -134,6 +293,7 @@ Default file: `config.yaml`
 - `runtime.stale_ttl_ms`: stale threshold
 - `runtime.api_addr`: API bind address
 - `runtime.redis_url`: optional Redis sink
+- `runtime.redis_stream_prefix`: Redis Stream prefix when Redis is enabled
 - `strategy.*`: min profit, hold, slippage model, and `fee_mode`
   (`taker`, `maker`, `maker_buy_taker_sell`, `taker_buy_maker_sell`)
 - `symbols`: global spot symbols

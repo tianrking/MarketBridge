@@ -87,7 +87,7 @@ pub async fn run_bybit(
         .map(|s| format!("tickers.{s}"))
         .collect::<Vec<_>>();
     sink.send(Message::Text(
-        json!({"op":"subscribe","args":topics}).to_string().into(),
+        json!({"op":"subscribe","args":topics}).to_string(),
     ))
     .await?;
 
@@ -100,7 +100,7 @@ pub async fn run_bybit(
                 if last_pong.elapsed() > Duration::from_secs(60) {
                     bail!("bybit {label} pong timeout");
                 }
-                sink.send(Message::Text(json!({"op":"ping"}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"op":"ping"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {
@@ -301,7 +301,7 @@ where
     let (ws, _) = connect_async(url).await?;
     let (mut sink, mut stream) = ws.split();
     sink.send(Message::Text(
-        json!({"op":"subscribe","args":topics}).to_string().into(),
+        json!({"op":"subscribe","args":topics}).to_string(),
     ))
     .await?;
     let mut ping_tick = interval(Duration::from_secs(20));
@@ -309,7 +309,7 @@ where
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
-                sink.send(Message::Text(json!({"op":"ping"}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"op":"ping"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "bybit", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

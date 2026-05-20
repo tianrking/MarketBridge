@@ -68,8 +68,7 @@ pub async fn run_gate(
     let (mut sink, mut stream) = ws.split();
     sink.send(Message::Text(
         json!({"time":now_ms()/1000,"channel":channel,"event":"subscribe","payload":symbols})
-            .to_string()
-            .into(),
+            .to_string(),
     ))
     .await?;
 
@@ -82,7 +81,7 @@ pub async fn run_gate(
                 if last_seen.elapsed() > Duration::from_secs(90) {
                     anyhow::bail!("gate {label} heartbeat timeout");
                 }
-                sink.send(Message::Text(json!({"time":now_ms()/1000,"channel":ping_channel}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"time":now_ms()/1000,"channel":ping_channel}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

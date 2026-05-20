@@ -101,3 +101,4 @@ Status labels:
 | Maker fee modeling | implemented | P2 | `strategy.fee_mode` supports `taker`, `maker`, `maker_buy_taker_sell`, and `taker_buy_maker_sell`. |
 | Dynamic catalog from runtime config | implemented | P2 | `/v1/catalog/sources` reports `enabled`, `available`, or `enabled_missing_api_key` from the active config. |
 | Aggregator extended event analytics | planned | P1 | Funding/OI/book/trade/liquidation are stored by API but ignored by spread engine. |
+| Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.1 Linux/macOS/Windows packages with binary, configs, README, and docs. |

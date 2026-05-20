@@ -36,10 +36,8 @@ pub async fn run_htx(
 
     for s in symbols {
         let ch = format!("market.{}.bbo", s.to_ascii_lowercase());
-        sink.send(Message::Text(
-            json!({"sub": ch, "id": s}).to_string().into(),
-        ))
-        .await?;
+        sink.send(Message::Text(json!({"sub": ch, "id": s}).to_string()))
+            .await?;
     }
 
     let mut ping_tick = interval(Duration::from_secs(20));
@@ -63,7 +61,7 @@ pub async fn run_htx(
                         last_seen = Instant::now();
                         if let Ok(v) = serde_json::from_str::<Value>(&s) {
                             if let Some(ping) = v.get("ping").and_then(|x| x.as_i64()) {
-                                sink.send(Message::Text(json!({"pong": ping}).to_string().into())).await?;
+                                sink.send(Message::Text(json!({"pong": ping}).to_string())).await?;
                                 continue;
                             }
                             let ch = v.get("ch").and_then(|x| x.as_str()).unwrap_or("");

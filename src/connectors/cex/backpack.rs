@@ -64,9 +64,7 @@ async fn run_backpack_once(
         })
         .collect::<Vec<_>>();
     sink.send(Message::Text(
-        json!({"method":"SUBSCRIBE","params":streams})
-            .to_string()
-            .into(),
+        json!({"method":"SUBSCRIBE","params":streams}).to_string(),
     ))
     .await?;
     let mut ping = interval(Duration::from_secs(20));
@@ -74,7 +72,7 @@ async fn run_backpack_once(
     loop {
         tokio::select! {
             _ = ping.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "backpack", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

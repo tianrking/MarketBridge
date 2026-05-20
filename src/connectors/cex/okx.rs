@@ -85,7 +85,7 @@ pub async fn run_okx(
         op: "subscribe",
         args,
     })?;
-    sink.send(Message::Text(sub.into())).await?;
+    sink.send(Message::Text(sub)).await?;
 
     let mut ping_tick = interval(Duration::from_secs(20));
     let mut last_pong = Instant::now();
@@ -222,9 +222,7 @@ where
         .map(|id| serde_json::json!({"channel": channel, "instId": id}))
         .collect::<Vec<_>>();
     sink.send(Message::Text(
-        serde_json::json!({"op":"subscribe","args":args})
-            .to_string()
-            .into(),
+        serde_json::json!({"op":"subscribe","args":args}).to_string(),
     ))
     .await?;
     let mut ping_tick = interval(Duration::from_secs(20));

@@ -34,9 +34,7 @@ pub async fn run_bitfinex(
 
     for sym in symbols {
         sink.send(Message::Text(
-            json!({"event":"subscribe","channel":"ticker","symbol":sym})
-                .to_string()
-                .into(),
+            json!({"event":"subscribe","channel":"ticker","symbol":sym}).to_string(),
         ))
         .await?;
     }
@@ -51,7 +49,7 @@ pub async fn run_bitfinex(
                 if last_seen.elapsed() > Duration::from_secs(90) {
                     anyhow::bail!("bitfinex {label} heartbeat timeout");
                 }
-                sink.send(Message::Text(json!({"event":"ping","cid":now_ms()}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"event":"ping","cid":now_ms()}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

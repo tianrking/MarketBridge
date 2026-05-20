@@ -69,7 +69,7 @@ pub async fn run_bitget(
         })
         .collect::<Vec<_>>();
     sink.send(Message::Text(
-        json!({"op":"subscribe","args":args}).to_string().into(),
+        json!({"op":"subscribe","args":args}).to_string(),
     ))
     .await?;
 

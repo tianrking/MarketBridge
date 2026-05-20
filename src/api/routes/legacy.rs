@@ -535,9 +535,10 @@ fn build_exchange_summaries(
             let latency_ms_p95 = percentile_u64(&e.latencies, 0.95);
             let latency_ms_max = e.latencies.iter().copied().max().unwrap_or(0);
             let latency_ms_avg = avg_u64(&e.latencies);
-            let health_status = if !e.online {
-                "critical".to_string()
-            } else if stale_ratio >= CRIT_STALE_RATIO || latency_ms_p95 >= CRIT_LATENCY_MS {
+            let health_status = if !e.online
+                || stale_ratio >= CRIT_STALE_RATIO
+                || latency_ms_p95 >= CRIT_LATENCY_MS
+            {
                 "critical".to_string()
             } else if stale_ratio >= WARN_STALE_RATIO
                 || latency_ms_p95 >= WARN_LATENCY_MS

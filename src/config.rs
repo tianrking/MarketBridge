@@ -66,19 +66,14 @@ pub struct StrategyConfig {
     pub fee_mode: StrategyFeeMode,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StrategyFeeMode {
+    #[default]
     Taker,
     Maker,
     MakerBuyTakerSell,
     TakerBuyMakerSell,
-}
-
-impl Default for StrategyFeeMode {
-    fn default() -> Self {
-        Self::Taker
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

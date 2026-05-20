@@ -71,8 +71,7 @@ impl ExchangeSource for CoinbaseTicker {
                 "channel":"ticker",
                 "product_ids": self.product_ids
             })
-            .to_string()
-            .into(),
+            .to_string(),
         ))
         .await?;
 
@@ -82,7 +81,7 @@ impl ExchangeSource for CoinbaseTicker {
             tokio::select! {
                 _ = ping_tick.tick() => {
                     if last_pong.elapsed() > Duration::from_secs(90) { anyhow::bail!("coinbase heartbeat timeout"); }
-                    sink.send(Message::Text(json!({"type":"ping"}).to_string().into())).await?;
+                    sink.send(Message::Text(json!({"type":"ping"}).to_string())).await?;
                     ctx.emit(DataEvent::Heartbeat { exchange: self.name(), ts_ms: now_ms() }).await?;
                 }
                 msg = stream.next() => {

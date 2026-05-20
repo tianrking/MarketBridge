@@ -54,8 +54,7 @@ async fn run_hyperliquid_once(coins: &[String], ctx: SourceContext) -> Result<()
         for sub_type in ["l2Book", "trades", "activeAssetCtx"] {
             sink.send(Message::Text(
                 json!({"method":"subscribe","subscription":{"type":sub_type,"coin":coin}})
-                    .to_string()
-                    .into(),
+                    .to_string(),
             ))
             .await?;
         }
@@ -65,7 +64,7 @@ async fn run_hyperliquid_once(coins: &[String], ctx: SourceContext) -> Result<()
     loop {
         tokio::select! {
             _ = ping.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "hyperliquid", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

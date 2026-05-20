@@ -63,9 +63,7 @@ async fn run_dydx_ws(markets: &[String], ctx: SourceContext) -> Result<()> {
     for market in markets {
         for channel in ["v4_orderbook", "v4_trades"] {
             sink.send(Message::Text(
-                json!({"type":"subscribe","channel":channel,"id":market})
-                    .to_string()
-                    .into(),
+                json!({"type":"subscribe","channel":channel,"id":market}).to_string(),
             ))
             .await?;
         }
@@ -75,7 +73,7 @@ async fn run_dydx_ws(markets: &[String], ctx: SourceContext) -> Result<()> {
     loop {
         tokio::select! {
             _ = ping.tick() => {
-                sink.send(Message::Ping(Vec::new().into())).await?;
+                sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "dydx", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

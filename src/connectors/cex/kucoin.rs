@@ -107,7 +107,7 @@ pub async fn run_kucoin(
         let topic = format!("{}{}", conf.topic_prefix, s);
         sink.send(Message::Text(
             json!({"id":format!("{}-{}",conf.sub_id_prefix, i),"type":"subscribe","topic":topic,"privateChannel":false,"response":true})
-                .to_string().into(),
+                .to_string(),
         )).await?;
     }
 
@@ -120,7 +120,7 @@ pub async fn run_kucoin(
                 if last_seen.elapsed() > Duration::from_secs(90) {
                     anyhow::bail!("kucoin {label} heartbeat timeout");
                 }
-                sink.send(Message::Text(json!({"id":"ping","type":"ping"}).to_string().into())).await?;
+                sink.send(Message::Text(json!({"id":"ping","type":"ping"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {

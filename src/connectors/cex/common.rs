@@ -16,6 +16,7 @@ pub async fn emit_tick(
     emit_tick_ext(ctx, exchange, market, symbol, bid, ask, None, None, None).await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn emit_tick_ext(
     ctx: &SourceContext,
     exchange: &'static str,
@@ -50,6 +51,7 @@ pub async fn emit_tick_ext(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn emit_tick_f64(
     ctx: &SourceContext,
     exchange: &'static str,

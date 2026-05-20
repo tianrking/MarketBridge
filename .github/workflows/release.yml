@@ -1,0 +1,91 @@
+name: Release Binaries
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            bin: market-bridge
+          - name: macos-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            bin: market-bridge
+          - name: macos-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            bin: market-bridge
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            bin: market-bridge.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Stage package
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="market-bridge-v0.0.1-${{ matrix.name }}"
+          mkdir -p "dist/${pkg}"
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${pkg}/"
+          cp README.md config.yaml config.min.yaml config.all-exchanges.example.yaml "dist/${pkg}/"
+          cp -R docs "dist/${pkg}/docs"
+          printf '%s\n' "market-bridge v0.0.1 ${{ matrix.name }}" > "dist/${pkg}/VERSION"
+
+      - name: Archive package
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="market-bridge-v0.0.1-${{ matrix.name }}"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            (cd dist && 7z a "../${pkg}.zip" "${pkg}")
+          else
+            tar -czf "${pkg}.tar.gz" -C dist "${pkg}"
+          fi
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-bridge-v0.0.1-${{ matrix.name }}
+          path: market-bridge-v0.0.1-${{ matrix.name }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+      - name: Attach package to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: market-bridge-v0.0.1-${{ matrix.name }}.${{ matrix.archive }}
