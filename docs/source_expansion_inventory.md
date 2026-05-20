@@ -251,6 +251,7 @@ bitmart
 bitstamp
 btc_markets
 bybit
+derive
 coinbase
 deribit
 dydx

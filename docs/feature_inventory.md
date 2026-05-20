@@ -51,6 +51,7 @@ Status labels:
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
 | Bitstamp | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades. |
 | BTC Markets | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order book and trades. |
+| Derive | partial | implemented | implemented | implemented | planned | planned | keyless | Public spot/perp order books and trades plus perp ticker funding. |
 | KuCoin | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
 | Gate | implemented | planned | planned | planned | planned | planned | keyless | BookTicker-style BBO today. |
 | Kraken | implemented | planned | planned | planned | planned | planned | keyless | Spot V2 ticker and separate futures ticker today. |

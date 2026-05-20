@@ -38,6 +38,7 @@ use super::btc_markets::BtcMarketsSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
+use super::derive::{DerivePerpFeed, DeriveSpotFeed};
 use super::dydx::DydxFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
@@ -55,7 +56,7 @@ use super::okx::{
 };
 use super::okx_perp::OkxPerpTicker;
 use symbols::{
-    to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
+    split_quote, to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
     to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_okx, to_okx_swap, to_slash,
     to_underscore,
 };
@@ -215,6 +216,18 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 out.push(Arc::new(BtcMarketsSpotFeed::new(
                     spot_symbols.iter().map(|s| to_dash(s)).collect(),
                 )));
+            }
+            "derive" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(DeriveSpotFeed::new(
+                        spot_symbols.iter().map(|s| to_dash(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(DerivePerpFeed::new(
+                        perp_symbols.iter().map(|s| to_derive_perp(s)).collect(),
+                    )));
+                }
             }
             "coinbase" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CoinbaseTicker::new(
@@ -404,6 +417,17 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     }
 
     out
+}
+
+fn to_derive_perp(symbol: &str) -> String {
+    if symbol.contains('-') {
+        return symbol.to_ascii_uppercase();
+    }
+    if let Some(base) = symbol.strip_suffix("PERP") {
+        return format!("{}-PERP", base.to_ascii_uppercase());
+    }
+    let (base, _) = split_quote(symbol);
+    format!("{}-PERP", base.to_ascii_uppercase())
 }
 
 #[cfg(test)]

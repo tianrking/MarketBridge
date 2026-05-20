@@ -171,9 +171,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "Hummingbot has spot and perp connector; useful DEX/CLOB derivatives venue.",
+        notes: "Public spot/perp order books and trades plus perp ticker funding are wired; OI/liquidation remain planned.",
     },
     RoadmapSource {
         source: "dexalot",
