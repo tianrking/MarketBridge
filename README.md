@@ -191,11 +191,13 @@ curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
 
 GitHub Actions builds release packages for:
 
-- `linux-x86_64`
-- `linux-i686`
-- `macos-x86_64`
-- `macos-aarch64`
-- `windows-x86_64`
+| Package suffix | Download file | Use when |
+|---|---|---|
+| `linux-x86_64` | `market-bridge-v0.0.1-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
+| `linux-i686` | `market-bridge-v0.0.1-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
+| `macos-x86_64` | `market-bridge-v0.0.1-macos-x86_64.tar.gz` | Intel Mac. |
+| `macos-aarch64` | `market-bridge-v0.0.1-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
+| `windows-x86_64` | `market-bridge-v0.0.1-windows-x86_64.zip` | 64-bit Windows. |
 
 Each package contains:
 
@@ -207,10 +209,10 @@ Each package contains:
 - `docs/`
 - `VERSION`
 
-Linux/macOS:
+Linux/macOS usage:
 
 ```bash
-tar -xzf market-bridge-v0.0.1-linux-x86_64.tar.gz
+tar -xzf market-bridge-v0.0.1-linux-x86_64.tar.gz   # replace suffix for your platform
 cd market-bridge-v0.0.1-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
@@ -236,6 +238,7 @@ After startup, open another terminal and check:
 ```bash
 curl -s http://127.0.0.1:8080/health
 curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 ```
 
 If you use keyed sources, set the relevant environment variables before
@@ -256,6 +259,14 @@ export LUNARCRUSH_API_KEY="..."
 - `available`: connector exists but is disabled in config
 - `enabled_missing_api_key`: source is enabled but required API key is absent
 
+The release binary reads the same configuration schema as `cargo run`.
+Choose one of the included configs:
+
+- `config.min.yaml`: smallest smoke-test config.
+- `config.yaml`: default practical config for local research.
+- `config.all-exchanges.example.yaml`: broad connector example; edit before
+  running if you do not want every public source enabled.
+
 ## Release Builds
 
 CI has two workflows:
@@ -267,6 +278,14 @@ Automatic package builds run on pushes to `main` or `master`, tag pushes like
 `v0.0.1`, and manual `workflow_dispatch`.
 
 To publish `v0.0.1`:
+
+```bash
+git tag -f v0.0.1 HEAD
+git push origin master
+git push --force origin refs/tags/v0.0.1
+```
+
+For a first-time tag where no previous `v0.0.1` exists, this also works:
 
 ```bash
 git tag v0.0.1
@@ -286,6 +305,9 @@ market-bridge-v0.0.1-windows-x86_64.zip
 For normal branch pushes, download the packages from the workflow run
 artifacts. For tag pushes, the same packages are also attached to the GitHub
 Release.
+
+When re-cutting `v0.0.1`, confirm the GitHub Release assets were produced from
+the latest tag commit, not an older branch artifact.
 
 ## Configuration
 

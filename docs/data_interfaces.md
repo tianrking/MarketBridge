@@ -17,6 +17,49 @@ MarketBridge is the public data plane:
 MarketBridge does not approve factors, run paper/live PnL, sign wallets, or
 place orders.
 
+## Release Binary Quick Start
+
+Version `v0.0.1` is shipped as downloadable binary packages from GitHub Actions
+and GitHub Releases.
+
+| Platform | File |
+|---|---|
+| Linux 64-bit x86 | `market-bridge-v0.0.1-linux-x86_64.tar.gz` |
+| Linux 32-bit x86 | `market-bridge-v0.0.1-linux-i686.tar.gz` |
+| macOS Intel | `market-bridge-v0.0.1-macos-x86_64.tar.gz` |
+| macOS Apple Silicon | `market-bridge-v0.0.1-macos-aarch64.tar.gz` |
+| Windows 64-bit | `market-bridge-v0.0.1-windows-x86_64.zip` |
+
+Linux/macOS:
+
+```bash
+tar -xzf market-bridge-v0.0.1-linux-x86_64.tar.gz
+cd market-bridge-v0.0.1-linux-x86_64
+chmod +x ./market-bridge
+MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
+```
+
+Windows PowerShell:
+
+```powershell
+Expand-Archive .\market-bridge-v0.0.1-windows-x86_64.zip
+cd .\market-bridge-v0.0.1-windows-x86_64\market-bridge-v0.0.1-windows-x86_64
+$env:MARKETBRIDGE_CONFIG = ".\config.yaml"
+.\market-bridge.exe
+```
+
+Smoke checks:
+
+```bash
+curl -s http://127.0.0.1:8080/health
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
+```
+
+Use `config.min.yaml` for a small smoke test, `config.yaml` for normal local
+research, and `config.all-exchanges.example.yaml` as an editable broad-coverage
+example.
+
 ## Core Market Data
 
 | Data | Endpoint | Source | Type | Notes |
@@ -191,6 +234,34 @@ Supported live domains include:
 - `order_book`
 - `external_signal`
 - `options_chain` and `prediction_book` as snapshot streams
+
+## REST and WebSocket Surface
+
+Base URL: `http://127.0.0.1:8080`
+
+| Method | Path | Data |
+|---|---|---|
+| GET | `/health` | Service liveness. |
+| GET | `/v1/catalog/sources` | Source availability and API-key status. |
+| GET | `/v1/catalog/domains` | Normalized domain inventory. |
+| GET | `/v1/catalog/instruments` | Instruments visible in live caches. |
+| GET | `/v1/catalog/health` | Domain/source counts and freshness. |
+| GET | `/v1/market/quotes` | Spot/perp/DeFi/TradFi/aggregate quote snapshots. |
+| GET | `/v1/market/basis` | Spot-perp basis derived from quote snapshots. |
+| GET | `/v1/market/funding` | Funding rates. |
+| GET | `/v1/market/open-interest` | Open interest. |
+| GET | `/v1/market/liquidations` | Liquidation events. |
+| GET | `/v1/market/order-books` | L2 order books. |
+| GET | `/v1/market/trades` | Recent trades. |
+| GET | `/v1/market/order-flow` | Buy/sell pressure and CVD windows. |
+| GET | `/v1/market/klines` | SQLite-backed OHLCV bars. |
+| GET | `/v1/options/chains` | Cached option chains. |
+| GET | `/v1/prediction/books` | Cached Polymarket books. |
+| GET | `/v1/external/signals` | Aggregates, macro, news, and sentiment. |
+| GET | `/v1/onchain/transfers` | Large transfer feed. |
+| GET | `/metrics` | Prometheus metrics. |
+| WS | `/v1/stream` | Domain-filtered live stream. |
+| WS | `/ws/ticks` | Legacy quote tick stream. |
 
 ## Recommended Research Order
 
