@@ -991,6 +991,7 @@ mod tests {
         let cfg = AppConfig {
             runtime: RuntimeConfig {
                 queue_capacity: 16,
+                router_publish_queue_capacity: 16,
                 broadcast_capacity: 16,
                 backpressure: BackpressureConfig::Block,
                 report_interval_ms: 1000,
@@ -998,6 +999,9 @@ mod tests {
                 api_addr: "127.0.0.1:0".to_string(),
                 redis_url: None,
                 redis_stream_prefix: "ticks".to_string(),
+                redis_dead_letter_path: "data/test_redis_dead_letters.jsonl".to_string(),
+                order_flow_large_trade_notional_usdt: 100_000.0,
+                ws_send_timeout_ms: 3_000,
             },
             strategy: StrategyConfig {
                 min_profit_usdt: 1.0,
@@ -1005,6 +1009,7 @@ mod tests {
                 min_signal_hold_ms: 0,
                 slippage_bps: 0.0,
                 fee_mode: crate::config::StrategyFeeMode::Taker,
+                book_signal_notional_usdt: 1_000.0,
             },
             deribit: DeribitConfig::default(),
             okx_options: OkxOptionsConfig::default(),

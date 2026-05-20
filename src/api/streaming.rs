@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket};
@@ -12,7 +13,8 @@ use crate::core::schema::{DataEnvelope, ProductType};
 use crate::event_bus::{EventDomain, NormalizedTick};
 use crate::types::{DataEvent, MarketKind};
 
-const WS_SEND_TIMEOUT: Duration = Duration::from_secs(3);
+const DEFAULT_WS_SEND_TIMEOUT_MS: u64 = 3_000;
+static WS_SEND_TIMEOUT_MS: AtomicU64 = AtomicU64::new(DEFAULT_WS_SEND_TIMEOUT_MS);
 
 pub const SUPPORTED_STREAM_DOMAINS: [&str; 9] = [
     "market_quote",
@@ -290,10 +292,15 @@ pub async fn send_json<T: Serialize>(
 }
 
 pub async fn send_ws(socket: &mut WebSocket, message: Message) -> Result<(), ()> {
-    match timeout(WS_SEND_TIMEOUT, socket.send(message)).await {
+    let timeout_ms = WS_SEND_TIMEOUT_MS.load(Ordering::Relaxed).max(1);
+    match timeout(Duration::from_millis(timeout_ms), socket.send(message)).await {
         Ok(Ok(())) => Ok(()),
         Ok(Err(_)) | Err(_) => Err(()),
     }
+}
+
+pub fn set_ws_send_timeout_ms(timeout_ms: u64) {
+    WS_SEND_TIMEOUT_MS.store(timeout_ms.max(1), Ordering::Relaxed);
 }
 
 fn product_type_label(product_type: ProductType) -> &'static str {

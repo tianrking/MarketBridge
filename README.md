@@ -333,6 +333,7 @@ the latest tag commit, not an older branch artifact.
 Default file: `config.yaml`
 
 - `runtime.queue_capacity`: source->router channel capacity
+- `runtime.router_publish_queue_capacity`: router->bus worker channel capacity; `0` or omitted reuses `queue_capacity`
 - `runtime.broadcast_capacity`: per-domain websocket/redis broadcast buffer
 - `runtime.backpressure`: `block` or `drop_newest`
 - `runtime.report_interval_ms`: signal report interval
@@ -340,8 +341,12 @@ Default file: `config.yaml`
 - `runtime.api_addr`: API bind address
 - `runtime.redis_url`: optional Redis sink
 - `runtime.redis_stream_prefix`: Redis Stream prefix when Redis is enabled
+- `runtime.redis_dead_letter_path`: JSONL dead-letter path for Redis batches that still fail after retries
+- `runtime.order_flow_large_trade_notional_usdt`: large-trade threshold for `/v1/market/order-flow`
+- `runtime.ws_send_timeout_ms`: websocket send timeout before disconnecting slow clients
 - `strategy.*`: min profit, hold, slippage model, and `fee_mode`
   (`taker`, `maker`, `maker_buy_taker_sell`, `taker_buy_maker_sell`)
+- `strategy.book_signal_notional_usdt`: L2 book notional used by book-level spread signals
 - `symbols`: global spot symbols
 - `perp_symbols`: global perp symbols
 - `exchanges.<name>.enabled`: source switch
@@ -1142,7 +1147,7 @@ Current metrics include:
 - `ticks_dropped_total`
 
 When Redis is enabled and a batch still cannot be written after retries,
-MarketBridge appends the failed rows to `data/redis_dead_letters.jsonl` for
+MarketBridge appends the failed rows to `runtime.redis_dead_letter_path` for
 operator inspection.
 
 ### `GET /v1/onchain/transfers`

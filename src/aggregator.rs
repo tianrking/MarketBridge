@@ -11,8 +11,6 @@ use crate::aggregator_signal::{
 use crate::config::{AppConfig, StrategyFeeMode};
 use crate::types::{DataEvent, MarketTick, OrderBookTick, now_ms};
 
-const BOOK_SIGNAL_NOTIONAL_USDT: f64 = 1_000.0;
-
 pub struct SpreadAggregator {
     books: HashMap<Box<str>, HashMap<&'static str, MarketTick>>,
     order_books: HashMap<Box<str>, HashMap<&'static str, OrderBookTick>>,
@@ -25,6 +23,7 @@ pub struct SpreadAggregator {
     min_profit_bps: f64,
     min_signal_hold_ms: u64,
     slippage_bps: f64,
+    book_signal_notional_usdt: f64,
     fee_mode: StrategyFeeMode,
     maker_fee_bps: HashMap<String, f64>,
     taker_fee_bps: HashMap<String, f64>,
@@ -55,6 +54,7 @@ impl SpreadAggregator {
             min_profit_bps: cfg.strategy.min_profit_bps,
             min_signal_hold_ms: cfg.strategy.min_signal_hold_ms,
             slippage_bps: cfg.strategy.slippage_bps,
+            book_signal_notional_usdt: cfg.strategy.book_signal_notional_usdt,
             fee_mode: cfg.strategy.fee_mode,
             maker_fee_bps,
             taker_fee_bps,
@@ -233,7 +233,7 @@ impl SpreadAggregator {
             active.sort_by_key(|(ex, _)| *ex);
 
             let Some((buy_ex, buy_avg_ask, sell_ex, sell_avg_bid)) =
-                best_book_cross_pair(&active, BOOK_SIGNAL_NOTIONAL_USDT)
+                best_book_cross_pair(&active, self.book_signal_notional_usdt)
             else {
                 self.book_signal_started_at.remove(&key);
                 continue;
@@ -275,7 +275,7 @@ impl SpreadAggregator {
             info!(
                 symbol = key.as_ref(),
                 market = ?active[0].1.market,
-                notional_usdt = BOOK_SIGNAL_NOTIONAL_USDT,
+                notional_usdt = self.book_signal_notional_usdt,
                 buy_ex,
                 buy_avg_ask,
                 sell_ex,

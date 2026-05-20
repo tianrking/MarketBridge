@@ -190,12 +190,17 @@ $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 重要字段：
 
 - `runtime.queue_capacity`：source 到 router 的 channel 容量。
+- `runtime.router_publish_queue_capacity`：router 到 bus worker 的 channel 容量；为 `0` 或省略时复用 `queue_capacity`。
 - `runtime.broadcast_capacity`：WebSocket / Redis broadcast buffer。
 - `runtime.backpressure`：`block` 或 `drop_newest`。
 - `runtime.api_addr`：API 监听地址，默认 `0.0.0.0:8080`。
 - `runtime.redis_url`：可选 Redis sink。
 - `runtime.redis_stream_prefix`：Redis Stream 前缀。
+- `runtime.redis_dead_letter_path`：Redis 多次写入失败后的 JSONL dead-letter 文件路径。
+- `runtime.order_flow_large_trade_notional_usdt`：`/v1/market/order-flow` 的大单阈值。
+- `runtime.ws_send_timeout_ms`：WebSocket 慢客户端发送超时。
 - `strategy.fee_mode`：`taker`、`maker`、`maker_buy_taker_sell`、`taker_buy_maker_sell`。
+- `strategy.book_signal_notional_usdt`：L2 book spread signal 使用的名义金额。
 - `symbols`：全局 spot symbols。
 - `perp_symbols`：全局 perp symbols。
 - `exchanges.<name>.enabled`：交易所开关。
@@ -483,7 +488,7 @@ curl -s http://127.0.0.1:8080/metrics
 - `redis_dead_letter_total`
 - `ticks_dropped_total`
 
-Redis 是可选项。启用后如果批量写入 Redis 多次失败，MarketBridge 会把失败事件写入：
+Redis 是可选项。启用后如果批量写入 Redis 多次失败，MarketBridge 会把失败事件写入 `runtime.redis_dead_letter_path`，默认：
 
 ```text
 data/redis_dead_letters.jsonl

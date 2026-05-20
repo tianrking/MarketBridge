@@ -9,18 +9,24 @@
 
 runtime:
   queue_capacity: 8192
+  router_publish_queue_capacity: 8192
+  broadcast_capacity: 65536
   backpressure: drop_newest
   report_interval_ms: 1000
   stale_ttl_ms: 2000
   api_addr: 0.0.0.0:8080
   # redis_url: redis://127.0.0.1:6379
   redis_stream_prefix: ticks
+  redis_dead_letter_path: "data/redis_dead_letters.jsonl"
+  order_flow_large_trade_notional_usdt: 100000.0
+  ws_send_timeout_ms: 3000
 
 strategy:
   min_profit_usdt: 1.0
   min_profit_bps: 0.5
   min_signal_hold_ms: 500
   slippage_bps: 0.5
+  book_signal_notional_usdt: 1000.0
 
 klines:
   enabled: true

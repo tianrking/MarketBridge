@@ -15,8 +15,6 @@ const XADD_INITIAL_BACKOFF_MS: u64 = 100;
 const XADD_MAX_BACKOFF_MS: u64 = 5_000;
 const XADD_BATCH_MAX: usize = 100;
 const XADD_BATCH_FLUSH_MS: u64 = 50;
-const REDIS_DEAD_LETTER_FILE: &str = "data/redis_dead_letters.jsonl";
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct RedisEventRow {
     stream: String,
@@ -35,6 +33,7 @@ pub fn spawn_redis_sink(
     bus: EventBus,
     redis_url: String,
     stream_prefix: String,
+    dead_letter_path: String,
     metrics: Arc<AppMetrics>,
     shutdown: CancellationToken,
 ) -> JoinHandle<()> {
@@ -76,7 +75,15 @@ pub fn spawn_redis_sink(
             let received = tokio::select! {
                 _ = shutdown.cancelled() => break,
                 _ = flush_interval.tick(), if !batch.is_empty() => {
-                    if !flush_redis_batch(&client, &mut conn, &mut batch, &metrics).await {
+                    if !flush_redis_batch(
+                        &client,
+                        &mut conn,
+                        &mut batch,
+                        &dead_letter_path,
+                        &metrics,
+                    )
+                    .await
+                    {
                         return;
                     }
                     continue;
@@ -87,7 +94,14 @@ pub fn spawn_redis_sink(
                 Ok(event) => {
                     batch.push(redis_event_row(&stream_prefix, event.as_ref()));
                     if batch.len() >= XADD_BATCH_MAX
-                        && !flush_redis_batch(&client, &mut conn, &mut batch, &metrics).await
+                        && !flush_redis_batch(
+                            &client,
+                            &mut conn,
+                            &mut batch,
+                            &dead_letter_path,
+                            &metrics,
+                        )
+                        .await
                     {
                         return;
                     }
@@ -100,7 +114,8 @@ pub fn spawn_redis_sink(
         }
 
         if !batch.is_empty() {
-            let _ = flush_redis_batch(&client, &mut conn, &mut batch, &metrics).await;
+            let _ = flush_redis_batch(&client, &mut conn, &mut batch, &dead_letter_path, &metrics)
+                .await;
         }
     })
 }
@@ -136,6 +151,7 @@ async fn flush_redis_batch(
     client: &redis::Client,
     conn: &mut redis::aio::MultiplexedConnection,
     batch: &mut Vec<RedisEventRow>,
+    dead_letter_path: &str,
     metrics: &AppMetrics,
 ) -> bool {
     if batch.is_empty() {
@@ -190,10 +206,10 @@ async fn flush_redis_batch(
 
     metrics.redis_dead_letter_total.inc_by(batch.len() as u64);
     let last_error = last_error.unwrap_or_else(|| "unknown".to_string());
-    if let Err(error) = write_dead_letter_file(batch, &last_error).await {
+    if let Err(error) = write_dead_letter_file(batch, &last_error, dead_letter_path).await {
         error!(
             error = %error,
-            path = REDIS_DEAD_LETTER_FILE,
+            path = dead_letter_path,
             "redis dead-letter file write failed"
         );
     }
@@ -207,22 +223,35 @@ async fn flush_redis_batch(
     true
 }
 
-async fn write_dead_letter_file(batch: &[RedisEventRow], error: &str) -> std::io::Result<()> {
+async fn write_dead_letter_file(
+    batch: &[RedisEventRow],
+    error: &str,
+    path: &str,
+) -> std::io::Result<()> {
     let rows = batch.to_vec();
     let error = error.to_string();
-    tokio::task::spawn_blocking(move || write_dead_letter_file_blocking(&rows, &error))
+    let path = path.to_string();
+    tokio::task::spawn_blocking(move || write_dead_letter_file_blocking(&rows, &error, &path))
         .await
         .map_err(std::io::Error::other)?
 }
 
-fn write_dead_letter_file_blocking(batch: &[RedisEventRow], error: &str) -> std::io::Result<()> {
+fn write_dead_letter_file_blocking(
+    batch: &[RedisEventRow],
+    error: &str,
+    path: &str,
+) -> std::io::Result<()> {
     use std::io::Write;
 
-    std::fs::create_dir_all("data")?;
+    if let Some(parent) = std::path::Path::new(path).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
+    }
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(REDIS_DEAD_LETTER_FILE)?;
+        .open(path)?;
     for row in batch {
         let record = serde_json::json!({
             "reason": "redis_xadd_failed",
@@ -291,8 +320,8 @@ fn market_domain(market: MarketKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{
-        REDIS_DEAD_LETTER_FILE, RedisEventRow, XADD_MAX_BACKOFF_MS, next_backoff, redis_event_row,
-        redis_stream_name, write_dead_letter_file,
+        RedisEventRow, XADD_MAX_BACKOFF_MS, next_backoff, redis_event_row, redis_stream_name,
+        write_dead_letter_file,
     };
     use std::time::Duration;
 
@@ -349,7 +378,8 @@ mod tests {
 
     #[tokio::test]
     async fn redis_dead_letters_are_written_to_jsonl() {
-        let _ = std::fs::remove_file(REDIS_DEAD_LETTER_FILE);
+        let path = "data/test_redis_dead_letters.jsonl";
+        let _ = std::fs::remove_file(path);
         let row = RedisEventRow {
             stream: "ticks:funding:binance:BTCUSDT".into(),
             source: "binance",
@@ -359,14 +389,13 @@ mod tests {
             payload: "{}".into(),
         };
 
-        write_dead_letter_file(&[row], "boom")
+        write_dead_letter_file(&[row], "boom", path)
             .await
             .expect("dead-letter file should be writable in test workspace");
 
-        let content =
-            std::fs::read_to_string(REDIS_DEAD_LETTER_FILE).expect("dead-letter file should exist");
+        let content = std::fs::read_to_string(path).expect("dead-letter file should exist");
         assert!(content.contains("\"reason\":\"redis_xadd_failed\""));
         assert!(content.contains("\"error\":\"boom\""));
-        let _ = std::fs::remove_file(REDIS_DEAD_LETTER_FILE);
+        let _ = std::fs::remove_file(path);
     }
 }

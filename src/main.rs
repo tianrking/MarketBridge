@@ -22,6 +22,7 @@ mod source_roadmap;
 mod types;
 
 use aggregator::SpreadAggregator;
+use api::streaming::set_ws_send_timeout_ms;
 use api::{ApiState, build_router};
 use config::AppConfig;
 use connectors::cex::registry::build_sources;
@@ -69,7 +70,9 @@ async fn main() -> anyhow::Result<()> {
     let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
     let kline_store = KlineStore::new(cfg.klines.sqlite_path.clone());
-    let order_flow_store = OrderFlowStore::new(100_000.0);
+    set_ws_send_timeout_ms(cfg.runtime.ws_send_timeout_ms);
+
+    let order_flow_store = OrderFlowStore::new(cfg.runtime.order_flow_large_trade_notional_usdt);
     let onchain_store = OnchainTransferStore::default();
     let http = reqwest::Client::new();
 
@@ -110,6 +113,7 @@ async fn main() -> anyhow::Result<()> {
             bus.clone(),
             url,
             cfg.runtime.redis_stream_prefix.clone(),
+            cfg.runtime.redis_dead_letter_path.clone(),
             metrics.clone(),
             shutdown.clone(),
         )
@@ -182,7 +186,13 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let (agg_tx, agg_rx) = mpsc::channel::<DataEvent>(cfg.runtime.queue_capacity);
-    let router = EventRouter::new(handle.rx, agg_tx, bus.clone(), metrics.clone());
+    let router = EventRouter::new(
+        handle.rx,
+        agg_tx,
+        bus.clone(),
+        metrics.clone(),
+        cfg.runtime.router_publish_queue_capacity(),
+    );
     let router_task = tokio::spawn(router.run());
 
     let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));

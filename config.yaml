@@ -6,6 +6,9 @@ runtime:
   # Higher value handles bursts better, but uses more memory.
   queue_capacity: 4096
 
+  # Internal router fanout queue. 0 or omitted uses queue_capacity.
+  router_publish_queue_capacity: 4096
+
   # Per-domain broadcast ring buffer capacity for websocket/redis consumers.
   # Slow consumers skip their own stale messages instead of blocking publishers
   # or other subscribers.
@@ -24,6 +27,15 @@ runtime:
   # Quotes older than this are excluded from spread calculation.
   stale_ttl_ms: 1500
 
+  # WebSocket send timeout before disconnecting a slow client.
+  ws_send_timeout_ms: 3000
+
+  # Large trade threshold used by /v1/market/order-flow.
+  order_flow_large_trade_notional_usdt: 100000.0
+
+  # Redis dead-letter path for batches that still fail after retries.
+  redis_dead_letter_path: "data/redis_dead_letters.jsonl"
+
 strategy:
   # Minimum net profit in quote currency (e.g., USDT) after fees/slippage.
   min_profit_usdt: 1.0
@@ -39,6 +51,9 @@ strategy:
   # Slippage buffer (bps) applied to both legs (buy + sell).
   # Conservative default for live trading realism.
   slippage_bps: 0.5
+
+  # L2 book signal notional used by the spread engine.
+  book_signal_notional_usdt: 1000.0
 
   # Fee mode used by spread calculation:
   # - taker: both legs cross the book

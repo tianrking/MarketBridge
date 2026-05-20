@@ -9,6 +9,7 @@ pub struct EventRouter {
     agg_tx: mpsc::Sender<DataEvent>,
     bus: EventBus,
     metrics: std::sync::Arc<AppMetrics>,
+    bus_queue_capacity: usize,
 }
 
 impl EventRouter {
@@ -17,17 +18,19 @@ impl EventRouter {
         agg_tx: mpsc::Sender<DataEvent>,
         bus: EventBus,
         metrics: std::sync::Arc<AppMetrics>,
+        bus_queue_capacity: usize,
     ) -> Self {
         Self {
             source_rx,
             agg_tx,
             bus,
             metrics,
+            bus_queue_capacity,
         }
     }
 
     pub async fn run(mut self) {
-        let (bus_tx, mut bus_rx) = mpsc::channel::<DataEvent>(1024);
+        let (bus_tx, mut bus_rx) = mpsc::channel::<DataEvent>(self.bus_queue_capacity);
         let bus = self.bus.clone();
         let metrics = self.metrics.clone();
         let bus_task = tokio::spawn(async move {
@@ -89,7 +92,7 @@ mod tests {
         let (source_tx, source_rx) = mpsc::channel(4);
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
         let bus = EventBus::new(16, 1_000);
-        let router = EventRouter::new(source_rx, agg_tx, bus.clone(), AppMetrics::new());
+        let router = EventRouter::new(source_rx, agg_tx, bus.clone(), AppMetrics::new(), 4);
         let router_task = tokio::spawn(router.run());
 
         source_tx
@@ -118,7 +121,7 @@ mod tests {
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
         let bus = EventBus::new(16, 1_000);
         let metrics = AppMetrics::new();
-        let router = EventRouter::new(source_rx, agg_tx, bus, metrics.clone());
+        let router = EventRouter::new(source_rx, agg_tx, bus, metrics.clone(), 4);
         let router_task = tokio::spawn(router.run());
 
         source_tx
