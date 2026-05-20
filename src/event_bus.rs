@@ -33,6 +33,12 @@ pub struct EventBus {
     tx: broadcast::Sender<NormalizedTick>,
     event_tx: broadcast::Sender<DataEvent>,
     quote_tx: broadcast::Sender<DataEnvelope<QuotePayload>>,
+    funding_tx: broadcast::Sender<DataEvent>,
+    open_interest_tx: broadcast::Sender<DataEvent>,
+    trade_tx: broadcast::Sender<DataEvent>,
+    liquidation_tx: broadcast::Sender<DataEvent>,
+    order_book_tx: broadcast::Sender<DataEvent>,
+    external_signal_tx: broadcast::Sender<DataEvent>,
     snapshots: Arc<RwLock<HashMap<String, NormalizedTick>>>,
     quote_snapshots: Arc<RwLock<HashMap<String, DataEnvelope<QuotePayload>>>>,
     funding_snapshots: Arc<RwLock<HashMap<String, FundingRateTick>>>,
@@ -44,15 +50,37 @@ pub struct EventBus {
     stale_ttl_ms: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventDomain {
+    Funding,
+    OpenInterest,
+    Trade,
+    Liquidation,
+    OrderBook,
+    ExternalSignal,
+}
+
 impl EventBus {
     pub fn new(capacity: usize, stale_ttl_ms: u64) -> Self {
         let (tx, _) = broadcast::channel(capacity);
         let (event_tx, _) = broadcast::channel(capacity);
         let (quote_tx, _) = broadcast::channel(capacity);
+        let (funding_tx, _) = broadcast::channel(capacity);
+        let (open_interest_tx, _) = broadcast::channel(capacity);
+        let (trade_tx, _) = broadcast::channel(capacity);
+        let (liquidation_tx, _) = broadcast::channel(capacity);
+        let (order_book_tx, _) = broadcast::channel(capacity);
+        let (external_signal_tx, _) = broadcast::channel(capacity);
         Self {
             tx,
             event_tx,
             quote_tx,
+            funding_tx,
+            open_interest_tx,
+            trade_tx,
+            liquidation_tx,
+            order_book_tx,
+            external_signal_tx,
             snapshots: Arc::new(RwLock::new(HashMap::new())),
             quote_snapshots: Arc::new(RwLock::new(HashMap::new())),
             funding_snapshots: Arc::new(RwLock::new(HashMap::new())),
@@ -75,6 +103,17 @@ impl EventBus {
 
     pub fn subscribe_quotes(&self) -> broadcast::Receiver<DataEnvelope<QuotePayload>> {
         self.quote_tx.subscribe()
+    }
+
+    pub fn subscribe_domain(&self, domain: EventDomain) -> broadcast::Receiver<DataEvent> {
+        match domain {
+            EventDomain::Funding => self.funding_tx.subscribe(),
+            EventDomain::OpenInterest => self.open_interest_tx.subscribe(),
+            EventDomain::Trade => self.trade_tx.subscribe(),
+            EventDomain::Liquidation => self.liquidation_tx.subscribe(),
+            EventDomain::OrderBook => self.order_book_tx.subscribe(),
+            EventDomain::ExternalSignal => self.external_signal_tx.subscribe(),
+        }
     }
 
     pub async fn publish_from_event(&self, event: &DataEvent) {
@@ -112,36 +151,42 @@ impl EventBus {
                 let _ = self.quote_tx.send(quote_envelope);
             }
             DataEvent::FundingRate(t) => {
+                let _ = self.funding_tx.send(event.clone());
                 self.funding_snapshots
                     .write()
                     .await
                     .insert(perp_key(t.exchange, &t.symbol), t.clone());
             }
             DataEvent::OpenInterest(t) => {
+                let _ = self.open_interest_tx.send(event.clone());
                 self.open_interest_snapshots
                     .write()
                     .await
                     .insert(perp_key(t.exchange, &t.symbol), t.clone());
             }
             DataEvent::Trade(t) => {
+                let _ = self.trade_tx.send(event.clone());
                 self.trade_snapshots
                     .write()
                     .await
                     .insert(market_key(t.exchange, t.market, &t.symbol), t.clone());
             }
             DataEvent::Liquidation(t) => {
+                let _ = self.liquidation_tx.send(event.clone());
                 self.liquidation_snapshots
                     .write()
                     .await
                     .insert(perp_key(t.exchange, &t.symbol), t.clone());
             }
             DataEvent::OrderBook(t) => {
+                let _ = self.order_book_tx.send(event.clone());
                 self.order_book_snapshots
                     .write()
                     .await
                     .insert(market_key(t.exchange, t.market, &t.symbol), t.clone());
             }
             DataEvent::ExternalSignal(t) => {
+                let _ = self.external_signal_tx.send(event.clone());
                 self.external_signal_snapshots
                     .write()
                     .await
@@ -366,5 +411,30 @@ mod tests {
         }))
         .await;
         assert_eq!(bus.external_signal_snapshot_all().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn domain_subscribers_only_receive_matching_events() {
+        let bus = EventBus::new(16, 1000);
+        let mut funding_rx = bus.subscribe_domain(EventDomain::Funding);
+        let mut trade_rx = bus.subscribe_domain(EventDomain::Trade);
+        let ts_ms = now_ms();
+
+        bus.publish_from_event(&DataEvent::FundingRate(FundingRateTick {
+            exchange: "binance",
+            symbol: "BTCUSDT".into(),
+            funding_rate: 0.0001,
+            next_funding_time_ms: None,
+            mark_price: None,
+            index_price: None,
+            ts_ms,
+        }))
+        .await;
+
+        assert!(matches!(
+            funding_rx.recv().await,
+            Ok(DataEvent::FundingRate(_))
+        ));
+        assert!(trade_rx.try_recv().is_err());
     }
 }

@@ -15,8 +15,9 @@ use crate::core::schema::{DataEnvelope, ProductType};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::domains::prediction::book::envelope_from_polymarket_book;
-use crate::event_bus::{EventBus, NormalizedTick};
+use crate::event_bus::{EventBus, EventDomain, NormalizedTick};
 use crate::metrics::AppMetrics;
+use crate::types::{DataEvent, MarketKind};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct TickFilterQuery {
@@ -60,7 +61,17 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
             .send(Message::Text(
                 serde_json::json!({
                     "error": "unsupported domain filter",
-                    "supported_domains": ["market_quote", "options_chain", "prediction_book"]
+                    "supported_domains": [
+                        "market_quote",
+                        "funding",
+                        "open_interest",
+                        "trade",
+                        "liquidation",
+                        "order_book",
+                        "external_signal",
+                        "options_chain",
+                        "prediction_book"
+                    ]
                 })
                 .to_string(),
             ))
@@ -74,7 +85,13 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
         product_type: q.product_type.map(|x| x.trim().to_ascii_lowercase()),
         include_stale: q.include_stale.unwrap_or(false),
     };
-    let mut rx = state.bus.subscribe_quotes();
+    let mut quote_rx = domains.market_quote.then(|| state.bus.subscribe_quotes());
+    let mut domain_rx = domains
+        .single_event_domain()
+        .map(|domain| state.bus.subscribe_domain(domain));
+    let mut all_event_rx = domains
+        .needs_mixed_event_bus()
+        .then(|| state.bus.subscribe_events());
     let mut hb = interval(Duration::from_secs(15));
     let snapshot_interval_ms = q.snapshot_interval_ms.unwrap_or(1_000).clamp(250, 60_000);
     let mut snapshots = interval(Duration::from_millis(snapshot_interval_ms));
@@ -86,21 +103,71 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                     break;
                 }
             }
-            msg = rx.recv() => {
+            msg = async {
+                match &mut quote_rx {
+                    Some(rx) => Some(rx.recv().await),
+                    None => None,
+                }
+            }, if quote_rx.is_some() => {
                 match msg {
-                    Ok(envelope) => {
-                        if !domains.market_quote || !filter.matches(&envelope) {
+                    Some(Ok(envelope)) => {
+                        if !filter.matches(&envelope) {
                             continue;
                         }
                         if send_envelope(&mut socket, &envelope).await.is_err() {
                             break;
                         }
                     }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
                         warn!(skipped, "v1 stream consumer lagged behind quote bus");
                         continue;
                     }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
+                    None => {}
+                }
+            }
+            msg = async {
+                match &mut domain_rx {
+                    Some(rx) => Some(rx.recv().await),
+                    None => None,
+                }
+            }, if domain_rx.is_some() => {
+                match msg {
+                    Some(Ok(event)) => {
+                        if event_matches(&event, &domains, &filter)
+                            && send_event(&mut socket, &event).await.is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
+                        warn!(skipped, "v1 stream consumer lagged behind domain bus");
+                        continue;
+                    }
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
+                    None => {}
+                }
+            }
+            msg = async {
+                match &mut all_event_rx {
+                    Some(rx) => Some(rx.recv().await),
+                    None => None,
+                }
+            }, if all_event_rx.is_some() => {
+                match msg {
+                    Some(Ok(event)) => {
+                        if event_matches(&event, &domains, &filter)
+                            && send_event(&mut socket, &event).await.is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
+                        warn!(skipped, "v1 stream consumer lagged behind all-event bus");
+                        continue;
+                    }
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
+                    None => {}
                 }
             }
             _ = snapshots.tick() => {
@@ -241,11 +308,53 @@ impl EnvelopeFilter {
         }
         true
     }
+
+    fn matches_raw(&self, exchange: &str, market: MarketKind, symbol: &str) -> bool {
+        if let Some(symbols) = &self.symbols
+            && !symbols.contains(&symbol.to_ascii_uppercase())
+        {
+            return false;
+        }
+        if let Some(exchanges) = &self.exchanges
+            && !exchanges.contains(&exchange.to_ascii_lowercase())
+        {
+            return false;
+        }
+        if let Some(product_type) = &self.product_type
+            && market_kind_label(market) != product_type
+        {
+            return false;
+        }
+        true
+    }
+
+    fn matches_external(&self, source: &str, symbol: Option<&str>) -> bool {
+        if let Some(symbols) = &self.symbols {
+            let Some(symbol) = symbol else {
+                return false;
+            };
+            if !symbols.contains(&symbol.to_ascii_uppercase()) {
+                return false;
+            }
+        }
+        if let Some(exchanges) = &self.exchanges
+            && !exchanges.contains(&source.to_ascii_lowercase())
+        {
+            return false;
+        }
+        true
+    }
 }
 
 #[derive(Debug, Default)]
 struct DomainFilter {
     market_quote: bool,
+    funding: bool,
+    open_interest: bool,
+    trade: bool,
+    liquidation: bool,
+    order_book: bool,
+    external_signal: bool,
     options_chain: bool,
     prediction_book: bool,
     unsupported: Vec<String>,
@@ -263,6 +372,12 @@ impl DomainFilter {
         for domain in parse_csv_set_lower(raw) {
             match domain.as_str() {
                 "market_quote" => filter.market_quote = true,
+                "funding" => filter.funding = true,
+                "open_interest" => filter.open_interest = true,
+                "trade" => filter.trade = true,
+                "liquidation" => filter.liquidation = true,
+                "order_book" => filter.order_book = true,
+                "external_signal" => filter.external_signal = true,
                 "options_chain" => filter.options_chain = true,
                 "prediction_book" => filter.prediction_book = true,
                 _ => filter.unsupported.push(domain),
@@ -273,7 +388,52 @@ impl DomainFilter {
 
     fn supported(&self) -> bool {
         self.unsupported.is_empty()
-            && (self.market_quote || self.options_chain || self.prediction_book)
+            && (self.market_quote
+                || self.funding
+                || self.open_interest
+                || self.trade
+                || self.liquidation
+                || self.order_book
+                || self.external_signal
+                || self.options_chain
+                || self.prediction_book)
+    }
+
+    fn selected_event_domains(&self) -> Vec<EventDomain> {
+        let mut out = Vec::new();
+        if self.funding {
+            out.push(EventDomain::Funding);
+        }
+        if self.open_interest {
+            out.push(EventDomain::OpenInterest);
+        }
+        if self.trade {
+            out.push(EventDomain::Trade);
+        }
+        if self.liquidation {
+            out.push(EventDomain::Liquidation);
+        }
+        if self.order_book {
+            out.push(EventDomain::OrderBook);
+        }
+        if self.external_signal {
+            out.push(EventDomain::ExternalSignal);
+        }
+        out
+    }
+
+    fn single_event_domain(&self) -> Option<EventDomain> {
+        let selected = self.selected_event_domains();
+        if selected.len() == 1 && !self.market_quote && !self.options_chain && !self.prediction_book
+        {
+            selected.first().copied()
+        } else {
+            None
+        }
+    }
+
+    fn needs_mixed_event_bus(&self) -> bool {
+        self.single_event_domain().is_none() && !self.selected_event_domains().is_empty()
     }
 }
 
@@ -316,6 +476,45 @@ fn product_type_label(product_type: ProductType) -> &'static str {
         ProductType::WalletTransfer => "wallet_transfer",
         ProductType::DexPool => "dex_pool",
         ProductType::Event => "event",
+    }
+}
+
+fn market_kind_label(market: MarketKind) -> &'static str {
+    match market {
+        MarketKind::Spot => "spot",
+        MarketKind::Perp => "perp",
+    }
+}
+
+fn event_matches(event: &DataEvent, domains: &DomainFilter, filter: &EnvelopeFilter) -> bool {
+    match event {
+        DataEvent::FundingRate(t) => {
+            domains.funding && filter.matches_raw(t.exchange, MarketKind::Perp, &t.symbol)
+        }
+        DataEvent::OpenInterest(t) => {
+            domains.open_interest && filter.matches_raw(t.exchange, MarketKind::Perp, &t.symbol)
+        }
+        DataEvent::Trade(t) => domains.trade && filter.matches_raw(t.exchange, t.market, &t.symbol),
+        DataEvent::Liquidation(t) => {
+            domains.liquidation && filter.matches_raw(t.exchange, MarketKind::Perp, &t.symbol)
+        }
+        DataEvent::OrderBook(t) => {
+            domains.order_book && filter.matches_raw(t.exchange, t.market, &t.symbol)
+        }
+        DataEvent::ExternalSignal(t) => {
+            domains.external_signal && filter.matches_external(t.source, t.symbol.as_deref())
+        }
+        DataEvent::Tick(_) | DataEvent::Heartbeat { .. } => false,
+    }
+}
+
+async fn send_event(socket: &mut WebSocket, event: &DataEvent) -> Result<(), ()> {
+    match serde_json::to_string(event) {
+        Ok(line) => socket.send(Message::Text(line)).await.map_err(|_| ()),
+        Err(error) => {
+            warn!(%error, "v1 stream event serialize failed");
+            Ok(())
+        }
     }
 }
 
@@ -389,11 +588,25 @@ mod tests {
     #[test]
     fn domain_filter_accepts_all_supported_stream_domains() {
         let filter = DomainFilter::from_query(Some(
-            "market_quote,options_chain,prediction_book".to_string(),
+            "market_quote,funding,open_interest,trade,liquidation,order_book,external_signal,options_chain,prediction_book".to_string(),
         ));
         assert!(filter.supported());
         assert!(filter.market_quote);
+        assert!(filter.funding);
+        assert!(filter.open_interest);
+        assert!(filter.trade);
+        assert!(filter.liquidation);
+        assert!(filter.order_book);
+        assert!(filter.external_signal);
         assert!(filter.options_chain);
         assert!(filter.prediction_book);
+    }
+
+    #[test]
+    fn domain_filter_uses_single_domain_fast_path() {
+        let filter = DomainFilter::from_query(Some("funding".to_string()));
+
+        assert_eq!(filter.single_event_domain(), Some(EventDomain::Funding));
+        assert!(!filter.needs_mixed_event_bus());
     }
 }

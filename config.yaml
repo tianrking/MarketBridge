@@ -6,6 +6,11 @@ runtime:
   # Higher value handles bursts better, but uses more memory.
   queue_capacity: 4096
 
+  # Per-domain broadcast ring buffer capacity for websocket/redis consumers.
+  # Slow consumers skip their own stale messages instead of blocking publishers
+  # or other subscribers.
+  broadcast_capacity: 65536
+
   # Backpressure strategy when channel is full:
   # - drop_newest: low-latency priority, may drop some fresh ticks
   # - block: no drop, but producers may stall

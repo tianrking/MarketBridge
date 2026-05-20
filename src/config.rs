@@ -36,6 +36,8 @@ pub struct AppConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct RuntimeConfig {
     pub queue_capacity: usize,
+    #[serde(default = "default_broadcast_capacity")]
+    pub broadcast_capacity: usize,
     pub backpressure: BackpressureConfig,
     pub report_interval_ms: u64,
     pub stale_ttl_ms: u64,
@@ -609,6 +611,10 @@ fn normalize_symbols(input: &[String]) -> Vec<String> {
 
 fn default_api_addr() -> String {
     "0.0.0.0:8080".to_string()
+}
+
+fn default_broadcast_capacity() -> usize {
+    65_536
 }
 
 fn default_redis_stream_prefix() -> String {

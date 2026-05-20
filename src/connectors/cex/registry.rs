@@ -461,6 +461,7 @@ mod tests {
         let cfg = AppConfig {
             runtime: RuntimeConfig {
                 queue_capacity: 16,
+                broadcast_capacity: 16,
                 backpressure: BackpressureConfig::Block,
                 report_interval_ms: 1000,
                 stale_ttl_ms: 1000,

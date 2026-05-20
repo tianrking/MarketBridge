@@ -128,6 +128,7 @@ curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
 Default file: `config.yaml`
 
 - `runtime.queue_capacity`: source->router channel capacity
+- `runtime.broadcast_capacity`: per-domain websocket/redis broadcast buffer
 - `runtime.backpressure`: `block` or `drop_newest`
 - `runtime.report_interval_ms`: signal report interval
 - `runtime.stale_ttl_ms`: stale threshold
@@ -285,7 +286,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/coverage` | Data quality dashboard model |
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
-| WS | `/v1/stream` | Envelope-based stream for `market_quote`, `options_chain`, and `prediction_book` |
+| WS | `/v1/stream` | Domain-filtered stream for quotes, extended market events, options, and prediction books |
 
 DeFi quote and pool sources are exposed through the same market quote surface:
 
@@ -453,14 +454,16 @@ wscat -c "ws://127.0.0.1:8080/ws/ticks?market=perp&symbols=BTCUSDT"
 
 ### `WS /v1/stream`
 
-Envelope-based websocket stream. It supports live `market_quote` events and
-cached snapshot streaming for `options_chain` and `prediction_book`.
+Domain-filtered websocket stream. It supports live `market_quote`,
+`funding`, `open_interest`, `trade`, `liquidation`, `order_book`, and
+`external_signal` events, plus cached snapshot streaming for `options_chain`
+and `prediction_book`.
 
 Query params:
 
-- `domains=market_quote,options_chain,prediction_book`
+- `domains=market_quote,funding,open_interest,trade,liquidation,order_book,external_signal,options_chain,prediction_book`
 - `symbols=BTCUSDT`
-- `exchanges=okx,deribit,polymarket`
+- `exchanges=okx,deribit,polymarket` or external signal source names
 - `product_type=spot|perp|option|binary_outcome`
 - `include_stale=true|false` default `false`
 - `snapshot_interval_ms=1000` for cached domains, clamped to `250..60000`
@@ -469,6 +472,8 @@ Example:
 
 ```bash
 wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote&symbols=BTCUSDT&product_type=perp"
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=funding&symbols=BTCUSDT&exchanges=binance,okx"
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=order_book,trade&symbols=BTCUSDT&product_type=perp"
 wscat -c "ws://127.0.0.1:8080/v1/stream?domains=options_chain,prediction_book&include_stale=false"
 ```
 
