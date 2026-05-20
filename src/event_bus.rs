@@ -1,32 +1,13 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use serde::Serialize;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::broadcast;
 
 use crate::core::schema::DataEnvelope;
-use crate::domains::market::quote::{QuotePayload, envelope_from_tick};
+use crate::domains::market::quote::QuotePayload;
+use crate::event_snapshots::EventSnapshotStore;
+pub use crate::event_snapshots::NormalizedTick;
 use crate::types::{
-    DataEvent, ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick,
-    OrderBookTick, TradeTick, now_ms,
+    DataEvent, ExternalSignalTick, FundingRateTick, LiquidationTick, OpenInterestTick,
+    OrderBookTick, TradeTick,
 };
-
-pub const SCHEMA_VERSION: &str = "v1";
-
-#[derive(Debug, Clone, Serialize)]
-pub struct NormalizedTick {
-    pub version: &'static str,
-    pub exchange: &'static str,
-    pub market: &'static str,
-    pub symbol: String,
-    pub bid: f64,
-    pub ask: f64,
-    pub mark: Option<f64>,
-    pub funding: Option<f64>,
-    pub ts: u64,
-    pub source_latency_ms: u64,
-    pub stale: bool,
-}
 
 #[derive(Clone)]
 pub struct EventBus {
@@ -39,14 +20,7 @@ pub struct EventBus {
     liquidation_tx: broadcast::Sender<DataEvent>,
     order_book_tx: broadcast::Sender<DataEvent>,
     external_signal_tx: broadcast::Sender<DataEvent>,
-    snapshots: Arc<RwLock<HashMap<String, NormalizedTick>>>,
-    quote_snapshots: Arc<RwLock<HashMap<String, DataEnvelope<QuotePayload>>>>,
-    funding_snapshots: Arc<RwLock<HashMap<String, FundingRateTick>>>,
-    open_interest_snapshots: Arc<RwLock<HashMap<String, OpenInterestTick>>>,
-    trade_snapshots: Arc<RwLock<HashMap<String, TradeTick>>>,
-    liquidation_snapshots: Arc<RwLock<HashMap<String, LiquidationTick>>>,
-    order_book_snapshots: Arc<RwLock<HashMap<String, OrderBookTick>>>,
-    external_signal_snapshots: Arc<RwLock<HashMap<String, ExternalSignalTick>>>,
+    snapshots: EventSnapshotStore,
     stale_ttl_ms: u64,
 }
 
@@ -81,14 +55,7 @@ impl EventBus {
             liquidation_tx,
             order_book_tx,
             external_signal_tx,
-            snapshots: Arc::new(RwLock::new(HashMap::new())),
-            quote_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            funding_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            open_interest_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            trade_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            liquidation_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            order_book_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            external_signal_snapshots: Arc::new(RwLock::new(HashMap::new())),
+            snapshots: EventSnapshotStore::new(),
             stale_ttl_ms,
         }
     }
@@ -120,167 +87,74 @@ impl EventBus {
         let _ = self.event_tx.send(event.clone());
         match event {
             DataEvent::Tick(t) => {
-                let now = now_ms();
-                let latency = now.saturating_sub(t.ts_ms);
-                let normalized = NormalizedTick {
-                    version: SCHEMA_VERSION,
-                    exchange: t.exchange,
-                    market: market_to_str(t.market),
-                    symbol: t.symbol.to_string(),
-                    bid: t.bid,
-                    ask: t.ask,
-                    mark: t.mark,
-                    funding: t.funding_rate,
-                    ts: t.ts_ms,
-                    source_latency_ms: latency,
-                    stale: latency > self.stale_ttl_ms,
-                };
-
-                let key = snapshot_key(&normalized.exchange, normalized.market, &normalized.symbol);
-                let quote_envelope = envelope_from_tick(normalized.clone());
-                let quote_key = quote_snapshot_key(&quote_envelope);
-                {
-                    let mut guard = self.snapshots.write().await;
-                    guard.insert(key, normalized.clone());
-                }
-                {
-                    let mut guard = self.quote_snapshots.write().await;
-                    guard.insert(quote_key, quote_envelope.clone());
-                }
+                let (normalized, quote_envelope) =
+                    self.snapshots.upsert_tick(t, self.stale_ttl_ms).await;
                 let _ = self.tx.send(normalized);
                 let _ = self.quote_tx.send(quote_envelope);
             }
             DataEvent::FundingRate(t) => {
                 let _ = self.funding_tx.send(event.clone());
-                self.funding_snapshots
-                    .write()
-                    .await
-                    .insert(perp_key(t.exchange, &t.symbol), t.clone());
+                self.snapshots.upsert_funding(t).await;
             }
             DataEvent::OpenInterest(t) => {
                 let _ = self.open_interest_tx.send(event.clone());
-                self.open_interest_snapshots
-                    .write()
-                    .await
-                    .insert(perp_key(t.exchange, &t.symbol), t.clone());
+                self.snapshots.upsert_open_interest(t).await;
             }
             DataEvent::Trade(t) => {
                 let _ = self.trade_tx.send(event.clone());
-                self.trade_snapshots
-                    .write()
-                    .await
-                    .insert(market_key(t.exchange, t.market, &t.symbol), t.clone());
+                self.snapshots.upsert_trade(t).await;
             }
             DataEvent::Liquidation(t) => {
                 let _ = self.liquidation_tx.send(event.clone());
-                self.liquidation_snapshots
-                    .write()
-                    .await
-                    .insert(perp_key(t.exchange, &t.symbol), t.clone());
+                self.snapshots.upsert_liquidation(t).await;
             }
             DataEvent::OrderBook(t) => {
                 let _ = self.order_book_tx.send(event.clone());
-                self.order_book_snapshots
-                    .write()
-                    .await
-                    .insert(market_key(t.exchange, t.market, &t.symbol), t.clone());
+                self.snapshots.upsert_order_book(t).await;
             }
             DataEvent::ExternalSignal(t) => {
                 let _ = self.external_signal_tx.send(event.clone());
-                self.external_signal_snapshots
-                    .write()
-                    .await
-                    .insert(external_signal_key(t), t.clone());
+                self.snapshots.upsert_external_signal(t).await;
             }
             DataEvent::Heartbeat { .. } => {}
         }
     }
 
     pub async fn snapshot_by_symbol(&self, symbol: &str) -> Vec<NormalizedTick> {
-        let needle = symbol.to_ascii_uppercase();
-        let guard = self.snapshots.read().await;
-        guard
-            .values()
-            .filter(|t| t.symbol.eq_ignore_ascii_case(&needle))
-            .cloned()
-            .collect()
+        self.snapshots.snapshot_by_symbol(symbol).await
     }
 
     pub async fn snapshot_all(&self) -> Vec<NormalizedTick> {
-        let guard = self.snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.snapshot_all().await
     }
 
     pub async fn quote_snapshot_all(&self) -> Vec<DataEnvelope<QuotePayload>> {
-        let guard = self.quote_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.quote_snapshot_all().await
     }
 
     pub async fn funding_snapshot_all(&self) -> Vec<FundingRateTick> {
-        let guard = self.funding_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.funding_snapshot_all().await
     }
 
     pub async fn open_interest_snapshot_all(&self) -> Vec<OpenInterestTick> {
-        let guard = self.open_interest_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.open_interest_snapshot_all().await
     }
 
     pub async fn trade_snapshot_all(&self) -> Vec<TradeTick> {
-        let guard = self.trade_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.trade_snapshot_all().await
     }
 
     pub async fn liquidation_snapshot_all(&self) -> Vec<LiquidationTick> {
-        let guard = self.liquidation_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.liquidation_snapshot_all().await
     }
 
     pub async fn order_book_snapshot_all(&self) -> Vec<OrderBookTick> {
-        let guard = self.order_book_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.order_book_snapshot_all().await
     }
 
     pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {
-        let guard = self.external_signal_snapshots.read().await;
-        guard.values().cloned().collect()
+        self.snapshots.external_signal_snapshot_all().await
     }
-}
-
-fn market_to_str(m: MarketKind) -> &'static str {
-    match m {
-        MarketKind::Spot => "spot",
-        MarketKind::Perp => "perp",
-    }
-}
-
-fn snapshot_key(exchange: &str, market: &str, symbol: &str) -> String {
-    format!("{exchange}:{market}:{symbol}")
-}
-
-fn perp_key(exchange: &str, symbol: &str) -> String {
-    format!("{exchange}:perp:{symbol}")
-}
-
-fn market_key(exchange: &str, market: MarketKind, symbol: &str) -> String {
-    format!("{exchange}:{}:{symbol}", market_to_str(market))
-}
-
-fn quote_snapshot_key(envelope: &DataEnvelope<QuotePayload>) -> String {
-    format!(
-        "{}:{}",
-        envelope.source_ref.source, envelope.instrument_ref.instrument_id
-    )
-}
-
-fn external_signal_key(t: &ExternalSignalTick) -> String {
-    format!(
-        "{}:{}:{}:{}",
-        t.source,
-        t.category,
-        t.symbol.as_deref().unwrap_or("*"),
-        t.metric
-    )
 }
 
 #[cfg(test)]
@@ -288,7 +162,7 @@ mod tests {
     use super::*;
     use crate::types::{
         BookLevel, ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
-        OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
+        OpenInterestTick, OrderBookTick, TradeSide, TradeTick, now_ms,
     };
 
     #[tokio::test]

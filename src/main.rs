@@ -7,6 +7,7 @@ mod core;
 mod deribit_cache;
 mod domains;
 mod event_bus;
+mod event_snapshots;
 mod metrics;
 mod polymarket_ws;
 mod redis_sink;
