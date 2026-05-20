@@ -51,6 +51,10 @@ impl EventBus {
         self.tx.subscribe()
     }
 
+    pub fn subscribe_quotes(&self) -> broadcast::Receiver<DataEnvelope<QuotePayload>> {
+        self.quote_tx.subscribe()
+    }
+
     pub async fn publish_from_event(&self, event: &DataEvent) {
         if let DataEvent::Tick(t) = event {
             let now = now_ms();

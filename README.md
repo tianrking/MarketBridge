@@ -226,6 +226,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/coverage` | Data quality dashboard model |
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
+| WS | `/v1/stream` | Envelope-based stream, first version supports `market_quote` |
 
 ## API Details
 
@@ -347,6 +348,16 @@ Example:
 
 ```bash
 wscat -c "ws://127.0.0.1:8080/ws/ticks?market=perp&symbols=BTCUSDT"
+```
+
+### `WS /v1/stream`
+
+Envelope-based websocket stream. The first version supports `market_quote`.
+
+Example:
+
+```bash
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote&symbols=BTCUSDT&product_type=perp"
 ```
 
 ### `GET /funding`

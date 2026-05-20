@@ -257,6 +257,7 @@ Implemented today:
 
 - Catalog discovery through `GET /v1/catalog/sources`,
   `GET /v1/catalog/domains`, and `GET /v1/catalog/instruments`.
+- Envelope-based market quote streaming through `WS /v1/stream`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and background cache.
@@ -306,7 +307,8 @@ Status: implemented for first-pass Deribit chains and Polymarket books.
 - Add `/v1/catalog/sources` and `/v1/catalog/instruments`.
 
 Status: partially implemented. `/v1/catalog/sources`, `/v1/catalog/domains`,
-and `/v1/catalog/instruments` exist. A runtime source-health registry is still
+`/v1/catalog/instruments`, and a first `market_quote` version of `WS /v1/stream`
+exist. A runtime source-health registry and non-quote stream domains are still
 pending.
 
 ### Phase 5: On-chain and External Event Data
