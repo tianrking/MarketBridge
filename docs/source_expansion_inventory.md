@@ -77,7 +77,6 @@ bitteam
 bittrade
 bitvavo
 blockchaincom
-blofin
 btcbox
 btcmarkets
 btcturk
@@ -251,6 +250,7 @@ bitfinex
 bitget
 bitmart
 bitmex
+blofin
 bithumb
 bitflyer
 bitstamp

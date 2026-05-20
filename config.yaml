@@ -525,6 +525,15 @@ exchanges:
       maker_bps: 15.0
       taker_bps: 25.0
 
+  blofin:
+    enabled: false
+    # BloFin public REST exposes perpetual swap ids like BTC-USDT.
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 2.0
+      taker_bps: 6.0
+
   bitflyer:
     enabled: false
     # bitFlyer public REST uses BTC_JPY style product codes.

@@ -54,6 +54,7 @@ Status labels:
 | Bitrue | partial | implemented | planned | planned | planned | planned | keyless | Public spot simple-depth stream from Hummingbot connector. |
 | Bithumb | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Bitvavo | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
+| BloFin | implemented | implemented | implemented | implemented | planned | planned | keyless | Native public REST perp ticker, order book, trades, and funding. |
 | bitFlyer | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | bitbank | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | AscendEX | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint. |

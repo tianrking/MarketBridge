@@ -44,6 +44,7 @@ use super::bitmex::BitmexPerpFeed;
 use super::bitrue::BitrueSpotFeed;
 use super::bitstamp::BitstampSpotFeed;
 use super::bitvavo::BitvavoSpotFeed;
+use super::blofin::BlofinPerpFeed;
 use super::btc_markets::BtcMarketsSpotFeed;
 use super::bullish::BullishSpotFeed;
 use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
@@ -179,6 +180,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "bingx" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(BingxSwapFeed::new(
+                    perp_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
+            }
+            "blofin" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(BlofinPerpFeed::new(
                     perp_symbols.iter().map(|s| to_dash(s)).collect(),
                 )));
             }
