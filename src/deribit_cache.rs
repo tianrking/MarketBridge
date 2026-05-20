@@ -6,7 +6,9 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::config::DeribitConfig;
-use crate::external::{DeribitOptionSummary, fetch_deribit_option_summaries_from};
+use crate::connectors::options::deribit::{
+    DeribitOptionSummary, fetch_deribit_option_summaries_from,
+};
 use crate::types::now_ms;
 
 #[derive(Debug, Clone, Serialize)]

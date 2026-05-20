@@ -57,6 +57,9 @@ Connector output must be normalized into `DataEnvelope<T>` before it reaches the
 shared cache or stream layer.
 
 Status: CEX exchange adapters now live under `src/connectors/cex`.
+Deribit REST client code lives under `src/connectors/options/deribit.rs`.
+Polymarket Gamma/CLOB REST client code lives under
+`src/connectors/prediction/polymarket.rs`.
 
 ### 2. Domain Layer
 

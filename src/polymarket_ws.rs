@@ -11,7 +11,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{info, warn};
 
 use crate::config::PolymarketConfig;
-use crate::external::{
+use crate::connectors::prediction::polymarket::{
     PolymarketBookLevel, PolymarketBookSummary, PolymarketOrderBook,
     fetch_polymarket_crypto_markets, summarize_book,
 };
@@ -283,7 +283,12 @@ async fn run_polymarket_ws_cache(
         return Ok(());
     }
 
-    for result in crate::external::fetch_polymarket_books(client, &response.clob_asset_ids).await {
+    for result in crate::connectors::prediction::polymarket::fetch_polymarket_books(
+        client,
+        &response.clob_asset_ids,
+    )
+    .await
+    {
         match result {
             Ok(summary) => cache.upsert_rest_summary(summary).await,
             Err(error) => warn!(%error, "failed to seed polymarket book snapshot"),

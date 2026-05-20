@@ -6,10 +6,10 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
-use crate::domains::prediction::book::envelope_from_polymarket_book;
-use crate::external::{
+use crate::connectors::prediction::polymarket::{
     fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
 };
+use crate::domains::prediction::book::envelope_from_polymarket_book;
 
 #[derive(Debug, Deserialize)]
 pub struct PolymarketCryptoMarketsQuery {

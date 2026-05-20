@@ -1,9 +1,9 @@
+use crate::connectors::options::deribit::DeribitOptionSummary;
 use crate::core::schema::{
     AssetClass, DataDomain, DataEnvelope, Freshness, InstrumentRef, ProductType, SourceRef,
     SourceType,
 };
 use crate::deribit_cache::CachedDeribitOptionSummary;
-use crate::external::DeribitOptionSummary;
 
 pub fn envelope_from_deribit_summary(
     row: CachedDeribitOptionSummary,

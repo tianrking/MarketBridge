@@ -6,9 +6,9 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
+use crate::connectors::options::deribit::fetch_deribit_option_summaries;
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
-use crate::external::fetch_deribit_option_summaries;
 
 #[derive(Debug, Deserialize)]
 pub struct DeribitOptionsQuery {
