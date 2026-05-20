@@ -27,6 +27,10 @@ pub fn build_router(state: ApiState) -> Router {
             "/v1/options/chains",
             get(routes::options::v1_options_chains),
         )
+        .route(
+            "/v1/prediction/books",
+            get(routes::prediction::v1_prediction_books),
+        )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))
         .route("/funding", get(routes::legacy::funding))

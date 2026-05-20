@@ -209,6 +209,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/health` | Liveness check |
 | GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit option chains |
+| GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -279,6 +280,21 @@ Example:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/options/chains?currency=BTC&option_type=call" | jq
+```
+
+### `GET /v1/prediction/books`
+
+Envelope-based prediction-market order books from the Polymarket live cache.
+
+Query params:
+
+- `token_ids`, optional comma-separated Polymarket token ids
+- `include_stale=true|false`, default `false`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/prediction/books?token_ids=YES_TOKEN,NO_TOKEN" | jq
 ```
 
 ### `GET /snapshot`

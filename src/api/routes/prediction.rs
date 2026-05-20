@@ -6,6 +6,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
+use crate::domains::prediction::book::envelope_from_polymarket_book;
 use crate::external::{
     fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
 };
@@ -25,6 +26,12 @@ pub struct PolymarketBookQuery {
 #[derive(Debug, Deserialize)]
 pub struct PolymarketBooksQuery {
     token_ids: String,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct PredictionBooksQuery {
+    token_ids: Option<String>,
+    include_stale: Option<bool>,
 }
 
 pub async fn polymarket_crypto_markets(
@@ -55,6 +62,30 @@ pub async fn polymarket_crypto_markets(
             "clob_asset_ids": []
         })),
     }
+}
+
+pub async fn v1_prediction_books(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PredictionBooksQuery>,
+) -> impl IntoResponse {
+    let include_stale = q.include_stale.unwrap_or(false);
+    let rows = if let Some(token_ids) = q.token_ids {
+        let token_ids = parse_csv_vec(&token_ids);
+        state.polymarket_cache.by_ids(&token_ids).await
+    } else {
+        state.polymarket_cache.all().await
+    };
+    let books = rows
+        .into_iter()
+        .filter(|book| include_stale || !book.stale)
+        .map(envelope_from_polymarket_book)
+        .collect::<Vec<_>>();
+
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "prediction_book",
+        "books": books
+    }))
 }
 
 pub async fn polymarket_book(

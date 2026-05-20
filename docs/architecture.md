@@ -260,6 +260,7 @@ Implemented today:
 - Deribit option summary direct REST and background cache.
 - Envelope-based Deribit option chains through `GET /v1/options/chains`.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.
+- Envelope-based Polymarket books through `GET /v1/prediction/books`.
 - Freshness fields for exchange ticks, Deribit cache rows, and Polymarket live books.
 
 Known architecture gaps:
@@ -294,8 +295,7 @@ Status: partially implemented. `domains/market/quote.rs` and
 - Move Polymarket book payload into `domains/prediction/book.rs`.
 - Add `/v1/options/chains` and `/v1/prediction/books`.
 
-Status: partially implemented. `domains/options/chain.rs` and
-`GET /v1/options/chains` exist. Prediction book migration is still pending.
+Status: implemented for first-pass Deribit chains and Polymarket books.
 
 ### Phase 4: Catalog and Source Registry
 
