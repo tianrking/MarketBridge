@@ -14,6 +14,7 @@ Independent Rust data-source bridge for exchange, options, prediction-market, an
 ## Table of Contents
 
 - [Why This Project](#why-this-project)
+- [Architecture Contract](#architecture-contract)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Runtime Pipeline](#runtime-pipeline)
@@ -35,6 +36,19 @@ Independent Rust data-source bridge for exchange, options, prediction-market, an
 - Unified market model across multiple exchanges and both `spot` / `perp`
 - Unified API layer (`REST + WebSocket + Redis`) for downstream strategy systems
 - Data quality visibility (funding coverage, stale ratio, latency percentiles, health status, alerts)
+
+## Architecture Contract
+
+MarketBridge is being standardized around a source-agnostic data envelope:
+
+```text
+connector source -> domain payload -> DataEnvelope -> cache/stream/API
+```
+
+The long-term architecture and `/v1` API contract are maintained in
+[docs/architecture.md](docs/architecture.md). Current endpoints remain supported
+while existing exchange, Deribit, and Polymarket data is migrated into the new
+domain model.
 
 ## Tech Stack
 

@@ -1,6 +1,7 @@
 mod aggregator;
 mod api;
 mod config;
+mod core;
 mod deribit_cache;
 mod event_bus;
 mod exchanges;
