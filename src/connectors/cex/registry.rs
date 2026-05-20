@@ -6,6 +6,7 @@ use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
+use crate::connectors::tradfi::yahoo::YahooChartPoller;
 use crate::source::ExchangeSource;
 
 use super::backpack::BackpackFeed;
@@ -306,6 +307,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     if cfg.defi.oneinch.enabled {
         out.push(Arc::new(OneInchQuotePoller::new(cfg.defi.oneinch.clone())));
     }
+    if cfg.tradfi.dxy.enabled {
+        out.push(Arc::new(YahooChartPoller::new(
+            "dxy",
+            cfg.tradfi.dxy.clone(),
+        )));
+    }
 
     out
 }
@@ -376,7 +383,7 @@ mod tests {
     use crate::config::{
         AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig, DefiConfig,
         DeribitConfig, ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig, RuntimeConfig,
-        StrategyConfig,
+        StrategyConfig, TradfiConfig,
     };
     use std::collections::HashMap;
 
@@ -418,6 +425,7 @@ mod tests {
             binance_options: BinanceOptionsConfig::default(),
             polymarket: PolymarketConfig::default(),
             defi: DefiConfig::default(),
+            tradfi: TradfiConfig::default(),
             symbols: vec!["BTCUSDT".to_string()],
             perp_symbols: Some(vec!["BTCUSDT".to_string()]),
             exchanges: HashMap::from([(
