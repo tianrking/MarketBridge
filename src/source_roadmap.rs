@@ -222,9 +222,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented",
         priority: "P0",
-        notes: "MarketBridge has Coinbase spot ticker; add Coinbase Advanced L2/trades and Coinbase International separately.",
+        notes: "Advanced Trade ticker plus Exchange REST order book and recent trades are wired; Coinbase International remains separate.",
     },
     RoadmapSource {
         source: "coincheck",

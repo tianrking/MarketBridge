@@ -85,8 +85,6 @@ bybit
 bydfi
 cex
 coinbase
-coinbaseadvanced
-coinbaseexchange
 coinbaseinternational
 coincheck
 coinex
