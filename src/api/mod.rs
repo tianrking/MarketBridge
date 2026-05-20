@@ -9,6 +9,7 @@ use crate::metrics::AppMetrics;
 use crate::polymarket_ws::PolymarketBookCache;
 
 pub mod routes;
+pub mod utils;
 
 #[derive(Clone)]
 pub struct ApiState {

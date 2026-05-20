@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::Json;
@@ -7,6 +6,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
+use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::ProductType;
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
@@ -64,20 +64,6 @@ pub async fn v1_market_quotes(
         "domain": "market_quote",
         "quotes": quotes
     }))
-}
-
-fn parse_csv_set_upper(s: String) -> HashSet<String> {
-    s.split(',')
-        .map(|x| x.trim().to_ascii_uppercase())
-        .filter(|x| !x.is_empty())
-        .collect()
-}
-
-fn parse_csv_set_lower(s: String) -> HashSet<String> {
-    s.split(',')
-        .map(|x| x.trim().to_ascii_lowercase())
-        .filter(|x| !x.is_empty())
-        .collect()
 }
 
 fn product_type_label(product_type: ProductType) -> &'static str {

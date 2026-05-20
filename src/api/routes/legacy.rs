@@ -7,6 +7,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use crate::api::ApiState;
+use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct SnapshotQuery {
@@ -383,20 +384,6 @@ pub async fn coverage(
         alerts,
         symbols: symbols_out,
     })
-}
-
-fn parse_csv_set_upper(s: String) -> HashSet<String> {
-    s.split(',')
-        .map(|x| x.trim().to_ascii_uppercase())
-        .filter(|x| !x.is_empty())
-        .collect()
-}
-
-fn parse_csv_set_lower(s: String) -> HashSet<String> {
-    s.split(',')
-        .map(|x| x.trim().to_ascii_lowercase())
-        .filter(|x| !x.is_empty())
-        .collect()
 }
 
 fn canonical_perp_symbol(raw: &str) -> String {

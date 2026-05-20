@@ -6,6 +6,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
+use crate::api::utils::parse_csv_vec;
 use crate::connectors::prediction::polymarket::{
     fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
 };
@@ -219,11 +220,4 @@ pub async fn polymarket_live_crypto_books(
         "markets": market_response.markets,
         "books": books
     }))
-}
-
-fn parse_csv_vec(s: &str) -> Vec<String> {
-    s.split(',')
-        .map(|x| x.trim().to_string())
-        .filter(|x| !x.is_empty())
-        .collect()
 }

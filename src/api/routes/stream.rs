@@ -10,6 +10,7 @@ use tokio::time::interval;
 use tracing::warn;
 
 use crate::api::ApiState;
+use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::{DataEnvelope, ProductType};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
@@ -303,20 +304,6 @@ impl TickFilter {
         }
         true
     }
-}
-
-fn parse_csv_set_upper(s: String) -> HashSet<String> {
-    s.split(',')
-        .map(|x| x.trim().to_ascii_uppercase())
-        .filter(|x| !x.is_empty())
-        .collect()
-}
-
-fn parse_csv_set_lower(s: String) -> HashSet<String> {
-    s.split(',')
-        .map(|x| x.trim().to_ascii_lowercase())
-        .filter(|x| !x.is_empty())
-        .collect()
 }
 
 fn product_type_label(product_type: ProductType) -> &'static str {
