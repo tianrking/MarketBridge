@@ -402,6 +402,15 @@ exchanges:
       maker_bps: 4.0
       taker_bps: 8.0
 
+  foxbit:
+    enabled: false
+    # Foxbit is a Brazil spot venue; registry maps BTCBRL -> btcbrl REST ids.
+    symbols: [BTCBRL, ETHBRL, USDTBRL]
+    fee:
+      mode: fixed
+      maker_bps: 25.0
+      taker_bps: 50.0
+
   kraken:
     enabled: false
     fee:

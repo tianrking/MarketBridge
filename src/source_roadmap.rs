@@ -191,9 +191,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P3",
-        notes: "Brazil spot venue; useful for regional coverage after core sources.",
+        notes: "Public Brazil spot REST order-book snapshots wired; WS trades remain planned.",
     },
     RoadmapSource {
         source: "gate_io",

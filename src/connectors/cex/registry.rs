@@ -47,6 +47,7 @@ use super::decibel::DecibelPerpFeed;
 use super::derive::{DerivePerpFeed, DeriveSpotFeed};
 use super::dexalot::DexalotSpotFeed;
 use super::dydx::DydxFeed;
+use super::foxbit::FoxbitSpotFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
 use super::grvt::GrvtPerpFeed;
@@ -313,6 +314,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "cube" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CubeSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                )));
+            }
+            "foxbit" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(FoxbitSpotFeed::new(
                     spot_symbols.iter().map(|s| to_binance(s)).collect(),
                 )));
             }
