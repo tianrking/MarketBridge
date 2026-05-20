@@ -87,34 +87,33 @@ impl EventBus {
         let _ = self.event_tx.send(event.clone());
         match event {
             DataEvent::Tick(t) => {
-                let (normalized, quote_envelope) =
-                    self.snapshots.upsert_tick(t, self.stale_ttl_ms).await;
+                let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
                 let _ = self.tx.send(normalized);
                 let _ = self.quote_tx.send(quote_envelope);
             }
             DataEvent::FundingRate(t) => {
                 let _ = self.funding_tx.send(event.clone());
-                self.snapshots.upsert_funding(t).await;
+                self.snapshots.upsert_funding(t);
             }
             DataEvent::OpenInterest(t) => {
                 let _ = self.open_interest_tx.send(event.clone());
-                self.snapshots.upsert_open_interest(t).await;
+                self.snapshots.upsert_open_interest(t);
             }
             DataEvent::Trade(t) => {
                 let _ = self.trade_tx.send(event.clone());
-                self.snapshots.upsert_trade(t).await;
+                self.snapshots.upsert_trade(t);
             }
             DataEvent::Liquidation(t) => {
                 let _ = self.liquidation_tx.send(event.clone());
-                self.snapshots.upsert_liquidation(t).await;
+                self.snapshots.upsert_liquidation(t);
             }
             DataEvent::OrderBook(t) => {
                 let _ = self.order_book_tx.send(event.clone());
-                self.snapshots.upsert_order_book(t).await;
+                self.snapshots.upsert_order_book(t);
             }
             DataEvent::ExternalSignal(t) => {
                 let _ = self.external_signal_tx.send(event.clone());
-                self.snapshots.upsert_external_signal(t).await;
+                self.snapshots.upsert_external_signal(t);
             }
             DataEvent::Heartbeat { .. } => {}
         }

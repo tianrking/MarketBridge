@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use serde::Serialize;
-use tokio::sync::RwLock;
 
 use crate::core::schema::DataEnvelope;
 use crate::domains::market::quote::{QuotePayload, envelope_from_tick};
@@ -30,31 +30,31 @@ pub struct NormalizedTick {
 
 #[derive(Clone)]
 pub struct EventSnapshotStore {
-    snapshots: Arc<RwLock<HashMap<String, NormalizedTick>>>,
-    quote_snapshots: Arc<RwLock<HashMap<String, DataEnvelope<QuotePayload>>>>,
-    funding_snapshots: Arc<RwLock<HashMap<String, FundingRateTick>>>,
-    open_interest_snapshots: Arc<RwLock<HashMap<String, OpenInterestTick>>>,
-    trade_snapshots: Arc<RwLock<HashMap<String, TradeTick>>>,
-    liquidation_snapshots: Arc<RwLock<HashMap<String, LiquidationTick>>>,
-    order_book_snapshots: Arc<RwLock<HashMap<String, OrderBookTick>>>,
-    external_signal_snapshots: Arc<RwLock<HashMap<String, ExternalSignalTick>>>,
+    snapshots: SnapshotMap<NormalizedTick>,
+    quote_snapshots: SnapshotMap<DataEnvelope<QuotePayload>>,
+    funding_snapshots: SnapshotMap<FundingRateTick>,
+    open_interest_snapshots: SnapshotMap<OpenInterestTick>,
+    trade_snapshots: SnapshotMap<TradeTick>,
+    liquidation_snapshots: SnapshotMap<LiquidationTick>,
+    order_book_snapshots: SnapshotMap<OrderBookTick>,
+    external_signal_snapshots: SnapshotMap<ExternalSignalTick>,
 }
 
 impl EventSnapshotStore {
     pub fn new() -> Self {
         Self {
-            snapshots: Arc::new(RwLock::new(HashMap::new())),
-            quote_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            funding_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            open_interest_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            trade_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            liquidation_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            order_book_snapshots: Arc::new(RwLock::new(HashMap::new())),
-            external_signal_snapshots: Arc::new(RwLock::new(HashMap::new())),
+            snapshots: SnapshotMap::new(),
+            quote_snapshots: SnapshotMap::new(),
+            funding_snapshots: SnapshotMap::new(),
+            open_interest_snapshots: SnapshotMap::new(),
+            trade_snapshots: SnapshotMap::new(),
+            liquidation_snapshots: SnapshotMap::new(),
+            order_book_snapshots: SnapshotMap::new(),
+            external_signal_snapshots: SnapshotMap::new(),
         }
     }
 
-    pub async fn upsert_tick(
+    pub fn upsert_tick(
         &self,
         tick: &MarketTick,
         stale_ttl_ms: u64,
@@ -76,65 +76,54 @@ impl EventSnapshotStore {
         };
         let quote_envelope = envelope_from_tick(normalized.clone());
 
-        self.snapshots.write().await.insert(
+        self.snapshots.upsert(
             snapshot_key(normalized.exchange, normalized.market, &normalized.symbol),
             normalized.clone(),
         );
         self.quote_snapshots
-            .write()
-            .await
-            .insert(quote_snapshot_key(&quote_envelope), quote_envelope.clone());
+            .upsert(quote_snapshot_key(&quote_envelope), quote_envelope.clone());
 
         (normalized, quote_envelope)
     }
 
-    pub async fn upsert_funding(&self, tick: &FundingRateTick) {
+    pub fn upsert_funding(&self, tick: &FundingRateTick) {
         self.funding_snapshots
-            .write()
-            .await
-            .insert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+            .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
     }
 
-    pub async fn upsert_open_interest(&self, tick: &OpenInterestTick) {
+    pub fn upsert_open_interest(&self, tick: &OpenInterestTick) {
         self.open_interest_snapshots
-            .write()
-            .await
-            .insert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+            .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
     }
 
-    pub async fn upsert_trade(&self, tick: &TradeTick) {
-        self.trade_snapshots.write().await.insert(
+    pub fn upsert_trade(&self, tick: &TradeTick) {
+        self.trade_snapshots.upsert(
             market_key(tick.exchange, tick.market, &tick.symbol),
             tick.clone(),
         );
     }
 
-    pub async fn upsert_liquidation(&self, tick: &LiquidationTick) {
+    pub fn upsert_liquidation(&self, tick: &LiquidationTick) {
         self.liquidation_snapshots
-            .write()
-            .await
-            .insert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+            .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
     }
 
-    pub async fn upsert_order_book(&self, tick: &OrderBookTick) {
-        self.order_book_snapshots.write().await.insert(
+    pub fn upsert_order_book(&self, tick: &OrderBookTick) {
+        self.order_book_snapshots.upsert(
             market_key(tick.exchange, tick.market, &tick.symbol),
             tick.clone(),
         );
     }
 
-    pub async fn upsert_external_signal(&self, tick: &ExternalSignalTick) {
+    pub fn upsert_external_signal(&self, tick: &ExternalSignalTick) {
         self.external_signal_snapshots
-            .write()
-            .await
-            .insert(external_signal_key(tick), tick.clone());
+            .upsert(external_signal_key(tick), tick.clone());
     }
 
     pub async fn snapshot_by_symbol(&self, symbol: &str) -> Vec<NormalizedTick> {
         let needle = symbol.to_ascii_uppercase();
         self.snapshots
-            .read()
-            .await
+            .snapshot()
             .values()
             .filter(|t| t.symbol.eq_ignore_ascii_case(&needle))
             .cloned()
@@ -142,70 +131,70 @@ impl EventSnapshotStore {
     }
 
     pub async fn snapshot_all(&self) -> Vec<NormalizedTick> {
-        self.snapshots.read().await.values().cloned().collect()
+        self.snapshots.values()
     }
 
     pub async fn quote_snapshot_all(&self) -> Vec<DataEnvelope<QuotePayload>> {
-        self.quote_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.quote_snapshots.values()
     }
 
     pub async fn funding_snapshot_all(&self) -> Vec<FundingRateTick> {
-        self.funding_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.funding_snapshots.values()
     }
 
     pub async fn open_interest_snapshot_all(&self) -> Vec<OpenInterestTick> {
-        self.open_interest_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.open_interest_snapshots.values()
     }
 
     pub async fn trade_snapshot_all(&self) -> Vec<TradeTick> {
-        self.trade_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.trade_snapshots.values()
     }
 
     pub async fn liquidation_snapshot_all(&self) -> Vec<LiquidationTick> {
-        self.liquidation_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.liquidation_snapshots.values()
     }
 
     pub async fn order_book_snapshot_all(&self) -> Vec<OrderBookTick> {
-        self.order_book_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.order_book_snapshots.values()
     }
 
     pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {
-        self.external_signal_snapshots
-            .read()
-            .await
-            .values()
-            .cloned()
-            .collect()
+        self.external_signal_snapshots.values()
+    }
+}
+
+struct SnapshotMap<T> {
+    inner: Arc<ArcSwap<HashMap<String, T>>>,
+}
+
+impl<T> Clone for SnapshotMap<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl<T: Clone> SnapshotMap<T> {
+    fn new() -> Self {
+        Self {
+            inner: Arc::new(ArcSwap::from_pointee(HashMap::new())),
+        }
+    }
+
+    fn upsert(&self, key: String, value: T) {
+        let current = self.inner.load();
+        let mut next = (**current).clone();
+        next.insert(key, value);
+        self.inner.store(Arc::new(next));
+    }
+
+    fn snapshot(&self) -> Arc<HashMap<String, T>> {
+        self.inner.load_full()
+    }
+
+    fn values(&self) -> Vec<T> {
+        self.snapshot().values().cloned().collect()
     }
 }
 
