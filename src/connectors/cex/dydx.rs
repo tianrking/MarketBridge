@@ -34,10 +34,11 @@ impl ExchangeSource for DydxFeed {
         let markets_ctx = ctx.clone();
         let markets = self.markets.clone();
         let markets_for_rest = self.markets.clone();
-        tokio::select! {
-            result = run_dydx_ws(&markets, ws_ctx) => result,
-            result = run_dydx_markets_poll(&markets_for_rest, markets_ctx) => result,
-        }
+        tokio::try_join!(
+            run_dydx_ws(&markets, ws_ctx),
+            run_dydx_markets_poll(&markets_for_rest, markets_ctx),
+        )?;
+        Ok(())
     }
 }
 
