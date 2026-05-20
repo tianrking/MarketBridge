@@ -19,7 +19,10 @@ use aggregator::SpreadAggregator;
 use api::{ApiState, build_router};
 use config::AppConfig;
 use connectors::cex::registry::build_sources;
-use deribit_cache::{DeribitOptionCache, spawn_deribit_option_cache, spawn_okx_option_cache};
+use deribit_cache::{
+    DeribitOptionCache, spawn_bybit_option_cache, spawn_deribit_option_cache,
+    spawn_okx_option_cache,
+};
 use event_bus::EventBus;
 use metrics::AppMetrics;
 use polymarket_ws::{PolymarketBookCache, spawn_polymarket_ws_cache};
@@ -114,6 +117,15 @@ async fn main() -> anyhow::Result<()> {
         )
     });
 
+    let bybit_options_task = cfg.bybit_options.enabled.then(|| {
+        spawn_bybit_option_cache(
+            cfg.bybit_options.clone(),
+            http.clone(),
+            deribit_cache.clone(),
+            shutdown.clone(),
+        )
+    });
+
     let polymarket_task = cfg.polymarket.enabled.then(|| {
         spawn_polymarket_ws_cache(
             cfg.polymarket.clone(),
@@ -153,6 +165,10 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(okx_options_task) = okx_options_task {
         let _ = okx_options_task.await;
+    }
+
+    if let Some(bybit_options_task) = bybit_options_task {
+        let _ = bybit_options_task.await;
     }
 
     if let Some(polymarket_task) = polymarket_task {

@@ -6,7 +6,8 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::config::{DeribitConfig, OkxOptionsConfig};
+use crate::config::{BybitOptionsConfig, DeribitConfig, OkxOptionsConfig};
+use crate::connectors::options::bybit::fetch_bybit_option_summaries_from;
 use crate::connectors::options::common::OptionSummary;
 use crate::connectors::options::deribit::fetch_deribit_option_summaries_from;
 use crate::connectors::options::okx::fetch_okx_option_summaries_from;
@@ -205,6 +206,42 @@ pub fn spawn_okx_option_cache(
                     }
                     Err(error) => {
                         warn!(currency, %error, "okx option cache refresh failed");
+                    }
+                }
+            }
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
+            }
+        }
+    })
+}
+
+pub fn spawn_bybit_option_cache(
+    cfg: BybitOptionsConfig,
+    client: reqwest::Client,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let currencies = normalized_currencies(&cfg.currencies);
+        if currencies.is_empty() {
+            warn!("bybit option cache enabled with empty currencies");
+            return;
+        }
+        loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            for currency in &currencies {
+                match fetch_bybit_option_summaries_from(&client, &cfg.base_url, currency).await {
+                    Ok(rows) => {
+                        let count = rows.len();
+                        cache.replace_venue_currency("bybit", currency, rows).await;
+                        info!(currency, count, "bybit option cache refreshed");
+                    }
+                    Err(error) => {
+                        warn!(currency, %error, "bybit option cache refresh failed");
                     }
                 }
             }
