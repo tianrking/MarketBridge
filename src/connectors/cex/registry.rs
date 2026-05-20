@@ -376,9 +376,9 @@ mod tests {
     use super::*;
     use crate::config::{
         AggregatesConfig, AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig,
-        DefiConfig, DeribitConfig, ExchangeConfig, FeeModel, KlineConfig, OkxOptionsConfig,
-        OnchainConfig, PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig,
-        TradfiConfig,
+        DefiConfig, DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig,
+        PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
+        fees::FeeModel,
     };
     use std::collections::HashMap;
 
