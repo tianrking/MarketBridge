@@ -313,6 +313,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             cfg.tradfi.dxy.clone(),
         )));
     }
+    if cfg.tradfi.vix.enabled {
+        out.push(Arc::new(YahooChartPoller::new(
+            "vix",
+            cfg.tradfi.vix.clone(),
+        )));
+    }
 
     out
 }
