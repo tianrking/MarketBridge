@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::config::DeribitConfig;
@@ -121,6 +122,7 @@ pub fn spawn_deribit_option_cache(
     cfg: DeribitConfig,
     client: reqwest::Client,
     cache: DeribitOptionCache,
+    shutdown: CancellationToken,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let currencies = cfg
@@ -134,6 +136,9 @@ pub fn spawn_deribit_option_cache(
             return;
         }
         loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
             for currency in &currencies {
                 match fetch_deribit_option_summaries_from(&client, &cfg.base_url, currency).await {
                     Ok(rows) => {
@@ -146,7 +151,10 @@ pub fn spawn_deribit_option_cache(
                     }
                 }
             }
-            tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))).await;
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
+            }
         }
     })
 }

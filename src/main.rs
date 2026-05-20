@@ -66,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
         polymarket_cache: polymarket_cache.clone(),
     });
     let api_addr = cfg.runtime.api_addr.clone();
+    let api_shutdown = shutdown.clone();
     let api_task = tokio::spawn(async move {
         let listener = match tokio::net::TcpListener::bind(&api_addr).await {
             Ok(l) => l,
@@ -75,7 +76,12 @@ async fn main() -> anyhow::Result<()> {
             }
         };
         info!(addr=%api_addr, "api server started");
-        if let Err(e) = axum::serve(listener, api_router).await {
+        if let Err(e) = axum::serve(listener, api_router)
+            .with_graceful_shutdown(async move {
+                api_shutdown.cancelled().await;
+            })
+            .await
+        {
             error!(error=%e, "api server failed");
         }
     });
@@ -86,18 +92,27 @@ async fn main() -> anyhow::Result<()> {
             url,
             cfg.runtime.redis_stream_prefix.clone(),
             metrics.clone(),
+            shutdown.clone(),
         )
     });
 
-    let deribit_task = cfg
-        .deribit
-        .enabled
-        .then(|| spawn_deribit_option_cache(cfg.deribit.clone(), http.clone(), deribit_cache));
+    let deribit_task = cfg.deribit.enabled.then(|| {
+        spawn_deribit_option_cache(
+            cfg.deribit.clone(),
+            http.clone(),
+            deribit_cache,
+            shutdown.clone(),
+        )
+    });
 
-    let polymarket_task = cfg
-        .polymarket
-        .enabled
-        .then(|| spawn_polymarket_ws_cache(cfg.polymarket.clone(), http.clone(), polymarket_cache));
+    let polymarket_task = cfg.polymarket.enabled.then(|| {
+        spawn_polymarket_ws_cache(
+            cfg.polymarket.clone(),
+            http.clone(),
+            polymarket_cache,
+            shutdown.clone(),
+        )
+    });
 
     let (agg_tx, agg_rx) = mpsc::channel::<DataEvent>(cfg.runtime.queue_capacity);
     let router = EventRouter::new(handle.rx, agg_tx, bus.clone(), metrics.clone());
@@ -119,30 +134,24 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    router_task.abort();
-    let _ = router_task.await;
-
-    api_task.abort();
-    let _ = api_task.await;
-
     if let Some(redis_task) = redis_task {
-        redis_task.abort();
         let _ = redis_task.await;
     }
 
     if let Some(deribit_task) = deribit_task {
-        deribit_task.abort();
         let _ = deribit_task.await;
     }
 
     if let Some(polymarket_task) = polymarket_task {
-        polymarket_task.abort();
         let _ = polymarket_task.await;
     }
 
     for t in tasks.drain(..) {
         let _ = t.await;
     }
+
+    let _ = router_task.await;
+    let _ = api_task.await;
 
     Ok(())
 }

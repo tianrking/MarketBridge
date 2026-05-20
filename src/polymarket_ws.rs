@@ -8,6 +8,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::config::PolymarketConfig;
@@ -255,13 +256,20 @@ pub fn spawn_polymarket_ws_cache(
     cfg: PolymarketConfig,
     client: reqwest::Client,
     cache: PolymarketBookCache,
+    shutdown: CancellationToken,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            if let Err(error) = run_polymarket_ws_cache(&cfg, &client, &cache).await {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            if let Err(error) = run_polymarket_ws_cache(&cfg, &client, &cache, &shutdown).await {
                 warn!(%error, "polymarket ws cache cycle failed");
             }
-            tokio::time::sleep(Duration::from_secs(3)).await;
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(3)) => {}
+            }
         }
     })
 }
@@ -270,6 +278,7 @@ async fn run_polymarket_ws_cache(
     cfg: &PolymarketConfig,
     client: &reqwest::Client,
     cache: &PolymarketBookCache,
+    shutdown: &CancellationToken,
 ) -> Result<()> {
     if cfg.chunk_size == 0 {
         bail!("polymarket chunk_size must be > 0");
@@ -279,7 +288,10 @@ async fn run_polymarket_ws_cache(
             .await?;
     if response.clob_asset_ids.is_empty() {
         warn!("polymarket discovery returned no crypto CLOB assets");
-        tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))).await;
+        tokio::select! {
+            _ = shutdown.cancelled() => return Ok(()),
+            _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
+        }
         return Ok(());
     }
 
@@ -300,13 +312,14 @@ async fn run_polymarket_ws_cache(
         markets = response.markets.len(),
         "polymarket ws cache subscribing"
     );
-    run_ws_connection(cfg, cache, &response.clob_asset_ids).await
+    run_ws_connection(cfg, cache, &response.clob_asset_ids, shutdown).await
 }
 
 async fn run_ws_connection(
     cfg: &PolymarketConfig,
     cache: &PolymarketBookCache,
     assets: &[String],
+    shutdown: &CancellationToken,
 ) -> Result<()> {
     let (mut socket, _) = connect_async(&cfg.ws_url)
         .await
@@ -329,6 +342,9 @@ async fn run_ws_connection(
     let mut refresh = tokio::time::interval(Duration::from_secs(cfg.refresh_secs.max(1)));
     loop {
         tokio::select! {
+            _ = shutdown.cancelled() => {
+                return Ok(());
+            }
             _ = ping.tick() => {
                 socket.send(Message::Text("PING".into())).await?;
             }

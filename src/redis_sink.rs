@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::event_bus::EventBus;
@@ -16,6 +17,7 @@ pub fn spawn_redis_sink(
     redis_url: String,
     stream_prefix: String,
     metrics: Arc<AppMetrics>,
+    shutdown: CancellationToken,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut rx = bus.subscribe();
@@ -29,6 +31,9 @@ pub fn spawn_redis_sink(
         };
 
         let mut conn = loop {
+            if shutdown.is_cancelled() {
+                return;
+            }
             match client.get_multiplexed_tokio_connection().await {
                 Ok(c) => {
                     info!("redis sink connected");
@@ -36,13 +41,20 @@ pub fn spawn_redis_sink(
                 }
                 Err(e) => {
                     warn!(error = %e, "redis connect failed, retrying");
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    tokio::select! {
+                        _ = shutdown.cancelled() => return,
+                        _ = tokio::time::sleep(Duration::from_secs(2)) => {}
+                    }
                 }
             }
         };
 
         loop {
-            match rx.recv().await {
+            let received = tokio::select! {
+                _ = shutdown.cancelled() => break,
+                received = rx.recv() => received,
+            };
+            match received {
                 Ok(t) => {
                     let stream = format!("{}:{}", stream_prefix, t.symbol.to_ascii_uppercase());
                     let payload = serde_json::to_string(&t).unwrap_or_else(|_| "{}".to_string());
@@ -80,7 +92,10 @@ pub fn spawn_redis_sink(
                                         warn!(error=%e2, "redis reconnect failed");
                                     }
                                 }
-                                tokio::time::sleep(backoff).await;
+                                tokio::select! {
+                                    _ = shutdown.cancelled() => return,
+                                    _ = tokio::time::sleep(backoff) => {}
+                                }
                                 backoff =
                                     (backoff * 2).min(Duration::from_millis(XADD_MAX_BACKOFF_MS));
                             }
