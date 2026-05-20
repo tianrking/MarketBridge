@@ -6,6 +6,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
+use crate::api::error::{multi_status, upstream_error};
 use crate::api::utils::parse_csv_vec;
 use crate::connectors::prediction::polymarket::{
     fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
@@ -52,16 +53,9 @@ pub async fn polymarket_crypto_markets(
             "max_offset": max_offset,
             "markets": response.markets,
             "clob_asset_ids": response.clob_asset_ids
-        })),
-        Err(error) => Json(serde_json::json!({
-            "source": "polymarket_gamma",
-            "gamma_base_url": gamma_base_url,
-            "limit": limit,
-            "max_offset": max_offset,
-            "error": error.to_string(),
-            "markets": [],
-            "clob_asset_ids": []
-        })),
+        }))
+        .into_response(),
+        Err(error) => upstream_error("polymarket_gamma", error),
     }
 }
 
@@ -97,13 +91,9 @@ pub async fn polymarket_book(
         Ok(book) => Json(serde_json::json!({
             "source": "polymarket_clob",
             "book": book
-        })),
-        Err(error) => Json(serde_json::json!({
-            "source": "polymarket_clob",
-            "token_id": q.token_id,
-            "error": error.to_string(),
-            "book": null
-        })),
+        }))
+        .into_response(),
+        Err(error) => upstream_error("polymarket_clob", error),
     }
 }
 
@@ -124,11 +114,16 @@ pub async fn polymarket_books(
             })),
         }
     }
-    Json(serde_json::json!({
+    let body = serde_json::json!({
         "source": "polymarket_clob",
         "books": books,
         "errors": errors
-    }))
+    });
+    if errors.is_empty() {
+        Json(body).into_response()
+    } else {
+        multi_status(body)
+    }
 }
 
 pub async fn polymarket_crypto_books(
@@ -143,13 +138,13 @@ pub async fn polymarket_crypto_books(
     let market_response =
         fetch_polymarket_crypto_markets(&state.http, &gamma_base_url, limit, max_offset).await;
     let Ok(market_response) = market_response else {
-        return Json(serde_json::json!({
-            "source": "polymarket_clob",
-            "error": market_response.err().map(|e| e.to_string()).unwrap_or_default(),
-            "markets": [],
-            "books": [],
-            "errors": []
-        }));
+        return upstream_error(
+            "polymarket_gamma",
+            market_response
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default(),
+        );
     };
     let results = fetch_polymarket_books(&state.http, &market_response.clob_asset_ids).await;
     let mut books = Vec::new();
@@ -168,12 +163,17 @@ pub async fn polymarket_crypto_books(
             })),
         }
     }
-    Json(serde_json::json!({
+    let body = serde_json::json!({
         "source": "polymarket_clob",
         "markets": market_response.markets,
         "books": books,
         "errors": errors
-    }))
+    });
+    if errors.is_empty() {
+        Json(body).into_response()
+    } else {
+        multi_status(body)
+    }
 }
 
 pub async fn polymarket_live_books(
@@ -204,12 +204,13 @@ pub async fn polymarket_live_crypto_books(
     let market_response =
         fetch_polymarket_crypto_markets(&state.http, &gamma_base_url, limit, max_offset).await;
     let Ok(market_response) = market_response else {
-        return Json(serde_json::json!({
-            "source": "polymarket_clob_ws_cache",
-            "error": market_response.err().map(|e| e.to_string()).unwrap_or_default(),
-            "markets": [],
-            "books": []
-        }));
+        return upstream_error(
+            "polymarket_gamma",
+            market_response
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default(),
+        );
     };
     let books = state
         .polymarket_cache
@@ -220,4 +221,5 @@ pub async fn polymarket_live_crypto_books(
         "markets": market_response.markets,
         "books": books
     }))
+    .into_response()
 }

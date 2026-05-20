@@ -8,6 +8,7 @@ use crate::event_bus::EventBus;
 use crate::metrics::AppMetrics;
 use crate::polymarket_ws::PolymarketBookCache;
 
+pub mod error;
 pub mod routes;
 pub mod utils;
 
