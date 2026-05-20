@@ -69,6 +69,13 @@ impl SpreadAggregator {
                         Some(DataEvent::Heartbeat { exchange, ts_ms }) => {
                             debug!(exchange, ts_ms, "heartbeat");
                         }
+                        Some(
+                            DataEvent::FundingRate(_)
+                            | DataEvent::OpenInterest(_)
+                            | DataEvent::Trade(_)
+                            | DataEvent::Liquidation(_)
+                            | DataEvent::OrderBook(_),
+                        ) => {}
                         None => break,
                     }
                 }

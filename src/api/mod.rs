@@ -30,6 +30,20 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/v1/catalog/instruments", get(routes::catalog::instruments))
         .route("/v1/catalog/health", get(routes::catalog::health))
         .route("/v1/market/quotes", get(routes::market::v1_market_quotes))
+        .route("/v1/market/funding", get(routes::market::v1_market_funding))
+        .route(
+            "/v1/market/open-interest",
+            get(routes::market::v1_market_open_interest),
+        )
+        .route("/v1/market/trades", get(routes::market::v1_market_trades))
+        .route(
+            "/v1/market/liquidations",
+            get(routes::market::v1_market_liquidations),
+        )
+        .route(
+            "/v1/market/order-books",
+            get(routes::market::v1_market_order_books),
+        )
         .route(
             "/v1/options/chains",
             get(routes::options::v1_options_chains),

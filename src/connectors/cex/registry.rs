@@ -3,7 +3,10 @@ use std::sync::Arc;
 use crate::config::AppConfig;
 use crate::source::ExchangeSource;
 
-use super::binance::BinanceBookTicker;
+use super::binance::{
+    BinanceBookTicker, BinanceDepthFeed, BinanceFundingTicker, BinanceLiquidationFeed,
+    BinanceOpenInterestPoller, BinanceTradeFeed,
+};
 use super::binance_perp::BinancePerpBookTicker;
 use super::bitfinex::BitfinexTicker;
 use super::bitfinex_perp::BitfinexPerpTicker;
@@ -115,9 +118,34 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(BinanceBookTicker::new(
                         spot_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
+                    out.push(Arc::new(BinanceDepthFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BinanceTradeFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(BinancePerpBookTicker::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BinanceFundingTicker::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BinanceOpenInterestPoller::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BinanceLiquidationFeed::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BinanceDepthFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BinanceTradeFeed::new(
+                        crate::types::MarketKind::Perp,
                         perp_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
                 }
@@ -267,6 +295,12 @@ mod tests {
             .into_iter()
             .map(|source| source.name())
             .collect::<Vec<_>>();
-        assert_eq!(source_names, vec!["binance", "binance"]);
+        assert_eq!(
+            source_names,
+            vec![
+                "binance", "binance", "binance", "binance", "binance", "binance", "binance",
+                "binance", "binance"
+            ]
+        );
     }
 }

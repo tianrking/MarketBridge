@@ -1,12 +1,15 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MarketKind {
     Spot,
     Perp,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MarketTick {
     pub exchange: &'static str,
     pub market: MarketKind,
@@ -18,9 +21,81 @@ pub struct MarketTick {
     pub ts_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct FundingRateTick {
+    pub exchange: &'static str,
+    pub symbol: Box<str>,
+    pub funding_rate: f64,
+    pub next_funding_time_ms: Option<u64>,
+    pub mark_price: Option<f64>,
+    pub index_price: Option<f64>,
+    pub ts_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OpenInterestTick {
+    pub exchange: &'static str,
+    pub symbol: Box<str>,
+    pub open_interest: f64,
+    pub open_interest_value: Option<f64>,
+    pub ts_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TradeSide {
+    Buy,
+    Sell,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TradeTick {
+    pub exchange: &'static str,
+    pub market: MarketKind,
+    pub symbol: Box<str>,
+    pub price: f64,
+    pub qty: f64,
+    pub side: TradeSide,
+    pub trade_id: Option<Box<str>>,
+    pub ts_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiquidationTick {
+    pub exchange: &'static str,
+    pub symbol: Box<str>,
+    pub side: TradeSide,
+    pub price: f64,
+    pub qty: f64,
+    pub ts_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BookLevel {
+    pub price: f64,
+    pub qty: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OrderBookTick {
+    pub exchange: &'static str,
+    pub market: MarketKind,
+    pub symbol: Box<str>,
+    pub bids: Vec<BookLevel>,
+    pub asks: Vec<BookLevel>,
+    pub last_update_id: Option<u64>,
+    pub ts_ms: u64,
+}
+
 #[derive(Debug, Clone)]
 pub enum DataEvent {
     Tick(MarketTick),
+    FundingRate(FundingRateTick),
+    OpenInterest(OpenInterestTick),
+    Trade(TradeTick),
+    Liquidation(LiquidationTick),
+    OrderBook(OrderBookTick),
     Heartbeat { exchange: &'static str, ts_ms: u64 },
 }
 
