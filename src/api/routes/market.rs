@@ -8,6 +8,7 @@ use serde::Deserialize;
 use crate::api::ApiState;
 use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::ProductType;
+use crate::klines::KlineQuery;
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
     symbols: Option<String>,
@@ -21,6 +22,17 @@ pub struct MarketDataQuery {
     symbols: Option<String>,
     exchanges: Option<String>,
     market: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct KlinesQuery {
+    exchange: Option<String>,
+    market: Option<String>,
+    symbol: Option<String>,
+    interval: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
 }
 
 pub async fn v1_market_quotes(
@@ -155,6 +167,40 @@ pub async fn v1_market_trades(
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(b.exchange)));
     Json(serde_json::json!({"version":"v1","domain":"market_trade","trades":rows}))
+}
+
+pub async fn v1_market_klines(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<KlinesQuery>,
+) -> impl IntoResponse {
+    let query = KlineQuery {
+        exchange: q.exchange.map(|x| x.trim().to_ascii_lowercase()),
+        market: q.market.map(|x| x.trim().to_ascii_lowercase()),
+        symbol: q.symbol.map(|x| x.trim().to_ascii_uppercase()),
+        interval: q.interval.map(|x| x.trim().to_string()),
+        start_ms: q.start_ms,
+        end_ms: q.end_ms,
+        limit: q.limit.unwrap_or(500),
+    };
+    match state.kline_store.query(query).await {
+        Ok(mut rows) => {
+            rows.sort_by(|a, b| {
+                a.exchange
+                    .cmp(&b.exchange)
+                    .then(a.market.cmp(&b.market))
+                    .then(a.symbol.cmp(&b.symbol))
+                    .then(a.interval.cmp(&b.interval))
+                    .then(a.open_time_ms.cmp(&b.open_time_ms))
+            });
+            Json(serde_json::json!({"version":"v1","domain":"market_kline","klines":rows}))
+        }
+        Err(error) => Json(serde_json::json!({
+            "version":"v1",
+            "domain":"market_kline",
+            "error": error.to_string(),
+            "klines": []
+        })),
+    }
 }
 
 pub async fn v1_market_liquidations(

@@ -425,6 +425,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
 | GET | `/v1/market/order-books` | Latest L2 book snapshots |
 | GET | `/v1/market/trades` | Latest public trade snapshots |
+| GET | `/v1/market/klines` | SQLite-backed OHLCV bars from historical REST and realtime tick aggregation |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
@@ -539,6 +540,37 @@ Examples:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=perp" | jq
+```
+
+### `GET /v1/market/klines`
+
+SQLite-backed OHLCV bars. Historical REST backfill supports Binance and OKX;
+realtime bars are aggregated from live quote ticks and written once per update
+batch. Enable it in config:
+
+```yaml
+klines:
+  enabled: true
+  sqlite_path: "data/marketbridge.sqlite"
+  intervals: [1m, 5m, 15m, 1h]
+  history_limit: 1500
+  backfill_on_start: false
+  sources: [binance, okx]
+```
+
+Query params:
+
+- `exchange=binance|okx|...`
+- `market=spot|perp`
+- `symbol=BTCUSDT`
+- `interval=1m|5m|15m|1h`
+- `start_ms`, `end_ms`, optional Unix milliseconds
+- `limit`, default `500`, max `5000`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
 ```
 
 ### `GET /v1/options/chains`

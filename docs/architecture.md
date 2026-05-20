@@ -353,6 +353,8 @@ event fanout in `src/event_bus.rs`.
   bus worker so snapshot publication does not sit on the router hot path.
 - `redis_sink.rs`: optional Redis Stream persistence with batched `XADD`
   pipelines; the service remains a live data bridge when Redis is disabled.
+- `klines.rs`: SQLite-backed OHLCV storage, historical Binance/OKX REST
+  backfill, and realtime tick-to-candle aggregation.
 
 This split is deliberate: future optimizations such as pre-serialized bytes or
 sharded stores should stay in the runtime state layer without changing

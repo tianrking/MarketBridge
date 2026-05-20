@@ -9,6 +9,7 @@ mod deribit_cache;
 mod domains;
 mod event_bus;
 mod event_snapshots;
+mod klines;
 mod metrics;
 mod polymarket_ws;
 mod redis_sink;
@@ -26,6 +27,7 @@ use deribit_cache::{
     spawn_deribit_option_cache, spawn_okx_option_cache,
 };
 use event_bus::EventBus;
+use klines::{KlineStore, spawn_kline_service};
 use metrics::AppMetrics;
 use polymarket_ws::{PolymarketBookCache, spawn_polymarket_ws_cache};
 use redis_sink::spawn_redis_sink;
@@ -61,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
 
     let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
+    let kline_store = KlineStore::new(cfg.klines.sqlite_path.clone());
     let http = reqwest::Client::new();
 
     let api_router = build_router(ApiState {
@@ -70,6 +73,7 @@ async fn main() -> anyhow::Result<()> {
         http: http.clone(),
         deribit_cache: deribit_cache.clone(),
         polymarket_cache: polymarket_cache.clone(),
+        kline_store: kline_store.clone(),
     });
     let api_addr = cfg.runtime.api_addr.clone();
     let api_shutdown = shutdown.clone();
@@ -147,6 +151,17 @@ async fn main() -> anyhow::Result<()> {
         )
     });
 
+    let kline_task = cfg.klines.enabled.then(|| {
+        spawn_kline_service(
+            cfg.klines.clone(),
+            cfg.clone(),
+            http.clone(),
+            bus.clone(),
+            kline_store.clone(),
+            shutdown.clone(),
+        )
+    });
+
     let (agg_tx, agg_rx) = mpsc::channel::<DataEvent>(cfg.runtime.queue_capacity);
     let router = EventRouter::new(handle.rx, agg_tx, bus.clone(), metrics.clone());
     let router_task = tokio::spawn(router.run());
@@ -189,6 +204,10 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(polymarket_task) = polymarket_task {
         let _ = polymarket_task.await;
+    }
+
+    if let Some(kline_task) = kline_task {
+        let _ = kline_task.await;
     }
 
     for t in tasks.drain(..) {

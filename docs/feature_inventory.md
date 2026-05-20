@@ -21,6 +21,7 @@ Status labels:
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
 | Order books | `/v1/market/order-books` | implemented | keyless | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | keyless | Latest trade per venue/symbol. |
+| Klines | `/v1/market/klines` | implemented | keyless | SQLite-backed historical/rest and realtime tick-aggregated OHLCV bars. |
 | Options chains | `/v1/options/chains` | implemented | keyless | Deribit/OKX/Bybit/Binance REST cache. |
 | Prediction books | `/v1/prediction/books` | implemented | keyless | Polymarket live CLOB cache. |
 | External signals | `/v1/external/signals` | implemented | mixed | CoinGlass, news, social, sentiment. |
@@ -102,3 +103,4 @@ Status labels:
 | Dynamic catalog from runtime config | implemented | P2 | `/v1/catalog/sources` reports `enabled`, `available`, or `enabled_missing_api_key` from the active config. |
 | Aggregator extended event analytics | planned | P1 | Funding/OI/book/trade/liquidation are stored by API but ignored by spread engine. |
 | Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.1 Linux/macOS/Windows packages with binary, configs, README, and docs. |
+| SQLite kline store | implemented | P1 | `klines.enabled` stores Binance/OKX historical candles and realtime tick bars in `klines.sqlite_path`. |

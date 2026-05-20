@@ -22,6 +22,14 @@ strategy:
   min_signal_hold_ms: 500
   slippage_bps: 0.5
 
+klines:
+  enabled: true
+  sqlite_path: "data/marketbridge.sqlite"
+  intervals: [1m, 5m, 15m, 1h]
+  history_limit: 1500
+  backfill_on_start: false
+  sources: [binance, okx]
+
 # Global defaults (spot/perp), can be overridden per exchange below.
 symbols: [BTCUSDT, ETHUSDT]
 perp_symbols: [BTCUSDT, ETHUSDT]

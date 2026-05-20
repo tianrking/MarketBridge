@@ -90,6 +90,15 @@ polymarket:
   chunk_size: 500
   stale_ttl_ms: 1500
 
+klines:
+  # Stores historical REST candles and realtime tick-aggregated candles in SQLite.
+  enabled: true
+  sqlite_path: "data/marketbridge.sqlite"
+  intervals: [1m, 5m, 15m, 1h]
+  history_limit: 1500
+  backfill_on_start: false
+  sources: [binance, okx]
+
 defi:
   jupiter:
     enabled: false

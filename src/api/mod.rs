@@ -6,6 +6,7 @@ use axum::routing::get;
 use crate::config::AppConfig;
 use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
+use crate::klines::KlineStore;
 use crate::metrics::AppMetrics;
 use crate::polymarket_ws::PolymarketBookCache;
 
@@ -22,6 +23,7 @@ pub struct ApiState {
     pub http: reqwest::Client,
     pub deribit_cache: DeribitOptionCache,
     pub polymarket_cache: PolymarketBookCache,
+    pub kline_store: KlineStore,
 }
 
 pub fn build_router(state: ApiState) -> Router {
@@ -39,6 +41,7 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::market::v1_market_open_interest),
         )
         .route("/v1/market/trades", get(routes::market::v1_market_trades))
+        .route("/v1/market/klines", get(routes::market::v1_market_klines))
         .route(
             "/v1/market/liquidations",
             get(routes::market::v1_market_liquidations),

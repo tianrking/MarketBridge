@@ -437,8 +437,8 @@ mod tests {
     use super::*;
     use crate::config::{
         AggregatesConfig, AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig,
-        DefiConfig, DeribitConfig, ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig,
-        RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
+        DefiConfig, DeribitConfig, ExchangeConfig, FeeModel, KlineConfig, OkxOptionsConfig,
+        PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
     };
     use std::collections::HashMap;
 
@@ -485,6 +485,7 @@ mod tests {
             tradfi: TradfiConfig::default(),
             aggregates: AggregatesConfig::default(),
             sentiment: SentimentConfig::default(),
+            klines: KlineConfig::default(),
             symbols: vec!["BTCUSDT".to_string()],
             perp_symbols: Some(vec!["BTCUSDT".to_string()]),
             exchanges: HashMap::from([(

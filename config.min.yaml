@@ -31,6 +31,14 @@ polymarket:
   chunk_size: 500
   stale_ttl_ms: 1500
 
+klines:
+  enabled: true
+  sqlite_path: "data/marketbridge.sqlite"
+  intervals: [1m, 5m]
+  history_limit: 500
+  backfill_on_start: false
+  sources: [binance, okx]
+
 symbols: [BTCUSDT]
 
 exchanges:
