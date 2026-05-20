@@ -98,6 +98,11 @@ exchanges:
     perp_symbols: [ETHUSDT, BTCUSDT]
     fee: { mode: fixed, maker_bps: -2.0, taker_bps: 5.0 }
 
+  dexalot:
+    enabled: true
+    symbols: [BTCUSDC, AVAXUSDC]
+    fee: { mode: fixed, maker_bps: 10.0, taker_bps: 12.0 }
+
   kucoin:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

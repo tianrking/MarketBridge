@@ -39,6 +39,7 @@ use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitT
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
 use super::derive::{DerivePerpFeed, DeriveSpotFeed};
+use super::dexalot::DexalotSpotFeed;
 use super::dydx::DydxFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
@@ -228,6 +229,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                         perp_symbols.iter().map(|s| to_derive_perp(s)).collect(),
                     )));
                 }
+            }
+            "dexalot" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(DexalotSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_slash(s)).collect(),
+                )));
             }
             "coinbase" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(CoinbaseTicker::new(

@@ -14,6 +14,7 @@ pub mod bybit_perp;
 pub mod coinbase;
 pub mod common;
 pub mod derive;
+pub mod dexalot;
 pub mod dydx;
 pub mod gate;
 pub mod gate_perp;

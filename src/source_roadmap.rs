@@ -181,9 +181,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "CLOB DEX source with Hummingbot guide; good model for non-CEX order-book normalization.",
+        notes: "Public CLOB DEX spot order books and trades are wired with EVM decimal conversion.",
     },
     RoadmapSource {
         source: "foxbit",

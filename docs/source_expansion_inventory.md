@@ -252,6 +252,7 @@ bitstamp
 btc_markets
 bybit
 derive
+dexalot
 coinbase
 deribit
 dydx
