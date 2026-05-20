@@ -10,6 +10,8 @@ use crate::types::BackpressureMode;
 pub struct AppConfig {
     pub runtime: RuntimeConfig,
     pub strategy: StrategyConfig,
+    #[serde(default)]
+    pub polymarket: PolymarketConfig,
     pub symbols: Vec<String>,
     pub perp_symbols: Option<Vec<String>>,
     pub exchanges: HashMap<String, ExchangeConfig>,
@@ -42,6 +44,28 @@ pub struct StrategyConfig {
     pub min_profit_bps: f64,
     pub min_signal_hold_ms: u64,
     pub slippage_bps: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PolymarketConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_polymarket_ws_url")]
+    pub ws_url: String,
+    #[serde(default = "default_polymarket_gamma_base_url")]
+    pub gamma_base_url: String,
+    #[serde(default = "default_polymarket_limit")]
+    pub limit: usize,
+    #[serde(default = "default_polymarket_max_offset")]
+    pub max_offset: usize,
+    #[serde(default = "default_polymarket_refresh_secs")]
+    pub refresh_secs: u64,
+    #[serde(default = "default_polymarket_ping_secs")]
+    pub ping_secs: u64,
+    #[serde(default = "default_polymarket_chunk_size")]
+    pub chunk_size: usize,
+    #[serde(default = "default_polymarket_stale_ttl_ms")]
+    pub stale_ttl_ms: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -171,6 +195,54 @@ fn default_api_addr() -> String {
 
 fn default_redis_stream_prefix() -> String {
     "ticks".to_string()
+}
+
+fn default_polymarket_ws_url() -> String {
+    "wss://ws-subscriptions-clob.polymarket.com/ws/market".to_string()
+}
+
+fn default_polymarket_gamma_base_url() -> String {
+    "https://gamma-api.polymarket.com/".to_string()
+}
+
+fn default_polymarket_limit() -> usize {
+    500
+}
+
+fn default_polymarket_max_offset() -> usize {
+    5000
+}
+
+fn default_polymarket_refresh_secs() -> u64 {
+    300
+}
+
+fn default_polymarket_ping_secs() -> u64 {
+    10
+}
+
+fn default_polymarket_chunk_size() -> usize {
+    500
+}
+
+fn default_polymarket_stale_ttl_ms() -> u64 {
+    1500
+}
+
+impl Default for PolymarketConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            ws_url: default_polymarket_ws_url(),
+            gamma_base_url: default_polymarket_gamma_base_url(),
+            limit: default_polymarket_limit(),
+            max_offset: default_polymarket_max_offset(),
+            refresh_secs: default_polymarket_refresh_secs(),
+            ping_secs: default_polymarket_ping_secs(),
+            chunk_size: default_polymarket_chunk_size(),
+            stale_ttl_ms: default_polymarket_stale_ttl_ms(),
+        }
+    }
 }
 
 #[cfg(test)]

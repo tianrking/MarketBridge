@@ -13,6 +13,17 @@ strategy:
   min_signal_hold_ms: 0
   slippage_bps: 0.0
 
+polymarket:
+  enabled: false
+  ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/market"
+  gamma_base_url: "https://gamma-api.polymarket.com/"
+  limit: 500
+  max_offset: 500
+  refresh_secs: 300
+  ping_secs: 10
+  chunk_size: 500
+  stale_ttl_ms: 1500
+
 symbols: [BTCUSDT]
 
 exchanges:

@@ -209,7 +209,7 @@ pub async fn fetch_polymarket_books(
     out
 }
 
-fn summarize_book(book: PolymarketOrderBook) -> PolymarketBookSummary {
+pub fn summarize_book(book: PolymarketOrderBook) -> PolymarketBookSummary {
     let best_bid = book
         .bids
         .iter()
@@ -360,7 +360,10 @@ fn parse_base_asset(text: &str) -> Option<String> {
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|word| !word.is_empty())
         .collect::<Vec<_>>();
-    if words.iter().any(|word| *word == "bitcoin" || *word == "btc") {
+    if words
+        .iter()
+        .any(|word| *word == "bitcoin" || *word == "btc")
+    {
         Some("BTC".to_string())
     } else if words
         .iter()
@@ -397,9 +400,7 @@ fn extract_strike(text: &str, base_asset: &str) -> Option<f64> {
         }
         let raw = text[index + 1..]
             .chars()
-            .take_while(|c| {
-                c.is_ascii_digit() || *c == '.' || *c == ',' || *c == 'k' || *c == 'm'
-            })
+            .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',' || *c == 'k' || *c == 'm')
             .collect::<String>();
         if let Some(value) = parse_amount_token(&raw) {
             return Some(value);

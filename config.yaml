@@ -35,6 +35,19 @@ strategy:
   # Conservative default for live trading realism.
   slippage_bps: 0.5
 
+polymarket:
+  # Mature data-plane path: maintain a live CLOB cache for parsed BTC/ETH
+  # binary markets. Disable if you only need exchange aggregation.
+  enabled: true
+  ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/market"
+  gamma_base_url: "https://gamma-api.polymarket.com/"
+  limit: 500
+  max_offset: 5000
+  refresh_secs: 300
+  ping_secs: 10
+  chunk_size: 500
+  stale_ttl_ms: 1500
+
 # Global default symbol list (used when exchange.symbols is omitted).
 # Format should be normalized symbols, e.g. BTCUSDT, ETHUSDT.
 symbols: [BTCUSDT, ETHUSDT]

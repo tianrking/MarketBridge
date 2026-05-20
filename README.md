@@ -157,7 +157,7 @@ management should stay outside this repo.
 | Single outcome CLOB book | Implemented | `GET /polymarket/book?token_id=...` | Returns full book plus best bid/ask, spread, bid/ask depth. |
 | Batch outcome CLOB books | Implemented | `GET /polymarket/books?token_ids=...` | Useful for Yes/No pair checks. |
 | Crypto markets plus books | Implemented | `GET /polymarket/crypto-books` | Convenience endpoint for strategy engines. |
-| Polymarket CLOB websocket cache | Not implemented | N/A | REST snapshots are available; low-latency maker logic still needs WS book cache. |
+| Polymarket CLOB websocket cache | Implemented first version | `GET /polymarket/live-books`, `GET /polymarket/live-crypto-books` | Seeds from REST snapshots, subscribes public CLOB websocket updates, and exposes `stale` for strategy-side freshness gates. |
 | Polymarket official SDK/CLI integration | Not implemented | N/A | Current implementation uses public REST endpoints. SDK/CLI integration is future work for authenticated execution and schema safety. |
 | Live order placement / cancel / replace | Not implemented | N/A | Execution belongs in a later trading/execution layer, not in this data-plane pass. |
 
@@ -173,15 +173,16 @@ For the crypto binary fair-value / market-making strategy discussed with
 | Deribit IV / option chain | Theoretical digital probability | Implemented REST first version | `/options/deribit/summary` |
 | Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
 | Polymarket Yes/No token ids | Subscribe/query executable prices | Implemented first version | `/polymarket/crypto-markets` |
-| Polymarket Yes/No bid/ask/depth | Entry, exit, pair discount, capacity | Implemented REST snapshot | `/polymarket/book`, `/polymarket/books`, `/polymarket/crypto-books` |
-| Stale/latency health | Decision input hygiene | Partially implemented | Exchange ticks have stale/latency; Polymarket REST book freshness is timestamp-only. |
+| Polymarket Yes/No bid/ask/depth | Entry, exit, pair discount, capacity | Implemented REST and live cache first versions | `/polymarket/book`, `/polymarket/books`, `/polymarket/crypto-books`, `/polymarket/live-books`, `/polymarket/live-crypto-books` |
+| Stale/latency health | Decision input hygiene | Implemented first version | Exchange ticks expose stale/latency; Polymarket live cache exposes `received_at_ms`, `source_latency_ms`, `source`, and `stale`. |
 | Paper decision/PnL loop | Validate signal after 5 minutes | Not implemented here | Belongs in `PolyAlpha`. |
 | Live execution | Real order submit/cancel/fills | Not implemented | Future execution layer; not approved for live trading. |
 
-Bottom line: `arb-hunter-rs` now provides the first complete REST-based data
-surface for paper decisions. It is not yet a low-latency production market-maker
-data plane because Polymarket CLOB websocket caching and authenticated execution
-are not implemented.
+Bottom line: `arb-hunter-rs` now provides a first mature data-plane surface for
+paper decisions: exchange BBO/funding, Deribit option summaries, Polymarket
+market discovery, REST books, and a live Polymarket CLOB cache. It is still not
+an execution engine: authenticated Polymarket order placement/cancel/replace and
+strategy PnL validation belong in later layers.
 
 ## API Overview
 
@@ -198,6 +199,8 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/polymarket/book` | Polymarket CLOB book summary for one token |
 | GET | `/polymarket/books` | Polymarket CLOB book summaries for token ids |
 | GET | `/polymarket/crypto-books` | Parsed crypto markets plus Yes/No CLOB books |
+| GET | `/polymarket/live-books` | Cached Polymarket CLOB books seeded by REST and patched by websocket |
+| GET | `/polymarket/live-crypto-books` | Parsed crypto markets plus cached Yes/No CLOB books |
 | GET | `/coverage` | Data quality dashboard model |
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
@@ -368,6 +371,61 @@ curl -s "http://127.0.0.1:8080/polymarket/books?token_ids=YES_TOKEN,NO_TOKEN" | 
 Convenience endpoint for strategy engines: parsed active BTC/ETH binary markets plus the current Yes/No CLOB book summaries.
 
 Query params are the same as `/polymarket/crypto-markets`.
+
+### `GET /polymarket/live-books`
+
+Cached Polymarket CLOB books for outcome token ids. The cache is populated by
+REST snapshots first, then patched by public Polymarket CLOB websocket events
+when they arrive.
+
+Enable the background cache in config:
+
+```yaml
+polymarket:
+  enabled: true
+  ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/market"
+  gamma_base_url: "https://gamma-api.polymarket.com/"
+  limit: 500
+  max_offset: 5000
+  refresh_secs: 300
+  ping_secs: 10
+  chunk_size: 500
+  stale_ttl_ms: 1500
+```
+
+Query params:
+
+- `token_ids` optional comma-separated token ids. If omitted, returns all cached books.
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/live-books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+```
+
+Key fields in `books[]`:
+
+- `source`: `polymarket_clob_rest` for seed snapshots, `polymarket_clob_ws` for websocket updates
+- `last_event_type`: `book`, `best_bid_ask`, or `price_change`
+- `best_bid`, `best_ask`, `spread`, `bid_depth`, `ask_depth`
+- `received_at_ms`, `source_latency_ms`, `stale`
+
+Decision runners should reject a Polymarket book when `stale=true` or when the
+source is not fresh enough for the intended holding period. This is deliberate:
+the data plane exposes truth, the strategy layer decides whether to trade.
+
+### `GET /polymarket/live-crypto-books`
+
+Parsed active BTC/ETH binary markets plus cached Yes/No books from the live
+Polymarket cache.
+
+Query params are the same as `/polymarket/crypto-markets`.
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/live-crypto-books?limit=500&max_offset=500" | jq
+```
 
 ### `GET /coverage`
 

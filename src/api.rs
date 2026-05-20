@@ -17,12 +17,14 @@ use crate::external::{
     fetch_polymarket_crypto_markets,
 };
 use crate::metrics::AppMetrics;
+use crate::polymarket_ws::PolymarketBookCache;
 
 #[derive(Clone)]
 pub struct ApiState {
     pub bus: EventBus,
     pub metrics: Arc<AppMetrics>,
     pub http: reqwest::Client,
+    pub polymarket_cache: PolymarketBookCache,
 }
 
 pub fn build_router(state: ApiState) -> Router {
@@ -36,6 +38,11 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/polymarket/book", get(polymarket_book))
         .route("/polymarket/books", get(polymarket_books))
         .route("/polymarket/crypto-books", get(polymarket_crypto_books))
+        .route("/polymarket/live-books", get(polymarket_live_books))
+        .route(
+            "/polymarket/live-crypto-books",
+            get(polymarket_live_crypto_books),
+        )
         .route("/coverage", get(coverage))
         .route("/metrics", get(metrics))
         .route(
@@ -387,6 +394,52 @@ async fn polymarket_crypto_books(
         "markets": market_response.markets,
         "books": books,
         "errors": errors
+    }))
+}
+
+async fn polymarket_live_books(
+    State(state): State<Arc<ApiState>>,
+    q: Option<Query<PolymarketBooksQuery>>,
+) -> impl IntoResponse {
+    let books = if let Some(Query(q)) = q {
+        let token_ids = parse_csv_vec(&q.token_ids);
+        state.polymarket_cache.by_ids(&token_ids).await
+    } else {
+        state.polymarket_cache.all().await
+    };
+    Json(serde_json::json!({
+        "source": "polymarket_clob_ws_cache",
+        "books": books
+    }))
+}
+
+async fn polymarket_live_crypto_books(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketCryptoMarketsQuery>,
+) -> impl IntoResponse {
+    let gamma_base_url = q
+        .gamma_base_url
+        .unwrap_or_else(|| "https://gamma-api.polymarket.com/".to_string());
+    let limit = q.limit.unwrap_or(500);
+    let max_offset = q.max_offset.unwrap_or(5000);
+    let market_response =
+        fetch_polymarket_crypto_markets(&state.http, &gamma_base_url, limit, max_offset).await;
+    let Ok(market_response) = market_response else {
+        return Json(serde_json::json!({
+            "source": "polymarket_clob_ws_cache",
+            "error": market_response.err().map(|e| e.to_string()).unwrap_or_default(),
+            "markets": [],
+            "books": []
+        }));
+    };
+    let books = state
+        .polymarket_cache
+        .by_ids(&market_response.clob_asset_ids)
+        .await;
+    Json(serde_json::json!({
+        "source": "polymarket_clob_ws_cache",
+        "markets": market_response.markets,
+        "books": books
     }))
 }
 

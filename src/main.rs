@@ -5,6 +5,7 @@ mod event_bus;
 mod exchanges;
 mod external;
 mod metrics;
+mod polymarket_ws;
 mod redis_sink;
 mod router;
 mod runtime;
@@ -17,6 +18,7 @@ use config::AppConfig;
 use event_bus::EventBus;
 use exchanges::registry::build_sources;
 use metrics::AppMetrics;
+use polymarket_ws::{PolymarketBookCache, spawn_polymarket_ws_cache};
 use redis_sink::spawn_redis_sink;
 use router::EventRouter;
 use runtime::SourceRuntime;
@@ -48,10 +50,14 @@ async fn main() -> anyhow::Result<()> {
 
     let bus = EventBus::new(8192, cfg.runtime.stale_ttl_ms);
 
+    let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
+    let http = reqwest::Client::new();
+
     let api_router = build_router(ApiState {
         bus: bus.clone(),
         metrics: metrics.clone(),
-        http: reqwest::Client::new(),
+        http: http.clone(),
+        polymarket_cache: polymarket_cache.clone(),
     });
     let api_addr = cfg.runtime.api_addr.clone();
     let api_task = tokio::spawn(async move {
@@ -76,6 +82,11 @@ async fn main() -> anyhow::Result<()> {
             metrics.clone(),
         )
     });
+
+    let polymarket_task = cfg
+        .polymarket
+        .enabled
+        .then(|| spawn_polymarket_ws_cache(cfg.polymarket.clone(), http.clone(), polymarket_cache));
 
     let (agg_tx, agg_rx) = mpsc::channel::<DataEvent>(cfg.runtime.queue_capacity);
     let router = EventRouter::new(handle.rx, agg_tx, bus.clone(), metrics.clone());
@@ -106,6 +117,11 @@ async fn main() -> anyhow::Result<()> {
     if let Some(redis_task) = redis_task {
         redis_task.abort();
         let _ = redis_task.await;
+    }
+
+    if let Some(polymarket_task) = polymarket_task {
+        polymarket_task.abort();
+        let _ = polymarket_task.await;
     }
 
     for t in tasks.drain(..) {
