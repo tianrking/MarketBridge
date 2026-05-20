@@ -125,7 +125,7 @@ pub async fn polymarket_books(
     let results = fetch_polymarket_books(&state.http, &token_ids).await;
     let mut books = Vec::new();
     let mut errors = Vec::new();
-    for (token_id, result) in token_ids.into_iter().zip(results.into_iter()) {
+    for (token_id, result) in token_ids.into_iter().zip(results) {
         match result {
             Ok(book) => books.push(book),
             Err(error) => errors.push(serde_json::json!({
@@ -289,12 +289,7 @@ pub async fn polymarket_crypto_books(
     let results = fetch_polymarket_books(&state.http, &market_response.clob_asset_ids).await;
     let mut books = Vec::new();
     let mut errors = Vec::new();
-    for (token_id, result) in market_response
-        .clob_asset_ids
-        .iter()
-        .cloned()
-        .zip(results.into_iter())
-    {
+    for (token_id, result) in market_response.clob_asset_ids.iter().cloned().zip(results) {
         match result {
             Ok(book) => books.push(book),
             Err(error) => errors.push(serde_json::json!({

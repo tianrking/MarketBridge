@@ -118,13 +118,13 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                 }
             }, if domain_rx.is_some() => {
                 match msg {
-                    Some(Ok(event)) => {
+                    Some(Ok(event))
                         if event_matches(&event, &domains, &filter)
-                            && send_event(&mut socket, &event).await.is_err()
-                        {
-                            break;
-                        }
+                            && send_event(&mut socket, &event).await.is_err() =>
+                    {
+                        break;
                     }
+                    Some(Ok(_)) => {}
                     Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
                         warn!(skipped, "v1 stream consumer lagged behind domain bus");
                         continue;
@@ -140,13 +140,13 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                 }
             }, if all_event_rx.is_some() => {
                 match msg {
-                    Some(Ok(event)) => {
+                    Some(Ok(event))
                         if event_matches(&event, &domains, &filter)
-                            && send_event(&mut socket, &event).await.is_err()
-                        {
-                            break;
-                        }
+                            && send_event(&mut socket, &event).await.is_err() =>
+                    {
+                        break;
                     }
+                    Some(Ok(_)) => {}
                     Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
                         warn!(skipped, "v1 stream consumer lagged behind all-event bus");
                         continue;
