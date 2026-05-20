@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use crate::config::AppConfig;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
+use crate::connectors::defi::oneinch::OneInchQuotePoller;
+use crate::connectors::defi::paraswap::ParaswapQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
 use crate::source::ExchangeSource;
@@ -295,6 +297,14 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         out.push(Arc::new(UniswapV3PoolPoller::new(
             cfg.defi.uniswap_v3.clone(),
         )));
+    }
+    if cfg.defi.paraswap.enabled {
+        out.push(Arc::new(ParaswapQuotePoller::new(
+            cfg.defi.paraswap.clone(),
+        )));
+    }
+    if cfg.defi.oneinch.enabled {
+        out.push(Arc::new(OneInchQuotePoller::new(cfg.defi.oneinch.clone())));
     }
 
     out
