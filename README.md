@@ -207,6 +207,7 @@ Base URL: `http://127.0.0.1:8080`
 |---|---|---|
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
+| GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -241,6 +242,24 @@ Example:
 
 ```bash
 curl -s http://127.0.0.1:8080/health
+```
+
+### `GET /v1/market/quotes`
+
+Envelope-based exchange quote snapshots. This is the first `/v1` domain endpoint
+and should be preferred by new consumers.
+
+Query params:
+
+- `symbols=BTCUSDT,ETHUSDT`
+- `exchanges=okx,bybit,bitget`
+- `product_type=spot|perp`
+- `include_stale=true|false`, default `false`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=perp" | jq
 ```
 
 ### `GET /snapshot`

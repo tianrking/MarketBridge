@@ -3,6 +3,7 @@ mod api;
 mod config;
 mod core;
 mod deribit_cache;
+mod domains;
 mod event_bus;
 mod exchanges;
 mod external;

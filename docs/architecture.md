@@ -256,6 +256,7 @@ Purpose: one websocket stream for all normalized domains.
 Implemented today:
 
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
+- Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and background cache.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.
 - Freshness fields for exchange ticks, Deribit cache rows, and Polymarket live books.
@@ -282,6 +283,9 @@ Known architecture gaps:
 - Convert existing exchange ticks into `DataEnvelope<QuotePayload>`.
 - Add `GET /v1/market/quotes`.
 - Add `WS /v1/stream` support for `market_quote`.
+
+Status: partially implemented. `domains/market/quote.rs` and
+`GET /v1/market/quotes` exist. `WS /v1/stream` is still pending.
 
 ### Phase 3: Options and Prediction Domains
 
