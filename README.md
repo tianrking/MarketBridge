@@ -7,6 +7,8 @@ downstream research systems.
 
 Current version: `v0.0.1`
 
+[中文文档](README.zh-CN.md)
+
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)
 ![Tokio](https://img.shields.io/badge/Runtime-Tokio-333333?logo=rust)
 ![Axum](https://img.shields.io/badge/Web-Axum-0ea5e9)

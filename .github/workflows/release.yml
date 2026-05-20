@@ -76,7 +76,7 @@ jobs:
           pkg="market-bridge-v0.0.1-${{ matrix.name }}"
           mkdir -p "dist/${pkg}"
           cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${pkg}/"
-          cp README.md config.yaml config.min.yaml config.all-exchanges.example.yaml "dist/${pkg}/"
+          cp README.md README.zh-CN.md config.yaml config.min.yaml config.all-exchanges.example.yaml "dist/${pkg}/"
           cp -R docs "dist/${pkg}/docs"
           printf '%s\n' "market-bridge v0.0.1 ${{ matrix.name }}" > "dist/${pkg}/VERSION"
 

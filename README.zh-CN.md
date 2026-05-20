@@ -1,0 +1,467 @@
+# MarketBridge 中文说明
+
+MarketBridge 是一个独立的 Rust 市场数据桥接器，用来聚合交易所、期权、预测市场、DeFi、宏观、聚合行情、情绪和链上公开数据。它的定位是“数据源统一层”，不是交易机器人。
+
+当前版本：`v0.0.1`
+
+## 目录
+
+- [项目定位](#项目定位)
+- [系统架构](#系统架构)
+- [运行流程](#运行流程)
+- [下载二进制文件](#下载二进制文件)
+- [从源码运行](#从源码运行)
+- [配置说明](#配置说明)
+- [已实现的数据源](#已实现的数据源)
+- [API 总览](#api-总览)
+- [常用接口示例](#常用接口示例)
+- [WebSocket](#websocket)
+- [指标与运维](#指标与运维)
+- [重新发布 v0.0.1](#重新发布-v001)
+- [边界说明](#边界说明)
+
+## 项目定位
+
+MarketBridge 负责：
+
+- 采集公开市场数据：CEX、DeFi、期权、Polymarket、宏观、聚合行情、情绪、链上转账。
+- 把不同来源的数据归一化成稳定的 REST / WebSocket 接口。
+- 维护最新快照、数据新鲜度、source health、stale 标记。
+- 输出可复用的数据特征，例如 basis、order flow、klines。
+- 可选写入 Redis Stream，失败批次会落到本地 JSONL dead-letter 文件。
+
+MarketBridge 不负责：
+
+- 因子是否有效。
+- 策略回测、paper PnL、实盘 PnL 归因。
+- 钱包签名。
+- Polymarket 下单、撤单、改单。
+- 任何实盘交易执行。
+
+下游项目，例如 `PolyAlpha`，应该调用 MarketBridge 获取数据，然后在自己的策略层做因子验证、paper decision、PnL 统计和实盘执行。
+
+## 系统架构
+
+```mermaid
+flowchart LR
+  subgraph C[公开数据连接器]
+    CEX[CEX Spot/Perp\nBBO/L2/Trades/Funding/OI/Liquidations]
+    OPT[Options REST\nDeribit/OKX/Bybit/Binance]
+    PM[Polymarket\nGamma + CLOB REST/WS]
+    DEFI[DeFi Quotes/Pools\nJupiter/Raydium/Uniswap/ParaSwap/1inch]
+    EXT[Macro/Aggregates/Sentiment\nDXY/VIX/US10Y/CoinGlass/News/Social]
+    ON[On-chain Transfers\nWhale Alert/mempool.space/Etherscan]
+  end
+
+  C --> RT[SourceRuntime\n重连 + 背压]
+  RT --> Q[mpsc Queue]
+  Q --> R[EventRouter]
+
+  R --> BUS[EventBus\nArcSwap 快照 + Domain Broadcast]
+  R --> AGG[SpreadAggregator\nBBO + L2 信号]
+  BUS --> OF[OrderFlow Store\n成交窗口 + CVD]
+  BUS --> K[SQLite Klines\n历史回补 + 实时聚合]
+
+  AGG --> LOG[Signal Logs\nFILTERED/HOLDING/TRIGGER]
+  BUS --> API[Axum API\n/v1 REST + /v1/stream]
+  BUS --> REDIS[可选 Redis Sink\n批量 XADD + JSONL Dead Letters]
+
+  CFG[config.yaml\nsrc/config/*] --> RT
+  CFG --> AGG
+  CFG --> K
+  CFG --> OF
+  MET[Prometheus Metrics] --> API
+```
+
+## 运行流程
+
+1. 各类公开数据连接器采集 CEX、期权、预测市场、DeFi、宏观、情绪、聚合行情和链上数据。
+2. `SourceRuntime` 管理任务生命周期、断线重连和背压。
+3. `EventRouter` 把事件分发给 `EventBus` 和 `SpreadAggregator`。
+4. `EventBus` 保存 ArcSwap 最新快照，并按 domain 广播实时数据。
+5. `OrderFlowStore` 从成交流中计算买卖压力和 CVD。
+6. `KlineStore` 从历史 REST 和实时 tick 中生成 OHLCV。
+7. REST / WebSocket / 可选 Redis 把数据暴露给下游策略系统。
+
+## 下载二进制文件
+
+`v0.0.1` 发布包由 GitHub Actions 构建。不同平台下载对应文件：
+
+| 平台 | 下载文件 | 适用场景 |
+|---|---|---|
+| Linux 64 位 x86 | `market-bridge-v0.0.1-linux-x86_64.tar.gz` | 普通 64 位 Linux 服务器或桌面。 |
+| Linux 32 位 x86 | `market-bridge-v0.0.1-linux-i686.tar.gz` | 仅 32 位 x86 Linux 使用。大多数用户不需要。 |
+| macOS Intel | `market-bridge-v0.0.1-macos-x86_64.tar.gz` | Intel Mac。 |
+| macOS Apple Silicon | `market-bridge-v0.0.1-macos-aarch64.tar.gz` | M1 / M2 / M3 / M4 Mac。 |
+| Windows 64 位 | `market-bridge-v0.0.1-windows-x86_64.zip` | 64 位 Windows。 |
+
+每个发布包包含：
+
+- `market-bridge` 或 `market-bridge.exe`
+- `README.md`
+- `README.zh-CN.md`
+- `config.yaml`
+- `config.min.yaml`
+- `config.all-exchanges.example.yaml`
+- `docs/`
+- `VERSION`
+
+Linux / macOS：
+
+```bash
+tar -xzf market-bridge-v0.0.1-linux-x86_64.tar.gz
+cd market-bridge-v0.0.1-linux-x86_64
+chmod +x ./market-bridge
+MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
+```
+
+如果是 macOS，第一次运行可能需要解除 quarantine：
+
+```bash
+xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
+```
+
+Windows PowerShell：
+
+```powershell
+Expand-Archive .\market-bridge-v0.0.1-windows-x86_64.zip
+cd .\market-bridge-v0.0.1-windows-x86_64\market-bridge-v0.0.1-windows-x86_64
+$env:MARKETBRIDGE_CONFIG = ".\config.yaml"
+.\market-bridge.exe
+```
+
+启动后，在另一个终端检查：
+
+```bash
+curl -s http://127.0.0.1:8080/health
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
+```
+
+## 从源码运行
+
+要求：
+
+- Rust stable toolchain
+- Linux、macOS 或 Windows
+- 可选 Redis，仅在配置 `runtime.redis_url` 后启用
+
+构建：
+
+```bash
+cargo build --release
+```
+
+从源码运行：
+
+```bash
+MARKETBRIDGE_CONFIG=./config.yaml cargo run
+```
+
+运行全交易所示例配置：
+
+```bash
+MARKETBRIDGE_CONFIG=./config.all-exchanges.example.yaml cargo run
+```
+
+直接运行编译后的二进制：
+
+```bash
+MARKETBRIDGE_CONFIG=./config.yaml ./target/release/market-bridge
+```
+
+Windows 路径：
+
+```powershell
+$env:MARKETBRIDGE_CONFIG = ".\config.yaml"
+.\target\release\market-bridge.exe
+```
+
+## 配置说明
+
+默认配置文件：`config.yaml`
+
+发布包中有三个配置：
+
+- `config.min.yaml`：最小烟雾测试配置。
+- `config.yaml`：本地研究常用配置。
+- `config.all-exchanges.example.yaml`：广覆盖示例，启用前建议按需求编辑。
+
+重要字段：
+
+- `runtime.queue_capacity`：source 到 router 的 channel 容量。
+- `runtime.broadcast_capacity`：WebSocket / Redis broadcast buffer。
+- `runtime.backpressure`：`block` 或 `drop_newest`。
+- `runtime.api_addr`：API 监听地址，默认 `0.0.0.0:8080`。
+- `runtime.redis_url`：可选 Redis sink。
+- `runtime.redis_stream_prefix`：Redis Stream 前缀。
+- `strategy.fee_mode`：`taker`、`maker`、`maker_buy_taker_sell`、`taker_buy_maker_sell`。
+- `symbols`：全局 spot symbols。
+- `perp_symbols`：全局 perp symbols。
+- `exchanges.<name>.enabled`：交易所开关。
+- `exchanges.<name>.symbols/perp_symbols`：交易所级别 symbol override。
+- `exchanges.<name>.fee`：固定费率或分层费率模型。
+- `klines.enabled`：是否启用 SQLite K 线存储。
+- `onchain.*`：链上大额转账源配置。
+
+需要 API key 的源可以通过配置或环境变量提供：
+
+```bash
+export COINGLASS_API_KEY="..."
+export COINMARKETCAP_API_KEY="..."
+export FRED_API_KEY="..."
+export CRYPTOPANIC_API_KEY="..."
+export SANTIMENT_API_KEY="..."
+export LUNARCRUSH_API_KEY="..."
+export WHALE_ALERT_API_KEY="..."
+export ETHERSCAN_API_KEY="..."
+```
+
+查看当前数据源是否启用、是否缺少 key：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+```
+
+状态含义：
+
+- `enabled`：已启用，且需要的 key 已就绪。
+- `available`：代码支持，但当前配置未启用。
+- `enabled_missing_api_key`：已启用，但缺少必要 API key。
+
+## 已实现的数据源
+
+### CEX
+
+| 交易所 | BBO | L2 | Trades | Funding | OI | Liquidations |
+|---|---:|---:|---:|---:|---:|---:|
+| Binance | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 |
+| Bybit | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 |
+| OKX | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 |
+| Hyperliquid | 部分 | 已实现 | 已实现 | 已实现 | 已实现 | 计划中 |
+| dYdX v4 | 部分 | 已实现 | 已实现 | 已实现 | 已实现 | 计划中 |
+| Backpack | 部分 | 已实现 | 已实现 | 计划中 | 计划中 | 计划中 |
+| MEXC | 部分 | 已实现 | 已实现 | 部分 | 计划中 | 计划中 |
+| BingX | 部分 | 已实现 | 已实现 | 部分 | 部分 | 计划中 |
+| Bitget | 已实现 | 已实现 | 已实现 | 已实现 | 已实现 | 计划中 |
+| KuCoin / Gate / Kraken / HTX / Bitfinex / Coinbase | 已实现 BBO | 计划中 | 计划中 | 视交易所而定 | 视交易所而定 | 计划中 |
+
+### 期权
+
+- Deribit option chains
+- OKX Options
+- Bybit Options
+- Binance Options
+
+统一接口：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/options/chains?venue=deribit&currency=BTC" | jq
+```
+
+### Polymarket
+
+已实现：
+
+- Gamma crypto market discovery
+- CLOB REST book
+- CLOB live cache
+- midpoint batch
+- spread batch
+- last trade price batch
+- executable BUY/SELL price batch
+- price history
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/crypto-markets?limit=500&max_offset=500" | jq
+curl -s "http://127.0.0.1:8080/polymarket/live-books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/polymarket/midpoints?token_ids=YES_TOKEN,NO_TOKEN" | jq
+```
+
+### DeFi / 宏观 / 聚合 / 情绪 / 链上
+
+- Jupiter
+- Raydium
+- Uniswap V3
+- ParaSwap
+- 1inch
+- DXY
+- VIX
+- US10Y
+- CoinGecko
+- CoinMarketCap
+- CoinGlass
+- Fear & Greed
+- CryptoPanic
+- Santiment
+- LunarCrush
+- Whale Alert
+- mempool.space
+- Etherscan
+
+## API 总览
+
+Base URL：`http://127.0.0.1:8080`
+
+| Method | Path | 说明 |
+|---|---|---|
+| GET | `/` | 服务元信息。 |
+| GET | `/health` | 健康检查。 |
+| GET | `/v1/catalog/sources` | 数据源启用状态和 API key 状态。 |
+| GET | `/v1/catalog/domains` | 标准化 domain 清单。 |
+| GET | `/v1/catalog/instruments` | 当前缓存中可见的 instruments。 |
+| GET | `/v1/catalog/health` | source/domain 记录数和 freshness。 |
+| GET | `/v1/market/quotes` | spot/perp/DeFi/TradFi/aggregate quote snapshots。 |
+| GET | `/v1/market/basis` | spot-perp basis。 |
+| GET | `/v1/market/funding` | funding rate。 |
+| GET | `/v1/market/open-interest` | open interest。 |
+| GET | `/v1/market/liquidations` | liquidation events。 |
+| GET | `/v1/market/order-books` | L2 order book snapshots。 |
+| GET | `/v1/market/trades` | recent trade snapshots。 |
+| GET | `/v1/market/order-flow` | 买卖压力、delta、CVD。 |
+| GET | `/v1/market/klines` | SQLite-backed OHLCV。 |
+| GET | `/v1/options/chains` | 多交易所 option chains。 |
+| GET | `/v1/prediction/books` | cached Polymarket books。 |
+| GET | `/v1/external/signals` | 聚合、新闻、情绪、宏观信号。 |
+| GET | `/v1/onchain/transfers` | 链上大额转账。 |
+| GET | `/snapshot` | legacy 最新 tick 快照。 |
+| GET | `/funding` | legacy funding view。 |
+| GET | `/coverage` | 数据质量 dashboard model。 |
+| GET | `/metrics` | Prometheus metrics。 |
+| WS | `/ws/ticks` | legacy tick stream。 |
+| WS | `/v1/stream` | domain-filtered stream。 |
+
+## 常用接口示例
+
+### Quote
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=perp" | jq
+```
+
+### Spot-perp basis
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/basis?symbols=BTCUSDT&exchanges=binance,okx" | jq
+```
+
+### Order flow
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/order-flow?exchange=binance&market=perp&symbol=BTCUSDT&window_ms=60000" | jq
+```
+
+### Klines
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
+```
+
+### Options
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/options/chains?venue=bybit&currency=BTC&option_type=call" | jq
+```
+
+### Polymarket
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+curl -s "http://127.0.0.1:8080/polymarket/prices?token_ids=YES_TOKEN&sides=BUY,SELL" | jq
+curl -s "http://127.0.0.1:8080/polymarket/prices-history?token_id=YES_TOKEN&interval=1h&fidelity=1" | jq
+```
+
+### On-chain transfers
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&asset=BTC&min_amount_usd=500000" | jq
+```
+
+### Data quality
+
+```bash
+curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
+```
+
+## WebSocket
+
+推荐使用 `/v1/stream`。
+
+支持 domain：
+
+- `market_quote`
+- `funding`
+- `open_interest`
+- `trade`
+- `liquidation`
+- `order_book`
+- `external_signal`
+- `options_chain`
+- `prediction_book`
+
+示例：
+
+```bash
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote&symbols=BTCUSDT&product_type=perp"
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=funding&symbols=BTCUSDT&exchanges=binance,okx"
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=order_book,trade&symbols=BTCUSDT&product_type=perp"
+```
+
+## 指标与运维
+
+Prometheus：
+
+```bash
+curl -s http://127.0.0.1:8080/metrics
+```
+
+当前指标包括：
+
+- `ticks_ingested_total`
+- `bus_publish_total`
+- `events_ingested_total{event_type=...}`
+- `bus_events_published_total{event_type=...}`
+- `ws_subscribers`
+- `redis_xadd_total`
+- `redis_dead_letter_total`
+- `ticks_dropped_total`
+
+Redis 是可选项。启用后如果批量写入 Redis 多次失败，MarketBridge 会把失败事件写入：
+
+```text
+data/redis_dead_letters.jsonl
+```
+
+## 重新发布 v0.0.1
+
+如果需要重新切 `v0.0.1`，例如旧 release 是错的：
+
+```bash
+git tag -f v0.0.1 HEAD
+git push origin master
+git push --force origin refs/tags/v0.0.1
+```
+
+首次创建 tag 时：
+
+```bash
+git tag v0.0.1
+git push origin v0.0.1
+```
+
+发布后确认 GitHub Release assets 是从最新 tag commit 构建的，不要拿旧 branch artifact 当正式发布。
+
+## 边界说明
+
+MarketBridge 是数据层。它可以给策略系统提供实时、统一、可检查的数据，但不代表任何因子已经有效，也不代表可以直接实盘交易。
+
+对于 Polymarket 或其他预测市场策略，推荐流程是：
+
+1. 用 MarketBridge 获取行情、订单簿、期权、宏观、链上和情绪数据。
+2. 在 PolyAlpha 等策略层生成因子和 paper decision。
+3. 做回测、paper PnL、成交可行性、退出逻辑验证。
+4. 只有在策略层明确验证后，才考虑独立的执行系统。
+
+不要把 MarketBridge 当成交易执行器。它现在不签名、不下单、不撤单。
