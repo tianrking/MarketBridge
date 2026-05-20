@@ -192,6 +192,7 @@ curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
 GitHub Actions builds release packages for:
 
 - `linux-x86_64`
+- `linux-i686`
 - `macos-x86_64`
 - `macos-aarch64`
 - `windows-x86_64`
@@ -276,6 +277,7 @@ The release workflow builds:
 
 ```text
 market-bridge-v0.0.1-linux-x86_64.tar.gz
+market-bridge-v0.0.1-linux-i686.tar.gz
 market-bridge-v0.0.1-macos-x86_64.tar.gz
 market-bridge-v0.0.1-macos-aarch64.tar.gz
 market-bridge-v0.0.1-windows-x86_64.zip

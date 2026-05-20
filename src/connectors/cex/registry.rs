@@ -93,22 +93,18 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     )));
                 }
             }
-            "hyperliquid" => {
-                if !perp_symbols.is_empty() {
-                    out.push(Arc::new(HyperliquidFeed::new(
-                        perp_symbols
-                            .iter()
-                            .map(|s| to_hyperliquid_coin(s))
-                            .collect(),
-                    )));
-                }
+            "hyperliquid" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(HyperliquidFeed::new(
+                    perp_symbols
+                        .iter()
+                        .map(|s| to_hyperliquid_coin(s))
+                        .collect(),
+                )));
             }
-            "dydx" => {
-                if !perp_symbols.is_empty() {
-                    out.push(Arc::new(DydxFeed::new(
-                        perp_symbols.iter().map(|s| to_dydx_market(s)).collect(),
-                    )));
-                }
+            "dydx" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(DydxFeed::new(
+                    perp_symbols.iter().map(|s| to_dydx_market(s)).collect(),
+                )));
             }
             "backpack" => {
                 if !spot_symbols.is_empty() {
@@ -138,12 +134,10 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     )));
                 }
             }
-            "bingx" => {
-                if !perp_symbols.is_empty() {
-                    out.push(Arc::new(BingxSwapFeed::new(
-                        perp_symbols.iter().map(|s| to_dash(s)).collect(),
-                    )));
-                }
+            "bingx" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(BingxSwapFeed::new(
+                    perp_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
             }
             "bybit" => {
                 if !spot_symbols.is_empty() {
@@ -188,12 +182,10 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     )));
                 }
             }
-            "coinbase" => {
-                if !spot_symbols.is_empty() {
-                    out.push(Arc::new(CoinbaseTicker::new(
-                        spot_symbols.iter().map(|s| to_dash(s)).collect(),
-                    )));
-                }
+            "coinbase" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(CoinbaseTicker::new(
+                    spot_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
             }
             "kraken" => {
                 if !spot_symbols.is_empty() {

@@ -22,21 +22,31 @@ jobs:
             target: x86_64-unknown-linux-gnu
             archive: tar.gz
             bin: market-bridge
+            apt: ""
+          - name: linux-i686
+            os: ubuntu-latest
+            target: i686-unknown-linux-gnu
+            archive: tar.gz
+            bin: market-bridge
+            apt: gcc-multilib
           - name: macos-x86_64
             os: macos-latest
             target: x86_64-apple-darwin
             archive: tar.gz
             bin: market-bridge
+            apt: ""
           - name: macos-aarch64
             os: macos-latest
             target: aarch64-apple-darwin
             archive: tar.gz
             bin: market-bridge
+            apt: ""
           - name: windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             archive: zip
             bin: market-bridge.exe
+            apt: ""
 
     steps:
       - name: Checkout
@@ -46,6 +56,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install Linux cross build packages
+        if: runner.os == 'Linux' && matrix.apt != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2

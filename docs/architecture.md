@@ -34,8 +34,8 @@ Release automation lives in `.github/workflows/release.yml`:
 - pushes to `main` or `master` build downloadable workflow artifacts;
 - tag pushes such as `v0.0.1` build the same artifacts and attach them to a
   GitHub Release;
-- supported packages are Linux x86_64, macOS x86_64, macOS aarch64, and Windows
-  x86_64.
+- supported packages are Linux x86_64, Linux i686, macOS x86_64, macOS aarch64,
+  and Windows x86_64.
 
 Runtime configuration remains file-based through `MARKETBRIDGE_CONFIG`; the
 same config files work for both `cargo run` and downloaded binaries.
