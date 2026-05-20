@@ -6,7 +6,7 @@ use flate2::read::GzDecoder;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use std::io::Read;
-use tokio::time::interval;
+use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::{
@@ -57,10 +57,14 @@ async fn run_bingx_swap(symbols: &[String], ctx: SourceContext) -> Result<()> {
         }
     }
     let mut ping = interval(Duration::from_secs(20));
+    let mut last_seen = Instant::now();
 
     loop {
         tokio::select! {
             _ = ping.tick() => {
+                if last_seen.elapsed() > Duration::from_secs(90) {
+                    bail!("bingx pong timeout");
+                }
                 sink.send(Message::Text("Ping".into())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "bingx", ts_ms: now_ms() }).await?;
             }
@@ -68,16 +72,24 @@ async fn run_bingx_swap(symbols: &[String], ctx: SourceContext) -> Result<()> {
                 let msg = msg.context("bingx stream ended")??;
                 match msg {
                     Message::Text(text) => {
+                        last_seen = Instant::now();
                         handle_text(&text, &ctx).await?;
                     }
                     Message::Binary(bytes) => {
+                        last_seen = Instant::now();
                         if let Some(text) = decode_gzip_text(&bytes) {
                             handle_text(&text, &ctx).await?;
                         }
                     }
-                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Ping(payload) => {
+                        last_seen = Instant::now();
+                        sink.send(Message::Pong(payload)).await?;
+                    }
                     Message::Close(_) => bail!("bingx closed"),
-                    Message::Pong(_) | Message::Frame(_) => {}
+                    Message::Pong(_) => {
+                        last_seen = Instant::now();
+                    }
+                    Message::Frame(_) => {}
                 }
             }
         }

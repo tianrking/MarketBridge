@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio::time::interval;
+use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::{parse_object_levels, side_from_labels};
@@ -60,10 +60,14 @@ async fn run_hyperliquid_once(coins: &[String], ctx: SourceContext) -> Result<()
         }
     }
     let mut ping = interval(Duration::from_secs(20));
+    let mut last_seen = Instant::now();
 
     loop {
         tokio::select! {
             _ = ping.tick() => {
+                if last_seen.elapsed() > Duration::from_secs(90) {
+                    bail!("hyperliquid pong timeout");
+                }
                 sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "hyperliquid", ts_ms: now_ms() }).await?;
             }
@@ -71,15 +75,22 @@ async fn run_hyperliquid_once(coins: &[String], ctx: SourceContext) -> Result<()
                 let msg = msg.context("hyperliquid stream ended")??;
                 match msg {
                     Message::Text(text) => {
+                        last_seen = Instant::now();
                         if let Ok(value) = serde_json::from_str::<Value>(&text) {
                             for event in parse_hyperliquid_events(&value) {
                                 ctx.emit(event).await?;
                             }
                         }
                     }
-                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Ping(payload) => {
+                        last_seen = Instant::now();
+                        sink.send(Message::Pong(payload)).await?;
+                    }
                     Message::Close(_) => bail!("hyperliquid closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Binary(_) => {
+                        last_seen = Instant::now();
+                    }
+                    Message::Frame(_) => {}
                 }
             }
         }

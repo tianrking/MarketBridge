@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio::time::interval;
+use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::{
@@ -98,9 +98,13 @@ where
     <S as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
 {
     let mut ping = interval(Duration::from_secs(20));
+    let mut last_seen = Instant::now();
     loop {
         tokio::select! {
             _ = ping.tick() => {
+                if last_seen.elapsed() > Duration::from_secs(90) {
+                    bail!("mexc pong timeout");
+                }
                 sink.send(Message::Text(json!({"method":"PING"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange, ts_ms: now_ms() }).await?;
             }
@@ -108,15 +112,22 @@ where
                 let msg = msg.context("mexc stream ended")??;
                 match msg {
                     Message::Text(text) => {
+                        last_seen = Instant::now();
                         if let Ok(value) = serde_json::from_str::<Value>(&text) {
                             for event in parse_mexc_events(market, &value, &ctx).await? {
                                 ctx.emit(event).await?;
                             }
                         }
                     }
-                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Ping(payload) => {
+                        last_seen = Instant::now();
+                        sink.send(Message::Pong(payload)).await?;
+                    }
                     Message::Close(_) => bail!("mexc closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Binary(_) => {
+                        last_seen = Instant::now();
+                    }
+                    Message::Frame(_) => {}
                 }
             }
         }
@@ -193,17 +204,29 @@ async fn parse_mexc_events(
             .into_iter()
             .flatten()
             .filter_map(|item| {
+                let symbol = first_value_str(item, &["s", "symbol", "symbolName"])
+                    .unwrap_or(symbol)
+                    .to_string()
+                    .into_boxed_str();
+                let trade_id = first_value_string(item, &["id", "tradeId"])
+                    .or_else(|| first_value_string(item, &["t"]))
+                    .map(String::into_boxed_str);
+                let ts_ms = first_value_u64(item, &["T", "time", "ts", "createTime"])
+                    .or_else(|| first_value_u64(item, &["t"]).filter(|ts| *ts > 1_000_000_000_000))
+                    .unwrap_or_else(now_ms);
                 Some(DataEvent::Trade(TradeTick {
                     exchange: "mexc",
                     market,
-                    symbol: symbol.to_string().into_boxed_str(),
-                    price: first_str(item, &["p", "price"])?.parse::<f64>().ok()?,
-                    qty: first_str(item, &["v", "q", "quantity"])?
-                        .parse::<f64>()
-                        .ok()?,
-                    side: side_from_str(first_str(item, &["S", "T", "side"]).unwrap_or_default()),
-                    trade_id: first_str(item, &["t", "id"]).map(|x| x.to_string().into_boxed_str()),
-                    ts_ms: item.get("t").and_then(Value::as_u64).unwrap_or_else(now_ms),
+                    symbol,
+                    price: first_value_f64(item, &["p", "price"])?,
+                    qty: first_value_f64(item, &["v", "q", "quantity", "vol"])?,
+                    side: side_from_str(
+                        first_value_string(item, &["S", "side", "tradeType", "T"])
+                            .as_deref()
+                            .unwrap_or_default(),
+                    ),
+                    trade_id,
+                    ts_ms,
                 }))
             })
             .collect());
@@ -215,15 +238,61 @@ fn side_from_str(side: &str) -> TradeSide {
     side_from_labels(side, &["1", "buy"], &["2", "sell"])
 }
 
+fn first_value_str<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a str> {
+    keys.iter().find_map(|key| value.get(*key)?.as_str())
+}
+
+fn first_value_string(value: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        let value = value.get(*key)?;
+        value
+            .as_str()
+            .map(str::to_string)
+            .or_else(|| value.as_i64().map(|n| n.to_string()))
+            .or_else(|| value.as_u64().map(|n| n.to_string()))
+    })
+}
+
+fn first_value_f64(value: &Value, keys: &[&str]) -> Option<f64> {
+    keys.iter().find_map(|key| {
+        let value = value.get(*key)?;
+        value
+            .as_f64()
+            .or_else(|| value.as_str()?.parse::<f64>().ok())
+    })
+}
+
+fn first_value_u64(value: &Value, keys: &[&str]) -> Option<u64> {
+    keys.iter().find_map(|key| {
+        let value = value.get(*key)?;
+        value
+            .as_u64()
+            .or_else(|| value.as_i64().and_then(|n| u64::try_from(n).ok()))
+            .or_else(|| value.as_str()?.parse::<u64>().ok())
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::side_from_str;
+    use super::{first_value_f64, first_value_string, first_value_u64, side_from_str};
     use crate::types::TradeSide;
+    use serde_json::json;
 
     #[test]
     fn mexc_side_parser_accepts_common_labels() {
         assert_eq!(side_from_str("1"), TradeSide::Buy);
         assert_eq!(side_from_str("2"), TradeSide::Sell);
         assert_eq!(side_from_str("?"), TradeSide::Unknown);
+    }
+
+    #[test]
+    fn mexc_trade_helpers_accept_numeric_wire_values() {
+        let item = json!({"p": 101.5, "v": "2.25", "T": 2, "id": 42, "time": "1710000000000"});
+
+        assert_eq!(first_value_f64(&item, &["p"]), Some(101.5));
+        assert_eq!(first_value_f64(&item, &["v"]), Some(2.25));
+        assert_eq!(first_value_string(&item, &["T"]).as_deref(), Some("2"));
+        assert_eq!(first_value_string(&item, &["id"]).as_deref(), Some("42"));
+        assert_eq!(first_value_u64(&item, &["time"]), Some(1_710_000_000_000));
     }
 }

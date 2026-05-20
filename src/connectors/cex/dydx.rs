@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio::time::interval;
+use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::{parse_object_levels, side_from_labels};
@@ -48,11 +48,10 @@ impl ExchangeSource for DydxFeed {
 async fn run_dydx_session(markets: &[String], ctx: SourceContext) -> Result<()> {
     let ws_ctx = ctx.clone();
     let markets_ctx = ctx;
-    tokio::try_join!(
-        run_dydx_ws(markets, ws_ctx),
-        run_dydx_markets_poll(markets, markets_ctx),
-    )?;
-    Ok(())
+    tokio::select! {
+        result = run_dydx_ws(markets, ws_ctx) => result,
+        result = run_dydx_markets_poll(markets, markets_ctx) => result,
+    }
 }
 
 async fn run_dydx_ws(markets: &[String], ctx: SourceContext) -> Result<()> {
@@ -69,10 +68,14 @@ async fn run_dydx_ws(markets: &[String], ctx: SourceContext) -> Result<()> {
         }
     }
     let mut ping = interval(Duration::from_secs(20));
+    let mut last_seen = Instant::now();
 
     loop {
         tokio::select! {
             _ = ping.tick() => {
+                if last_seen.elapsed() > Duration::from_secs(90) {
+                    bail!("dydx pong timeout");
+                }
                 sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "dydx", ts_ms: now_ms() }).await?;
             }
@@ -80,15 +83,22 @@ async fn run_dydx_ws(markets: &[String], ctx: SourceContext) -> Result<()> {
                 let msg = msg.context("dydx stream ended")??;
                 match msg {
                     Message::Text(text) => {
+                        last_seen = Instant::now();
                         if let Ok(value) = serde_json::from_str::<Value>(&text) {
                             for event in parse_dydx_events(&value) {
                                 ctx.emit(event).await?;
                             }
                         }
                     }
-                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Ping(payload) => {
+                        last_seen = Instant::now();
+                        sink.send(Message::Pong(payload)).await?;
+                    }
                     Message::Close(_) => bail!("dydx closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Binary(_) => {
+                        last_seen = Instant::now();
+                    }
+                    Message::Frame(_) => {}
                 }
             }
         }
