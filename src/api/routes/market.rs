@@ -1,0 +1,79 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
+use axum::Json;
+use axum::extract::{Query, State};
+use axum::response::IntoResponse;
+use serde::Deserialize;
+
+use crate::api::ApiState;
+use crate::domains::market::quote::envelope_from_tick;
+
+#[derive(Debug, Deserialize, Default)]
+pub struct MarketQuotesQuery {
+    symbols: Option<String>,
+    exchanges: Option<String>,
+    product_type: Option<String>,
+    include_stale: Option<bool>,
+}
+
+pub async fn v1_market_quotes(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<MarketQuotesQuery>,
+) -> impl IntoResponse {
+    let symbols = q.symbols.map(parse_csv_set_upper);
+    let exchanges = q.exchanges.map(parse_csv_set_lower);
+    let product_type = q.product_type.map(|x| x.trim().to_ascii_lowercase());
+    let include_stale = q.include_stale.unwrap_or(false);
+
+    let mut quotes = state
+        .bus
+        .snapshot_all()
+        .await
+        .into_iter()
+        .filter(|tick| include_stale || !tick.stale)
+        .filter(|tick| {
+            symbols
+                .as_ref()
+                .is_none_or(|set| set.contains(&tick.symbol.to_ascii_uppercase()))
+        })
+        .filter(|tick| {
+            exchanges
+                .as_ref()
+                .is_none_or(|set| set.contains(&tick.exchange.to_ascii_lowercase()))
+        })
+        .filter(|tick| {
+            product_type
+                .as_ref()
+                .is_none_or(|value| tick.market.eq_ignore_ascii_case(value))
+        })
+        .map(envelope_from_tick)
+        .collect::<Vec<_>>();
+
+    quotes.sort_by(|a, b| {
+        a.instrument_ref
+            .instrument_id
+            .cmp(&b.instrument_ref.instrument_id)
+            .then_with(|| a.source_ref.source.cmp(&b.source_ref.source))
+    });
+
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "market_quote",
+        "quotes": quotes
+    }))
+}
+
+fn parse_csv_set_upper(s: String) -> HashSet<String> {
+    s.split(',')
+        .map(|x| x.trim().to_ascii_uppercase())
+        .filter(|x| !x.is_empty())
+        .collect()
+}
+
+fn parse_csv_set_lower(s: String) -> HashSet<String> {
+    s.split(',')
+        .map(|x| x.trim().to_ascii_lowercase())
+        .filter(|x| !x.is_empty())
+        .collect()
+}

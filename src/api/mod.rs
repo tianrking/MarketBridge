@@ -12,7 +12,6 @@ use tokio::time::interval;
 use tracing::warn;
 
 use crate::deribit_cache::{DeribitOptionCache, DeribitOptionFilter};
-use crate::domains::market::quote::envelope_from_tick;
 use crate::event_bus::{EventBus, NormalizedTick};
 use crate::external::{
     fetch_deribit_option_summaries, fetch_polymarket_book, fetch_polymarket_books,
@@ -20,6 +19,8 @@ use crate::external::{
 };
 use crate::metrics::AppMetrics;
 use crate::polymarket_ws::PolymarketBookCache;
+
+pub mod routes;
 
 #[derive(Clone)]
 pub struct ApiState {
@@ -33,7 +34,7 @@ pub struct ApiState {
 pub fn build_router(state: ApiState) -> Router {
     Router::new()
         .route("/ws/ticks", get(ws_ticks))
-        .route("/v1/market/quotes", get(v1_market_quotes))
+        .route("/v1/market/quotes", get(routes::market::v1_market_quotes))
         .route("/health", get(health))
         .route("/snapshot", get(snapshot))
         .route("/funding", get(funding))
@@ -70,14 +71,6 @@ pub struct TickFilterQuery {
 #[derive(Debug, Deserialize, Default)]
 struct SnapshotQuery {
     symbol: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-struct MarketQuotesQuery {
-    symbols: Option<String>,
-    exchanges: Option<String>,
-    product_type: Option<String>,
-    include_stale: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -285,53 +278,6 @@ async fn snapshot(
 
 async fn metrics(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     state.metrics.render()
-}
-
-async fn v1_market_quotes(
-    State(state): State<Arc<ApiState>>,
-    Query(q): Query<MarketQuotesQuery>,
-) -> impl IntoResponse {
-    let symbols = q.symbols.map(parse_csv_set_upper);
-    let exchanges = q.exchanges.map(parse_csv_set_lower);
-    let product_type = q.product_type.map(|x| x.trim().to_ascii_lowercase());
-    let include_stale = q.include_stale.unwrap_or(false);
-
-    let mut quotes = state
-        .bus
-        .snapshot_all()
-        .await
-        .into_iter()
-        .filter(|tick| include_stale || !tick.stale)
-        .filter(|tick| {
-            symbols
-                .as_ref()
-                .is_none_or(|set| set.contains(&tick.symbol.to_ascii_uppercase()))
-        })
-        .filter(|tick| {
-            exchanges
-                .as_ref()
-                .is_none_or(|set| set.contains(&tick.exchange.to_ascii_lowercase()))
-        })
-        .filter(|tick| {
-            product_type
-                .as_ref()
-                .is_none_or(|value| tick.market.eq_ignore_ascii_case(value))
-        })
-        .map(envelope_from_tick)
-        .collect::<Vec<_>>();
-
-    quotes.sort_by(|a, b| {
-        a.instrument_ref
-            .instrument_id
-            .cmp(&b.instrument_ref.instrument_id)
-            .then_with(|| a.source_ref.source.cmp(&b.source_ref.source))
-    });
-
-    Json(serde_json::json!({
-        "version": "v1",
-        "domain": "market_quote",
-        "quotes": quotes
-    }))
 }
 
 async fn deribit_options_summary(
