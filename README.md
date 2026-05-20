@@ -133,7 +133,8 @@ Default file: `config.yaml`
 - `runtime.stale_ttl_ms`: stale threshold
 - `runtime.api_addr`: API bind address
 - `runtime.redis_url`: optional Redis sink
-- `strategy.*`: min profit, hold, slippage model
+- `strategy.*`: min profit, hold, slippage model, and `fee_mode`
+  (`taker`, `maker`, `maker_buy_taker_sell`, `taker_buy_maker_sell`)
 - `symbols`: global spot symbols
 - `perp_symbols`: global perp symbols
 - `exchanges.<name>.enabled`: source switch

@@ -473,6 +473,7 @@ mod tests {
                 min_profit_bps: 1.0,
                 min_signal_hold_ms: 0,
                 slippage_bps: 0.0,
+                fee_mode: crate::config::StrategyFeeMode::Taker,
             },
             deribit: DeribitConfig::default(),
             okx_options: OkxOptionsConfig::default(),
@@ -492,7 +493,7 @@ mod tests {
                     symbols: None,
                     perp_symbols: None,
                     fee: FeeModel::Fixed {
-                        _maker_bps: 1.0,
+                        maker_bps: 1.0,
                         taker_bps: 2.0,
                     },
                 },

@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use tokio::time::interval;
 use tracing::{debug, info};
 
-use crate::config::AppConfig;
+use crate::config::{AppConfig, StrategyFeeMode};
 use crate::types::{BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, now_ms};
 
 const BOOK_SIGNAL_NOTIONAL_USDT: f64 = 1_000.0;
@@ -22,6 +22,8 @@ pub struct SpreadAggregator {
     min_profit_bps: f64,
     min_signal_hold_ms: u64,
     slippage_bps: f64,
+    fee_mode: StrategyFeeMode,
+    maker_fee_bps: HashMap<String, f64>,
     taker_fee_bps: HashMap<String, f64>,
 }
 
@@ -41,9 +43,13 @@ struct ProfitBreakdown {
 impl SpreadAggregator {
     pub fn from_config(cfg: &AppConfig) -> Self {
         let mut taker_fee_bps = HashMap::new();
+        let mut maker_fee_bps = HashMap::new();
         for ex in cfg.enabled_exchanges() {
             if let Some(v) = cfg.taker_bps(&ex) {
-                taker_fee_bps.insert(ex, v);
+                taker_fee_bps.insert(ex.clone(), v);
+            }
+            if let Some(v) = cfg.maker_bps(&ex) {
+                maker_fee_bps.insert(ex, v);
             }
         }
 
@@ -59,6 +65,8 @@ impl SpreadAggregator {
             min_profit_bps: cfg.strategy.min_profit_bps,
             min_signal_hold_ms: cfg.strategy.min_signal_hold_ms,
             slippage_bps: cfg.strategy.slippage_bps,
+            fee_mode: cfg.strategy.fee_mode,
+            maker_fee_bps,
             taker_fee_bps,
         }
     }
@@ -164,8 +172,7 @@ impl SpreadAggregator {
                 .collect::<Vec<_>>()
                 .join(" | ");
 
-            let buy_fee_bps = self.fee_bps(buy_ex);
-            let sell_fee_bps = self.fee_bps(sell_ex);
+            let (buy_fee_bps, sell_fee_bps) = self.leg_fee_bps(buy_ex, sell_ex);
             let p = compute_profit(ask, bid, buy_fee_bps, sell_fee_bps, self.slippage_bps);
 
             let eligible = p.net >= self.min_profit_usdt && p.net_bps >= self.min_profit_bps;
@@ -198,6 +205,7 @@ impl SpreadAggregator {
                 sell_fee = p.sell_fee,
                 slip = p.slip,
                 fee_bps_total = p.fee_bps_total,
+                fee_mode = ?self.fee_mode,
                 slippage_bps_total = p.slippage_bps_total,
                 net = p.net,
                 net_bps = p.net_bps,
@@ -241,8 +249,7 @@ impl SpreadAggregator {
                 continue;
             };
 
-            let buy_fee_bps = self.fee_bps(buy_ex);
-            let sell_fee_bps = self.fee_bps(sell_ex);
+            let (buy_fee_bps, sell_fee_bps) = self.leg_fee_bps(buy_ex, sell_ex);
             let p = compute_profit(
                 buy_avg_ask,
                 sell_avg_bid,
@@ -289,6 +296,7 @@ impl SpreadAggregator {
                 sell_fee = p.sell_fee,
                 slip = p.slip,
                 fee_bps_total = p.fee_bps_total,
+                fee_mode = ?self.fee_mode,
                 slippage_bps_total = p.slippage_bps_total,
                 net = p.net,
                 net_bps = p.net_bps,
@@ -299,8 +307,21 @@ impl SpreadAggregator {
         }
     }
 
-    fn fee_bps(&self, ex: &str) -> f64 {
+    fn leg_fee_bps(&self, buy_ex: &str, sell_ex: &str) -> (f64, f64) {
+        match self.fee_mode {
+            StrategyFeeMode::Taker => (self.taker_bps(buy_ex), self.taker_bps(sell_ex)),
+            StrategyFeeMode::Maker => (self.maker_bps(buy_ex), self.maker_bps(sell_ex)),
+            StrategyFeeMode::MakerBuyTakerSell => (self.maker_bps(buy_ex), self.taker_bps(sell_ex)),
+            StrategyFeeMode::TakerBuyMakerSell => (self.taker_bps(buy_ex), self.maker_bps(sell_ex)),
+        }
+    }
+
+    fn taker_bps(&self, ex: &str) -> f64 {
         self.taker_fee_bps.get(ex).copied().unwrap_or(0.0)
+    }
+
+    fn maker_bps(&self, ex: &str) -> f64 {
+        self.maker_fee_bps.get(ex).copied().unwrap_or(0.0)
     }
 }
 

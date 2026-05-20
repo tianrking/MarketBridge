@@ -35,6 +35,13 @@ strategy:
   # Conservative default for live trading realism.
   slippage_bps: 0.5
 
+  # Fee mode used by spread calculation:
+  # - taker: both legs cross the book
+  # - maker: both legs rest passively
+  # - maker_buy_taker_sell: passive entry, active exit
+  # - taker_buy_maker_sell: active entry, passive exit
+  fee_mode: taker
+
 deribit:
   # Data-source cache for option IV used by downstream fair-value models.
   enabled: true

@@ -91,6 +91,6 @@ Status labels:
 | Redis all event types | implemented | P0 | Writes quote/funding/OI/trade/book/liquidation/external_signal/heartbeat streams. |
 | Extended EventBus broadcast | implemented | P1 | `subscribe_events()` broadcasts raw `DataEvent` in addition to quote ticks. |
 | Order-book level arbitrage | implemented | P1 | Spread engine emits `book_signal` from L2 depth using a conservative fixed 1,000 USDT notional. |
-| Maker fee modeling | planned | P2 | Fee config stores maker fee, spread engine uses taker only. |
+| Maker fee modeling | implemented | P2 | `strategy.fee_mode` supports `taker`, `maker`, `maker_buy_taker_sell`, and `taker_buy_maker_sell`. |
 | Dynamic catalog from runtime config | planned | P2 | Static catalog documents possible sources, not enabled sources. |
 | Aggregator extended event analytics | planned | P1 | Funding/OI/book/trade/liquidation are stored by API but ignored by spread engine. |

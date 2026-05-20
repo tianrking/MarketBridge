@@ -60,6 +60,23 @@ pub struct StrategyConfig {
     pub min_profit_bps: f64,
     pub min_signal_hold_ms: u64,
     pub slippage_bps: f64,
+    #[serde(default)]
+    pub fee_mode: StrategyFeeMode,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StrategyFeeMode {
+    Taker,
+    Maker,
+    MakerBuyTakerSell,
+    TakerBuyMakerSell,
+}
+
+impl Default for StrategyFeeMode {
+    fn default() -> Self {
+        Self::Taker
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -462,8 +479,7 @@ pub struct ExchangeConfig {
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum FeeModel {
     Fixed {
-        #[serde(rename = "maker_bps")]
-        _maker_bps: f64,
+        maker_bps: f64,
         taker_bps: f64,
     },
     Tiered {
@@ -475,8 +491,7 @@ pub enum FeeModel {
 #[derive(Debug, Clone, Deserialize)]
 pub struct FeeTier {
     pub min_volume_usdt: f64,
-    #[serde(rename = "maker_bps")]
-    pub _maker_bps: f64,
+    pub maker_bps: f64,
     pub taker_bps: f64,
 }
 
@@ -539,9 +554,26 @@ impl AppConfig {
         let ex = self.exchanges.get(exchange)?;
         Some(ex.fee.taker_bps())
     }
+
+    pub fn maker_bps(&self, exchange: &str) -> Option<f64> {
+        let ex = self.exchanges.get(exchange)?;
+        Some(ex.fee.maker_bps())
+    }
 }
 
 impl FeeModel {
+    pub fn maker_bps(&self) -> f64 {
+        match self {
+            FeeModel::Fixed { maker_bps, .. } => *maker_bps,
+            FeeModel::Tiered {
+                volume_30d_usdt,
+                tiers,
+            } => select_fee_tier(*volume_30d_usdt, tiers)
+                .map(|x| x.maker_bps)
+                .unwrap_or(0.0),
+        }
+    }
+
     pub fn taker_bps(&self) -> f64 {
         match self {
             FeeModel::Fixed { taker_bps, .. } => *taker_bps,
@@ -1146,21 +1178,22 @@ mod tests {
             tiers: vec![
                 FeeTier {
                     min_volume_usdt: 0.0,
-                    _maker_bps: 10.0,
+                    maker_bps: 10.0,
                     taker_bps: 12.0,
                 },
                 FeeTier {
                     min_volume_usdt: 1_000_000.0,
-                    _maker_bps: 8.0,
+                    maker_bps: 8.0,
                     taker_bps: 9.0,
                 },
                 FeeTier {
                     min_volume_usdt: 5_000_000.0,
-                    _maker_bps: 6.0,
+                    maker_bps: 6.0,
                     taker_bps: 7.0,
                 },
             ],
         };
+        assert!((f.maker_bps() - 6.0).abs() < 1e-9);
         assert!((f.taker_bps() - 7.0).abs() < 1e-9);
     }
 }
