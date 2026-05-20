@@ -31,7 +31,7 @@ pub fn build_router(state: ApiState) -> Router {
     Router::new()
         .route("/ws/ticks", get(ws_ticks))
         .route("/v1/market/quotes", get(routes::market::v1_market_quotes))
-        .route("/health", get(health))
+        .route("/health", get(routes::system::health))
         .route("/snapshot", get(snapshot))
         .route("/funding", get(funding))
         .route(
@@ -64,11 +64,8 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::prediction::polymarket_live_crypto_books),
         )
         .route("/coverage", get(coverage))
-        .route("/metrics", get(metrics))
-        .route(
-            "/",
-            get(|| async { Json(serde_json::json!({"service":"MarketBridge"})) }),
-        )
+        .route("/metrics", get(routes::system::metrics))
+        .route("/", get(routes::system::root))
         .with_state(Arc::new(state))
 }
 
@@ -238,10 +235,6 @@ struct CoverageAlert {
     message: String,
 }
 
-async fn health() -> impl IntoResponse {
-    Json(serde_json::json!({"ok": true}))
-}
-
 async fn snapshot(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<SnapshotQuery>,
@@ -252,10 +245,6 @@ async fn snapshot(
         state.bus.snapshot_all().await
     };
     Json(data)
-}
-
-async fn metrics(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
-    state.metrics.render()
 }
 
 async fn funding(
