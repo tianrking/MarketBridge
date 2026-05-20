@@ -66,7 +66,7 @@ use super::gate::{GateSpotBookTicker, GateSpotRestFeed};
 use super::gate_perp::GatePerpBookTicker;
 use super::gemini::GeminiSpotFeed;
 use super::grvt::GrvtPerpFeed;
-use super::htx::HtxBbo;
+use super::htx::{HtxBbo, HtxSpotRestFeed};
 use super::htx_perp::HtxPerpBbo;
 use super::hyperliquid::HyperliquidFeed;
 use super::injective::InjectiveFeed;
@@ -544,9 +544,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             }
             "htx" => {
                 if !spot_symbols.is_empty() {
-                    out.push(Arc::new(HtxBbo::new(
-                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
+                    let htx_spot_symbols = spot_symbols
+                        .iter()
+                        .map(|s| to_binance(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(HtxBbo::new(htx_spot_symbols.clone())));
+                    out.push(Arc::new(HtxSpotRestFeed::new(htx_spot_symbols)));
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(HtxPerpBbo::new(
