@@ -23,7 +23,14 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             source_type: "exchange",
             source: "cex_adapters",
             venue: None,
-            domains: vec!["market_quote", "market_funding"],
+            domains: vec![
+                "market_quote",
+                "market_funding",
+                "market_open_interest",
+                "market_liquidation",
+                "market_order_book",
+                "market_trade",
+            ],
             connector_path: "src/connectors/cex",
             status: "implemented",
         },
@@ -51,6 +58,31 @@ pub fn domain_catalog() -> Vec<CatalogDomain> {
         CatalogDomain {
             domain: "market_quote",
             endpoint: "/v1/market/quotes",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "market_funding",
+            endpoint: "/v1/market/funding",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "market_open_interest",
+            endpoint: "/v1/market/open-interest",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "market_liquidation",
+            endpoint: "/v1/market/liquidations",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "market_order_book",
+            endpoint: "/v1/market/order-books",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "market_trade",
+            endpoint: "/v1/market/trades",
             status: "implemented",
         },
         CatalogDomain {

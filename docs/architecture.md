@@ -196,10 +196,11 @@ Purpose: discover what MarketBridge can provide right now.
 
 ```text
 GET /v1/market/quotes
-GET /v1/market/orderbooks
+GET /v1/market/order-books
 GET /v1/market/trades
 GET /v1/market/funding
 GET /v1/market/open-interest
+GET /v1/market/liquidations
 ```
 
 Purpose: CEX and DEX market data by source, venue, asset, product, symbol, and

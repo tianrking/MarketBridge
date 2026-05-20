@@ -212,6 +212,11 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/catalog/instruments` | Instruments currently visible in live caches |
 | GET | `/v1/catalog/health` | Source/domain record counts and freshness status |
 | GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
+| GET | `/v1/market/funding` | Funding-rate snapshots from public perp feeds |
+| GET | `/v1/market/open-interest` | Open-interest snapshots from public feeds/REST |
+| GET | `/v1/market/liquidations` | Latest public liquidation events |
+| GET | `/v1/market/order-books` | Latest L2 book snapshots |
+| GET | `/v1/market/trades` | Latest public trade snapshots |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/snapshot` | Latest normalized ticks |
@@ -228,6 +233,20 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
 | WS | `/v1/stream` | Envelope-based stream for `market_quote`, `options_chain`, and `prediction_book` |
+
+### Exchange Public Data Coverage
+
+| Venue | Funding | Open interest | Liquidations | L2 book | Trades |
+|---|---|---|---|---|---|
+| Binance | WS `markPrice@1s` | REST poll `openInterest` | WS `forceOrder` | WS `depth20@100ms` | WS `aggTrade` |
+| Bybit | WS `tickers` | WS `tickers` | WS `allLiquidation` | WS `orderbook.50` | WS `publicTrade` |
+| OKX | WS `funding-rate` | WS `open-interest` | REST poll `liquidation-orders` | WS `books5` | WS `trades` |
+
+Other CEX adapters still provide BBO and venue-specific mark/funding fields where
+their ticker feed includes them. The new typed feeds are wired first for
+Binance, Bybit, and OKX because they cover the highest-volume public derivatives
+venues and the exact sources needed for funding/OI/liquidation/depth/trade
+research.
 
 ## API Details
 
