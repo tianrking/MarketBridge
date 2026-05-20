@@ -37,7 +37,7 @@ Status labels:
 | Backpack | partial | implemented | implemented | planned | planned | planned | keyless | Product dependent public fields. |
 | MEXC | partial | implemented | implemented | partial | planned | planned | keyless | Spot/futures depth/deals; funding when ticker field exists. |
 | BingX | partial | implemented | implemented | partial | partial | planned | keyless | Swap ticker/depth/trade. |
-| Bitget | implemented | planned | planned | planned | planned | planned | keyless | Only ticker today. |
+| Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
 | KuCoin | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
 | Gate | implemented | planned | planned | planned | planned | planned | keyless | BookTicker-style BBO today. |
 | Kraken | implemented | planned | planned | planned | planned | planned | keyless | Spot V2 ticker and separate futures ticker today. |
