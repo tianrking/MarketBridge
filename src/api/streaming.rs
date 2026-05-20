@@ -266,14 +266,14 @@ pub fn event_matches(
     }
 }
 
-pub async fn send_event(socket: &mut WebSocket, event: &DataEvent) -> Result<(), ()> {
+pub async fn send_event(socket: &mut WebSocket, event: &DataEvent) -> StreamSendResult {
     send_json(socket, event, "v1 stream event serialize failed").await
 }
 
 pub async fn send_envelope<T: Serialize>(
     socket: &mut WebSocket,
     envelope: &DataEnvelope<T>,
-) -> Result<(), ()> {
+) -> StreamSendResult {
     send_json(socket, envelope, "v1 stream serialize failed").await
 }
 
@@ -281,21 +281,24 @@ pub async fn send_json<T: Serialize>(
     socket: &mut WebSocket,
     value: &T,
     error_message: &'static str,
-) -> Result<(), ()> {
+) -> StreamSendResult {
     match serde_json::to_string(value) {
         Ok(line) => send_ws(socket, Message::Text(line)).await,
         Err(error) => {
             warn!(%error, error_message);
-            Ok(())
+            Err(format!("{error_message}: {error}"))
         }
     }
 }
 
-pub async fn send_ws(socket: &mut WebSocket, message: Message) -> Result<(), ()> {
+pub type StreamSendResult = Result<(), String>;
+
+pub async fn send_ws(socket: &mut WebSocket, message: Message) -> StreamSendResult {
     let timeout_ms = WS_SEND_TIMEOUT_MS.load(Ordering::Relaxed).max(1);
     match timeout(Duration::from_millis(timeout_ms), socket.send(message)).await {
         Ok(Ok(())) => Ok(()),
-        Ok(Err(_)) | Err(_) => Err(()),
+        Ok(Err(error)) => Err(format!("websocket send failed: {error}")),
+        Err(_) => Err(format!("websocket send timed out after {timeout_ms}ms")),
     }
 }
 

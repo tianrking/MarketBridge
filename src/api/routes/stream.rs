@@ -84,7 +84,8 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
     loop {
         tokio::select! {
             _ = hb.tick() => {
-                if send_ws(&mut socket, Message::Ping(vec![])).await.is_err() {
+                if let Err(error) = send_ws(&mut socket, Message::Ping(vec![])).await {
+                    warn!(%error, "v1 stream ping failed");
                     break;
                 }
             }
@@ -99,7 +100,8 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                         if !filter.matches(&envelope) {
                             continue;
                         }
-                        if send_envelope(&mut socket, &envelope).await.is_err() {
+                        if let Err(error) = send_envelope(&mut socket, &envelope).await {
+                            warn!(%error, "v1 stream quote send failed");
                             break;
                         }
                     }
@@ -118,11 +120,11 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                 }
             }, if domain_rx.is_some() => {
                 match msg {
-                    Some(Ok(event))
-                        if event_matches(event.as_ref(), &domains, &filter)
-                            && send_event(&mut socket, event.as_ref()).await.is_err() =>
-                    {
-                        break;
+                    Some(Ok(event)) if event_matches(event.as_ref(), &domains, &filter) => {
+                        if let Err(error) = send_event(&mut socket, event.as_ref()).await {
+                            warn!(%error, "v1 stream domain event send failed");
+                            break;
+                        }
                     }
                     Some(Ok(_)) => {}
                     Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
@@ -140,11 +142,11 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                 }
             }, if all_event_rx.is_some() => {
                 match msg {
-                    Some(Ok(event))
-                        if event_matches(event.as_ref(), &domains, &filter)
-                            && send_event(&mut socket, event.as_ref()).await.is_err() =>
-                    {
-                        break;
+                    Some(Ok(event)) if event_matches(event.as_ref(), &domains, &filter) => {
+                        if let Err(error) = send_event(&mut socket, event.as_ref()).await {
+                            warn!(%error, "v1 stream mixed event send failed");
+                            break;
+                        }
                     }
                     Some(Ok(_)) => {}
                     Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
@@ -164,20 +166,22 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                         })
                         .await;
                     for envelope in rows.into_iter().map(envelope_from_deribit_summary) {
-                        if filter.matches(&envelope)
-                            && send_envelope(&mut socket, &envelope).await.is_err()
-                        {
-                            return;
+                        if filter.matches(&envelope) {
+                            if let Err(error) = send_envelope(&mut socket, &envelope).await {
+                                warn!(%error, "v1 stream options snapshot send failed");
+                                return;
+                            }
                         }
                     }
                 }
                 if domains.prediction_book {
                     let rows = state.polymarket_cache.all().await;
                     for envelope in rows.into_iter().map(envelope_from_polymarket_book) {
-                        if filter.matches(&envelope)
-                            && send_envelope(&mut socket, &envelope).await.is_err()
-                        {
-                            return;
+                        if filter.matches(&envelope) {
+                            if let Err(error) = send_envelope(&mut socket, &envelope).await {
+                                warn!(%error, "v1 stream prediction snapshot send failed");
+                                return;
+                            }
                         }
                     }
                 }
@@ -209,7 +213,8 @@ async fn ws_loop(
     loop {
         tokio::select! {
             _ = hb.tick() => {
-                if send_ws(&mut socket, Message::Ping(vec![])).await.is_err() {
+                if let Err(error) = send_ws(&mut socket, Message::Ping(vec![])).await {
+                    warn!(%error, "legacy tick stream ping failed");
                     break;
                 }
             }
@@ -219,10 +224,8 @@ async fn ws_loop(
                         if !filter.matches(&tick) {
                             continue;
                         }
-                        if send_json(&mut socket, &tick, "ws serialize failed")
-                            .await
-                            .is_err()
-                        {
+                        if let Err(error) = send_json(&mut socket, &tick, "ws serialize failed").await {
+                            warn!(%error, "legacy tick stream send failed");
                             break;
                         }
                     }
