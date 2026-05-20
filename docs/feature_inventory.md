@@ -54,6 +54,7 @@ Status labels:
 | Bitrue | partial | implemented | planned | planned | planned | planned | keyless | Public spot simple-depth stream from Hummingbot connector. |
 | Bithumb | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Bitvavo | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
+| bitFlyer | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | AscendEX | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint. |
 | WOO X | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST spot/perp order books and trades plus perp funding and OI. |
 | BTC Markets | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order book and trades. |

@@ -252,6 +252,7 @@ bitget
 bitmart
 bitmex
 bithumb
+bitflyer
 bitstamp
 bitvavo
 btc_markets

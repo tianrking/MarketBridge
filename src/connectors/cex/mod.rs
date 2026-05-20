@@ -7,6 +7,7 @@ pub mod binance_perp;
 pub mod bingx;
 pub mod bitfinex;
 pub mod bitfinex_perp;
+pub mod bitflyer;
 pub mod bitget;
 pub mod bitget_perp;
 pub mod bithumb;
