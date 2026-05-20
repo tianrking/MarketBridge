@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+mod symbols;
+
 use crate::config::AppConfig;
 use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
@@ -47,6 +49,11 @@ use super::okx::{
     OkxTradeFeed,
 };
 use super::okx_perp::OkxPerpTicker;
+use symbols::{
+    to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
+    to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_okx, to_okx_swap, to_slash,
+    to_underscore,
+};
 
 pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     let mut out: Vec<Arc<dyn ExchangeSource>> = Vec::new();
@@ -364,66 +371,6 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     out
 }
 
-fn split_quote(s: &str) -> (&str, &str) {
-    for q in ["USDT", "USDC", "USD", "BTC", "ETH"] {
-        if let Some(base) = s.strip_suffix(q) {
-            return (base, q);
-        }
-    }
-    if s.len() >= 6 {
-        let (b, q) = s.split_at(s.len() - 4);
-        return (b, q);
-    }
-    (s, "USDT")
-}
-
-fn to_binance(s: &str) -> String {
-    s.to_string()
-}
-fn to_okx(s: &str) -> String {
-    to_dash(s)
-}
-fn to_okx_swap(s: &str) -> String {
-    format!("{}-SWAP", to_dash(s))
-}
-fn to_dash(s: &str) -> String {
-    let (b, q) = split_quote(s);
-    format!("{}-{}", b, q)
-}
-fn to_slash(s: &str) -> String {
-    let (b, q) = split_quote(s);
-    format!("{}/{}", b, q)
-}
-fn to_underscore(s: &str) -> String {
-    let (b, q) = split_quote(s);
-    format!("{}_{}", b, q)
-}
-fn to_bitfinex(s: &str) -> String {
-    let (b, q) = split_quote(s);
-    format!("t{}{}", b, q)
-}
-fn to_kucoin_perp(s: &str) -> String {
-    format!("{}M", s)
-}
-fn to_htx_perp(s: &str) -> String {
-    to_dash(s)
-}
-fn to_bitfinex_perp(s: &str) -> String {
-    let (b, q) = split_quote(s);
-    format!("t{}F0:{}F0", b, q)
-}
-fn to_kraken_perp(s: &str) -> String {
-    // Kraken futures symbols vary across venues; pass through for user override compatibility.
-    s.to_string()
-}
-fn to_hyperliquid_coin(s: &str) -> String {
-    split_quote(s).0.to_string()
-}
-fn to_dydx_market(s: &str) -> String {
-    let (base, quote) = split_quote(s);
-    format!("{base}-{quote}")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,20 +381,6 @@ mod tests {
         TradfiConfig,
     };
     use std::collections::HashMap;
-
-    #[test]
-    fn symbol_converters_work_for_usdt_pairs() {
-        assert_eq!(to_okx("BTCUSDT"), "BTC-USDT");
-        assert_eq!(to_okx_swap("ETHUSDT"), "ETH-USDT-SWAP");
-        assert_eq!(to_underscore("BTCUSDT"), "BTC_USDT");
-        assert_eq!(to_slash("ETHUSDT"), "ETH/USDT");
-        assert_eq!(to_bitfinex("BTCUSDT"), "tBTCUSDT");
-        assert_eq!(to_kucoin_perp("BTCUSDT"), "BTCUSDTM");
-        assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
-        assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USDTF0");
-        assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");
-        assert_eq!(to_dydx_market("BTCUSDT"), "BTC-USDT");
-    }
 
     #[test]
     fn build_sources_creates_enabled_spot_and_perp_adapters() {
