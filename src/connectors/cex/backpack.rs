@@ -8,6 +8,7 @@ use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::emit_tick_ext;
+use crate::connectors::cex::ws::run_reconnecting;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{BookLevel, DataEvent, MarketKind, OrderBookTick, TradeSide, TradeTick, now_ms};
 
@@ -29,14 +30,25 @@ impl ExchangeSource for BackpackFeed {
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_backpack(self.market, &self.symbols, ctx).await
+        if self.symbols.is_empty() {
+            bail!("backpack symbols empty");
+        }
+        let market = self.market;
+        let symbols = self.symbols.clone();
+        run_reconnecting("backpack", move || {
+            let symbols = symbols.clone();
+            let ctx = ctx.clone();
+            async move { run_backpack_once(market, &symbols, ctx).await }
+        })
+        .await
     }
 }
 
-async fn run_backpack(market: MarketKind, symbols: &[String], ctx: SourceContext) -> Result<()> {
-    if symbols.is_empty() {
-        bail!("backpack symbols empty");
-    }
+async fn run_backpack_once(
+    market: MarketKind,
+    symbols: &[String],
+    ctx: SourceContext,
+) -> Result<()> {
     let (ws, _) = connect_async("wss://ws.backpack.exchange")
         .await
         .context("backpack connect failed")?;

@@ -8,6 +8,7 @@ use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::{parse_object_levels, side_from_labels};
+use crate::connectors::cex::ws::run_reconnecting;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
     DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
@@ -31,22 +32,30 @@ impl ExchangeSource for DydxFeed {
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        let ws_ctx = ctx.clone();
-        let markets_ctx = ctx.clone();
+        if self.markets.is_empty() {
+            bail!("dydx markets empty");
+        }
         let markets = self.markets.clone();
-        let markets_for_rest = self.markets.clone();
-        tokio::try_join!(
-            run_dydx_ws(&markets, ws_ctx),
-            run_dydx_markets_poll(&markets_for_rest, markets_ctx),
-        )?;
-        Ok(())
+        run_reconnecting("dydx", move || {
+            let markets = markets.clone();
+            let ctx = ctx.clone();
+            async move { run_dydx_session(&markets, ctx).await }
+        })
+        .await
     }
 }
 
+async fn run_dydx_session(markets: &[String], ctx: SourceContext) -> Result<()> {
+    let ws_ctx = ctx.clone();
+    let markets_ctx = ctx;
+    tokio::try_join!(
+        run_dydx_ws(markets, ws_ctx),
+        run_dydx_markets_poll(markets, markets_ctx),
+    )?;
+    Ok(())
+}
+
 async fn run_dydx_ws(markets: &[String], ctx: SourceContext) -> Result<()> {
-    if markets.is_empty() {
-        bail!("dydx markets empty");
-    }
     let (ws, _) = connect_async("wss://indexer.dydx.trade/v4/ws")
         .await
         .context("dydx connect failed")?;

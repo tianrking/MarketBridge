@@ -8,6 +8,7 @@ use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::{parse_object_levels, side_from_labels};
+use crate::connectors::cex::ws::run_reconnecting;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
     DataEvent, FundingRateTick, MarketKind, OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
@@ -31,14 +32,20 @@ impl ExchangeSource for HyperliquidFeed {
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_hyperliquid(&self.coins, ctx).await
+        if self.coins.is_empty() {
+            bail!("hyperliquid coins empty");
+        }
+        let coins = self.coins.clone();
+        run_reconnecting("hyperliquid", move || {
+            let coins = coins.clone();
+            let ctx = ctx.clone();
+            async move { run_hyperliquid_once(&coins, ctx).await }
+        })
+        .await
     }
 }
 
-async fn run_hyperliquid(coins: &[String], ctx: SourceContext) -> Result<()> {
-    if coins.is_empty() {
-        bail!("hyperliquid coins empty");
-    }
+async fn run_hyperliquid_once(coins: &[String], ctx: SourceContext) -> Result<()> {
     let (ws, _) = connect_async("wss://api.hyperliquid.xyz/ws")
         .await
         .context("hyperliquid connect failed")?;

@@ -80,6 +80,9 @@ Polymarket Gamma/CLOB REST client code lives under
 `src/connectors/prediction/polymarket.rs`. Gamma market parsing lives in
 `src/connectors/prediction/polymarket_parser.rs` so parser heuristics can evolve
 without touching CLOB REST wrappers.
+Reusable CEX websocket reconnect policy lives in `src/connectors/cex/ws.rs`;
+new websocket adapters should wrap one-session loops with `run_reconnecting`
+instead of open-coding retry loops.
 
 ### 2. Domain Layer
 

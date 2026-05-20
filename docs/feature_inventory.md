@@ -93,6 +93,7 @@ Status labels:
 | Lock-free event snapshots | implemented | P0 | Latest-state caches use ArcSwap copy-on-write maps for lock-free readers and isolated writer swaps. |
 | Async router snapshot publishing | implemented | P0 | Router hands bus/snapshot publication to a worker before forwarding original events to the aggregator. |
 | Extended EventBus broadcast | implemented | P1 | `subscribe_events()` broadcasts raw `DataEvent`; high-volume domains also have isolated broadcast channels. |
+| CEX websocket reconnect framework | partial | P1 | Shared `run_reconnecting` exists and is wired into Hyperliquid, Backpack, and dYdX; remaining legacy adapters should migrate incrementally. |
 | Per-domain websocket subscriptions | implemented | P0 | `/v1/stream` can subscribe to quote/funding/OI/trade/liquidation/book/external_signal domains without unrelated quote receivers. |
 | Large configurable broadcast buffers | implemented | P0 | `runtime.broadcast_capacity` defaults to 65,536; slow subscribers lag only their own receiver. |
 | Slow websocket isolation | implemented | P0 | WS sends have a 3s timeout; slow clients are disconnected without blocking other subscribers. |

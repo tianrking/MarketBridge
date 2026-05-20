@@ -24,3 +24,4 @@ pub mod mexc;
 pub mod okx;
 pub mod okx_perp;
 pub mod registry;
+pub mod ws;
