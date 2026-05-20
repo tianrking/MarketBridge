@@ -7,8 +7,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
-use crate::domains::market::quote::envelope_from_tick;
-
+use crate::core::schema::ProductType;
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
     symbols: Option<String>,
@@ -28,26 +27,29 @@ pub async fn v1_market_quotes(
 
     let mut quotes = state
         .bus
-        .snapshot_all()
+        .quote_snapshot_all()
         .await
         .into_iter()
-        .filter(|tick| include_stale || !tick.stale)
-        .filter(|tick| {
-            symbols
-                .as_ref()
-                .is_none_or(|set| set.contains(&tick.symbol.to_ascii_uppercase()))
+        .filter(|quote| include_stale || !quote.freshness.stale)
+        .filter(|quote| {
+            symbols.as_ref().is_none_or(|set| {
+                quote
+                    .instrument_ref
+                    .symbol
+                    .as_deref()
+                    .is_some_and(|symbol| set.contains(&symbol.to_ascii_uppercase()))
+            })
         })
-        .filter(|tick| {
+        .filter(|quote| {
             exchanges
                 .as_ref()
-                .is_none_or(|set| set.contains(&tick.exchange.to_ascii_lowercase()))
+                .is_none_or(|set| set.contains(&quote.source_ref.source.to_ascii_lowercase()))
         })
-        .filter(|tick| {
-            product_type
-                .as_ref()
-                .is_none_or(|value| tick.market.eq_ignore_ascii_case(value))
+        .filter(|quote| {
+            product_type.as_ref().is_none_or(|value| {
+                product_type_label(quote.instrument_ref.product_type).eq_ignore_ascii_case(value)
+            })
         })
-        .map(envelope_from_tick)
         .collect::<Vec<_>>();
 
     quotes.sort_by(|a, b| {
@@ -76,4 +78,17 @@ fn parse_csv_set_lower(s: String) -> HashSet<String> {
         .map(|x| x.trim().to_ascii_lowercase())
         .filter(|x| !x.is_empty())
         .collect()
+}
+
+fn product_type_label(product_type: ProductType) -> &'static str {
+    match product_type {
+        ProductType::Spot => "spot",
+        ProductType::Perp => "perp",
+        ProductType::Future => "future",
+        ProductType::Option => "option",
+        ProductType::BinaryOutcome => "binary_outcome",
+        ProductType::WalletTransfer => "wallet_transfer",
+        ProductType::DexPool => "dex_pool",
+        ProductType::Event => "event",
+    }
 }
