@@ -420,6 +420,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/catalog/instruments` | Instruments currently visible in live caches |
 | GET | `/v1/catalog/health` | Source/domain record counts and freshness status |
 | GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
+| GET | `/v1/market/basis` | Spot-perp basis derived from quote snapshots |
 | GET | `/v1/market/funding` | Funding-rate snapshots from public perp feeds |
 | GET | `/v1/market/open-interest` | Open-interest snapshots from public feeds/REST |
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
@@ -572,6 +573,29 @@ Examples:
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
 ```
+
+### `GET /v1/market/basis`
+
+Spot-perp basis computed from current quote snapshots. No new venue data source
+is required: MarketBridge pairs `spot` and `perp` quotes from the same exchange
+and symbol.
+
+Query params:
+
+- `symbols=BTCUSDT,ETHUSDT`
+- `exchanges=binance,okx,bybit`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/basis?symbols=BTCUSDT&exchanges=binance,okx" | jq
+```
+
+Key fields:
+
+- `spot_mid`, `perp_mid`
+- `basis = perp_mid - spot_mid`
+- `basis_bps = basis / spot_mid * 10000`
 
 ### `GET /v1/options/chains`
 

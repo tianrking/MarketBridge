@@ -16,6 +16,7 @@ Status labels:
 | Domain | Endpoint | Status | API key | Notes |
 |---|---|---:|---:|---|
 | Market quotes | `/v1/market/quotes` | implemented | mixed | CEX, DeFi, TradFi, CoinGecko, CoinMarketCap. |
+| Spot-perp basis | `/v1/market/basis` | implemented | keyless | Derived from current spot/perp quote snapshots per exchange/symbol. |
 | Funding rates | `/v1/market/funding` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |

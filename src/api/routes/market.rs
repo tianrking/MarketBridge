@@ -3,11 +3,12 @@ use std::sync::Arc;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::api::ApiState;
 use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::ProductType;
+use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
@@ -33,6 +34,19 @@ pub struct KlinesQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct BasisRow {
+    exchange: String,
+    symbol: String,
+    spot_mid: f64,
+    perp_mid: f64,
+    basis: f64,
+    basis_bps: f64,
+    spot_ts_ms: u64,
+    perp_ts_ms: u64,
+    stale: bool,
 }
 
 pub async fn v1_market_quotes(
@@ -83,6 +97,76 @@ pub async fn v1_market_quotes(
         "domain": "market_quote",
         "quotes": quotes
     }))
+}
+
+pub async fn v1_market_basis(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<MarketDataQuery>,
+) -> impl IntoResponse {
+    let symbols = q.symbols.map(parse_csv_set_upper);
+    let exchanges = q.exchanges.map(parse_csv_set_lower);
+    let include_stale = false;
+    let quotes = state.bus.quote_snapshot_all().await;
+    let mut spot = std::collections::HashMap::<(String, String), (f64, u64, bool)>::new();
+    let mut perp = std::collections::HashMap::<(String, String), (f64, u64, bool)>::new();
+
+    for quote in quotes {
+        let Some(symbol) = quote.instrument_ref.symbol.as_deref() else {
+            continue;
+        };
+        if symbols
+            .as_ref()
+            .is_some_and(|set| !set.contains(&symbol.to_ascii_uppercase()))
+        {
+            continue;
+        }
+        let exchange = quote.source_ref.source.to_ascii_lowercase();
+        if exchanges
+            .as_ref()
+            .is_some_and(|set| !set.contains(&exchange))
+        {
+            continue;
+        }
+        if !include_stale && quote.freshness.stale {
+            continue;
+        }
+        let Some(mid) = quote_mid(&quote.payload) else {
+            continue;
+        };
+        let key = (exchange, symbol.to_ascii_uppercase());
+        let value = (mid, quote.freshness.ts_source, quote.freshness.stale);
+        match quote.instrument_ref.product_type {
+            ProductType::Spot => {
+                spot.insert(key, value);
+            }
+            ProductType::Perp => {
+                perp.insert(key, value);
+            }
+            _ => {}
+        }
+    }
+
+    let mut rows = Vec::new();
+    for (key, (spot_mid, spot_ts_ms, spot_stale)) in spot {
+        let Some((perp_mid, perp_ts_ms, perp_stale)) = perp.get(&key).copied() else {
+            continue;
+        };
+        let basis = perp_mid - spot_mid;
+        rows.push(BasisRow {
+            exchange: key.0,
+            symbol: key.1,
+            spot_mid,
+            perp_mid,
+            basis,
+            basis_bps: basis / spot_mid * 10_000.0,
+            spot_ts_ms,
+            perp_ts_ms,
+            stale: spot_stale || perp_stale,
+        });
+    }
+
+    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.exchange.cmp(&b.exchange)));
+    Json(serde_json::json!({"version":"v1","domain":"market_basis","basis":rows}))
 }
 
 pub async fn v1_market_funding(
@@ -271,6 +355,15 @@ fn product_type_label(product_type: ProductType) -> &'static str {
         ProductType::WalletTransfer => "wallet_transfer",
         ProductType::DexPool => "dex_pool",
         ProductType::Event => "event",
+    }
+}
+
+fn quote_mid(payload: &QuotePayload) -> Option<f64> {
+    if payload.bid.is_finite() && payload.ask.is_finite() && payload.bid > 0.0 && payload.ask > 0.0
+    {
+        Some((payload.bid + payload.ask) / 2.0)
+    } else {
+        None
     }
 }
 
