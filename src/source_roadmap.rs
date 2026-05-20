@@ -167,6 +167,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Public spot order book and trades are wired; candle/backfill parity remains planned.",
     },
     RoadmapSource {
+        source: "bullish",
+        source_type: "exchange",
+        product_types: SPOT,
+        domains: QUOTE_BOOK_TRADE,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST spot ticker, order book, and recent trades are wired; production API may be geofenced by client location.",
+    },
+    RoadmapSource {
         source: "bybit",
         source_type: "exchange",
         product_types: SPOT_PERP,

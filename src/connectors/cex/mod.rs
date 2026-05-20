@@ -16,6 +16,7 @@ pub mod bitrue;
 pub mod bitstamp;
 pub mod bitvavo;
 pub mod btc_markets;
+pub mod bullish;
 pub mod bybit;
 pub mod bybit_perp;
 pub mod coinbase;

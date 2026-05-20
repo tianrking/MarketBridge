@@ -57,6 +57,7 @@ Status labels:
 | AscendEX | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint. |
 | WOO X | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST spot/perp order books and trades plus perp funding and OI. |
 | BTC Markets | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order book and trades. |
+| Bullish | implemented | implemented | implemented | n/a | partial | planned | keyless | Native public REST spot ticker, order book, and recent trades; endpoint may be geofenced. |
 | Aevo | partial | implemented | implemented | implemented | planned | planned | keyless | Public perp order books/trades plus REST funding and instrument BBO. |
 | Phemex | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST linear perp ticker/book/trades with funding and OI. |
 | Pacifica | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp order books/trades/prices with funding and OI. |

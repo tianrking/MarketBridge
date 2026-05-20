@@ -255,6 +255,7 @@ bithumb
 bitstamp
 bitvavo
 btc_markets
+bullish
 bybit
 derive
 dexalot

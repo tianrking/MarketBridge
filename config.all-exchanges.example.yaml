@@ -227,6 +227,11 @@ exchanges:
     symbols: [BTCAUD, ETHAUD]
     fee: { mode: fixed, maker_bps: 85.0, taker_bps: 85.0 }
 
+  bullish:
+    enabled: false
+    symbols: [BTCUSDC, ETHUSDC]
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 3.0 }
+
   aevo:
     enabled: true
     symbols: []

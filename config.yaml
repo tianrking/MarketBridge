@@ -525,6 +525,15 @@ exchanges:
       maker_bps: 15.0
       taker_bps: 25.0
 
+  bullish:
+    enabled: false
+    # Bullish public REST uses compact ids like BTCUSDC.
+    symbols: [BTCUSDC, ETHUSDC]
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 3.0
+
   binance:
     enabled: false
     fee:
