@@ -51,6 +51,18 @@ onchain:
 symbols: [BTCUSDT, ETHUSDT]
 perp_symbols: [BTCUSDT, ETHUSDT]
 
+defi:
+  meteora:
+    enabled: true
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: SOLUSDC
+        chain_id: solana
+        dex_id: meteora
+        query: "SOL USDC"
+        spread_bps: 5.0
+
 exchanges:
   binance:
     enabled: true

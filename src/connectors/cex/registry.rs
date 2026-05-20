@@ -8,6 +8,7 @@ use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
 use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
 use crate::connectors::aggregate::custom_api::CustomApiPoller;
+use crate::connectors::defi::dexscreener::DexScreenerPoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
@@ -437,6 +438,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
 
     if cfg.defi.jupiter.enabled {
         out.push(Arc::new(JupiterQuotePoller::new(cfg.defi.jupiter.clone())));
+    }
+    if cfg.defi.meteora.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "meteora",
+            cfg.defi.meteora.clone(),
+        )));
     }
     if cfg.defi.raydium.enabled {
         out.push(Arc::new(RaydiumPricePoller::new(cfg.defi.raydium.clone())));

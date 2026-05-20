@@ -126,6 +126,8 @@ pub struct DefiConfig {
     #[serde(default)]
     pub jupiter: JupiterConfig,
     #[serde(default)]
+    pub meteora: DexScreenerConfig,
+    #[serde(default)]
     pub raydium: RaydiumConfig,
     #[serde(default)]
     pub uniswap_v3: UniswapV3Config,
@@ -193,6 +195,28 @@ pub struct OneInchConfig {
     pub poll_secs: u64,
     #[serde(default = "default_evm_quote_pairs")]
     pub pairs: Vec<EvmQuotePair>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DexScreenerConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_dexscreener_base_url")]
+    pub base_url: String,
+    #[serde(default = "default_defi_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_meteora_pairs")]
+    pub pairs: Vec<DexScreenerPair>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DexScreenerPair {
+    pub symbol: String,
+    pub chain_id: String,
+    pub dex_id: String,
+    pub query: String,
+    #[serde(default = "default_defi_spread_bps")]
+    pub spread_bps: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -619,6 +643,10 @@ fn default_jupiter_base_url() -> String {
     "https://quote-api.jup.ag/v6/".to_string()
 }
 
+fn default_dexscreener_base_url() -> String {
+    "https://api.dexscreener.com/".to_string()
+}
+
 fn default_raydium_price_url() -> String {
     "https://api.raydium.io/v2/main/price".to_string()
 }
@@ -643,6 +671,16 @@ fn default_solana_quote_pairs() -> Vec<SolanaQuotePair> {
         amount: 1_000_000_000,
         input_decimals: 9,
         output_decimals: 6,
+        spread_bps: default_defi_spread_bps(),
+    }]
+}
+
+fn default_meteora_pairs() -> Vec<DexScreenerPair> {
+    vec![DexScreenerPair {
+        symbol: "SOLUSDC".to_string(),
+        chain_id: "solana".to_string(),
+        dex_id: "meteora".to_string(),
+        query: "SOL USDC".to_string(),
         spread_bps: default_defi_spread_bps(),
     }]
 }
@@ -931,6 +969,17 @@ impl Default for JupiterConfig {
             base_url: default_jupiter_base_url(),
             poll_secs: default_defi_poll_secs(),
             pairs: default_solana_quote_pairs(),
+        }
+    }
+}
+
+impl Default for DexScreenerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_dexscreener_base_url(),
+            poll_secs: default_defi_poll_secs(),
+            pairs: default_meteora_pairs(),
         }
     }
 }

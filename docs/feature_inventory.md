@@ -74,6 +74,17 @@ Status labels:
 | Foxbit | partial | implemented | planned | planned | planned | planned | keyless | Public Brazil spot REST order-book snapshots; WS trades remain planned. |
 | NDAX | partial | implemented | planned | planned | planned | planned | keyless | Public Canadian spot L2 snapshots via GetInstruments/GetL2Snapshot. |
 
+## DeFi Connector Coverage
+
+| Source | Quote | Pool/book snapshot | Trades | API key | Notes |
+|---|---:|---:|---:|---:|---|
+| Jupiter | implemented | planned | planned | keyless | Solana aggregator quote API. |
+| Meteora | implemented | partial | planned | keyless | DexScreener-backed Solana pool quote snapshots for Gateway coverage. |
+| Raydium | implemented | partial | planned | keyless | Raydium token price map. |
+| Uniswap V3 | implemented | partial | planned | keyless | Subgraph pool price snapshot. |
+| ParaSwap | implemented | planned | planned | keyless | EVM aggregator quote API. |
+| 1inch | implemented | planned | planned | keyless | EVM aggregator quote API. |
+
 ## Polymarket Coverage
 
 | Capability | Status | API key | Notes |
