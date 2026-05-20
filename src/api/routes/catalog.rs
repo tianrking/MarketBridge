@@ -1,15 +1,26 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
+use serde::Serialize;
 
 use crate::api::ApiState;
-use crate::catalog::{domain_catalog, source_catalog};
+use crate::catalog::{domain_catalog, health_status, source_catalog};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::domains::prediction::book::envelope_from_polymarket_book;
+
+#[derive(Debug, Serialize)]
+struct CatalogHealth {
+    source: String,
+    domain: &'static str,
+    records: usize,
+    stale_records: usize,
+    last_received_at_ms: Option<u64>,
+    status: &'static str,
+}
 
 pub async fn sources() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -22,6 +33,70 @@ pub async fn domains() -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
         "domains": domain_catalog()
+    }))
+}
+
+pub async fn health(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    let mut rows = Vec::new();
+
+    let mut quote_health = HashMap::<String, (usize, usize, Option<u64>)>::new();
+    for quote in state.bus.quote_snapshot_all().await {
+        let entry = quote_health
+            .entry(quote.source_ref.source.clone())
+            .or_insert((0, 0, None));
+        entry.0 += 1;
+        if quote.freshness.stale {
+            entry.1 += 1;
+        }
+        entry.2 = entry.2.max(Some(quote.freshness.ts_received));
+    }
+    for (source, (records, stale_records, last_received_at_ms)) in quote_health {
+        rows.push(CatalogHealth {
+            source,
+            domain: "market_quote",
+            records,
+            stale_records,
+            last_received_at_ms,
+            status: health_status(records, stale_records),
+        });
+    }
+
+    let deribit_rows = state
+        .deribit_cache
+        .filtered(DeribitOptionFilter {
+            include_stale: true,
+            ..Default::default()
+        })
+        .await;
+    let deribit_records = deribit_rows.len();
+    let deribit_stale = deribit_rows.iter().filter(|row| row.stale).count();
+    let deribit_last = deribit_rows.iter().map(|row| row.received_at_ms).max();
+    rows.push(CatalogHealth {
+        source: "deribit".to_string(),
+        domain: "options_chain",
+        records: deribit_records,
+        stale_records: deribit_stale,
+        last_received_at_ms: deribit_last,
+        status: health_status(deribit_records, deribit_stale),
+    });
+
+    let polymarket_rows = state.polymarket_cache.all().await;
+    let polymarket_records = polymarket_rows.len();
+    let polymarket_stale = polymarket_rows.iter().filter(|row| row.stale).count();
+    let polymarket_last = polymarket_rows.iter().map(|row| row.received_at_ms).max();
+    rows.push(CatalogHealth {
+        source: "polymarket".to_string(),
+        domain: "prediction_book",
+        records: polymarket_records,
+        stale_records: polymarket_stale,
+        last_received_at_ms: polymarket_last,
+        status: health_status(polymarket_records, polymarket_stale),
+    });
+
+    rows.sort_by(|a, b| a.source.cmp(&b.source).then(a.domain.cmp(b.domain)));
+    Json(serde_json::json!({
+        "version": "v1",
+        "health": rows
     }))
 }
 

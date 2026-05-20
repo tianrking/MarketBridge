@@ -66,9 +66,21 @@ pub fn domain_catalog() -> Vec<CatalogDomain> {
     ]
 }
 
+pub fn health_status(records: usize, stale_records: usize) -> &'static str {
+    if records == 0 {
+        "no_data"
+    } else if stale_records == 0 {
+        "healthy"
+    } else if stale_records >= records {
+        "stale"
+    } else {
+        "degraded"
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{domain_catalog, source_catalog};
+    use super::{domain_catalog, health_status, source_catalog};
 
     #[test]
     fn catalogs_expose_current_public_domains() {
@@ -87,5 +99,13 @@ mod tests {
         assert!(sources.contains(&"cex_adapters"));
         assert!(sources.contains(&"deribit"));
         assert!(sources.contains(&"polymarket"));
+    }
+
+    #[test]
+    fn health_status_labels_source_freshness() {
+        assert_eq!(health_status(0, 0), "no_data");
+        assert_eq!(health_status(10, 0), "healthy");
+        assert_eq!(health_status(10, 3), "degraded");
+        assert_eq!(health_status(10, 10), "stale");
     }
 }

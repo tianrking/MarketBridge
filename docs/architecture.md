@@ -264,7 +264,8 @@ Purpose: one websocket stream for all normalized domains.
 Implemented today:
 
 - Catalog discovery through `GET /v1/catalog/sources`,
-  `GET /v1/catalog/domains`, and `GET /v1/catalog/instruments`.
+  `GET /v1/catalog/domains`, `GET /v1/catalog/instruments`, and
+  `GET /v1/catalog/health`.
 - Envelope-based market quote, options chain, and prediction book streaming
   through `WS /v1/stream`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
@@ -280,7 +281,8 @@ Known architecture gaps:
 - Legacy endpoints are source-specific rather than `/v1` domain APIs.
 - Options and prediction stream domains currently emit cached snapshots rather
   than push-native connector events.
-- Runtime source-health registry is still first-pass catalog metadata.
+- Runtime source health is cache-derived; deeper connector lifecycle telemetry
+  is still a future enhancement.
 
 ## Migration Plan
 
@@ -313,9 +315,8 @@ Status: implemented for first-pass Deribit chains and Polymarket books.
   instruments, and cache health.
 - Add `/v1/catalog/sources` and `/v1/catalog/instruments`.
 
-Status: partially implemented. `/v1/catalog/sources`, `/v1/catalog/domains`,
-`/v1/catalog/instruments`, and multi-domain `WS /v1/stream` exist. A runtime
-source-health registry is still pending.
+Status: implemented as a first-pass catalog with source/domain/instrument
+discovery and cache-derived health through `/v1/catalog/health`.
 
 ### Phase 5: On-chain and External Event Data
 
