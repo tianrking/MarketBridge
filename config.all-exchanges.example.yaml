@@ -168,6 +168,12 @@ exchanges:
     perp_symbols: [BTCUSDT, ETHUSDT]
     fee: { mode: fixed, maker_bps: 8.0, taker_bps: 10.0 }
 
+  phemex:
+    enabled: true
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee: { mode: fixed, maker_bps: 1.0, taker_bps: 6.0 }
+
   bitmart:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

@@ -272,6 +272,7 @@ kucoin
 mexc
 okx
 pacifica
+phemex
 vertex
 xrpl
 ```

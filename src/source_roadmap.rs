@@ -277,6 +277,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Public LCD/Sentry spot/perp order books and trades wired; perp funding poller added.",
     },
     RoadmapSource {
+        source: "phemex",
+        source_type: "exchange",
+        product_types: PERP,
+        domains: PERP_MARKET,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST linear perpetual ticker, order book, trades, funding, and open interest are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "kraken",
         source_type: "exchange",
         product_types: SPOT_PERP,

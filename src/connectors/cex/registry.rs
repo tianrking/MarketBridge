@@ -73,6 +73,7 @@ use super::okx::{
 };
 use super::okx_perp::OkxPerpTicker;
 use super::pacifica::PacificaPerpFeed;
+use super::phemex::PhemexPerpFeed;
 use super::vertex::{VertexFeed, VertexMarket};
 use super::xrpl::{XrplPair, XrplSpotFeed};
 use symbols::{
@@ -260,6 +261,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "pacifica" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(PacificaPerpFeed::new(
                     perp_symbols.iter().map(|s| to_pacifica_perp(s)).collect(),
+                )));
+            }
+            "phemex" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(PhemexPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_phemex_perp(s)).collect(),
                 )));
             }
             "grvt" if !perp_symbols.is_empty() => {
@@ -648,6 +654,15 @@ fn to_coinex_market(symbol: &str) -> String {
         .replace(['-', '_', '/'], "")
 }
 
+fn to_phemex_perp(symbol: &str) -> String {
+    symbol
+        .to_ascii_uppercase()
+        .replace("-PERP", "")
+        .replace("_PERP", "")
+        .replace("PERP", "")
+        .replace(['-', '_', '/'], "")
+}
+
 fn to_cryptocom_perp(symbol: &str) -> String {
     if symbol.contains('-') {
         return symbol.to_ascii_uppercase();
@@ -964,6 +979,13 @@ mod tests {
         assert_eq!(to_coinex_market("BTC-USDT"), "BTCUSDT");
         assert_eq!(to_coinex_market("BTC_USDT"), "BTCUSDT");
         assert_eq!(to_coinex_market("BTCUSDT-PERP"), "BTCUSDT");
+    }
+
+    #[test]
+    fn phemex_perp_symbol_converter_uses_linear_ids() {
+        assert_eq!(to_phemex_perp("BTCUSDT"), "BTCUSDT");
+        assert_eq!(to_phemex_perp("BTC-USDT"), "BTCUSDT");
+        assert_eq!(to_phemex_perp("BTCUSDT-PERP"), "BTCUSDT");
     }
 
     #[test]
