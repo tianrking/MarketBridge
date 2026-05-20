@@ -17,6 +17,7 @@ pub mod bybit;
 pub mod bybit_perp;
 pub mod coinbase;
 pub mod common;
+pub mod cube;
 pub mod decibel;
 pub mod derive;
 pub mod dexalot;

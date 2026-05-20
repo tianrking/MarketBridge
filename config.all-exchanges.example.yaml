@@ -203,3 +203,8 @@ exchanges:
     symbols: [BTCUSDT, ETHUSDT]
     # Perp not implemented in this project.
     fee: { mode: fixed, maker_bps: 40.0, taker_bps: 60.0 }
+
+  cube:
+    enabled: true
+    symbols: [BTCUSDC, ETHUSDC, SOLUSDC]
+    fee: { mode: fixed, maker_bps: 4.0, taker_bps: 8.0 }

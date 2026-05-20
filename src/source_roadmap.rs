@@ -161,9 +161,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P3",
-        notes: "Hummingbot spot connector exists; lower priority until liquidity/use case is confirmed.",
+        notes: "Public REST MBP snapshots wired with metadata scaling; protobuf WS diffs/trades remain planned.",
     },
     RoadmapSource {
         source: "derive",

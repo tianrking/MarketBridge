@@ -69,6 +69,7 @@ Status labels:
 | HTX | implemented | planned | planned | planned | planned | planned | keyless | BBO only today. |
 | Bitfinex | implemented | planned | planned | planned | planned | planned | keyless | Spot/perp ticker today. |
 | Coinbase | implemented | planned | planned | n/a | n/a | n/a | keyless | Spot ticker only; Coinbase International not wired. |
+| Cube | partial | implemented | planned | planned | planned | planned | keyless | Public REST MBP snapshots with market metadata scaling; protobuf WS diffs/trades remain planned. |
 
 ## Polymarket Coverage
 

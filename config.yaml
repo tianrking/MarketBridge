@@ -393,6 +393,15 @@ exchanges:
       maker_bps: 40.0
       taker_bps: 60.0
 
+  cube:
+    enabled: false
+    # Cube's active crypto books are commonly quoted in USDC.
+    symbols: [BTCUSDC, ETHUSDC, SOLUSDC]
+    fee:
+      mode: fixed
+      maker_bps: 4.0
+      taker_bps: 8.0
+
   kraken:
     enabled: false
     fee:
