@@ -231,9 +231,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "Hummingbot spot/perp connectors exist; strong CLOB DEX expansion candidate.",
+        notes: "Public LCD/Sentry spot/perp order books and trades wired; perp funding poller added.",
     },
     RoadmapSource {
         source: "kraken",

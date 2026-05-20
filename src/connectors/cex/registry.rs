@@ -48,6 +48,7 @@ use super::grvt::GrvtPerpFeed;
 use super::htx::HtxBbo;
 use super::htx_perp::HtxPerpBbo;
 use super::hyperliquid::HyperliquidFeed;
+use super::injective::InjectiveFeed;
 use super::kraken::KrakenTicker;
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
@@ -241,6 +242,14 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 let markets = vertex_markets(&spot_symbols, &perp_symbols);
                 if !markets.is_empty() {
                     out.push(Arc::new(VertexFeed::new(markets)));
+                }
+            }
+            "injective" => {
+                if !spot_symbols.is_empty() || !perp_symbols.is_empty() {
+                    out.push(Arc::new(InjectiveFeed::new(
+                        spot_symbols.iter().map(|s| to_injective_spot(s)).collect(),
+                        perp_symbols.iter().map(|s| to_injective_perp(s)).collect(),
+                    )));
                 }
             }
             "derive" => {
@@ -544,6 +553,15 @@ fn compact_symbol(symbol: &str) -> String {
         .filter(|ch| !matches!(ch, '-' | '/' | '_'))
         .collect::<String>()
         .to_ascii_uppercase()
+}
+
+fn to_injective_spot(symbol: &str) -> String {
+    to_slash(symbol)
+}
+
+fn to_injective_perp(symbol: &str) -> String {
+    let (base, quote) = split_quote(symbol);
+    format!("{base}/{quote}-PERP")
 }
 
 #[cfg(test)]

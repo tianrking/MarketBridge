@@ -116,6 +116,12 @@ exchanges:
     perp_symbols: [BTCUSDT, ETHUSDT, ARBUSDT]
     fee: { mode: fixed, maker_bps: 0.0, taker_bps: 2.0 }
 
+  injective:
+    enabled: true
+    symbols: [AAVEUSDT, ATOMUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee: { mode: fixed, maker_bps: -0.005, taker_bps: 0.05 }
+
   derive:
     enabled: true
     symbols: [ETHUSDC]

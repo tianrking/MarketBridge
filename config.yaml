@@ -497,3 +497,13 @@ exchanges:
       mode: fixed
       maker_bps: 0.0
       taker_bps: 2.0
+
+  injective:
+    enabled: false
+    # Injective uses market ids discovered from public LCD/Sentry endpoints.
+    symbols: [AAVEUSDT, ATOMUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: -0.005
+      taker_bps: 0.05

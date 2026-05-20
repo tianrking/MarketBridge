@@ -23,6 +23,7 @@ pub mod grvt;
 pub mod htx;
 pub mod htx_perp;
 pub mod hyperliquid;
+pub mod injective;
 pub mod kraken;
 pub mod kraken_perp;
 pub mod kucoin;
