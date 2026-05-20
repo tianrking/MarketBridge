@@ -347,6 +347,7 @@ Default file: `config.yaml`
 - `strategy.*`: min profit, hold, slippage model, and `fee_mode`
   (`taker`, `maker`, `maker_buy_taker_sell`, `taker_buy_maker_sell`)
 - `strategy.book_signal_notional_usdt`: L2 book notional used by book-level spread signals
+- `strategy.fallback_maker_fee_bps` / `strategy.fallback_taker_fee_bps`: conservative fee assumptions for sources without explicit exchange fee config
 - `symbols`: global spot symbols
 - `perp_symbols`: global perp symbols
 - `exchanges.<name>.enabled`: source switch

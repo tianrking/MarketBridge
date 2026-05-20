@@ -55,6 +55,10 @@ strategy:
   # L2 book signal notional used by the spread engine.
   book_signal_notional_usdt: 1000.0
 
+  # Conservative fallback fees for sources without an explicit exchange fee.
+  fallback_maker_fee_bps: 2.0
+  fallback_taker_fee_bps: 10.0
+
   # Fee mode used by spread calculation:
   # - taker: both legs cross the book
   # - maker: both legs rest passively

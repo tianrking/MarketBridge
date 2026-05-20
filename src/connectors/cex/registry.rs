@@ -1010,6 +1010,8 @@ mod tests {
                 slippage_bps: 0.0,
                 fee_mode: crate::config::StrategyFeeMode::Taker,
                 book_signal_notional_usdt: 1_000.0,
+                fallback_maker_fee_bps: 2.0,
+                fallback_taker_fee_bps: 10.0,
             },
             deribit: DeribitConfig::default(),
             okx_options: OkxOptionsConfig::default(),

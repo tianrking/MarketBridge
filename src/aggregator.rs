@@ -27,6 +27,8 @@ pub struct SpreadAggregator {
     fee_mode: StrategyFeeMode,
     maker_fee_bps: HashMap<String, f64>,
     taker_fee_bps: HashMap<String, f64>,
+    fallback_maker_fee_bps: f64,
+    fallback_taker_fee_bps: f64,
 }
 
 impl SpreadAggregator {
@@ -58,6 +60,8 @@ impl SpreadAggregator {
             fee_mode: cfg.strategy.fee_mode,
             maker_fee_bps,
             taker_fee_bps,
+            fallback_maker_fee_bps: cfg.strategy.fallback_maker_fee_bps,
+            fallback_taker_fee_bps: cfg.strategy.fallback_taker_fee_bps,
         }
     }
 
@@ -307,10 +311,16 @@ impl SpreadAggregator {
     }
 
     fn taker_bps(&self, ex: &str) -> f64 {
-        self.taker_fee_bps.get(ex).copied().unwrap_or(0.0)
+        self.taker_fee_bps
+            .get(ex)
+            .copied()
+            .unwrap_or(self.fallback_taker_fee_bps)
     }
 
     fn maker_bps(&self, ex: &str) -> f64 {
-        self.maker_fee_bps.get(ex).copied().unwrap_or(0.0)
+        self.maker_fee_bps
+            .get(ex)
+            .copied()
+            .unwrap_or(self.fallback_maker_fee_bps)
     }
 }

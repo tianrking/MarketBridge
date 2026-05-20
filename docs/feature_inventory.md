@@ -176,6 +176,7 @@ Status labels:
 | Slow websocket isolation | implemented | P0 | WS sends use `runtime.ws_send_timeout_ms`; slow clients are disconnected without blocking other subscribers. |
 | Order-book level arbitrage | implemented | P1 | Spread engine emits `book_signal` from L2 depth using `strategy.book_signal_notional_usdt`. |
 | Maker fee modeling | implemented | P2 | `strategy.fee_mode` supports `taker`, `maker`, `maker_buy_taker_sell`, and `taker_buy_maker_sell`. |
+| Conservative fallback fees | implemented | P0 | Missing venue fee config uses `strategy.fallback_maker_fee_bps` / `strategy.fallback_taker_fee_bps` instead of zero-fee assumptions. |
 | Dynamic catalog from runtime config | implemented | P2 | `/v1/catalog/sources` reports `enabled`, `available`, or `enabled_missing_api_key` from the active config. |
 | Aggregator extended event analytics | planned | P1 | Funding/OI/book/trade/liquidation are stored by API but ignored by spread engine. |
 | Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.1 Linux/macOS/Windows packages with binary, configs, README, and docs. |

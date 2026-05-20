@@ -201,6 +201,7 @@ $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 - `runtime.ws_send_timeout_ms`：WebSocket 慢客户端发送超时。
 - `strategy.fee_mode`：`taker`、`maker`、`maker_buy_taker_sell`、`taker_buy_maker_sell`。
 - `strategy.book_signal_notional_usdt`：L2 book spread signal 使用的名义金额。
+- `strategy.fallback_maker_fee_bps` / `strategy.fallback_taker_fee_bps`：没有显式交易所手续费配置时使用的保守手续费。
 - `symbols`：全局 spot symbols。
 - `perp_symbols`：全局 perp symbols。
 - `exchanges.<name>.enabled`：交易所开关。
