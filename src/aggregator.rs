@@ -148,7 +148,7 @@ impl SpreadAggregator {
 
             let symbol = key.as_ref();
             let market = active[0].1.market;
-            let count_snapshot = self.tick_counts.get(&key).cloned().unwrap_or_default();
+            let count_snapshot = self.tick_counts.get(&key);
 
             let legs = active
                 .iter()
@@ -159,7 +159,10 @@ impl SpreadAggregator {
             let freq = active
                 .iter()
                 .map(|(ex, _)| {
-                    let c = *count_snapshot.get(ex).unwrap_or(&0);
+                    let c = count_snapshot
+                        .and_then(|counts| counts.get(ex))
+                        .copied()
+                        .unwrap_or(0);
                     let hz = (c as f64 / secs).round() as u64;
                     format!("{ex}:{hz}msg/s")
                 })
