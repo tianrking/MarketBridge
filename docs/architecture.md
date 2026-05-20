@@ -39,6 +39,15 @@ Release automation lives in `.github/workflows/release.yml`:
 
 Runtime configuration remains file-based through `MARKETBRIDGE_CONFIG`; the
 same config files work for both `cargo run` and downloaded binaries.
+Code-level configuration lives under `src/config/`:
+
+- `mod.rs`: top-level `AppConfig`, file loading, symbol normalization, and
+  exchange lookup helpers.
+- `runtime.rs`: runtime, API, Redis, broadcast, and backpressure settings.
+- `strategy.rs`: strategy thresholds and fee-mode selection.
+- `fees.rs`: exchange fee models and tier selection.
+- `klines.rs`: OHLCV storage/backfill settings.
+- `onchain.rs`: Whale Alert, mempool.space, and Etherscan settings.
 
 ## Layering
 

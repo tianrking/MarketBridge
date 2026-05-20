@@ -7,8 +7,16 @@ use serde::Deserialize;
 use crate::types::BackpressureMode;
 
 pub mod fees;
+pub mod klines;
+pub mod onchain;
+pub mod runtime;
+pub mod strategy;
 
 pub use fees::ExchangeConfig;
+pub use klines::KlineConfig;
+pub use onchain::{EtherscanConfig, MempoolSpaceConfig, OnchainConfig, WhaleAlertConfig};
+pub use runtime::RuntimeConfig;
+pub use strategy::{StrategyConfig, StrategyFeeMode};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
@@ -39,172 +47,6 @@ pub struct AppConfig {
     pub symbols: Vec<String>,
     pub perp_symbols: Option<Vec<String>>,
     pub exchanges: HashMap<String, ExchangeConfig>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct RuntimeConfig {
-    pub queue_capacity: usize,
-    #[serde(default = "default_broadcast_capacity")]
-    pub broadcast_capacity: usize,
-    pub backpressure: BackpressureConfig,
-    pub report_interval_ms: u64,
-    pub stale_ttl_ms: u64,
-    #[serde(default = "default_api_addr")]
-    pub api_addr: String,
-    #[serde(default)]
-    pub redis_url: Option<String>,
-    #[serde(default = "default_redis_stream_prefix")]
-    pub redis_stream_prefix: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct KlineConfig {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "default_kline_sqlite_path")]
-    pub sqlite_path: String,
-    #[serde(default = "default_kline_intervals")]
-    pub intervals: Vec<String>,
-    #[serde(default = "default_kline_history_limit")]
-    pub history_limit: usize,
-    #[serde(default)]
-    pub backfill_on_start: bool,
-    #[serde(default = "default_kline_sources")]
-    pub sources: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct OnchainConfig {
-    #[serde(default)]
-    pub whale_alert: WhaleAlertConfig,
-    #[serde(default)]
-    pub mempool_space: MempoolSpaceConfig,
-    #[serde(default)]
-    pub etherscan: EtherscanConfig,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct WhaleAlertConfig {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "default_whale_alert_base_url")]
-    pub base_url: String,
-    #[serde(default)]
-    pub api_key: Option<String>,
-    #[serde(default = "default_whale_alert_api_key_env")]
-    pub api_key_env: String,
-    #[serde(default = "default_onchain_poll_secs")]
-    pub poll_secs: u64,
-    #[serde(default = "default_whale_min_value_usd")]
-    pub min_value_usd: f64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct MempoolSpaceConfig {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "default_mempool_space_base_url")]
-    pub base_url: String,
-    #[serde(default = "default_onchain_poll_secs")]
-    pub poll_secs: u64,
-    #[serde(default = "default_btc_large_transfer_btc")]
-    pub min_value_btc: f64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct EtherscanConfig {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "default_etherscan_base_url")]
-    pub base_url: String,
-    #[serde(default)]
-    pub api_key: Option<String>,
-    #[serde(default = "default_etherscan_api_key_env")]
-    pub api_key_env: String,
-    #[serde(default = "default_onchain_poll_secs")]
-    pub poll_secs: u64,
-    #[serde(default = "default_eth_large_transfer_eth")]
-    pub min_value_eth: f64,
-    #[serde(default)]
-    pub addresses: Vec<String>,
-}
-
-impl Default for KlineConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            sqlite_path: default_kline_sqlite_path(),
-            intervals: default_kline_intervals(),
-            history_limit: default_kline_history_limit(),
-            backfill_on_start: false,
-            sources: default_kline_sources(),
-        }
-    }
-}
-
-impl Default for WhaleAlertConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            base_url: default_whale_alert_base_url(),
-            api_key: None,
-            api_key_env: default_whale_alert_api_key_env(),
-            poll_secs: default_onchain_poll_secs(),
-            min_value_usd: default_whale_min_value_usd(),
-        }
-    }
-}
-
-impl Default for MempoolSpaceConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            base_url: default_mempool_space_base_url(),
-            poll_secs: default_onchain_poll_secs(),
-            min_value_btc: default_btc_large_transfer_btc(),
-        }
-    }
-}
-
-impl Default for EtherscanConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            base_url: default_etherscan_base_url(),
-            api_key: None,
-            api_key_env: default_etherscan_api_key_env(),
-            poll_secs: default_onchain_poll_secs(),
-            min_value_eth: default_eth_large_transfer_eth(),
-            addresses: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BackpressureConfig {
-    Block,
-    DropNewest,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct StrategyConfig {
-    pub min_profit_usdt: f64,
-    pub min_profit_bps: f64,
-    pub min_signal_hold_ms: u64,
-    pub slippage_bps: f64,
-    #[serde(default)]
-    pub fee_mode: StrategyFeeMode,
-}
-
-#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum StrategyFeeMode {
-    #[default]
-    Taker,
-    Maker,
-    MakerBuyTakerSell,
-    TakerBuyMakerSell,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -620,10 +462,7 @@ impl AppConfig {
     }
 
     pub fn backpressure_mode(&self) -> BackpressureMode {
-        match self.runtime.backpressure {
-            BackpressureConfig::Block => BackpressureMode::Block,
-            BackpressureConfig::DropNewest => BackpressureMode::DropNewest,
-        }
+        self.runtime.backpressure.mode()
     }
 
     pub fn symbols_for_exchange(&self, ex: &str) -> Vec<String> {
@@ -667,75 +506,6 @@ fn normalize_symbols(input: &[String]) -> Vec<String> {
         .map(|s| s.trim().to_ascii_uppercase())
         .filter(|s| !s.is_empty())
         .collect()
-}
-
-fn default_api_addr() -> String {
-    "0.0.0.0:8080".to_string()
-}
-
-fn default_broadcast_capacity() -> usize {
-    65_536
-}
-
-fn default_redis_stream_prefix() -> String {
-    "ticks".to_string()
-}
-
-fn default_kline_sqlite_path() -> String {
-    "data/marketbridge.sqlite".to_string()
-}
-
-fn default_kline_intervals() -> Vec<String> {
-    vec![
-        "1m".to_string(),
-        "5m".to_string(),
-        "15m".to_string(),
-        "1h".to_string(),
-    ]
-}
-
-fn default_kline_history_limit() -> usize {
-    1500
-}
-
-fn default_kline_sources() -> Vec<String> {
-    vec!["binance".to_string(), "okx".to_string()]
-}
-
-fn default_onchain_poll_secs() -> u64 {
-    60
-}
-
-fn default_whale_alert_base_url() -> String {
-    "https://api.whale-alert.io/v1/".to_string()
-}
-
-fn default_whale_alert_api_key_env() -> String {
-    "WHALE_ALERT_API_KEY".to_string()
-}
-
-fn default_whale_min_value_usd() -> f64 {
-    500_000.0
-}
-
-fn default_mempool_space_base_url() -> String {
-    "https://mempool.space/api/".to_string()
-}
-
-fn default_btc_large_transfer_btc() -> f64 {
-    100.0
-}
-
-fn default_etherscan_base_url() -> String {
-    "https://api.etherscan.io/api".to_string()
-}
-
-fn default_etherscan_api_key_env() -> String {
-    "ETHERSCAN_API_KEY".to_string()
-}
-
-fn default_eth_large_transfer_eth() -> f64 {
-    1_000.0
 }
 
 fn default_deribit_base_url() -> String {

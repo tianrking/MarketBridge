@@ -375,10 +375,10 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
 mod tests {
     use super::*;
     use crate::config::{
-        AggregatesConfig, AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig,
-        DefiConfig, DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig,
+        AggregatesConfig, AppConfig, BinanceOptionsConfig, BybitOptionsConfig, DefiConfig,
+        DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig,
         PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
-        fees::FeeModel,
+        fees::FeeModel, runtime::BackpressureConfig,
     };
     use std::collections::HashMap;
 
