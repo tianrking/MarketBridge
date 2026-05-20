@@ -22,6 +22,7 @@ pub mod decibel;
 pub mod derive;
 pub mod dexalot;
 pub mod dydx;
+pub mod evedex;
 pub mod foxbit;
 pub mod gate;
 pub mod gate_perp;

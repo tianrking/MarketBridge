@@ -351,9 +351,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_PERP,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P2",
-        notes: "Hummingbot perp connector and candle feed exist.",
+        notes: "Public perp REST order books, recent trades, and funding metrics wired.",
     },
     RoadmapSource {
         source: "grvt",

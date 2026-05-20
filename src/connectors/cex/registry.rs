@@ -47,6 +47,7 @@ use super::decibel::DecibelPerpFeed;
 use super::derive::{DerivePerpFeed, DeriveSpotFeed};
 use super::dexalot::DexalotSpotFeed;
 use super::dydx::DydxFeed;
+use super::evedex::EvedexPerpFeed;
 use super::foxbit::FoxbitSpotFeed;
 use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
@@ -289,6 +290,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 out.push(Arc::new(DecibelPerpFeed::new(
                     perp_symbols.iter().map(|s| to_decibel_perp(s)).collect(),
                     exchange_api_key(cfg, &ex),
+                )));
+            }
+            "evedex" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(EvedexPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_evedex_perp(s)).collect(),
                 )));
             }
             "derive" => {
@@ -651,6 +657,21 @@ fn to_decibel_perp(symbol: &str) -> String {
     format!("{}-USD", base.to_ascii_uppercase())
 }
 
+fn to_evedex_perp(symbol: &str) -> String {
+    let upper = symbol.to_ascii_uppercase();
+    if upper.ends_with("USD") && !upper.ends_with("USDT") && !upper.contains('-') {
+        return upper;
+    }
+    if upper.contains('-') || upper.contains('/') {
+        return upper.replace(['-', '/'], "");
+    }
+    if let Some(base) = upper.strip_suffix("PERP") {
+        return format!("{base}USD");
+    }
+    let (base, _) = split_quote(&upper);
+    format!("{base}USD")
+}
+
 fn exchange_api_key(cfg: &AppConfig, exchange: &str) -> Option<String> {
     let ex = cfg.exchanges.get(exchange)?;
     ex.api_key.clone().or_else(|| {
@@ -771,5 +792,12 @@ mod tests {
         assert_eq!(to_decibel_perp("BTCUSDT"), "BTC-USD");
         assert_eq!(to_decibel_perp("ETH/USD"), "ETH-USD");
         assert_eq!(to_decibel_perp("BTC-USD@0xabc"), "BTC-USD@0xabc");
+    }
+
+    #[test]
+    fn evedex_perp_symbol_converter_uses_compact_usd_symbol() {
+        assert_eq!(to_evedex_perp("BTCUSDT"), "BTCUSD");
+        assert_eq!(to_evedex_perp("ETH-USD"), "ETHUSD");
+        assert_eq!(to_evedex_perp("SOLPERP"), "SOLUSD");
     }
 }
