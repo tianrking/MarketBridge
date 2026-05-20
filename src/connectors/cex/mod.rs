@@ -30,6 +30,7 @@ pub mod common;
 pub mod cryptocom;
 pub mod cube;
 pub mod decibel;
+pub mod deribit;
 pub mod derive;
 pub mod dexalot;
 pub mod dydx;

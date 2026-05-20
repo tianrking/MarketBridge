@@ -823,6 +823,16 @@ exchanges:
       maker_bps: 1.1
       taker_bps: 3.4
 
+  deribit:
+    enabled: false
+    # Deribit public REST maps BTCUSDT -> BTC-PERPETUAL.
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 5.0
+
   evedex:
     enabled: false
     # Evedex public REST uses compact perpetual instruments such as BTCUSD.

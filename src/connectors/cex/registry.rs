@@ -56,6 +56,7 @@ use super::coinone::CoinoneSpotFeed;
 use super::cryptocom::CryptoComFeed;
 use super::cube::CubeSpotFeed;
 use super::decibel::DecibelPerpFeed;
+use super::deribit::DeribitPerpFeed;
 use super::derive::{DerivePerpFeed, DeriveSpotFeed};
 use super::dexalot::DexalotSpotFeed;
 use super::dydx::DydxFeed;
@@ -344,6 +345,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 out.push(Arc::new(DecibelPerpFeed::new(
                     perp_symbols.iter().map(|s| to_decibel_perp(s)).collect(),
                     exchange_api_key(cfg, &ex),
+                )));
+            }
+            "deribit" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(DeribitPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_deribit_perp(s)).collect(),
                 )));
             }
             "evedex" if !perp_symbols.is_empty() => {
@@ -930,6 +936,15 @@ fn to_decibel_perp(symbol: &str) -> String {
     }
     let (base, _) = split_quote(symbol);
     format!("{}-USD", base.to_ascii_uppercase())
+}
+
+fn to_deribit_perp(symbol: &str) -> String {
+    let upper = symbol.to_ascii_uppercase();
+    if upper.contains("-PERPETUAL") {
+        return upper;
+    }
+    let (base, _) = split_quote(&upper);
+    format!("{base}-PERPETUAL")
 }
 
 fn to_evedex_perp(symbol: &str) -> String {

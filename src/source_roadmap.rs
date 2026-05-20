@@ -497,6 +497,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Read-only Aptos Decibel perp depth/trade/market_price streams wired; bearer token required.",
     },
     RoadmapSource {
+        source: "deribit",
+        source_type: "exchange",
+        product_types: PERP,
+        domains: PERP_MARKET,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P1",
+        notes: "Native public REST perp ticker, order book, trades, funding, and open interest are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "evedex",
         source_type: "exchange",
         product_types: PERP,

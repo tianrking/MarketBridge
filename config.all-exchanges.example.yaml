@@ -296,6 +296,12 @@ exchanges:
     api_key_env: DECIBEL_API_TOKEN
     fee: { mode: fixed, maker_bps: 1.1, taker_bps: 3.4 }
 
+  deribit:
+    enabled: true
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 5.0 }
+
   evedex:
     enabled: true
     symbols: []

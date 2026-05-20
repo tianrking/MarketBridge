@@ -96,7 +96,6 @@ cryptocom
 cryptomus
 deepcoin
 delta
-deribit
 derive
 digifinex
 dydx
