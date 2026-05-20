@@ -1,3 +1,4 @@
+pub mod aggregate;
 pub mod cex;
 pub mod defi;
 pub mod options;

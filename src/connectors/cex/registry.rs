@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use crate::config::AppConfig;
+use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
+use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
@@ -326,6 +328,16 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             cfg.tradfi.us10y.clone(),
         )));
     }
+    if cfg.aggregates.coingecko.enabled {
+        out.push(Arc::new(CoinGeckoPricePoller::new(
+            cfg.aggregates.coingecko.clone(),
+        )));
+    }
+    if cfg.aggregates.coinmarketcap.enabled {
+        out.push(Arc::new(CoinMarketCapPricePoller::new(
+            cfg.aggregates.coinmarketcap.clone(),
+        )));
+    }
 
     out
 }
@@ -394,9 +406,9 @@ fn to_dydx_market(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::config::{
-        AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig, DefiConfig,
-        DeribitConfig, ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig, RuntimeConfig,
-        StrategyConfig, TradfiConfig,
+        AggregatesConfig, AppConfig, BackpressureConfig, BinanceOptionsConfig, BybitOptionsConfig,
+        DefiConfig, DeribitConfig, ExchangeConfig, FeeModel, OkxOptionsConfig, PolymarketConfig,
+        RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
     };
     use std::collections::HashMap;
 
@@ -439,6 +451,8 @@ mod tests {
             polymarket: PolymarketConfig::default(),
             defi: DefiConfig::default(),
             tradfi: TradfiConfig::default(),
+            aggregates: AggregatesConfig::default(),
+            sentiment: SentimentConfig::default(),
             symbols: vec!["BTCUSDT".to_string()],
             perp_symbols: Some(vec!["BTCUSDT".to_string()]),
             exchanges: HashMap::from([(

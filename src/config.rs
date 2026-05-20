@@ -24,6 +24,10 @@ pub struct AppConfig {
     pub defi: DefiConfig,
     #[serde(default)]
     pub tradfi: TradfiConfig,
+    #[serde(default)]
+    pub aggregates: AggregatesConfig,
+    #[serde(default)]
+    pub sentiment: SentimentConfig,
     pub symbols: Vec<String>,
     pub perp_symbols: Option<Vec<String>>,
     pub exchanges: HashMap<String, ExchangeConfig>,
@@ -292,6 +296,158 @@ pub struct FredSeriesConfig {
     pub poll_secs: u64,
     #[serde(default = "default_tradfi_spread_bps")]
     pub spread_bps: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AggregatesConfig {
+    #[serde(default)]
+    pub coingecko: CoinGeckoConfig,
+    #[serde(default)]
+    pub coinmarketcap: CoinMarketCapConfig,
+    #[serde(default)]
+    pub coinglass: CoinGlassConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CoinGeckoConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_coingecko_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_coingecko_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_aggregate_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_coin_assets")]
+    pub assets: Vec<CoinPriceAsset>,
+    #[serde(default = "default_aggregate_spread_bps")]
+    pub spread_bps: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CoinMarketCapConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_coinmarketcap_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_coinmarketcap_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_aggregate_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_coinmarketcap_symbols")]
+    pub symbols: Vec<String>,
+    #[serde(default = "default_aggregate_spread_bps")]
+    pub spread_bps: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CoinGlassConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_coinglass_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_coinglass_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_coinglass_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_coinglass_symbols")]
+    pub symbols: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CoinPriceAsset {
+    pub symbol: String,
+    pub id: String,
+    #[serde(default = "default_vs_currency")]
+    pub vs_currency: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SentimentConfig {
+    #[serde(default)]
+    pub fear_greed: FearGreedConfig,
+    #[serde(default)]
+    pub cryptopanic: CryptoPanicConfig,
+    #[serde(default)]
+    pub santiment: SantimentConfig,
+    #[serde(default)]
+    pub lunarcrush: LunarCrushConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FearGreedConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_fear_greed_url")]
+    pub url: String,
+    #[serde(default = "default_sentiment_poll_secs")]
+    pub poll_secs: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CryptoPanicConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_cryptopanic_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_cryptopanic_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_sentiment_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_cryptopanic_currencies")]
+    pub currencies: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SantimentConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_santiment_url")]
+    pub url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_santiment_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_sentiment_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_santiment_metrics")]
+    pub metrics: Vec<SantimentMetric>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SantimentMetric {
+    pub slug: String,
+    pub metric: String,
+    #[serde(default = "default_santiment_interval")]
+    pub interval: String,
+    #[serde(default = "default_santiment_from")]
+    pub from: String,
+    #[serde(default = "default_santiment_to")]
+    pub to: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LunarCrushConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_lunarcrush_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default = "default_lunarcrush_api_key_env")]
+    pub api_key_env: String,
+    #[serde(default = "default_sentiment_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_lunarcrush_symbols")]
+    pub symbols: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -602,6 +758,131 @@ fn default_tradfi_spread_bps() -> f64 {
     1.0
 }
 
+fn default_coingecko_base_url() -> String {
+    "https://api.coingecko.com/api/v3/".to_string()
+}
+
+fn default_coinmarketcap_base_url() -> String {
+    "https://pro-api.coinmarketcap.com/v2/".to_string()
+}
+
+fn default_coinglass_base_url() -> String {
+    "https://open-api-v4.coinglass.com/".to_string()
+}
+
+fn default_coingecko_api_key_env() -> String {
+    "COINGECKO_API_KEY".to_string()
+}
+
+fn default_coinmarketcap_api_key_env() -> String {
+    "COINMARKETCAP_API_KEY".to_string()
+}
+
+fn default_coinglass_api_key_env() -> String {
+    "COINGLASS_API_KEY".to_string()
+}
+
+fn default_aggregate_poll_secs() -> u64 {
+    60
+}
+
+fn default_coinglass_poll_secs() -> u64 {
+    60
+}
+
+fn default_aggregate_spread_bps() -> f64 {
+    2.0
+}
+
+fn default_vs_currency() -> String {
+    "usd".to_string()
+}
+
+fn default_coin_assets() -> Vec<CoinPriceAsset> {
+    vec![
+        CoinPriceAsset {
+            symbol: "BTCUSD".to_string(),
+            id: "bitcoin".to_string(),
+            vs_currency: default_vs_currency(),
+        },
+        CoinPriceAsset {
+            symbol: "ETHUSD".to_string(),
+            id: "ethereum".to_string(),
+            vs_currency: default_vs_currency(),
+        },
+    ]
+}
+
+fn default_coinmarketcap_symbols() -> Vec<String> {
+    vec!["BTC".to_string(), "ETH".to_string()]
+}
+
+fn default_coinglass_symbols() -> Vec<String> {
+    vec!["BTC".to_string(), "ETH".to_string()]
+}
+
+fn default_fear_greed_url() -> String {
+    "https://api.alternative.me/fng/".to_string()
+}
+
+fn default_cryptopanic_base_url() -> String {
+    "https://cryptopanic.com/api/v1/".to_string()
+}
+
+fn default_cryptopanic_api_key_env() -> String {
+    "CRYPTOPANIC_API_KEY".to_string()
+}
+
+fn default_cryptopanic_currencies() -> Vec<String> {
+    vec!["BTC".to_string(), "ETH".to_string()]
+}
+
+fn default_santiment_url() -> String {
+    "https://api.santiment.net/graphql".to_string()
+}
+
+fn default_santiment_api_key_env() -> String {
+    "SANTIMENT_API_KEY".to_string()
+}
+
+fn default_santiment_interval() -> String {
+    "1h".to_string()
+}
+
+fn default_santiment_from() -> String {
+    "utc_now-2h".to_string()
+}
+
+fn default_santiment_to() -> String {
+    "utc_now".to_string()
+}
+
+fn default_santiment_metrics() -> Vec<SantimentMetric> {
+    vec![SantimentMetric {
+        slug: "bitcoin".to_string(),
+        metric: "social_volume_total".to_string(),
+        interval: default_santiment_interval(),
+        from: default_santiment_from(),
+        to: default_santiment_to(),
+    }]
+}
+
+fn default_lunarcrush_base_url() -> String {
+    "https://lunarcrush.com/api4/public/".to_string()
+}
+
+fn default_lunarcrush_api_key_env() -> String {
+    "LUNARCRUSH_API_KEY".to_string()
+}
+
+fn default_lunarcrush_symbols() -> Vec<String> {
+    vec!["BTC".to_string(), "ETH".to_string()]
+}
+
+fn default_sentiment_poll_secs() -> u64 {
+    300
+}
+
 impl Default for PolymarketConfig {
     fn default() -> Self {
         Self {
@@ -760,6 +1041,96 @@ impl Default for TradfiConfig {
             dxy: YahooIndicatorConfig::default(),
             vix: default_vix_config(),
             us10y: FredSeriesConfig::default(),
+        }
+    }
+}
+
+impl Default for CoinGeckoConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_coingecko_base_url(),
+            api_key: None,
+            api_key_env: default_coingecko_api_key_env(),
+            poll_secs: default_aggregate_poll_secs(),
+            assets: default_coin_assets(),
+            spread_bps: default_aggregate_spread_bps(),
+        }
+    }
+}
+
+impl Default for CoinMarketCapConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_coinmarketcap_base_url(),
+            api_key: None,
+            api_key_env: default_coinmarketcap_api_key_env(),
+            poll_secs: default_aggregate_poll_secs(),
+            symbols: default_coinmarketcap_symbols(),
+            spread_bps: default_aggregate_spread_bps(),
+        }
+    }
+}
+
+impl Default for CoinGlassConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_coinglass_base_url(),
+            api_key: None,
+            api_key_env: default_coinglass_api_key_env(),
+            poll_secs: default_coinglass_poll_secs(),
+            symbols: default_coinglass_symbols(),
+        }
+    }
+}
+
+impl Default for FearGreedConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: default_fear_greed_url(),
+            poll_secs: default_sentiment_poll_secs(),
+        }
+    }
+}
+
+impl Default for CryptoPanicConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_cryptopanic_base_url(),
+            api_key: None,
+            api_key_env: default_cryptopanic_api_key_env(),
+            poll_secs: default_sentiment_poll_secs(),
+            currencies: default_cryptopanic_currencies(),
+        }
+    }
+}
+
+impl Default for SantimentConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: default_santiment_url(),
+            api_key: None,
+            api_key_env: default_santiment_api_key_env(),
+            poll_secs: default_sentiment_poll_secs(),
+            metrics: default_santiment_metrics(),
+        }
+    }
+}
+
+impl Default for LunarCrushConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: default_lunarcrush_base_url(),
+            api_key: None,
+            api_key_env: default_lunarcrush_api_key_env(),
+            poll_secs: default_sentiment_poll_secs(),
+            symbols: default_lunarcrush_symbols(),
         }
     }
 }
