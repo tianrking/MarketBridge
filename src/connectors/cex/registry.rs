@@ -23,6 +23,7 @@ use crate::source::ExchangeSource;
 
 use super::aevo::AevoPerpFeed;
 use super::architect::ArchitectPerpFeed;
+use super::ascend_ex::AscendExSpotFeed;
 use super::backpack::BackpackFeed;
 use super::binance::{
     BinanceBookTicker, BinanceDepthFeed, BinanceFundingTicker, BinanceLiquidationFeed,
@@ -219,6 +220,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "bitstamp" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(BitstampSpotFeed::new(
                     spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                )));
+            }
+            "ascend_ex" if !spot_symbols.is_empty() => {
+                out.push(Arc::new(AscendExSpotFeed::new(
+                    spot_symbols.iter().map(|s| to_slash(s)).collect(),
                 )));
             }
             "btc_markets" if !spot_symbols.is_empty() => {

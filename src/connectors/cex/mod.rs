@@ -1,5 +1,6 @@
 pub mod aevo;
 pub mod architect;
+pub mod ascend_ex;
 pub mod backpack;
 pub mod binance;
 pub mod binance_perp;

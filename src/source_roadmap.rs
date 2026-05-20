@@ -51,9 +51,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P2",
-        notes: "Hummingbot spot connector and candle feed exist; add REST metadata then BBO/L2/trades.",
+        notes: "Public spot WS order-book diffs and trades wired; BBO derived from book top.",
     },
     RoadmapSource {
         source: "backpack",

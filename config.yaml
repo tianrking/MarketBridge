@@ -352,6 +352,15 @@ exchanges:
       maker_bps: 8.0
       taker_bps: 10.0
 
+  ascend_ex:
+    enabled: false
+    # AscendEX public WS uses BTC/USDT style ids; registry maps BTCUSDT -> BTC/USDT.
+    symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 10.0
+      taker_bps: 10.0
+
   binance:
     enabled: false
     fee:
