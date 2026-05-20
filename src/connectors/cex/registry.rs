@@ -6,6 +6,7 @@ use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
+use crate::connectors::tradfi::fred::FredSeriesPoller;
 use crate::connectors::tradfi::yahoo::YahooChartPoller;
 use crate::source::ExchangeSource;
 
@@ -317,6 +318,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         out.push(Arc::new(YahooChartPoller::new(
             "vix",
             cfg.tradfi.vix.clone(),
+        )));
+    }
+    if cfg.tradfi.us10y.enabled {
+        out.push(Arc::new(FredSeriesPoller::new(
+            "us10y",
+            cfg.tradfi.us10y.clone(),
         )));
     }
 
