@@ -21,6 +21,7 @@ use crate::connectors::tradfi::fred::FredSeriesPoller;
 use crate::connectors::tradfi::yahoo::YahooChartPoller;
 use crate::source::ExchangeSource;
 
+use super::aevo::AevoPerpFeed;
 use super::backpack::BackpackFeed;
 use super::binance::{
     BinanceBookTicker, BinanceDepthFeed, BinanceFundingTicker, BinanceLiquidationFeed,
@@ -216,6 +217,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             "btc_markets" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(BtcMarketsSpotFeed::new(
                     spot_symbols.iter().map(|s| to_dash(s)).collect(),
+                )));
+            }
+            "aevo" if !perp_symbols.is_empty() => {
+                out.push(Arc::new(AevoPerpFeed::new(
+                    perp_symbols.iter().map(|s| to_aevo_perp(s)).collect(),
                 )));
             }
             "derive" => {
@@ -436,6 +442,17 @@ fn to_derive_perp(symbol: &str) -> String {
     format!("{}-PERP", base.to_ascii_uppercase())
 }
 
+fn to_aevo_perp(symbol: &str) -> String {
+    if symbol.contains('-') {
+        return symbol.to_ascii_uppercase();
+    }
+    if let Some(base) = symbol.strip_suffix("PERP") {
+        return format!("{}-PERP", base.to_ascii_uppercase());
+    }
+    let (base, _) = split_quote(symbol);
+    format!("{}-PERP", base.to_ascii_uppercase())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -505,5 +522,12 @@ mod tests {
                 "binance", "binance"
             ]
         );
+    }
+
+    #[test]
+    fn aevo_perp_symbol_converter_uses_instrument_name() {
+        assert_eq!(to_aevo_perp("ETHUSDT"), "ETH-PERP");
+        assert_eq!(to_aevo_perp("BTC-PERP"), "BTC-PERP");
+        assert_eq!(to_aevo_perp("SOLPERP"), "SOL-PERP");
     }
 }

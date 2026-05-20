@@ -92,6 +92,12 @@ exchanges:
     symbols: [BTCAUD, ETHAUD]
     fee: { mode: fixed, maker_bps: 85.0, taker_bps: 85.0 }
 
+  aevo:
+    enabled: true
+    symbols: []
+    perp_symbols: [ETHUSDT, BTCUSDT]
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 5.0 }
+
   derive:
     enabled: true
     symbols: [ETHUSDC]

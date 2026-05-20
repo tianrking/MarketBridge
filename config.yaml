@@ -457,3 +457,13 @@ exchanges:
       mode: fixed
       maker_bps: 2.0
       taker_bps: 5.0
+
+  aevo:
+    enabled: false
+    # Aevo public API uses instrument names like BTC-PERP; registry maps BTCUSDT -> BTC-PERP.
+    symbols: []
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 5.0
