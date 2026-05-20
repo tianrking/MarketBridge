@@ -121,9 +121,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "Mature fiat spot reference venue; useful for USD/EUR regime checks.",
+        notes: "Public spot order-book diff and trade feed are wired; REST snapshot/backfill remains planned.",
     },
     RoadmapSource {
         source: "btc_markets",
