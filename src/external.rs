@@ -44,6 +44,39 @@ pub struct PolymarketCryptoMarketsResponse {
     pub clob_asset_ids: Vec<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PolymarketBookLevel {
+    pub price: String,
+    pub size: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PolymarketOrderBook {
+    pub market: Option<String>,
+    pub asset_id: String,
+    pub timestamp: Option<String>,
+    pub hash: Option<String>,
+    #[serde(default)]
+    pub bids: Vec<PolymarketBookLevel>,
+    #[serde(default)]
+    pub asks: Vec<PolymarketBookLevel>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PolymarketBookSummary {
+    pub market: Option<String>,
+    pub asset_id: String,
+    pub timestamp: Option<String>,
+    pub best_bid: Option<f64>,
+    pub best_ask: Option<f64>,
+    pub spread: Option<f64>,
+    pub bid_depth: f64,
+    pub ask_depth: f64,
+    pub raw_bid_levels: usize,
+    pub raw_ask_levels: usize,
+    pub book: PolymarketOrderBook,
+}
+
 #[derive(Debug, Deserialize)]
 struct DeribitResponse<T> {
     result: T,
@@ -146,6 +179,70 @@ pub async fn fetch_polymarket_crypto_markets(
         markets,
         clob_asset_ids,
     })
+}
+
+pub async fn fetch_polymarket_book(
+    client: &reqwest::Client,
+    token_id: &str,
+) -> Result<PolymarketBookSummary> {
+    let mut url = Url::parse("https://clob.polymarket.com/book")?;
+    url.query_pairs_mut().append_pair("token_id", token_id);
+    let book = client
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<PolymarketOrderBook>()
+        .await
+        .context("failed to decode polymarket CLOB book")?;
+    Ok(summarize_book(book))
+}
+
+pub async fn fetch_polymarket_books(
+    client: &reqwest::Client,
+    token_ids: &[String],
+) -> Vec<Result<PolymarketBookSummary>> {
+    let mut out = Vec::with_capacity(token_ids.len());
+    for token_id in token_ids {
+        out.push(fetch_polymarket_book(client, token_id).await);
+    }
+    out
+}
+
+fn summarize_book(book: PolymarketOrderBook) -> PolymarketBookSummary {
+    let best_bid = book
+        .bids
+        .iter()
+        .filter_map(|level| level.price.parse::<f64>().ok())
+        .reduce(f64::max);
+    let best_ask = book
+        .asks
+        .iter()
+        .filter_map(|level| level.price.parse::<f64>().ok())
+        .reduce(f64::min);
+    let bid_depth = book
+        .bids
+        .iter()
+        .filter_map(|level| level.size.parse::<f64>().ok())
+        .sum();
+    let ask_depth = book
+        .asks
+        .iter()
+        .filter_map(|level| level.size.parse::<f64>().ok())
+        .sum();
+    PolymarketBookSummary {
+        market: book.market.clone(),
+        asset_id: book.asset_id.clone(),
+        timestamp: book.timestamp.clone(),
+        best_bid,
+        best_ask,
+        spread: best_bid.zip(best_ask).map(|(bid, ask)| ask - bid),
+        bid_depth,
+        ask_depth,
+        raw_bid_levels: book.bids.len(),
+        raw_ask_levels: book.asks.len(),
+        book,
+    }
 }
 
 async fn fetch_gamma_markets(

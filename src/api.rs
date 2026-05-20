@@ -12,7 +12,10 @@ use tokio::time::interval;
 use tracing::warn;
 
 use crate::event_bus::{EventBus, NormalizedTick};
-use crate::external::{fetch_deribit_option_summaries, fetch_polymarket_crypto_markets};
+use crate::external::{
+    fetch_deribit_option_summaries, fetch_polymarket_book, fetch_polymarket_books,
+    fetch_polymarket_crypto_markets,
+};
 use crate::metrics::AppMetrics;
 
 #[derive(Clone)]
@@ -30,6 +33,9 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/funding", get(funding))
         .route("/options/deribit/summary", get(deribit_options_summary))
         .route("/polymarket/crypto-markets", get(polymarket_crypto_markets))
+        .route("/polymarket/book", get(polymarket_book))
+        .route("/polymarket/books", get(polymarket_books))
+        .route("/polymarket/crypto-books", get(polymarket_crypto_books))
         .route("/coverage", get(coverage))
         .route("/metrics", get(metrics))
         .route(
@@ -61,6 +67,16 @@ struct PolymarketCryptoMarketsQuery {
     gamma_base_url: Option<String>,
     limit: Option<usize>,
     max_offset: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PolymarketBookQuery {
+    token_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PolymarketBooksQuery {
+    token_ids: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -285,6 +301,93 @@ async fn polymarket_crypto_markets(
             "clob_asset_ids": []
         })),
     }
+}
+
+async fn polymarket_book(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketBookQuery>,
+) -> impl IntoResponse {
+    match fetch_polymarket_book(&state.http, &q.token_id).await {
+        Ok(book) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "book": book
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "token_id": q.token_id,
+            "error": error.to_string(),
+            "book": null
+        })),
+    }
+}
+
+async fn polymarket_books(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketBooksQuery>,
+) -> impl IntoResponse {
+    let token_ids = parse_csv_vec(&q.token_ids);
+    let results = fetch_polymarket_books(&state.http, &token_ids).await;
+    let mut books = Vec::new();
+    let mut errors = Vec::new();
+    for (token_id, result) in token_ids.into_iter().zip(results.into_iter()) {
+        match result {
+            Ok(book) => books.push(book),
+            Err(error) => errors.push(serde_json::json!({
+                "token_id": token_id,
+                "error": error.to_string()
+            })),
+        }
+    }
+    Json(serde_json::json!({
+        "source": "polymarket_clob",
+        "books": books,
+        "errors": errors
+    }))
+}
+
+async fn polymarket_crypto_books(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketCryptoMarketsQuery>,
+) -> impl IntoResponse {
+    let gamma_base_url = q
+        .gamma_base_url
+        .unwrap_or_else(|| "https://gamma-api.polymarket.com/".to_string());
+    let limit = q.limit.unwrap_or(500);
+    let max_offset = q.max_offset.unwrap_or(5000);
+    let market_response =
+        fetch_polymarket_crypto_markets(&state.http, &gamma_base_url, limit, max_offset).await;
+    let Ok(market_response) = market_response else {
+        return Json(serde_json::json!({
+            "source": "polymarket_clob",
+            "error": market_response.err().map(|e| e.to_string()).unwrap_or_default(),
+            "markets": [],
+            "books": [],
+            "errors": []
+        }));
+    };
+    let results = fetch_polymarket_books(&state.http, &market_response.clob_asset_ids).await;
+    let mut books = Vec::new();
+    let mut errors = Vec::new();
+    for (token_id, result) in market_response
+        .clob_asset_ids
+        .iter()
+        .cloned()
+        .zip(results.into_iter())
+    {
+        match result {
+            Ok(book) => books.push(book),
+            Err(error) => errors.push(serde_json::json!({
+                "token_id": token_id,
+                "error": error.to_string()
+            })),
+        }
+    }
+    Json(serde_json::json!({
+        "source": "polymarket_clob",
+        "markets": market_response.markets,
+        "books": books,
+        "errors": errors
+    }))
 }
 
 async fn funding(
@@ -607,6 +710,14 @@ fn parse_csv_set_lower(s: String) -> HashSet<String> {
     s.split(',')
         .map(|x| x.trim().to_ascii_lowercase())
         .filter(|x| !x.is_empty())
+        .collect()
+}
+
+fn parse_csv_vec(s: &str) -> Vec<String> {
+    s.split(',')
+        .map(str::trim)
+        .filter(|x| !x.is_empty())
+        .map(ToOwned::to_owned)
         .collect()
 }
 

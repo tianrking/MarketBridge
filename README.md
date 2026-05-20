@@ -136,6 +136,9 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
 | GET | `/polymarket/crypto-markets` | Parsed Polymarket BTC/ETH binary markets |
+| GET | `/polymarket/book` | Polymarket CLOB book summary for one token |
+| GET | `/polymarket/books` | Polymarket CLOB book summaries for token ids |
+| GET | `/polymarket/crypto-books` | Parsed crypto markets plus Yes/No CLOB books |
 | GET | `/coverage` | Data quality dashboard model |
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
@@ -265,6 +268,47 @@ Response fields:
 
 - `markets[]`: parsed `base_asset`, `strike`, `direction`, `rule_type`, `expiry_time`, Yes/No token ids
 - `clob_asset_ids[]`: token ids that a Polymarket CLOB collector should subscribe to
+
+### `GET /polymarket/book`
+
+Polymarket CLOB book summary for one outcome token.
+
+Query params:
+
+- `token_id` required
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/book?token_id=TOKEN_ID" | jq
+```
+
+Key fields in `book`:
+
+- `asset_id`, `market`, `timestamp`
+- `best_bid`, `best_ask`, `spread`
+- `bid_depth`, `ask_depth`
+- full raw `book.bids[]` and `book.asks[]`
+
+### `GET /polymarket/books`
+
+Batch Polymarket CLOB book summaries.
+
+Query params:
+
+- `token_ids` comma-separated token ids
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/books?token_ids=YES_TOKEN,NO_TOKEN" | jq
+```
+
+### `GET /polymarket/crypto-books`
+
+Convenience endpoint for strategy engines: parsed active BTC/ETH binary markets plus the current Yes/No CLOB book summaries.
+
+Query params are the same as `/polymarket/crypto-markets`.
 
 ### `GET /coverage`
 
