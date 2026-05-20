@@ -40,6 +40,7 @@ use redis_sink::spawn_redis_sink;
 use router::EventRouter;
 use runtime::SourceRuntime;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 use types::DataEvent;
@@ -197,60 +198,74 @@ async fn main() -> anyhow::Result<()> {
 
     let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));
 
+    let mut agg_joined = false;
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("ctrl-c received, shutting down");
             shutdown.cancel();
         }
         res = &mut agg_task => {
-            match res {
-                Ok(()) => info!("aggregator exited"),
-                Err(e) => error!(error = %e, "aggregator task failed"),
-            }
+            log_join_result("aggregator", res);
+            agg_joined = true;
             shutdown.cancel();
         }
     }
 
     if let Some(redis_task) = redis_task {
-        let _ = redis_task.await;
+        wait_task("redis_sink", redis_task).await;
     }
 
     if let Some(deribit_task) = deribit_task {
-        let _ = deribit_task.await;
+        wait_task("deribit_options", deribit_task).await;
     }
 
     if let Some(okx_options_task) = okx_options_task {
-        let _ = okx_options_task.await;
+        wait_task("okx_options", okx_options_task).await;
     }
 
     if let Some(bybit_options_task) = bybit_options_task {
-        let _ = bybit_options_task.await;
+        wait_task("bybit_options", bybit_options_task).await;
     }
 
     if let Some(binance_options_task) = binance_options_task {
-        let _ = binance_options_task.await;
+        wait_task("binance_options", binance_options_task).await;
     }
 
     if let Some(polymarket_task) = polymarket_task {
-        let _ = polymarket_task.await;
+        wait_task("polymarket_ws_cache", polymarket_task).await;
     }
 
     if let Some(kline_task) = kline_task {
-        let _ = kline_task.await;
+        wait_task("kline_service", kline_task).await;
     }
 
-    let _ = order_flow_task.await;
+    wait_task("order_flow", order_flow_task).await;
 
     for task in onchain_tasks {
-        let _ = task.await;
+        wait_task("onchain_collector", task).await;
     }
 
     for t in tasks.drain(..) {
-        let _ = t.await;
+        wait_task("source", t).await;
     }
 
-    let _ = router_task.await;
-    let _ = api_task.await;
+    wait_task("router", router_task).await;
+    if !agg_joined {
+        wait_task("aggregator", agg_task).await;
+    }
+    wait_task("api", api_task).await;
 
     Ok(())
+}
+
+async fn wait_task(name: &'static str, task: JoinHandle<()>) {
+    log_join_result(name, task.await);
+}
+
+fn log_join_result(name: &'static str, result: Result<(), tokio::task::JoinError>) {
+    match result {
+        Ok(()) => info!(task = name, "task exited"),
+        Err(error) if error.is_panic() => error!(task = name, error = %error, "task panicked"),
+        Err(error) => error!(task = name, error = %error, "task failed"),
+    }
 }
