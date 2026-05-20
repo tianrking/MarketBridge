@@ -110,6 +110,12 @@ exchanges:
     perp_symbols: [BTCUSDT, ETHUSDT, SOLUSDT]
     fee: { mode: fixed, maker_bps: 1.0, taker_bps: 3.0 }
 
+  vertex:
+    enabled: true
+    symbols: [WBTCUSDC, WETHUSDC]
+    perp_symbols: [BTCUSDT, ETHUSDT, ARBUSDT]
+    fee: { mode: fixed, maker_bps: 0.0, taker_bps: 2.0 }
+
   derive:
     enabled: true
     symbols: [ETHUSDC]

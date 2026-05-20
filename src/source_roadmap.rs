@@ -298,12 +298,12 @@ const ROADMAP: &[RoadmapSource] = &[
     RoadmapSource {
         source: "vertex",
         source_type: "exchange",
-        product_types: SPOT,
+        product_types: SPOT_PERP,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "CLOB DEX source in Hummingbot; useful for decentralized order-book coverage.",
+        notes: "Public CLOB spot/perp book-depth and trade streams wired for known product ids.",
     },
     RoadmapSource {
         source: "xrpl",

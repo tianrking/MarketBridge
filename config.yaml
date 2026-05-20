@@ -487,3 +487,13 @@ exchanges:
       mode: fixed
       maker_bps: 1.0
       taker_bps: 3.0
+
+  vertex:
+    enabled: false
+    # Vertex public WS uses product ids; registry maps WBTC/WETH spot and BTC/ETH/ARB perp.
+    symbols: [WBTCUSDC, WETHUSDC]
+    perp_symbols: [BTCUSDT, ETHUSDT, ARBUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 0.0
+      taker_bps: 2.0

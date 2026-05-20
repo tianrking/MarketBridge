@@ -32,4 +32,5 @@ pub mod okx;
 pub mod okx_perp;
 pub mod pacifica;
 pub mod registry;
+pub mod vertex;
 pub mod ws;

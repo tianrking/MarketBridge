@@ -59,6 +59,7 @@ use super::okx::{
 };
 use super::okx_perp::OkxPerpTicker;
 use super::pacifica::PacificaPerpFeed;
+use super::vertex::{VertexFeed, VertexMarket};
 use symbols::{
     split_quote, to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
     to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_okx, to_okx_swap, to_slash,
@@ -235,6 +236,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 out.push(Arc::new(GrvtPerpFeed::new(
                     perp_symbols.iter().map(|s| to_grvt_perp(s)).collect(),
                 )));
+            }
+            "vertex" => {
+                let markets = vertex_markets(&spot_symbols, &perp_symbols);
+                if !markets.is_empty() {
+                    out.push(Arc::new(VertexFeed::new(markets)));
+                }
             }
             "derive" => {
                 if !spot_symbols.is_empty() {
@@ -490,6 +497,55 @@ fn to_grvt_perp(symbol: &str) -> String {
     format!("{}_{}_Perp", base, quote)
 }
 
+fn vertex_markets(spot_symbols: &[String], perp_symbols: &[String]) -> Vec<VertexMarket> {
+    let mut markets = Vec::new();
+    for symbol in spot_symbols {
+        if let Some((product_id, symbol)) = vertex_spot_market(symbol) {
+            markets.push(VertexMarket::new(
+                product_id,
+                symbol,
+                crate::types::MarketKind::Spot,
+            ));
+        }
+    }
+    for symbol in perp_symbols {
+        if let Some((product_id, symbol)) = vertex_perp_market(symbol) {
+            markets.push(VertexMarket::new(
+                product_id,
+                symbol,
+                crate::types::MarketKind::Perp,
+            ));
+        }
+    }
+    markets
+}
+
+fn vertex_spot_market(symbol: &str) -> Option<(u64, &'static str)> {
+    match compact_symbol(symbol).as_str() {
+        "WBTCUSDC" | "BTCUSDC" => Some((1, "wBTC/USDC")),
+        "WETHUSDC" | "ETHUSDC" => Some((3, "wETH/USDC")),
+        "ARBUSDC" => Some((5, "ARB/USDC")),
+        _ => None,
+    }
+}
+
+fn vertex_perp_market(symbol: &str) -> Option<(u64, &'static str)> {
+    match compact_symbol(symbol).as_str() {
+        "BTCPERP" | "BTCUSDC" | "BTCUSDT" => Some((2, "BTC-PERP")),
+        "ETHPERP" | "ETHUSDC" | "ETHUSDT" => Some((4, "ETH-PERP")),
+        "ARBPERP" | "ARBUSDC" | "ARBUSDT" => Some((6, "ARB-PERP")),
+        _ => None,
+    }
+}
+
+fn compact_symbol(symbol: &str) -> String {
+    symbol
+        .chars()
+        .filter(|ch| !matches!(ch, '-' | '/' | '_'))
+        .collect::<String>()
+        .to_ascii_uppercase()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -580,5 +636,17 @@ mod tests {
         assert_eq!(to_grvt_perp("BTCUSDT"), "BTC_USDT_Perp");
         assert_eq!(to_grvt_perp("ETHUSDT"), "ETH_USDT_Perp");
         assert_eq!(to_grvt_perp("SOL_USDT_Perp"), "SOL_USDT_Perp");
+    }
+
+    #[test]
+    fn vertex_markets_map_known_product_ids() {
+        let spot = vec!["WBTCUSDC".to_string(), "ETHUSDC".to_string()];
+        let perp = vec!["BTCUSDT".to_string(), "ETH-PERP".to_string()];
+        let markets = vertex_markets(&spot, &perp);
+        let ids = markets
+            .iter()
+            .map(|market| market.product_id)
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec![1, 3, 2, 4]);
     }
 }
