@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::emit_tick_ext;
+use crate::connectors::cex::common::{emit_tick_ext, parse_array_levels, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick,
-    OrderBookTick, TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, OrderBookTick,
+    TradeSide, TradeTick, now_ms,
 };
 
 // ── Shared types ──────────────────────────────────────────────────────
@@ -332,12 +332,12 @@ async fn run_okx_depth(market: MarketKind, inst_ids: &[String], ctx: SourceConte
             bids: item
                 .get("bids")
                 .and_then(|x| x.as_array())
-                .map(|x| parse_okx_levels(x))
+                .map(|x| parse_array_levels(x))
                 .unwrap_or_default(),
             asks: item
                 .get("asks")
                 .and_then(|x| x.as_array())
-                .map(|x| parse_okx_levels(x))
+                .map(|x| parse_array_levels(x))
                 .unwrap_or_default(),
             last_update_id: None,
             ts_ms: item
@@ -447,25 +447,8 @@ fn parse_f64(value: &str) -> Option<f64> {
     value.parse::<f64>().ok()
 }
 
-fn parse_okx_levels(items: &[serde_json::Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            let pair = item.as_array()?;
-            Some(BookLevel {
-                price: pair.first()?.as_str()?.parse::<f64>().ok()?,
-                qty: pair.get(1)?.as_str()?.parse::<f64>().ok()?,
-            })
-        })
-        .collect()
-}
-
 fn side_from_str(side: &str) -> TradeSide {
-    match side {
-        "buy" | "BUY" => TradeSide::Buy,
-        "sell" | "SELL" => TradeSide::Sell,
-        _ => TradeSide::Unknown,
-    }
+    side_from_labels(side, &["buy"], &["sell"])
 }
 
 #[async_trait]

@@ -8,11 +8,11 @@ use serde_json::json;
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::emit_tick_ext;
+use crate::connectors::cex::common::{emit_tick_ext, parse_array_levels, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick,
-    OrderBookTick, TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, OrderBookTick,
+    TradeSide, TradeTick, now_ms,
 };
 
 #[derive(Deserialize)]
@@ -205,12 +205,12 @@ async fn run_bybit_depth(market: MarketKind, symbols: &[String], ctx: SourceCont
         let bids = data
             .get("b")
             .and_then(|x| x.as_array())
-            .map(|x| parse_json_levels(x))
+            .map(|x| parse_array_levels(x))
             .unwrap_or_default();
         let asks = data
             .get("a")
             .and_then(|x| x.as_array())
-            .map(|x| parse_json_levels(x))
+            .map(|x| parse_array_levels(x))
             .unwrap_or_default();
         Some(DataEvent::OrderBook(OrderBookTick {
             exchange: "bybit",
@@ -362,25 +362,8 @@ fn parse_f64(value: &str) -> Option<f64> {
     value.parse::<f64>().ok()
 }
 
-fn parse_json_levels(items: &[serde_json::Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            let pair = item.as_array()?;
-            Some(BookLevel {
-                price: pair.first()?.as_str()?.parse::<f64>().ok()?,
-                qty: pair.get(1)?.as_str()?.parse::<f64>().ok()?,
-            })
-        })
-        .collect()
-}
-
 fn side_from_str(side: &str) -> TradeSide {
-    match side {
-        "Buy" | "BUY" => TradeSide::Buy,
-        "Sell" | "SELL" => TradeSide::Sell,
-        _ => TradeSide::Unknown,
-    }
+    side_from_labels(side, &["buy"], &["sell"])
 }
 
 #[async_trait]

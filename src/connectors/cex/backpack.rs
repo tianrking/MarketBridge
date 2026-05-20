@@ -7,10 +7,10 @@ use serde_json::{Value, json};
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::emit_tick_ext;
+use crate::connectors::cex::common::{emit_tick_ext, parse_array_levels};
 use crate::connectors::cex::ws::run_reconnecting;
 use crate::source::{ExchangeSource, SourceContext};
-use crate::types::{BookLevel, DataEvent, MarketKind, OrderBookTick, TradeSide, TradeTick, now_ms};
+use crate::types::{DataEvent, MarketKind, OrderBookTick, TradeSide, TradeTick, now_ms};
 
 pub struct BackpackFeed {
     market: MarketKind,
@@ -135,13 +135,13 @@ async fn parse_backpack_events(
                 .get("b")
                 .or_else(|| data.get("bids"))
                 .and_then(Value::as_array)
-                .map(|x| parse_levels(x))
+                .map(|x| parse_array_levels(x))
                 .unwrap_or_default(),
             asks: data
                 .get("a")
                 .or_else(|| data.get("asks"))
                 .and_then(Value::as_array)
-                .map(|x| parse_levels(x))
+                .map(|x| parse_array_levels(x))
                 .unwrap_or_default(),
             last_update_id: data.get("u").and_then(Value::as_u64),
             ts_ms: data.get("E").and_then(Value::as_u64).unwrap_or_else(now_ms),
@@ -174,19 +174,6 @@ async fn parse_backpack_events(
         })]);
     }
     Ok(Vec::new())
-}
-
-fn parse_levels(items: &[Value]) -> Vec<BookLevel> {
-    items
-        .iter()
-        .filter_map(|item| {
-            let pair = item.as_array()?;
-            Some(BookLevel {
-                price: pair.first()?.as_str()?.parse::<f64>().ok()?,
-                qty: pair.get(1)?.as_str()?.parse::<f64>().ok()?,
-            })
-        })
-        .collect()
 }
 
 fn string_f64(value: &Value, key: &str) -> Option<f64> {
