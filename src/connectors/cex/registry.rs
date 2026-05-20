@@ -12,7 +12,7 @@ use super::bitfinex::BitfinexTicker;
 use super::bitfinex_perp::BitfinexPerpTicker;
 use super::bitget::BitgetSpotTicker;
 use super::bitget_perp::BitgetPerpTicker;
-use super::bybit::BybitSpotTicker;
+use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
 use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::CoinbaseTicker;
 use super::gate::GateSpotBookTicker;
@@ -51,9 +51,28 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(BybitSpotTicker::new(
                         spot_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
+                    out.push(Arc::new(BybitDepthFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BybitTradeFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
                 }
                 if !perp_symbols.is_empty() {
                     out.push(Arc::new(BybitPerpTicker::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BybitLiquidationFeed::new(
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BybitDepthFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    )));
+                    out.push(Arc::new(BybitTradeFeed::new(
+                        crate::types::MarketKind::Perp,
                         perp_symbols.iter().map(|s| to_binance(s)).collect(),
                     )));
                 }
