@@ -89,10 +89,10 @@ pub fn spawn_kline_service(
             return;
         }
 
-        if cfg.backfill_on_start {
-            if let Err(error) = backfill_history(&cfg, &app_cfg, &http, &store).await {
-                warn!(%error, "kline historical backfill failed");
-            }
+        if cfg.backfill_on_start
+            && let Err(error) = backfill_history(&cfg, &app_cfg, &http, &store).await
+        {
+            warn!(%error, "kline historical backfill failed");
         }
 
         let (tx, rx) = mpsc::channel(4096);

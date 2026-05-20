@@ -1,0 +1,202 @@
+# MarketBridge Data Interfaces
+
+This document is the practical interface map for consumers such as PolyAlpha.
+It lists what data exists, whether it is raw or derived, required config, and
+how to query it.
+
+## Service Role
+
+MarketBridge is the public data plane:
+
+- collect public exchange, options, prediction-market, DeFi, macro, sentiment,
+  and on-chain data;
+- normalize data into stable REST/WebSocket surfaces;
+- expose freshness and source health;
+- compute reusable market microstructure features that are pure data transforms.
+
+MarketBridge does not approve factors, run paper/live PnL, sign wallets, or
+place orders.
+
+## Core Market Data
+
+| Data | Endpoint | Source | Type | Notes |
+|---|---|---|---|---|
+| Quotes | `/v1/market/quotes` | CEX/DeFi/TradFi/aggregates | raw normalized | Current latest quote snapshots. |
+| Funding | `/v1/market/funding` | CEX perp feeds | raw normalized | Latest funding-rate rows. |
+| Open interest | `/v1/market/open-interest` | CEX perp feeds | raw normalized | Latest OI rows. |
+| Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
+| L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
+| Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |
+| Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars. |
+| Basis | `/v1/market/basis` | quote snapshots | derived | Spot-perp basis per exchange/symbol. |
+| Order flow | `/v1/market/order-flow` | trade events | derived | Buy/sell pressure buckets and CVD. |
+
+## Klines
+
+Config:
+
+```yaml
+klines:
+  enabled: true
+  sqlite_path: "data/marketbridge.sqlite"
+  intervals: [1m, 5m, 15m, 1h]
+  history_limit: 1500
+  backfill_on_start: false
+  sources: [binance, okx]
+```
+
+Behavior:
+
+- Historical REST backfill supports Binance spot/perp and OKX spot/swap.
+- Realtime candles are aggregated from live quote ticks.
+- SQLite stores one row per `exchange + market + symbol + interval + open_time_ms`.
+- `backfill_on_start: false` avoids unexpected exchange REST bursts. Turn it on
+  when intentionally seeding history.
+
+Query:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
+```
+
+Params:
+
+- `exchange`
+- `market=spot|perp`
+- `symbol`
+- `interval=1m|3m|5m|15m|30m|1h|4h|1d`
+- `start_ms`, `end_ms`
+- `limit`, default `500`, max `5000`
+
+## Basis
+
+Basis is a derived metric:
+
+```text
+spot_mid = (spot_bid + spot_ask) / 2
+perp_mid = (perp_bid + perp_ask) / 2
+basis = perp_mid - spot_mid
+basis_bps = basis / spot_mid * 10000
+```
+
+Query:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/basis?symbols=BTCUSDT&exchanges=binance,okx" | jq
+```
+
+Notes:
+
+- No new data source is required.
+- A row appears only when the same exchange has both fresh spot and perp quotes
+  for the symbol.
+
+## Order Flow
+
+Order flow is derived from live trade events.
+
+Windows:
+
+- `60000` ms
+- `300000` ms
+- `900000` ms
+
+Query:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/order-flow?exchange=binance&market=perp&symbol=BTCUSDT&window_ms=60000" | jq
+```
+
+Fields:
+
+- `buy_qty`, `sell_qty`
+- `buy_notional`, `sell_notional`
+- `delta_qty`, `delta_notional`
+- `cumulative_delta_qty`, `cumulative_delta_notional`
+- `trade_count`, `large_trade_count`
+
+Notes:
+
+- Order flow exists only for venues with implemented trade feeds.
+- The current large-trade threshold is 100,000 USDT notional.
+
+## On-chain Transfers
+
+| Source | Chain | Key | Scope |
+|---|---|---|---|
+| Whale Alert | multi-chain | `WHALE_ALERT_API_KEY` | Global large-transfer API. |
+| mempool.space | Bitcoin | none | Recent BTC mempool poller. |
+| Etherscan | Ethereum | `ETHERSCAN_API_KEY` | Configured address watchlist. |
+
+Config:
+
+```yaml
+onchain:
+  whale_alert:
+    enabled: true
+    api_key_env: WHALE_ALERT_API_KEY
+    min_value_usd: 500000
+  mempool_space:
+    enabled: true
+    min_value_btc: 100
+  etherscan:
+    enabled: true
+    api_key_env: ETHERSCAN_API_KEY
+    min_value_eth: 1000
+    addresses:
+      - "0x..."
+```
+
+Query:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&min_amount_usd=1000000" | jq
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=mempool_space&chain=bitcoin&asset=BTC" | jq
+curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=etherscan&chain=ethereum&asset=ETH" | jq
+```
+
+Important boundaries:
+
+- Whale Alert is the simplest global source but requires a key.
+- mempool.space is keyless and BTC-only here. It is useful as an early warning
+  feed, not a full labeled whale classifier.
+- Etherscan is address-watchlist based in this project. Full-chain Ethereum
+  transfer firehose requires an archive/indexing provider or node stack.
+
+## Prediction, Options, External Data
+
+| Data | Endpoint | Notes |
+|---|---|---|
+| Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache. |
+| Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
+| Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
+| Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
+| External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush. |
+
+## Streaming
+
+Live domain stream:
+
+```bash
+wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote,trade,order_book&symbols=BTCUSDT&product_type=perp"
+```
+
+Supported live domains include:
+
+- `market_quote`
+- `funding`
+- `open_interest`
+- `trade`
+- `liquidation`
+- `order_book`
+- `external_signal`
+- `options_chain` and `prediction_book` as snapshot streams
+
+## Recommended Research Order
+
+1. Use `/v1/market/klines` for historical regime and backtest context.
+2. Use `/v1/market/basis` for spot-perp dislocation.
+3. Use `/v1/market/order-flow` for short-horizon buy/sell pressure.
+4. Use `/v1/onchain/transfers` as a whale-event feature.
+5. Let strategy systems such as PolyAlpha join these features with Polymarket
+   prices and perform paper validation.

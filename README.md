@@ -80,6 +80,9 @@ The long-term architecture and `/v1` API contract are maintained in
 while existing exchange, Deribit, and Polymarket data is migrated into the new
 domain model.
 
+The consumer-facing endpoint map is maintained in
+[docs/data_interfaces.md](docs/data_interfaces.md).
+
 ## Tech Stack
 
 - Language: `Rust 2024`
