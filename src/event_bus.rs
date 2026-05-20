@@ -7,8 +7,8 @@ use tokio::sync::{RwLock, broadcast};
 use crate::core::schema::DataEnvelope;
 use crate::domains::market::quote::{QuotePayload, envelope_from_tick};
 use crate::types::{
-    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, OrderBookTick,
-    TradeTick, now_ms,
+    DataEvent, ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick,
+    OrderBookTick, TradeTick, now_ms,
 };
 
 pub const SCHEMA_VERSION: &str = "v1";
@@ -39,6 +39,7 @@ pub struct EventBus {
     trade_snapshots: Arc<RwLock<HashMap<String, TradeTick>>>,
     liquidation_snapshots: Arc<RwLock<HashMap<String, LiquidationTick>>>,
     order_book_snapshots: Arc<RwLock<HashMap<String, OrderBookTick>>>,
+    external_signal_snapshots: Arc<RwLock<HashMap<String, ExternalSignalTick>>>,
     stale_ttl_ms: u64,
 }
 
@@ -56,6 +57,7 @@ impl EventBus {
             trade_snapshots: Arc::new(RwLock::new(HashMap::new())),
             liquidation_snapshots: Arc::new(RwLock::new(HashMap::new())),
             order_book_snapshots: Arc::new(RwLock::new(HashMap::new())),
+            external_signal_snapshots: Arc::new(RwLock::new(HashMap::new())),
             stale_ttl_ms,
         }
     }
@@ -131,6 +133,12 @@ impl EventBus {
                     .await
                     .insert(market_key(t.exchange, t.market, &t.symbol), t.clone());
             }
+            DataEvent::ExternalSignal(t) => {
+                self.external_signal_snapshots
+                    .write()
+                    .await
+                    .insert(external_signal_key(t), t.clone());
+            }
             DataEvent::Heartbeat { .. } => {}
         }
     }
@@ -179,6 +187,11 @@ impl EventBus {
         let guard = self.order_book_snapshots.read().await;
         guard.values().cloned().collect()
     }
+
+    pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {
+        let guard = self.external_signal_snapshots.read().await;
+        guard.values().cloned().collect()
+    }
 }
 
 fn market_to_str(m: MarketKind) -> &'static str {
@@ -207,12 +220,22 @@ fn quote_snapshot_key(envelope: &DataEnvelope<QuotePayload>) -> String {
     )
 }
 
+fn external_signal_key(t: &ExternalSignalTick) -> String {
+    format!(
+        "{}:{}:{}:{}",
+        t.source,
+        t.category,
+        t.symbol.as_deref().unwrap_or("*"),
+        t.metric
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::{
-        BookLevel, FundingRateTick, LiquidationTick, MarketKind, MarketTick, OpenInterestTick,
-        OrderBookTick, TradeSide, TradeTick,
+        BookLevel, ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
+        OpenInterestTick, OrderBookTick, TradeSide, TradeTick,
     };
 
     #[tokio::test]
@@ -308,5 +331,19 @@ mod tests {
         assert_eq!(bus.trade_snapshot_all().await.len(), 1);
         assert_eq!(bus.liquidation_snapshot_all().await.len(), 1);
         assert_eq!(bus.order_book_snapshot_all().await.len(), 1);
+        bus.publish_from_event(&DataEvent::ExternalSignal(ExternalSignalTick {
+            source: "fear_greed",
+            category: "sentiment".into(),
+            symbol: Some("BTC".into()),
+            metric: "fear_greed_index".into(),
+            value: Some(50.0),
+            score: Some(50.0),
+            title: None,
+            url: None,
+            ts_ms: now_ms(),
+            raw: None,
+        }))
+        .await;
+        assert_eq!(bus.external_signal_snapshot_all().await.len(), 1);
     }
 }

@@ -88,6 +88,20 @@ pub struct OrderBookTick {
     pub ts_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalSignalTick {
+    pub source: &'static str,
+    pub category: Box<str>,
+    pub symbol: Option<Box<str>>,
+    pub metric: Box<str>,
+    pub value: Option<f64>,
+    pub score: Option<f64>,
+    pub title: Option<Box<str>>,
+    pub url: Option<Box<str>>,
+    pub ts_ms: u64,
+    pub raw: Option<serde_json::Value>,
+}
+
 #[derive(Debug, Clone)]
 pub enum DataEvent {
     Tick(MarketTick),
@@ -96,6 +110,7 @@ pub enum DataEvent {
     Trade(TradeTick),
     Liquidation(LiquidationTick),
     OrderBook(OrderBookTick),
+    ExternalSignal(ExternalSignalTick),
     Heartbeat { exchange: &'static str, ts_ms: u64 },
 }
 

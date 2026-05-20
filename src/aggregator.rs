@@ -74,7 +74,8 @@ impl SpreadAggregator {
                             | DataEvent::OpenInterest(_)
                             | DataEvent::Trade(_)
                             | DataEvent::Liquidation(_)
-                            | DataEvent::OrderBook(_),
+                            | DataEvent::OrderBook(_)
+                            | DataEvent::ExternalSignal(_),
                         ) => {}
                         None => break,
                     }

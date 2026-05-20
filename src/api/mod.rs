@@ -52,6 +52,10 @@ pub fn build_router(state: ApiState) -> Router {
             "/v1/prediction/books",
             get(routes::prediction::v1_prediction_books),
         )
+        .route(
+            "/v1/external/signals",
+            get(routes::external::v1_external_signals),
+        )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))
         .route("/funding", get(routes::legacy::funding))
