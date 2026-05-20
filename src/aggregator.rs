@@ -6,12 +6,16 @@ use tokio::time::interval;
 use tracing::{debug, info};
 
 use crate::config::AppConfig;
-use crate::types::{DataEvent, MarketKind, MarketTick, now_ms};
+use crate::types::{BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, now_ms};
+
+const BOOK_SIGNAL_NOTIONAL_USDT: f64 = 1_000.0;
 
 pub struct SpreadAggregator {
     books: HashMap<Box<str>, HashMap<&'static str, MarketTick>>,
+    order_books: HashMap<Box<str>, HashMap<&'static str, OrderBookTick>>,
     tick_counts: HashMap<Box<str>, HashMap<&'static str, u64>>,
     signal_started_at: HashMap<Box<str>, u64>,
+    book_signal_started_at: HashMap<Box<str>, u64>,
     report_interval: Duration,
     stale_ttl_ms: u64,
     min_profit_usdt: f64,
@@ -45,8 +49,10 @@ impl SpreadAggregator {
 
         Self {
             books: HashMap::new(),
+            order_books: HashMap::new(),
             tick_counts: HashMap::new(),
             signal_started_at: HashMap::new(),
+            book_signal_started_at: HashMap::new(),
             report_interval: Duration::from_millis(cfg.runtime.report_interval_ms.max(100)),
             stale_ttl_ms: cfg.runtime.stale_ttl_ms,
             min_profit_usdt: cfg.strategy.min_profit_usdt,
@@ -66,6 +72,7 @@ impl SpreadAggregator {
                 maybe = rx.recv() => {
                     match maybe {
                         Some(DataEvent::Tick(t)) => self.on_tick(t),
+                        Some(DataEvent::OrderBook(book)) => self.on_order_book(book),
                         Some(DataEvent::Heartbeat { exchange, ts_ms }) => {
                             debug!(exchange, ts_ms, "heartbeat");
                         }
@@ -74,7 +81,6 @@ impl SpreadAggregator {
                             | DataEvent::OpenInterest(_)
                             | DataEvent::Trade(_)
                             | DataEvent::Liquidation(_)
-                            | DataEvent::OrderBook(_)
                             | DataEvent::ExternalSignal(_),
                         ) => {}
                         None => break,
@@ -96,10 +102,23 @@ impl SpreadAggregator {
             .or_default() += 1;
     }
 
+    fn on_order_book(&mut self, book: OrderBookTick) {
+        let key = normalize_symbol(&book.symbol, book.market);
+        self.order_books
+            .entry(key)
+            .or_default()
+            .insert(book.exchange, book);
+    }
+
     fn report_once(&mut self) {
         let now = now_ms();
         let secs = self.report_interval.as_secs_f64();
 
+        self.report_bbo_spreads(now, secs);
+        self.report_book_spreads(now);
+    }
+
+    fn report_bbo_spreads(&mut self, now: u64, secs: f64) {
         let keys: Vec<Box<str>> = self.books.keys().cloned().collect();
         for key in keys {
             let Some(by_exchange) = self.books.get(&key) else {
@@ -196,6 +215,90 @@ impl SpreadAggregator {
         }
     }
 
+    fn report_book_spreads(&mut self, now: u64) {
+        let keys: Vec<Box<str>> = self.order_books.keys().cloned().collect();
+        for key in keys {
+            let Some(by_exchange) = self.order_books.get(&key) else {
+                continue;
+            };
+
+            let mut active: Vec<(&'static str, &OrderBookTick)> = by_exchange
+                .iter()
+                .filter(|(_, book)| now.saturating_sub(book.ts_ms) <= self.stale_ttl_ms)
+                .map(|(ex, book)| (*ex, book))
+                .collect();
+
+            if active.len() < 2 {
+                self.book_signal_started_at.remove(&key);
+                continue;
+            }
+            active.sort_by_key(|(ex, _)| *ex);
+
+            let Some((buy_ex, buy_avg_ask, sell_ex, sell_avg_bid)) =
+                best_book_cross_pair(&active, BOOK_SIGNAL_NOTIONAL_USDT)
+            else {
+                self.book_signal_started_at.remove(&key);
+                continue;
+            };
+
+            let buy_fee_bps = self.fee_bps(buy_ex);
+            let sell_fee_bps = self.fee_bps(sell_ex);
+            let p = compute_profit(
+                buy_avg_ask,
+                sell_avg_bid,
+                buy_fee_bps,
+                sell_fee_bps,
+                self.slippage_bps,
+            );
+
+            let eligible = p.net >= self.min_profit_usdt && p.net_bps >= self.min_profit_bps;
+            let state = if eligible {
+                let started = self
+                    .book_signal_started_at
+                    .entry(key.clone())
+                    .or_insert(now);
+                if now.saturating_sub(*started) >= self.min_signal_hold_ms {
+                    "TRIGGER"
+                } else {
+                    "HOLDING"
+                }
+            } else {
+                self.book_signal_started_at.remove(&key);
+                "FILTERED"
+            };
+
+            let levels = active
+                .iter()
+                .map(|(ex, book)| {
+                    format!("{} bids:{} asks:{}", ex, book.bids.len(), book.asks.len())
+                })
+                .collect::<Vec<_>>()
+                .join(" | ");
+
+            info!(
+                symbol = key.as_ref(),
+                market = ?active[0].1.market,
+                notional_usdt = BOOK_SIGNAL_NOTIONAL_USDT,
+                buy_ex,
+                buy_avg_ask,
+                sell_ex,
+                sell_avg_bid,
+                gross = p.gross,
+                gross_bps = p.gross_bps,
+                buy_fee = p.buy_fee,
+                sell_fee = p.sell_fee,
+                slip = p.slip,
+                fee_bps_total = p.fee_bps_total,
+                slippage_bps_total = p.slippage_bps_total,
+                net = p.net,
+                net_bps = p.net_bps,
+                state,
+                levels = %levels,
+                "book_signal"
+            );
+        }
+    }
+
     fn fee_bps(&self, ex: &str) -> f64 {
         self.taker_fee_bps.get(ex).copied().unwrap_or(0.0)
     }
@@ -230,6 +333,65 @@ fn best_cross_pair(
         }
     }
     best_pair
+}
+
+fn best_book_cross_pair(
+    active: &[(&'static str, &OrderBookTick)],
+    notional: f64,
+) -> Option<(&'static str, f64, &'static str, f64)> {
+    let mut best_pair: Option<(&'static str, f64, &'static str, f64)> = None;
+    for (buy_ex, buy_book) in active {
+        let Some(buy_avg_ask) = average_execution_price(&buy_book.asks, notional) else {
+            continue;
+        };
+
+        for (sell_ex, sell_book) in active {
+            if buy_ex == sell_ex {
+                continue;
+            }
+            let Some(sell_avg_bid) = average_execution_price(&sell_book.bids, notional) else {
+                continue;
+            };
+
+            let spread = sell_avg_bid - buy_avg_ask;
+            if best_pair.is_none_or(|(_, best_ask, _, best_bid)| spread > (best_bid - best_ask)) {
+                best_pair = Some((*buy_ex, buy_avg_ask, *sell_ex, sell_avg_bid));
+            }
+        }
+    }
+    best_pair
+}
+
+fn average_execution_price(levels: &[BookLevel], target_quote_notional: f64) -> Option<f64> {
+    if target_quote_notional <= 0.0 {
+        return None;
+    }
+
+    let mut remaining_quote = target_quote_notional;
+    let mut filled_quote = 0.0;
+    let mut filled_base = 0.0;
+
+    for level in levels {
+        if level.price <= 0.0 || level.qty <= 0.0 {
+            continue;
+        }
+
+        let level_quote = level.price * level.qty;
+        let take_quote = remaining_quote.min(level_quote);
+        filled_quote += take_quote;
+        filled_base += take_quote / level.price;
+        remaining_quote -= take_quote;
+
+        if remaining_quote <= f64::EPSILON {
+            break;
+        }
+    }
+
+    if remaining_quote <= f64::EPSILON && filled_base > 0.0 {
+        Some(filled_quote / filled_base)
+    } else {
+        None
+    }
 }
 
 fn compute_profit(
@@ -306,5 +468,78 @@ mod tests {
         assert!(p.gross > 0.0);
         assert!(p.net < 0.0);
         assert!(p.fee_bps_total > p.gross_bps);
+    }
+
+    #[test]
+    fn average_execution_price_consumes_multiple_levels() {
+        let levels = vec![
+            BookLevel {
+                price: 100.0,
+                qty: 5.0,
+            },
+            BookLevel {
+                price: 110.0,
+                qty: 5.0,
+            },
+        ];
+
+        let avg = average_execution_price(&levels, 1_000.0).expect("enough depth");
+
+        assert!((avg - 104.761_904_761_904_76).abs() < 1e-9);
+    }
+
+    #[test]
+    fn best_book_cross_pair_uses_depth_and_excludes_same_exchange() {
+        let buy_book = OrderBookTick {
+            exchange: "a",
+            market: MarketKind::Spot,
+            symbol: "BTCUSDT".into(),
+            bids: vec![BookLevel {
+                price: 99.0,
+                qty: 10.0,
+            }],
+            asks: vec![
+                BookLevel {
+                    price: 100.0,
+                    qty: 1.0,
+                },
+                BookLevel {
+                    price: 110.0,
+                    qty: 10.0,
+                },
+            ],
+            last_update_id: None,
+            ts_ms: 1,
+        };
+        let sell_book = OrderBookTick {
+            exchange: "b",
+            market: MarketKind::Spot,
+            symbol: "BTCUSDT".into(),
+            bids: vec![
+                BookLevel {
+                    price: 120.0,
+                    qty: 1.0,
+                },
+                BookLevel {
+                    price: 115.0,
+                    qty: 10.0,
+                },
+            ],
+            asks: vec![BookLevel {
+                price: 121.0,
+                qty: 10.0,
+            }],
+            last_update_id: None,
+            ts_ms: 1,
+        };
+        let active = vec![("a", &buy_book), ("b", &sell_book)];
+
+        let (buy_ex, buy_avg, sell_ex, sell_avg) =
+            best_book_cross_pair(&active, 1_000.0).expect("book pair");
+
+        assert_eq!(buy_ex, "a");
+        assert_eq!(sell_ex, "b");
+        assert!(buy_avg > 100.0);
+        assert!(sell_avg < 120.0);
     }
 }
