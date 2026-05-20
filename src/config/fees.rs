@@ -69,3 +69,34 @@ fn select_fee_tier(volume_30d_usdt: f64, tiers: &[FeeTier]) -> Option<&FeeTier> 
     }
     best.or_else(|| tiers.first())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{FeeModel, FeeTier};
+
+    #[test]
+    fn tiered_fee_selects_highest_matching_tier() {
+        let f = FeeModel::Tiered {
+            volume_30d_usdt: 5_500_000.0,
+            tiers: vec![
+                FeeTier {
+                    min_volume_usdt: 0.0,
+                    maker_bps: 10.0,
+                    taker_bps: 12.0,
+                },
+                FeeTier {
+                    min_volume_usdt: 1_000_000.0,
+                    maker_bps: 8.0,
+                    taker_bps: 9.0,
+                },
+                FeeTier {
+                    min_volume_usdt: 5_000_000.0,
+                    maker_bps: 6.0,
+                    taker_bps: 7.0,
+                },
+            ],
+        };
+        assert!((f.maker_bps() - 6.0).abs() < 1e-9);
+        assert!((f.taker_bps() - 7.0).abs() < 1e-9);
+    }
+}

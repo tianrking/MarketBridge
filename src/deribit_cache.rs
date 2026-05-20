@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -139,90 +140,85 @@ impl OptionCache {
 pub type DeribitOptionFilter = OptionFilter;
 pub type DeribitOptionCache = OptionCache;
 
-pub fn spawn_deribit_option_cache(
-    cfg: DeribitConfig,
-    client: reqwest::Client,
-    cache: OptionCache,
-    shutdown: CancellationToken,
-) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        let currencies = normalized_currencies(&cfg.currencies);
-        if currencies.is_empty() {
-            warn!("deribit option cache enabled with empty currencies");
-            return;
+macro_rules! option_cache_spawner {
+    ($name:ident, $cfg:ty, $venue:literal, $fetch:path) => {
+        pub fn $name(
+            cfg: $cfg,
+            client: reqwest::Client,
+            cache: OptionCache,
+            shutdown: CancellationToken,
+        ) -> tokio::task::JoinHandle<()> {
+            spawn_option_cache(
+                OptionCacheJob {
+                    venue: $venue,
+                    base_url: cfg.base_url,
+                    currencies: cfg.currencies,
+                    refresh_secs: cfg.refresh_secs,
+                    client,
+                    cache,
+                    shutdown,
+                },
+                |client, base_url, currency| async move {
+                    $fetch(&client, &base_url, &currency).await
+                },
+            )
         }
-        loop {
-            if shutdown.is_cancelled() {
-                break;
-            }
-            for currency in &currencies {
-                match fetch_deribit_option_summaries_from(&client, &cfg.base_url, currency).await {
-                    Ok(rows) => {
-                        let count = rows.len();
-                        cache
-                            .replace_venue_currency("deribit", currency, rows)
-                            .await;
-                        info!(currency, count, "deribit option cache refreshed");
-                    }
-                    Err(error) => {
-                        warn!(currency, %error, "deribit option cache refresh failed");
-                    }
-                }
-            }
-            tokio::select! {
-                _ = shutdown.cancelled() => break,
-                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
-            }
-        }
-    })
+    };
 }
 
-pub fn spawn_okx_option_cache(
-    cfg: OkxOptionsConfig,
+option_cache_spawner!(
+    spawn_deribit_option_cache,
+    DeribitConfig,
+    "deribit",
+    fetch_deribit_option_summaries_from
+);
+option_cache_spawner!(
+    spawn_okx_option_cache,
+    OkxOptionsConfig,
+    "okx",
+    fetch_okx_option_summaries_from
+);
+option_cache_spawner!(
+    spawn_bybit_option_cache,
+    BybitOptionsConfig,
+    "bybit",
+    fetch_bybit_option_summaries_from
+);
+option_cache_spawner!(
+    spawn_binance_option_cache,
+    BinanceOptionsConfig,
+    "binance",
+    fetch_binance_option_summaries_from
+);
+
+struct OptionCacheJob {
+    venue: &'static str,
+    base_url: String,
+    currencies: Vec<String>,
+    refresh_secs: u64,
     client: reqwest::Client,
     cache: OptionCache,
     shutdown: CancellationToken,
-) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        let currencies = normalized_currencies(&cfg.currencies);
-        if currencies.is_empty() {
-            warn!("okx option cache enabled with empty currencies");
-            return;
-        }
-        loop {
-            if shutdown.is_cancelled() {
-                break;
-            }
-            for currency in &currencies {
-                match fetch_okx_option_summaries_from(&client, &cfg.base_url, currency).await {
-                    Ok(rows) => {
-                        let count = rows.len();
-                        cache.replace_venue_currency("okx", currency, rows).await;
-                        info!(currency, count, "okx option cache refreshed");
-                    }
-                    Err(error) => {
-                        warn!(currency, %error, "okx option cache refresh failed");
-                    }
-                }
-            }
-            tokio::select! {
-                _ = shutdown.cancelled() => break,
-                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
-            }
-        }
-    })
 }
 
-pub fn spawn_bybit_option_cache(
-    cfg: BybitOptionsConfig,
-    client: reqwest::Client,
-    cache: OptionCache,
-    shutdown: CancellationToken,
-) -> tokio::task::JoinHandle<()> {
+fn spawn_option_cache<F, Fut>(job: OptionCacheJob, fetch: F) -> tokio::task::JoinHandle<()>
+where
+    F: Fn(reqwest::Client, String, String) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = anyhow::Result<Vec<OptionSummary>>> + Send,
+{
+    let OptionCacheJob {
+        venue,
+        base_url,
+        currencies,
+        refresh_secs,
+        client,
+        cache,
+        shutdown,
+    } = job;
     tokio::spawn(async move {
-        let currencies = normalized_currencies(&cfg.currencies);
+        let currencies = normalized_currencies(&currencies);
         if currencies.is_empty() {
-            warn!("bybit option cache enabled with empty currencies");
+            warn!(venue, "option cache enabled with empty currencies");
             return;
         }
         loop {
@@ -230,58 +226,20 @@ pub fn spawn_bybit_option_cache(
                 break;
             }
             for currency in &currencies {
-                match fetch_bybit_option_summaries_from(&client, &cfg.base_url, currency).await {
+                match fetch(client.clone(), base_url.clone(), currency.clone()).await {
                     Ok(rows) => {
                         let count = rows.len();
-                        cache.replace_venue_currency("bybit", currency, rows).await;
-                        info!(currency, count, "bybit option cache refreshed");
+                        cache.replace_venue_currency(venue, currency, rows).await;
+                        info!(venue, currency, count, "option cache refreshed");
                     }
                     Err(error) => {
-                        warn!(currency, %error, "bybit option cache refresh failed");
+                        warn!(venue, currency, %error, "option cache refresh failed");
                     }
                 }
             }
             tokio::select! {
                 _ = shutdown.cancelled() => break,
-                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
-            }
-        }
-    })
-}
-
-pub fn spawn_binance_option_cache(
-    cfg: BinanceOptionsConfig,
-    client: reqwest::Client,
-    cache: OptionCache,
-    shutdown: CancellationToken,
-) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        let currencies = normalized_currencies(&cfg.currencies);
-        if currencies.is_empty() {
-            warn!("binance option cache enabled with empty currencies");
-            return;
-        }
-        loop {
-            if shutdown.is_cancelled() {
-                break;
-            }
-            for currency in &currencies {
-                match fetch_binance_option_summaries_from(&client, &cfg.base_url, currency).await {
-                    Ok(rows) => {
-                        let count = rows.len();
-                        cache
-                            .replace_venue_currency("binance", currency, rows)
-                            .await;
-                        info!(currency, count, "binance option cache refreshed");
-                    }
-                    Err(error) => {
-                        warn!(currency, %error, "binance option cache refresh failed");
-                    }
-                }
-            }
-            tokio::select! {
-                _ = shutdown.cancelled() => break,
-                _ = tokio::time::sleep(Duration::from_secs(cfg.refresh_secs.max(1))) => {}
+                _ = tokio::time::sleep(Duration::from_secs(refresh_secs.max(1))) => {}
             }
         }
     })
