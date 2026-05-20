@@ -12,6 +12,7 @@ pub mod gate;
 pub mod gate_perp;
 pub mod htx;
 pub mod htx_perp;
+pub mod hyperliquid;
 pub mod kraken;
 pub mod kraken_perp;
 pub mod kucoin;

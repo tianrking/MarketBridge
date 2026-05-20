@@ -19,6 +19,7 @@ use super::gate::GateSpotBookTicker;
 use super::gate_perp::GatePerpBookTicker;
 use super::htx::HtxBbo;
 use super::htx_perp::HtxPerpBbo;
+use super::hyperliquid::HyperliquidFeed;
 use super::kraken::KrakenTicker;
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
@@ -71,6 +72,16 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(OkxTradeFeed::new(
                         crate::types::MarketKind::Perp,
                         perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
+                    )));
+                }
+            }
+            "hyperliquid" => {
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(HyperliquidFeed::new(
+                        perp_symbols
+                            .iter()
+                            .map(|s| to_hyperliquid_coin(s))
+                            .collect(),
                     )));
                 }
             }
@@ -280,6 +291,9 @@ fn to_kraken_perp(s: &str) -> String {
     // Kraken futures symbols vary across venues; pass through for user override compatibility.
     s.to_string()
 }
+fn to_hyperliquid_coin(s: &str) -> String {
+    split_quote(s).0.to_string()
+}
 
 #[cfg(test)]
 mod tests {
@@ -300,6 +314,7 @@ mod tests {
         assert_eq!(to_kucoin_perp("BTCUSDT"), "BTCUSDTM");
         assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USDTF0");
+        assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");
     }
 
     #[test]
