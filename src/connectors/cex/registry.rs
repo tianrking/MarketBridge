@@ -445,6 +445,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             cfg.defi.meteora.clone(),
         )));
     }
+    if cfg.defi.orca.enabled {
+        out.push(Arc::new(DexScreenerPoller::new(
+            "orca",
+            cfg.defi.orca.clone(),
+        )));
+    }
     if cfg.defi.raydium.enabled {
         out.push(Arc::new(RaydiumPricePoller::new(cfg.defi.raydium.clone())));
     }

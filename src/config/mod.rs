@@ -128,6 +128,8 @@ pub struct DefiConfig {
     #[serde(default)]
     pub meteora: DexScreenerConfig,
     #[serde(default)]
+    pub orca: DexScreenerConfig,
+    #[serde(default)]
     pub raydium: RaydiumConfig,
     #[serde(default)]
     pub uniswap_v3: UniswapV3Config,

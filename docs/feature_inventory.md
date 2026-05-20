@@ -80,6 +80,7 @@ Status labels:
 |---|---:|---:|---:|---:|---|
 | Jupiter | implemented | planned | planned | keyless | Solana aggregator quote API. |
 | Meteora | implemented | partial | planned | keyless | DexScreener-backed Solana pool quote snapshots for Gateway coverage. |
+| Orca | implemented | partial | planned | keyless | DexScreener-backed Solana pool quote snapshots for Gateway coverage. |
 | Raydium | implemented | partial | planned | keyless | Raydium token price map. |
 | Uniswap V3 | implemented | partial | planned | keyless | Subgraph pool price snapshot. |
 | ParaSwap | implemented | planned | planned | keyless | EVM aggregator quote API. |

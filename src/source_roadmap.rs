@@ -411,9 +411,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: DEX,
         domains: DEX_QUOTE,
         upstreams: UP_HB_GATEWAY,
-        marketbridge_status: "planned",
+        marketbridge_status: "partial",
         priority: "P1",
-        notes: "Hummingbot Gateway active CLMM connector; useful Solana liquidity source.",
+        notes: "DexScreener-backed Solana Orca pool quote snapshots wired; Whirlpool-native state remains planned.",
     },
     RoadmapSource {
         source: "uniswap",

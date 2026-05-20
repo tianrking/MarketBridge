@@ -144,6 +144,17 @@ defi:
         query: "SOL USDC"
         spread_bps: 5.0
 
+  orca:
+    enabled: false
+    base_url: "https://api.dexscreener.com/"
+    poll_secs: 10
+    pairs:
+      - symbol: SOLUSDC
+        chain_id: solana
+        dex_id: orca
+        query: "SOL USDC"
+        spread_bps: 5.0
+
   raydium:
     enabled: false
     price_url: "https://api.raydium.io/v2/main/price"
