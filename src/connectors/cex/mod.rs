@@ -50,5 +50,6 @@ pub mod phemex;
 pub mod registry;
 pub mod upbit;
 pub mod vertex;
+pub mod woo;
 pub mod ws;
 pub mod xrpl;

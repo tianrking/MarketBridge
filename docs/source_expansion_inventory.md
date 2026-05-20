@@ -277,6 +277,7 @@ pacifica
 phemex
 upbit
 vertex
+woo
 xrpl
 ```
 

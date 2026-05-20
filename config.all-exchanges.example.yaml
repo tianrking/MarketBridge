@@ -179,6 +179,12 @@ exchanges:
     symbols: [BTCUSDT, ETHUSDT, BTCKRW, ETHKRW]
     fee: { mode: fixed, maker_bps: 5.0, taker_bps: 5.0 }
 
+  woo:
+    enabled: true
+    symbols: [BTCUSDT, ETHUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee: { mode: fixed, maker_bps: 3.0, taker_bps: 3.0 }
+
   bitmart:
     enabled: true
     symbols: [BTCUSDT, ETHUSDT]

@@ -470,6 +470,16 @@ exchanges:
       maker_bps: 5.0
       taker_bps: 5.0
 
+  woo:
+    enabled: false
+    # WOO X public REST uses SPOT_BTC_USDT and PERP_BTC_USDT style ids.
+    symbols: [BTCUSDT, ETHUSDT]
+    perp_symbols: [BTCUSDT, ETHUSDT]
+    fee:
+      mode: fixed
+      maker_bps: 3.0
+      taker_bps: 3.0
+
   bitmex:
     enabled: false
     symbols: []

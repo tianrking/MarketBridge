@@ -78,6 +78,7 @@ use super::pacifica::PacificaPerpFeed;
 use super::phemex::PhemexPerpFeed;
 use super::upbit::UpbitSpotFeed;
 use super::vertex::{VertexFeed, VertexMarket};
+use super::woo::WooFeed;
 use super::xrpl::{XrplPair, XrplSpotFeed};
 use symbols::{
     split_quote, to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
@@ -366,6 +367,20 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 out.push(Arc::new(UpbitSpotFeed::new(
                     spot_symbols.iter().map(|s| to_upbit_market(s)).collect(),
                 )));
+            }
+            "woo" => {
+                if !spot_symbols.is_empty() {
+                    out.push(Arc::new(WooFeed::new(
+                        crate::types::MarketKind::Spot,
+                        spot_symbols.iter().map(|s| to_woo_spot(s)).collect(),
+                    )));
+                }
+                if !perp_symbols.is_empty() {
+                    out.push(Arc::new(WooFeed::new(
+                        crate::types::MarketKind::Perp,
+                        perp_symbols.iter().map(|s| to_woo_perp(s)).collect(),
+                    )));
+                }
             }
             "gemini" if !spot_symbols.is_empty() => {
                 out.push(Arc::new(GeminiSpotFeed::new(
@@ -688,6 +703,30 @@ fn to_upbit_market(symbol: &str) -> String {
     let compact = symbol.replace(['_', '/'], "").to_ascii_uppercase();
     let (base, quote) = split_quote(&compact);
     format!("{quote}-{base}")
+}
+
+fn to_woo_spot(symbol: &str) -> String {
+    let (base, quote) = split_quote(symbol);
+    format!(
+        "SPOT_{}_{}",
+        base.to_ascii_uppercase(),
+        quote.to_ascii_uppercase()
+    )
+}
+
+fn to_woo_perp(symbol: &str) -> String {
+    let normalized = symbol
+        .to_ascii_uppercase()
+        .replace("-PERP", "")
+        .replace("_PERP", "")
+        .replace("PERP", "")
+        .replace(['-', '_', '/'], "");
+    let (base, quote) = split_quote(&normalized);
+    format!(
+        "PERP_{}_{}",
+        base.to_ascii_uppercase(),
+        quote.to_ascii_uppercase()
+    )
 }
 
 fn to_cryptocom_perp(symbol: &str) -> String {
@@ -1020,6 +1059,13 @@ mod tests {
         assert_eq!(to_upbit_market("BTCUSDT"), "USDT-BTC");
         assert_eq!(to_upbit_market("BTCKRW"), "KRW-BTC");
         assert_eq!(to_upbit_market("USDT-BTC"), "USDT-BTC");
+    }
+
+    #[test]
+    fn woo_symbol_converters_use_product_prefixed_ids() {
+        assert_eq!(to_woo_spot("BTCUSDT"), "SPOT_BTC_USDT");
+        assert_eq!(to_woo_perp("BTCUSDT"), "PERP_BTC_USDT");
+        assert_eq!(to_woo_perp("BTC-USDT-PERP"), "PERP_BTC_USDT");
     }
 
     #[test]

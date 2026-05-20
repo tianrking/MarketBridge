@@ -337,6 +337,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Native public REST spot ticker, order book, and recent trades are wired without external runtime dependency.",
     },
     RoadmapSource {
+        source: "woo",
+        source_type: "exchange",
+        product_types: SPOT_PERP,
+        domains: PERP_MARKET,
+        upstreams: UP_CCXT,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Native public REST spot/perp order books and trades plus perp funding and open interest are wired without external runtime dependency.",
+    },
+    RoadmapSource {
         source: "mexc",
         source_type: "exchange",
         product_types: SPOT_PERP,
