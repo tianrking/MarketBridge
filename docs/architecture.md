@@ -48,9 +48,12 @@ src/connectors/
     binance.rs
   prediction/
     polymarket.rs
-  onchain/
-    ethereum.rs
-    polygon.rs
+  defi/
+    jupiter.rs
+    raydium.rs
+    uniswap_v3.rs
+    paraswap.rs
+    oneinch.rs
   external/
     weather.rs
     news.rs
@@ -234,14 +237,19 @@ GET /v1/prediction/resolutions
 Purpose: Polymarket, Kalshi-like public data, and future prediction-market
 connectors.
 
-### On-chain Data
+### DeFi / On-chain Price Data
 
 ```text
-GET /v1/onchain/transfers
-GET /v1/onchain/wallets
-GET /v1/onchain/dex/pools
-GET /v1/onchain/oracles
+GET /v1/market/quotes?exchanges=jupiter
+GET /v1/market/quotes?exchanges=raydium
+GET /v1/market/quotes?exchanges=uniswap_v3
+GET /v1/market/quotes?exchanges=paraswap
+GET /v1/market/quotes?exchanges=oneinch
 ```
+
+Purpose: normalize DEX aggregator quotes and AMM pool prices into the same
+`market_quote` domain used by CEX sources. Wallet transfers, raw RPC event
+indexing, and oracle feeds are future domains.
 
 Purpose: wallet flows, DEX state, settlement/oracle references, and public chain
 events.
@@ -277,6 +285,7 @@ Implemented today:
   through `WS /v1/stream`.
 - Exchange spot/perp BBO and selected funding fields through legacy endpoints.
 - Envelope-based exchange quote snapshots through `GET /v1/market/quotes`.
+- DeFi aggregator quote and AMM pool snapshots through `GET /v1/market/quotes`.
 - Deribit option summary direct REST and multi-venue option background cache.
 - Envelope-based Deribit/OKX/Bybit/Binance option chains through `GET /v1/options/chains`.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.

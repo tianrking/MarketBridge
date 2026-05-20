@@ -139,6 +139,8 @@ Default file: `config.yaml`
 - `exchanges.<name>.enabled`: source switch
 - `exchanges.<name>.symbols/perp_symbols`: per-exchange override
 - `exchanges.<name>.fee`: fixed/tiered fee model
+- `defi.<source>.enabled`: DeFi quote/pool source switch
+- `defi.<source>.pairs` / `defi.uniswap_v3.pools`: configured DEX pairs and pools
 
 ## Implemented Data Plane
 
@@ -179,6 +181,16 @@ management should stay outside this repo.
 | Polymarket official SDK/CLI integration | Not implemented | N/A | Current implementation uses public REST endpoints. SDK/CLI integration is future work for authenticated execution and schema safety. |
 | Live order placement / cancel / replace | Not implemented | N/A | Execution belongs in a later trading/execution layer, not in this data-plane pass. |
 
+### DeFi / On-chain Price Data
+
+| Capability | Status | Interface | Notes |
+|---|---:|---|---|
+| Jupiter quotes | Implemented | `GET /v1/market/quotes?exchanges=jupiter` | Polls public Jupiter quote REST and emits normalized `market_quote` ticks. |
+| Raydium prices | Implemented | `GET /v1/market/quotes?exchanges=raydium` | Polls Raydium public price map and computes configured pair ratios. |
+| Uniswap V3 pool prices | Implemented | `GET /v1/market/quotes?exchanges=uniswap_v3` | Polls configured V3 pools from a GraphQL subgraph. This is pool price, not routed execution. |
+| ParaSwap quotes | Implemented | `GET /v1/market/quotes?exchanges=paraswap` | Polls public `/prices` route and emits executable quote-derived prices. |
+| 1inch quotes | Implemented configurable | `GET /v1/market/quotes?exchanges=oneinch` | Uses configurable legacy public base URL; newer 1inch gateways may require replacing `base_url`. |
+
 ## Strategy Readiness Matrix
 
 For the crypto binary fair-value / market-making strategy discussed with
@@ -187,6 +199,7 @@ For the crypto binary fair-value / market-making strategy discussed with
 | Strategy Input | Needed For | Status in `MarketBridge` | Current Interface |
 |---|---|---:|---|
 | BTC/ETH spot/perp bid/ask | Underlying price and basis | Implemented | `/snapshot`, `/ws/ticks` |
+| DEX quote/pool price | CEX vs DEX basis and route sanity check | Implemented | `/v1/market/quotes?exchanges=jupiter,raydium,uniswap_v3,paraswap,oneinch` |
 | Perp funding | Basis/funding sanity check | Implemented where supported | `/funding` |
 | Options IV / option chain | Theoretical digital probability | Implemented multi-venue REST cache | `/v1/options/chains`, `/options/deribit/summary`, `/options/deribit/live-summary` |
 | Polymarket market id / strike / expiry | Map event to option inputs | Implemented first version | `/polymarket/crypto-markets` |
@@ -197,7 +210,8 @@ For the crypto binary fair-value / market-making strategy discussed with
 | Live execution | Real order submit/cancel/fills | Not implemented | Future execution layer; not approved for live trading. |
 
 Bottom line: `MarketBridge` now provides a first mature data-source surface for
-paper decisions: exchange BBO/funding, multi-venue option chains, Polymarket
+paper decisions: exchange BBO/funding, DeFi quote and pool prices,
+multi-venue option chains, Polymarket
 market discovery, REST books, and a live Polymarket CLOB cache. It is still not
 an execution engine: authenticated Polymarket order placement/cancel/replace and
 strategy PnL validation belong in later layers.
@@ -236,6 +250,12 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/metrics` | Prometheus metrics text |
 | WS | `/ws/ticks` | Real-time normalized tick stream |
 | WS | `/v1/stream` | Envelope-based stream for `market_quote`, `options_chain`, and `prediction_book` |
+
+DeFi quote and pool sources are exposed through the same market quote surface:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/quotes?exchanges=jupiter,raydium,uniswap_v3,paraswap,oneinch" | jq
+```
 
 ### Exchange Public Data Coverage
 

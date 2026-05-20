@@ -78,6 +78,70 @@ polymarket:
   chunk_size: 500
   stale_ttl_ms: 1500
 
+defi:
+  jupiter:
+    enabled: false
+    base_url: "https://quote-api.jup.ag/v6/"
+    poll_secs: 10
+    pairs:
+      - symbol: SOLUSDC
+        input_mint: "So11111111111111111111111111111111111111112"
+        output_mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        amount: 1000000000
+        input_decimals: 9
+        output_decimals: 6
+        spread_bps: 5.0
+
+  raydium:
+    enabled: false
+    price_url: "https://api.raydium.io/v2/main/price"
+    poll_secs: 10
+    pairs:
+      - symbol: SOLUSDC
+        base_mint: "So11111111111111111111111111111111111111112"
+        quote_mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        spread_bps: 5.0
+
+  uniswap_v3:
+    enabled: false
+    subgraph_url: "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+    poll_secs: 10
+    pools:
+      - symbol: ETHUSDC
+        pool_id: "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8"
+        invert: false
+        spread_bps: 5.0
+
+  paraswap:
+    enabled: false
+    base_url: "https://apiv5.paraswap.io/"
+    poll_secs: 10
+    pairs:
+      - symbol: ETHUSDC
+        network: 1
+        src_token: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        dest_token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+        amount: "1000000000000000000"
+        src_decimals: 18
+        dest_decimals: 6
+        spread_bps: 5.0
+
+  oneinch:
+    enabled: false
+    # Legacy public endpoint. If your region/account requires the new 1inch
+    # developer portal, replace this base_url with the approved gateway.
+    base_url: "https://api.1inch.io/v5.0/"
+    poll_secs: 10
+    pairs:
+      - symbol: ETHUSDC
+        network: 1
+        src_token: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        dest_token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+        amount: "1000000000000000000"
+        src_decimals: 18
+        dest_decimals: 6
+        spread_bps: 5.0
+
 # Global default symbol list (used when exchange.symbols is omitted).
 # Format should be normalized symbols, e.g. BTCUSDT, ETHUSDT.
 symbols: [BTCUSDT, ETHUSDT]

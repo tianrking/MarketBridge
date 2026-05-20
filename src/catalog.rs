@@ -74,6 +74,46 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             connector_path: "src/connectors/prediction/polymarket.rs",
             status: "implemented",
         },
+        CatalogSource {
+            source_type: "defi_venue",
+            source: "jupiter",
+            venue: Some("jupiter"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/defi/jupiter.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "defi_venue",
+            source: "raydium",
+            venue: Some("raydium"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/defi/raydium.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "defi_venue",
+            source: "uniswap_v3",
+            venue: Some("uniswap_v3"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/defi/uniswap_v3.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "defi_venue",
+            source: "paraswap",
+            venue: Some("paraswap"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/defi/paraswap.rs",
+            status: "implemented",
+        },
+        CatalogSource {
+            source_type: "defi_venue",
+            source: "oneinch",
+            venue: Some("oneinch"),
+            domains: vec!["market_quote"],
+            connector_path: "src/connectors/defi/oneinch.rs",
+            status: "implemented",
+        },
     ]
 }
 
