@@ -57,6 +57,7 @@ Recent parity closes:
 | Evedex | Public instrument `openInterest` is emitted beside existing REST depth, trades, and funding metrics. | `OpenInterest` |
 | Backpack | Public mark-price funding and open-interest endpoints are emitted beside existing WS book/trade paths. | `FundingRate`, `OpenInterest` |
 | Injective | Public Sentry open-interest endpoint is emitted beside existing LCD/Sentry book, trade, and funding paths. | `OpenInterest` |
+| CoinEx | Public futures liquidation history is emitted beside existing ticker, book, trade, funding, and OI paths. | `Liquidation` |
 
 Remaining high-value CCXT parity queue:
 

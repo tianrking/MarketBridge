@@ -84,7 +84,7 @@ Status labels:
 | Bitfinex | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp ticker; spot/perp REST book/trades, derivative status funding/OI, and public liquidation history filtered by symbol. |
 | Coinbase | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Advanced Trade ticker plus Exchange REST order book and recent trades. |
 | Coincheck | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
-| CoinEx | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
+| CoinEx | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding, OI, and liquidation history. |
 | Coinone | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Crypto.com | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
 | Cube | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public REST MBP snapshots plus recent-trade polling with trade-id dedupe for configured spot markets; derivatives domains do not apply to the current spot connector. |

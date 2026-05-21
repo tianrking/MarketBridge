@@ -9,8 +9,8 @@ use tracing::warn;
 use crate::connectors::cex::common::{parse_array_levels, parse_value_f64, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeTick,
-    now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, MarketTick, OpenInterestTick,
+    OrderBookTick, TradeSide, TradeTick, now_ms,
 };
 
 const COINEX_REST_URL: &str = "https://api.coinex.com/v2";
@@ -128,6 +128,16 @@ async fn poll_coinex_market(
             .json::<Value>()
             .await?;
         events.extend(parse_coinex_open_interest(symbol, &market_meta));
+
+        let liquidations = client
+            .get(format!("{COINEX_REST_URL}/futures/liquidation-history"))
+            .query(&[("market", symbol), ("limit", "20")])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?;
+        events.extend(parse_coinex_liquidations(symbol, &liquidations));
     }
 
     Ok(events)
@@ -305,6 +315,41 @@ fn parse_coinex_open_interest(fallback_symbol: &str, value: &Value) -> Vec<DataE
         .collect()
 }
 
+fn parse_coinex_liquidations(fallback_symbol: &str, value: &Value) -> Vec<DataEvent> {
+    response_data(value)
+        .into_iter()
+        .filter_map(|row| {
+            let symbol = row
+                .get("market")
+                .and_then(Value::as_str)
+                .unwrap_or(fallback_symbol);
+            Some(DataEvent::Liquidation(LiquidationTick {
+                exchange: "coinex",
+                symbol: symbol.to_ascii_uppercase().into_boxed_str(),
+                side: coinex_liquidation_side(row.get("side").and_then(Value::as_str)),
+                price: row
+                    .get("liq_price")
+                    .or_else(|| row.get("bkr_price"))
+                    .and_then(parse_value_f64)?,
+                qty: row.get("liq_amount").and_then(parse_value_f64)?,
+                ts_ms: row
+                    .get("created_at")
+                    .and_then(parse_value_f64)
+                    .map(|ts| ts as u64)
+                    .unwrap_or_else(now_ms),
+            }))
+        })
+        .collect()
+}
+
+fn coinex_liquidation_side(side: Option<&str>) -> TradeSide {
+    match side.map(str::to_ascii_lowercase).as_deref() {
+        Some("short") | Some("buy") => TradeSide::Buy,
+        Some("long") | Some("sell") => TradeSide::Sell,
+        _ => TradeSide::Unknown,
+    }
+}
+
 fn response_data(value: &Value) -> Vec<&Value> {
     match value.get("data") {
         Some(Value::Array(items)) => items.iter().collect(),
@@ -381,5 +426,30 @@ mod tests {
             panic!("expected open interest");
         };
         assert_eq!(open_interest.open_interest, 120.5);
+    }
+
+    #[test]
+    fn parses_coinex_liquidations() {
+        let events = parse_coinex_liquidations(
+            "BTCUSDT",
+            &json!({
+                "data": [{
+                    "market": "BTCUSDT",
+                    "side": "short",
+                    "liq_price": "78167.66607905355114133432",
+                    "bkr_price": "78558.504409448818897041",
+                    "liq_amount": "0.0127",
+                    "created_at": 1779326151293_u64
+                }]
+            }),
+        );
+
+        let DataEvent::Liquidation(liquidation) = &events[0] else {
+            panic!("expected liquidation");
+        };
+        assert_eq!(liquidation.exchange, "coinex");
+        assert_eq!(liquidation.side, TradeSide::Buy);
+        assert_eq!(liquidation.price, 78167.66607905355);
+        assert_eq!(liquidation.qty, 0.0127);
     }
 }
