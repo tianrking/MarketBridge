@@ -9,6 +9,9 @@ CCXT and Hummingbot only as reference inventories. MarketBridge does not call,
 embed, bridge, or depend on them at runtime. This document remains the source of
 truth for what is implemented and wired into the runtime/API.
 
+For an operator-facing source list with API-key requirements and usage examples,
+see [`data_sources.md`](data_sources.md).
+
 Status labels:
 
 - `implemented`: code path exists and is wired into runtime/API.

@@ -4,6 +4,10 @@ This document is the practical interface map for consumers such as PolyAlpha.
 It lists what data exists, whether it is raw or derived, required config, and
 how to query it.
 
+For the full source-by-source key matrix, use
+[`data_sources.md`](data_sources.md). This file is endpoint-oriented; that file
+is source/operator-oriented.
+
 ## Service Role
 
 MarketBridge is the public data plane:
@@ -59,6 +63,20 @@ curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 Use `config.min.yaml` for a small smoke test, `config.yaml` for normal local
 research, and `config.all-exchanges.example.yaml` as an editable broad-coverage
 example.
+
+## Source And API-Key Matrix
+
+The complete matrix is maintained in [`data_sources.md`](data_sources.md).
+Short version:
+
+| Family | Key requirement |
+|---|---|
+| CEX/perp public feeds | Mostly keyless; Architect uses `ARCHITECT_API_TOKEN`, Decibel uses `DECIBEL_API_TOKEN`. |
+| Options | Keyless for Deribit/OKX/Bybit/Binance public data. |
+| Polymarket data | Keyless for current Gamma/CLOB data paths. |
+| DeFi | Mostly keyless; custom gateways may need config-specific keys outside the default setup. |
+| Macro/aggregate/sentiment | Mixed: CoinGecko/CoinCap optional, CoinMarketCap/CoinGlass/FRED/CryptoPanic/Santiment/LunarCrush required. |
+| On-chain transfers | Whale Alert and Etherscan require keys; mempool.space is keyless. |
 
 ## Core Market Data
 

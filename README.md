@@ -31,6 +31,7 @@ Current version: `v0.0.2`
 - [Release Builds](#release-builds)
 - [Configuration](#configuration)
 - [Implemented Data Plane](#implemented-data-plane)
+- [Data Sources and API Keys](#data-sources-and-api-keys)
 - [Strategy Readiness Matrix](#strategy-readiness-matrix)
 - [API Overview](#api-overview)
 - [API Details](#api-details)
@@ -427,6 +428,10 @@ This service is the unified data plane for downstream strategy engines such as
 `PolyAlpha`. Strategy logic, factor validation, paper execution, and live order
 management should stay outside this repo.
 
+The complete source-by-source inventory, API-key requirements, and usage
+examples are maintained in [docs/data_sources.md](docs/data_sources.md). The
+tables below are a shorter runtime summary.
+
 ### Data and Interface Matrix
 
 | Data family | What you get | Primary interface | Stream support | Default freshness model | Key required |
@@ -450,6 +455,40 @@ management should stay outside this repo.
 | On-chain transfers | Whale Alert, mempool.space BTC, Etherscan watched-address transfers | `GET /v1/onchain/transfers` | No direct stream | `poll_secs`, default 60s | Whale Alert/Etherscan need keys |
 | Catalog and health | enabled sources, API-key status, domains, instruments, freshness | `/v1/catalog/*`, `/coverage`, `/metrics` | No | updated from runtime caches/metrics | No |
 | Redis sink | normalized event stream export | `runtime.redis_url` | Redis Streams | batched XADD with JSONL dead letters | Redis required |
+
+## Data Sources and API Keys
+
+Use [docs/data_sources.md](docs/data_sources.md) as the authoritative
+data-source operator guide. It lists every source family, whether it is
+keyless/keyed, which environment variable to set, and which REST/WebSocket
+surface to call.
+
+Most CEX/perp, options, Polymarket, DeFi quote, DXY, VIX, and mempool.space
+sources are keyless. The sources below need or may benefit from keys:
+
+| Source | Requirement | Env var |
+|---|---|---|
+| Architect | Required bearer token | `ARCHITECT_API_TOKEN` |
+| Decibel | Required bearer token | `DECIBEL_API_TOKEN` |
+| CoinGecko | Optional key | `COINGECKO_API_KEY` |
+| CoinCap | Optional key | `COINCAP_API_KEY` |
+| CoinMarketCap | Required key | `COINMARKETCAP_API_KEY` |
+| CoinGlass | Required key | `COINGLASS_API_KEY` |
+| FRED US10Y | Required key | `FRED_API_KEY` |
+| CryptoPanic | Required key | `CRYPTOPANIC_API_KEY` |
+| Santiment | Required key | `SANTIMENT_API_KEY` |
+| LunarCrush | Required key | `LUNARCRUSH_API_KEY` |
+| Whale Alert | Required key | `WHALE_ALERT_API_KEY` |
+| Etherscan | Required key | `ETHERSCAN_API_KEY` |
+
+Check active config and missing credentials at runtime:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+```
+
+`enabled_missing_api_key` means the connector is configured on, but the required
+credential is absent.
 
 ### Exchange Data
 

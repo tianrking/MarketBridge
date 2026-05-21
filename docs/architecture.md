@@ -23,6 +23,19 @@ MarketBridge does not own:
 - Paper/live PnL attribution.
 - Wallet signing, authenticated trading, order placement, or execution routing.
 
+## Documentation Map
+
+- [`data_sources.md`](data_sources.md): operator-facing source inventory,
+  API-key requirements, environment variables, and common usage commands.
+- [`data_interfaces.md`](data_interfaces.md): endpoint-oriented guide for
+  downstream systems such as PolyAlpha.
+- [`feature_inventory.md`](feature_inventory.md): implementation matrix and
+  intentional gaps.
+- [`source_expansion_inventory.md`](source_expansion_inventory.md): future
+  connector candidates and parity planning.
+- [`ccxt_parity_audit.md`](ccxt_parity_audit.md): reference audit against CCXT
+  and Hummingbot; MarketBridge does not depend on them at runtime.
+
 ## Distribution
 
 Version `v0.0.2` is published as a standalone binary package. The package
