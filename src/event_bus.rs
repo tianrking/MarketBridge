@@ -142,10 +142,6 @@ pub enum EventDomain {
 }
 
 impl EventBus {
-    pub fn new(capacity: usize, stale_ttl_ms: u64) -> Self {
-        Self::new_sharded(capacity, stale_ttl_ms, 1)
-    }
-
     pub fn new_sharded(capacity: usize, stale_ttl_ms: u64, event_shards: usize) -> Self {
         let event_shards = event_shards.max(1);
         let (tx, _) = broadcast::channel(capacity);
@@ -369,7 +365,7 @@ mod tests {
 
     #[tokio::test]
     async fn publish_builds_normalized_tick() {
-        let bus = EventBus::new(16, 1000);
+        let bus = EventBus::new_sharded(16, 1000, 1);
         let tick = MarketTick {
             exchange: "okx",
             market: MarketKind::Spot,
@@ -411,7 +407,7 @@ mod tests {
 
     #[tokio::test]
     async fn publish_stores_extended_market_events() {
-        let bus = EventBus::new(16, 1000);
+        let bus = EventBus::new_sharded(16, 1000, 1);
         let ts_ms = now_ms();
         bus.publish_from_event(&DataEvent::FundingRate(FundingRateTick {
             exchange: "binance",
@@ -485,7 +481,7 @@ mod tests {
 
     #[tokio::test]
     async fn domain_subscribers_only_receive_matching_events() {
-        let bus = EventBus::new(16, 1000);
+        let bus = EventBus::new_sharded(16, 1000, 1);
         let mut funding_rx = bus.subscribe_domain(EventDomain::Funding);
         let mut trade_rx = bus.subscribe_domain(EventDomain::Trade);
         let ts_ms = now_ms();

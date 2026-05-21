@@ -200,7 +200,7 @@ Status:
 Example:
 
 ```bash
-market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536
+market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536 --event-bus-shards 1
 ```
 
 Measure:

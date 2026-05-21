@@ -94,7 +94,7 @@ mod tests {
     async fn router_publishes_ticks_to_bus_and_aggregator() {
         let (source_tx, source_rx) = mpsc::channel(4);
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
-        let bus = EventBus::new(16, 1_000);
+        let bus = EventBus::new_sharded(16, 1_000, 1);
         let router = EventRouter::new(source_rx, agg_tx, bus.clone(), AppMetrics::new(), 4);
         let router_task = tokio::spawn(router.run());
 
@@ -125,7 +125,7 @@ mod tests {
     async fn router_counts_non_tick_events() {
         let (source_tx, source_rx) = mpsc::channel(4);
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
-        let bus = EventBus::new(16, 1_000);
+        let bus = EventBus::new_sharded(16, 1_000, 1);
         let metrics = AppMetrics::new();
         let router = EventRouter::new(source_rx, agg_tx, bus, metrics.clone(), 4);
         let router_task = tokio::spawn(router.run());

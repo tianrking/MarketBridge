@@ -10,12 +10,14 @@ use crate::types::{DataEvent, MarketKind, MarketTick, now_ms};
 const DEFAULT_EVENTS: u64 = 100_000;
 const DEFAULT_SUBSCRIBERS: u64 = 8;
 const DEFAULT_BROADCAST_CAPACITY: usize = 65_536;
+const DEFAULT_EVENT_BUS_SHARDS: usize = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoadTestConfig {
     pub events: u64,
     pub subscribers: u64,
     pub broadcast_capacity: usize,
+    pub event_bus_shards: usize,
 }
 
 impl Default for LoadTestConfig {
@@ -24,6 +26,7 @@ impl Default for LoadTestConfig {
             events: DEFAULT_EVENTS,
             subscribers: DEFAULT_SUBSCRIBERS,
             broadcast_capacity: DEFAULT_BROADCAST_CAPACITY,
+            event_bus_shards: DEFAULT_EVENT_BUS_SHARDS,
         }
     }
 }
@@ -54,6 +57,12 @@ pub fn load_test_config_from_args(args: &[String]) -> Option<LoadTestConfig> {
                 }
                 i += 2;
             }
+            "--event-bus-shards" => {
+                if let Some(value) = args.get(i + 1).and_then(|x| x.parse::<usize>().ok()) {
+                    cfg.event_bus_shards = value.max(1);
+                }
+                i += 2;
+            }
             _ => i += 1,
         }
     }
@@ -61,7 +70,7 @@ pub fn load_test_config_from_args(args: &[String]) -> Option<LoadTestConfig> {
 }
 
 pub async fn run_load_test(cfg: LoadTestConfig) {
-    let bus = EventBus::new(cfg.broadcast_capacity, 1_000);
+    let bus = EventBus::new_sharded(cfg.broadcast_capacity, 1_000, cfg.event_bus_shards);
     let received = Arc::new(AtomicU64::new(0));
     let lagged = Arc::new(AtomicU64::new(0));
     let mut tasks = Vec::new();
@@ -129,6 +138,7 @@ pub async fn run_load_test(cfg: LoadTestConfig) {
             "events_published": cfg.events,
             "subscribers": cfg.subscribers,
             "broadcast_capacity": cfg.broadcast_capacity,
+            "event_bus_shards": cfg.event_bus_shards,
             "subscriber_deliveries_expected": expected,
             "subscriber_deliveries_observed": delivered,
             "subscriber_lagged_events": lagged.load(Ordering::Relaxed),
@@ -154,10 +164,13 @@ mod tests {
             "42".to_string(),
             "--subscribers".to_string(),
             "3".to_string(),
+            "--event-bus-shards".to_string(),
+            "4".to_string(),
         ];
 
         let cfg = load_test_config_from_args(&args).expect("load-test mode should parse");
         assert_eq!(cfg.events, 42);
         assert_eq!(cfg.subscribers, 3);
+        assert_eq!(cfg.event_bus_shards, 4);
     }
 }

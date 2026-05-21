@@ -353,12 +353,14 @@ Choose one of the included configs:
 Synthetic local load test:
 
 ```bash
-./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536
+./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536 --event-bus-shards 1
 ```
 
 The load test does not connect to exchanges. It publishes synthetic normalized
 events through the same `EventBus`/serialization path and prints JSON metrics
 for publish throughput, subscriber deliveries, and lagged broadcast events.
+Raise `--event-bus-shards` when measuring the sharded event/domain broadcast
+path.
 
 ## Release Builds
 

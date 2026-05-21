@@ -77,11 +77,13 @@ in-process per-client limiter. `0` disables rate limiting for local research.
 Synthetic local load test:
 
 ```bash
-./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536
+./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536 --event-bus-shards 1
 ```
 
 This mode does not connect to exchanges. It publishes synthetic normalized
 events through the same in-process bus and prints JSON throughput metrics.
+Raise `--event-bus-shards` when measuring sharded event/domain broadcast
+performance.
 
 Use `config.min.yaml` for a small smoke test, `config.yaml` for normal local
 research, and `config.all-exchanges.example.yaml` as an editable broad-coverage
