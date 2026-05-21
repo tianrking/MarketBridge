@@ -50,6 +50,8 @@ pub struct BinanceOptionsConfig {
     pub enabled: bool,
     #[serde(default = "default_binance_options_base_url")]
     pub base_url: String,
+    #[serde(default = "default_binance_options_ws_url")]
+    pub ws_url: String,
     #[serde(default = "default_deribit_currencies")]
     pub currencies: Vec<String>,
     #[serde(default = "default_deribit_refresh_secs")]
@@ -115,6 +117,10 @@ fn default_bybit_options_ws_url() -> String {
 
 fn default_binance_options_base_url() -> String {
     "https://eapi.binance.com/".to_string()
+}
+
+fn default_binance_options_ws_url() -> String {
+    "wss://nbstream.binance.com/eoptions/ws".to_string()
 }
 
 fn default_polymarket_ws_url() -> String {
@@ -206,6 +212,7 @@ impl Default for BinanceOptionsConfig {
         Self {
             enabled: false,
             base_url: default_binance_options_base_url(),
+            ws_url: default_binance_options_ws_url(),
             currencies: default_deribit_currencies(),
             refresh_secs: default_deribit_refresh_secs(),
         }

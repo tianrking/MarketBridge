@@ -27,9 +27,9 @@ use api::{ApiState, build_router};
 use config::AppConfig;
 use connectors::cex::registry::build_sources;
 use deribit_cache::{
-    DeribitOptionCache, spawn_binance_option_cache, spawn_bybit_option_cache,
-    spawn_bybit_option_ws_cache, spawn_deribit_option_cache, spawn_deribit_option_ws_cache,
-    spawn_okx_option_cache, spawn_okx_option_ws_cache,
+    DeribitOptionCache, spawn_binance_option_cache, spawn_binance_option_ws_cache,
+    spawn_bybit_option_cache, spawn_bybit_option_ws_cache, spawn_deribit_option_cache,
+    spawn_deribit_option_ws_cache, spawn_okx_option_cache, spawn_okx_option_ws_cache,
 };
 use event_bus::EventBus;
 use klines::{KlineStore, spawn_kline_service};
@@ -180,6 +180,14 @@ async fn main() -> anyhow::Result<()> {
             shutdown.clone(),
         )
     });
+    let binance_options_ws_task = cfg.binance_options.enabled.then(|| {
+        spawn_binance_option_ws_cache(
+            cfg.binance_options.clone(),
+            http.clone(),
+            deribit_cache.clone(),
+            shutdown.clone(),
+        )
+    });
 
     let polymarket_task = cfg.polymarket.enabled.then(|| {
         spawn_polymarket_ws_cache(
@@ -263,6 +271,9 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(binance_options_task) = binance_options_task {
         wait_task("binance_options", binance_options_task).await;
+    }
+    if let Some(binance_options_ws_task) = binance_options_ws_task {
+        wait_task("binance_options_ws", binance_options_ws_task).await;
     }
 
     if let Some(polymarket_task) = polymarket_task {

@@ -37,7 +37,7 @@ visibility. A source enters the runtime only after it has at least:
 |---|---|---|
 | P0 | Close remaining non-Polymarket semantic gaps: Vertex funding/OI, XRPL trades, keyed Architect/Decibel OI validation | These are the only exchange/CLOB rows still marked `planned` for non-Polymarket data. |
 | P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Quote and price snapshots are wired; native state requires chain-specific APIs or indexers. |
-| P2 | Complete options websocket parity for Deribit/OKX/Bybit/Binance | REST chains and per-instrument depth are wired; WS parity is a latency upgrade. |
+| P2 | Extend options websocket depth/trade parity when needed | REST chains, per-instrument depth, and low-latency WS ticker/summary cache updates are wired for Deribit/OKX/Bybit/Binance. Native WS option book/trade streams are a latency upgrade, not a missing research input. |
 | P3 | Add new long-tail centralized venues as native REST snapshot sources only when they add useful coverage | Broad coverage is useful for research, but schema quality and operational behavior come first. |
 | P4 | Wallet/order/account-only capabilities | Out of scope unless MarketBridge grows an execution subsystem. |
 
@@ -328,8 +328,9 @@ explicitly marked unavailable for specific domains in
 3. Architect/Decibel OI: validate with credentials before normalizing keyed OI.
 4. DeFi native state: add chain-specific pool liquidity, route depth, and swap
    feeds where reliable public/indexed data exists.
-5. Options WS parity: add low-latency WS ticker/book/trades on top of the
-   existing REST chain/depth coverage.
+5. Options WS depth/trade parity: add native low-latency option book/trade
+   streams only where REST depth plus WS ticker/summary cache updates are not
+   enough for a real-time strategy.
 6. Aggregator analytics: extend the implemented funding/OI/trade/liquidation
    signal logs into API-visible research features if downstream users need them.
 
