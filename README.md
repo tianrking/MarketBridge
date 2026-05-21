@@ -470,9 +470,13 @@ management should stay outside this repo.
 |---|---:|---|---|
 | Deribit option summaries | Implemented | `GET /options/deribit/summary?currency=BTC` | Direct REST fetch. Returns strike, expiry, bid/ask, mark price, `mark_iv`, underlying price. |
 | Unified option chain cache | Implemented | `GET /v1/options/chains?venue=deribit&currency=BTC` | Background REST cache for Deribit, OKX, Bybit, and Binance option chains with `received_at_ms` and `stale`. |
-| OKX option summaries | Implemented | `GET /v1/options/chains?venue=okx&currency=BTC` | Public `opt-summary`; includes strike, expiry, IV-style fields when venue returns them. |
-| Bybit option tickers | Implemented | `GET /v1/options/chains?venue=bybit&currency=BTC` | Public option tickers; includes bid/ask, mark, mark IV, underlying price, open interest. |
+| Deribit option depth | Implemented | `GET /options/deribit/book?instrument_name=BTC-29MAY26-70000-P&depth=10` | Per-instrument book, mark fields, OI, and greeks when Deribit returns them. |
+| OKX option summaries | Implemented | `GET /v1/options/chains?venue=okx&currency=BTC` | Public `opt-summary`; includes strike, expiry, IV-style fields and Black-Scholes greeks when venue returns them. |
+| OKX option depth | Implemented | `GET /options/okx/book?instrument_name=BTC-USD-260626-100000-C&depth=10` | Public per-instrument option book. |
+| Bybit option tickers | Implemented | `GET /v1/options/chains?venue=bybit&currency=BTC` | Public option tickers; includes bid/ask, mark, mark IV, underlying price, open interest, and greeks. |
+| Bybit option depth | Implemented | `GET /options/bybit/book?instrument_name=BTC-26MAR27-78000-P-USDT&depth=10` | Public per-instrument option book. |
 | Binance option tickers | Implemented | `GET /v1/options/chains?venue=binance&currency=BTC` | Public European option ticker plus optional mark data; open interest is not in this public ticker payload. |
+| Binance option depth | Implemented | `GET /options/binance/book?instrument_name=BTC-260626-140000-C&depth=10` | Public per-instrument option book; requested depth is mapped to Binance's allowed depth buckets. |
 | Deribit websocket IV | Not implemented | N/A | REST cache is enough for first paper loop; websocket IV cache is future work if REST freshness is not enough. |
 
 ### Polymarket Data
@@ -584,6 +588,10 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
 | GET | `/options/deribit/live-summary` | Cached Deribit option summaries with freshness fields |
+| GET | `/options/deribit/book` | Deribit per-instrument option book |
+| GET | `/options/okx/book` | OKX per-instrument option book |
+| GET | `/options/bybit/book` | Bybit per-instrument option book |
+| GET | `/options/binance/book` | Binance per-instrument option book |
 | GET | `/polymarket/crypto-markets` | Parsed Polymarket BTC/ETH binary markets |
 | GET | `/polymarket/book` | Polymarket CLOB book summary for one token |
 | GET | `/polymarket/books` | Polymarket CLOB book summaries for token ids |
@@ -997,6 +1005,28 @@ Key fields in `summaries[]`:
 - `source`: `deribit_rest_cache`
 - `received_at_ms`, `stale`
 - all direct Deribit summary fields from `/options/deribit/summary`
+
+### Option Book Endpoints
+
+These endpoints fetch a single listed option contract from the venue's public
+REST book endpoint. They are intended for strategy checks that need executable
+depth around one candidate instrument rather than the full option chain.
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/options/deribit/book?instrument_name=BTC-29MAY26-70000-P&depth=10" | jq
+curl -s "http://127.0.0.1:8080/options/okx/book?instrument_name=BTC-USD-260626-100000-C&depth=10" | jq
+curl -s "http://127.0.0.1:8080/options/bybit/book?instrument_name=BTC-26MAR27-78000-P-USDT&depth=10" | jq
+curl -s "http://127.0.0.1:8080/options/binance/book?instrument_name=BTC-260626-140000-C&depth=10" | jq
+```
+
+Common response fields:
+
+- `book.venue`, `book.instrument_name`, `book.timestamp`
+- `book.bid_price`, `book.ask_price`
+- `book.bids[]`, `book.asks[]` with `price` and `qty`
+- Greeks and mark fields when the upstream venue includes them
 
 ### `GET /polymarket/crypto-markets`
 

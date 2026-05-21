@@ -216,6 +216,7 @@ Important boundaries:
 | Data | Endpoint | Notes |
 |---|---|---|
 | Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache. |
+| Option books | `/options/deribit/book`, `/options/okx/book`, `/options/bybit/book`, `/options/binance/book` | Keyless per-instrument option depth. |
 | Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
@@ -270,6 +271,10 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/funding` | Legacy unified funding view. |
 | GET | `/options/deribit/summary` | Live Deribit REST option summary. |
 | GET | `/options/deribit/live-summary` | Cached Deribit option summary with freshness fields. |
+| GET | `/options/deribit/book` | Deribit per-instrument option book plus greeks where returned. |
+| GET | `/options/okx/book` | OKX per-instrument option book. |
+| GET | `/options/bybit/book` | Bybit per-instrument option book. |
+| GET | `/options/binance/book` | Binance per-instrument option book. |
 | GET | `/polymarket/crypto-markets` | Parsed BTC/ETH Polymarket crypto markets. |
 | GET | `/polymarket/book` | Single Polymarket token order book. |
 | GET | `/polymarket/books` | Batch Polymarket token order books. |
