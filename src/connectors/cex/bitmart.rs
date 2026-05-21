@@ -9,18 +9,20 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::warn;
 
 use crate::connectors::cex::common::{
     first_str, parse_array_levels, parse_object_levels, parse_value_f64, side_from_labels,
 };
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick,
+    TradeSide, TradeTick, now_ms,
 };
 
 const SPOT_WS_URL: &str = "wss://ws-manager-compress.bitmart.com/api?protocol=1.1";
 const PERP_WS_URL: &str = "wss://openapi-ws-v2.bitmart.com/api?protocol=1.1";
+const BITMART_REST_URL: &str = "https://api-cloud-v2.bitmart.com";
 
 #[derive(Debug, Deserialize)]
 struct BitmartWsMsg {
@@ -63,6 +65,50 @@ impl BitmartPerpFeed {
     }
 }
 
+pub struct BitmartPerpMetricsPoller {
+    pub symbols: Vec<String>,
+    client: reqwest::Client,
+}
+
+impl BitmartPerpMetricsPoller {
+    pub fn new(symbols: Vec<String>) -> Self {
+        Self {
+            symbols,
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ExchangeSource for BitmartPerpMetricsPoller {
+    fn name(&self) -> &'static str {
+        "bitmart"
+    }
+
+    async fn run(&self, ctx: SourceContext) -> Result<()> {
+        if self.symbols.is_empty() {
+            anyhow::bail!("bitmart metrics symbols empty");
+        }
+
+        let mut tick = interval(Duration::from_secs(15));
+        loop {
+            tick.tick().await;
+            for symbol in &self.symbols {
+                match poll_bitmart_metrics(&self.client, symbol).await {
+                    Ok(events) => {
+                        for event in events {
+                            ctx.emit(event).await?;
+                        }
+                    }
+                    Err(err) => {
+                        warn!(exchange = "bitmart", symbol, error = %err, "metrics poll failed")
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[async_trait]
 impl ExchangeSource for BitmartPerpFeed {
     fn name(&self) -> &'static str {
@@ -72,6 +118,36 @@ impl ExchangeSource for BitmartPerpFeed {
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_bitmart_perp(&self.symbols, ctx).await
     }
+}
+
+async fn poll_bitmart_metrics(client: &reqwest::Client, symbol: &str) -> Result<Vec<DataEvent>> {
+    let mut events = Vec::with_capacity(2);
+
+    let funding = client
+        .get(format!("{BITMART_REST_URL}/contract/public/funding-rate"))
+        .query(&[("symbol", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    if let Some(event) = parse_bitmart_funding(bitmart_payload(&funding)) {
+        events.push(event);
+    }
+
+    let interest = client
+        .get(format!("{BITMART_REST_URL}/contract/public/open-interest"))
+        .query(&[("symbol", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    if let Some(event) = parse_bitmart_open_interest(bitmart_payload(&interest)) {
+        events.push(event);
+    }
+
+    Ok(events)
 }
 
 async fn run_bitmart_spot(symbols: &[String], ctx: SourceContext) -> Result<()> {
@@ -327,6 +403,30 @@ fn parse_bitmart_funding(row: &Value) -> Option<DataEvent> {
     }))
 }
 
+fn parse_bitmart_open_interest(row: &Value) -> Option<DataEvent> {
+    let symbol = first_str(row, &["symbol"])?;
+    let open_interest = first_str(row, &["open_interest", "openInterest"])
+        .and_then(|x| x.parse::<f64>().ok())
+        .or_else(|| row.get("open_interest").and_then(parse_value_f64))?;
+    Some(DataEvent::OpenInterest(OpenInterestTick {
+        exchange: "bitmart",
+        symbol: symbol.to_string().into_boxed_str(),
+        open_interest,
+        open_interest_value: first_str(row, &["open_interest_value", "openInterestValue"])
+            .and_then(|x| x.parse::<f64>().ok())
+            .or_else(|| row.get("open_interest_value").and_then(parse_value_f64)),
+        ts_ms: first_str(row, &["timestamp", "ts"])
+            .and_then(|x| x.parse::<u64>().ok())
+            .or_else(|| row.get("timestamp").and_then(Value::as_u64))
+            .map(normalize_ts_ms)
+            .unwrap_or_else(now_ms),
+    }))
+}
+
+fn bitmart_payload(value: &Value) -> &Value {
+    value.get("data").unwrap_or(value)
+}
+
 fn parse_bitmart_ticker(row: &Value) -> Vec<DataEvent> {
     let symbol = first_str(row, &["symbol"]).unwrap_or("UNKNOWN");
     let ts_ms = first_str(row, &["ms_t", "timestamp", "ts"])
@@ -481,5 +581,26 @@ mod tests {
         let events = parse_bitmart_events(MarketKind::Perp, &text).expect("events");
 
         assert!(matches!(events[0], DataEvent::FundingRate(_)));
+    }
+
+    #[test]
+    fn bitmart_parses_open_interest() {
+        let event = parse_bitmart_open_interest(&json!({
+            "timestamp": 1694657502415_u64,
+            "symbol": "BTCUSDT",
+            "open_interest": "265231.721368593081729069",
+            "open_interest_value": "7006353.83988919"
+        }))
+        .expect("open interest event");
+
+        match event {
+            DataEvent::OpenInterest(tick) => {
+                assert_eq!(tick.symbol.as_ref(), "BTCUSDT");
+                assert!((tick.open_interest - 265_231.721_368_593_1).abs() < f64::EPSILON);
+                assert_eq!(tick.open_interest_value, Some(7006353.83988919));
+                assert_eq!(tick.ts_ms, 1694657502415);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }

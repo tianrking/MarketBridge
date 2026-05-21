@@ -39,7 +39,7 @@ use super::bitflyer::BitflyerSpotFeed;
 use super::bitget::BitgetSpotTicker;
 use super::bitget_perp::BitgetPerpTicker;
 use super::bithumb::BithumbSpotFeed;
-use super::bitmart::{BitmartPerpFeed, BitmartSpotFeed};
+use super::bitmart::{BitmartPerpFeed, BitmartPerpMetricsPoller, BitmartSpotFeed};
 use super::bitmex::BitmexPerpFeed;
 use super::bitrue::BitrueSpotFeed;
 use super::bitstamp::BitstampSpotFeed;
@@ -258,8 +258,13 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     )));
                 }
                 if !perp_symbols.is_empty() {
-                    out.push(Arc::new(BitmartPerpFeed::new(
-                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
+                    let bitmart_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_binance(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(BitmartPerpFeed::new(bitmart_perp_symbols.clone())));
+                    out.push(Arc::new(BitmartPerpMetricsPoller::new(
+                        bitmart_perp_symbols,
                     )));
                 }
             }

@@ -102,9 +102,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented_public",
         priority: "P1",
-        notes: "Public spot depth/trades and perp depth/trades/funding/ticker are wired; OI/liquidation remain planned.",
+        notes: "Public spot depth/trades, perp depth/trades/funding/ticker, and public perp funding/OI REST polling are wired; public liquidation fetch is unavailable in CCXT.",
     },
     RoadmapSource {
         source: "bitmex",

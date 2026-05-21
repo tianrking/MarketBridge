@@ -49,7 +49,7 @@ Status labels:
 | MEXC | partial | implemented | implemented | implemented | n/a | n/a | keyless | Spot/futures depth/deals plus public contract funding-rate poller; CCXT reference marks public open-interest and public liquidation fetches unavailable. |
 | BingX | partial | implemented | implemented | implemented | implemented | n/a | keyless | Swap ticker/depth/trade plus public premium-index funding and open-interest poller; liquidation/force-order history is private-only in the CCXT reference. |
 | Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
-| Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
+| Bitmart | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public spot depth/trades and perp depth/trades/funding/ticker plus public perp funding/OI REST poller; public liquidation fetch is unavailable in CCXT. |
 | BitMEX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST instrument/book/trades/liquidations for perpetual markets. |
 | Bitstamp | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order-book diffs and trades; derivatives domains do not apply to spot feed. |
 | Bitrue | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot simple-depth stream plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
