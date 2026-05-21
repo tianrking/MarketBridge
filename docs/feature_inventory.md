@@ -114,7 +114,7 @@ Status labels:
 
 | Capability | Status | API key | Notes |
 |---|---:|---:|---|
-| Gamma market discovery | implemented | keyless | BTC/ETH crypto binary parser today. |
+| Gamma market discovery | implemented | keyless | `/polymarket/markets` exposes all active Gamma categories with CLOB ids, outcomes, volume, liquidity, and event OI; `/polymarket/crypto-markets` keeps the BTC/ETH parser. |
 | REST book | implemented | keyless | `/polymarket/book`, `/polymarket/books`. |
 | Live CLOB cache | implemented | keyless | `/polymarket/live-books`, `/v1/prediction/books`. |
 | Midpoint batch | implemented | keyless | `/polymarket/midpoints` wraps CLOB `POST /midpoints`, max 500 token ids. |
@@ -122,8 +122,8 @@ Status labels:
 | Spread batch | implemented | keyless | `/polymarket/spreads` wraps CLOB `POST /spreads`, max 500 token ids. |
 | Market prices batch | implemented | keyless | `/polymarket/prices` wraps CLOB `POST /prices`, default sides `BUY,SELL`. |
 | Historical prices/OHLCV | implemented | keyless | `/polymarket/prices-history` wraps CLOB `GET /prices-history` and `POST /batch-prices-history`, batch max 20 token ids. |
-| Full category coverage | planned | keyless | Politics/sports/tech/general parser needed. |
-| Open interest/live volume | planned | keyless | Endpoint support needs confirmation per market. |
+| Full category coverage | implemented | keyless | Active Gamma market discovery is category-agnostic; specialized parsers can layer on top. |
+| Open interest/live volume | implemented | keyless | Gamma volume/liquidity/event OI fields are exposed when present. |
 
 ## Options Coverage
 

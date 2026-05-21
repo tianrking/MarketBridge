@@ -94,6 +94,10 @@ pub fn build_router(state: ApiState) -> Router {
             "/polymarket/crypto-markets",
             get(routes::prediction::polymarket_crypto_markets),
         )
+        .route(
+            "/polymarket/markets",
+            get(routes::prediction::polymarket_markets),
+        )
         .route("/polymarket/book", get(routes::prediction::polymarket_book))
         .route(
             "/polymarket/books",

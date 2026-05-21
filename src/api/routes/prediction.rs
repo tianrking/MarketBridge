@@ -12,8 +12,8 @@ use crate::api::utils::parse_csv_vec;
 use crate::connectors::prediction::polymarket::{
     PolymarketBatchPriceHistoryRequest, fetch_polymarket_batch_prices_history,
     fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
-    fetch_polymarket_last_trade_prices, fetch_polymarket_market_prices, fetch_polymarket_midpoints,
-    fetch_polymarket_prices_history, fetch_polymarket_spreads,
+    fetch_polymarket_last_trade_prices, fetch_polymarket_market_prices, fetch_polymarket_markets,
+    fetch_polymarket_midpoints, fetch_polymarket_prices_history, fetch_polymarket_spreads,
 };
 use crate::domains::prediction::book::envelope_from_polymarket_book;
 
@@ -66,6 +66,29 @@ pub async fn polymarket_crypto_markets(
     let limit = q.limit.unwrap_or(500);
     let max_offset = q.max_offset.unwrap_or(5000);
     match fetch_polymarket_crypto_markets(&state.http, &gamma_base_url, limit, max_offset).await {
+        Ok(response) => Json(serde_json::json!({
+            "source": "polymarket_gamma",
+            "gamma_base_url": gamma_base_url,
+            "limit": limit,
+            "max_offset": max_offset,
+            "markets": response.markets,
+            "clob_asset_ids": response.clob_asset_ids
+        }))
+        .into_response(),
+        Err(error) => upstream_error("polymarket_gamma", error),
+    }
+}
+
+pub async fn polymarket_markets(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PolymarketCryptoMarketsQuery>,
+) -> impl IntoResponse {
+    let gamma_base_url = q
+        .gamma_base_url
+        .unwrap_or_else(|| "https://gamma-api.polymarket.com/".to_string());
+    let limit = q.limit.unwrap_or(500);
+    let max_offset = q.max_offset.unwrap_or(5000);
+    match fetch_polymarket_markets(&state.http, &gamma_base_url, limit, max_offset).await {
         Ok(response) => Json(serde_json::json!({
             "source": "polymarket_gamma",
             "gamma_base_url": gamma_base_url,

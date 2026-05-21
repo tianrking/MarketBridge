@@ -37,6 +37,34 @@ pub struct PolymarketCryptoMarketsResponse {
     pub clob_asset_ids: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PolymarketMarketSummary {
+    pub market_id: String,
+    pub condition_id: Option<String>,
+    pub market_slug: Option<String>,
+    pub event_slug: Option<String>,
+    pub category: Option<String>,
+    pub question: Option<String>,
+    pub status: String,
+    pub expiry_time: Option<String>,
+    pub clob_token_ids: Vec<String>,
+    pub outcomes: Vec<String>,
+    pub outcome_prices: Vec<String>,
+    pub volume: Option<f64>,
+    pub volume_24h: Option<f64>,
+    pub volume_1wk: Option<f64>,
+    pub volume_1mo: Option<f64>,
+    pub liquidity: Option<f64>,
+    pub open_interest: Option<f64>,
+    pub accepting_orders: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PolymarketMarketsResponse {
+    pub markets: Vec<PolymarketMarketSummary>,
+    pub clob_asset_ids: Vec<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PolymarketBookLevel {
     pub price: String,
@@ -147,6 +175,83 @@ pub async fn fetch_polymarket_crypto_markets(
     })
 }
 
+pub async fn fetch_polymarket_markets(
+    client: &reqwest::Client,
+    gamma_base_url: &str,
+    limit: usize,
+    max_offset: usize,
+) -> Result<PolymarketMarketsResponse> {
+    let mut markets = Vec::new();
+    let mut offset = 0usize;
+    while offset <= max_offset {
+        let batch = fetch_gamma_markets(client, gamma_base_url, limit, offset).await?;
+        if batch.is_empty() {
+            break;
+        }
+        markets.extend(batch.iter().filter_map(parse_market_summary));
+        offset += limit;
+    }
+
+    let mut clob_asset_ids = markets
+        .iter()
+        .flat_map(|market| market.clob_token_ids.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+    clob_asset_ids.sort();
+    clob_asset_ids.dedup();
+
+    Ok(PolymarketMarketsResponse {
+        markets,
+        clob_asset_ids,
+    })
+}
+
+fn parse_market_summary(market: &GammaMarket) -> Option<PolymarketMarketSummary> {
+    let status = if market.closed == Some(true) {
+        "closed"
+    } else if market.active == Some(true) {
+        "active"
+    } else {
+        "unknown"
+    };
+    if status != "active" {
+        return None;
+    }
+    let market_id = market
+        .condition_id
+        .clone()
+        .or_else(|| market.slug.clone())
+        .or_else(|| market.event_slug.clone())?;
+    Some(PolymarketMarketSummary {
+        market_id,
+        condition_id: market.condition_id.clone(),
+        market_slug: market.slug.clone(),
+        event_slug: market.event_slug.clone(),
+        category: market.category.clone(),
+        question: market.question.clone(),
+        status: status.to_string(),
+        expiry_time: market.end_date.clone(),
+        clob_token_ids: string_vec(market.clob_token_ids.as_ref()),
+        outcomes: string_vec(market.outcomes.as_ref()),
+        outcome_prices: string_vec(market.outcome_prices.as_ref()),
+        volume: market
+            .volume_clob
+            .or(market.volume_num)
+            .or_else(|| value_f64(market.volume.as_ref())),
+        volume_24h: market.volume_24hr_clob.or(market.volume_24hr),
+        volume_1wk: market.volume_1wk,
+        volume_1mo: market.volume_1mo,
+        liquidity: market
+            .liquidity_clob
+            .or(market.liquidity_num)
+            .or_else(|| value_f64(market.liquidity.as_ref())),
+        open_interest: market
+            .open_interest
+            .or_else(|| first_event_f64(market.events.as_ref(), "openInterest")),
+        accepting_orders: market.accepting_orders,
+    })
+}
+
 pub async fn fetch_polymarket_book(
     client: &reqwest::Client,
     token_id: &str,
@@ -162,6 +267,32 @@ pub async fn fetch_polymarket_book(
         .await
         .context("failed to decode polymarket CLOB book")?;
     Ok(summarize_book(book))
+}
+
+fn string_vec(value: Option<&Value>) -> Vec<String> {
+    match value {
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(|x| x.as_str().map(str::to_string))
+            .collect(),
+        Some(Value::String(text)) => serde_json::from_str::<Vec<String>>(text).unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
+fn value_f64(value: Option<&Value>) -> Option<f64> {
+    match value? {
+        Value::Number(number) => number.as_f64(),
+        Value::String(text) => text.parse::<f64>().ok(),
+        _ => None,
+    }
+}
+
+fn first_event_f64(value: Option<&Value>, key: &str) -> Option<f64> {
+    value
+        .and_then(Value::as_array)?
+        .iter()
+        .find_map(|event| value_f64(event.get(key)))
 }
 
 pub async fn fetch_polymarket_books(
@@ -445,5 +576,44 @@ mod tests {
         assert_eq!(value["markets"][0], "token-a");
         assert_eq!(value["start_ts"], 1.0);
         assert_eq!(value["end_ts"], 2.0);
+    }
+
+    #[test]
+    fn market_summary_extracts_gamma_stats_and_tokens() {
+        let market = GammaMarket {
+            condition_id: Some("0xabc".to_string()),
+            slug: Some("sample-market".to_string()),
+            event_slug: Some("sample-event".to_string()),
+            category: Some("sports".to_string()),
+            question: Some("Will it happen?".to_string()),
+            end_date: Some("2026-12-31T00:00:00Z".to_string()),
+            active: Some(true),
+            closed: Some(false),
+            liquidity: None,
+            liquidity_num: Some(12.0),
+            liquidity_clob: Some(13.0),
+            volume: None,
+            volume_num: Some(100.0),
+            volume_clob: Some(101.0),
+            volume_24hr: Some(1.0),
+            volume_24hr_clob: Some(2.0),
+            volume_1wk: Some(7.0),
+            volume_1mo: Some(30.0),
+            open_interest: None,
+            accepting_orders: Some(true),
+            outcome_prices: Some(serde_json::json!("[\"0.51\",\"0.49\"]")),
+            events: Some(serde_json::json!([{"openInterest": 123.45}])),
+            clob_token_ids: Some(serde_json::json!("[\"yes-token\",\"no-token\"]")),
+            outcomes: Some(serde_json::json!("[\"Yes\",\"No\"]")),
+        };
+
+        let summary = parse_market_summary(&market).expect("summary");
+        assert_eq!(summary.category.as_deref(), Some("sports"));
+        assert_eq!(summary.clob_token_ids, vec!["yes-token", "no-token"]);
+        assert_eq!(summary.outcomes, vec!["Yes", "No"]);
+        assert_eq!(summary.volume, Some(101.0));
+        assert_eq!(summary.volume_24h, Some(2.0));
+        assert_eq!(summary.liquidity, Some(13.0));
+        assert_eq!(summary.open_interest, Some(123.45));
     }
 }
