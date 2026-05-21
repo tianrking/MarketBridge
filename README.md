@@ -618,11 +618,29 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/order-books` | Latest L2 book snapshots |
 | GET | `/v1/market/trades` | Latest public trade snapshots |
 | GET | `/v1/market/order-flow` | Buy/sell pressure metrics derived from live trades |
-| GET | `/v1/market/klines` | SQLite-backed OHLCV bars from historical REST and realtime tick aggregation |
+| GET | `/v1/market/order-flow/windows` | Multi-window order-flow and CVD buckets |
+| GET | `/v1/market/footprint` | Price-bin footprint/orderflow profile |
+| GET | `/v1/market/klines` | SQLite-backed OHLCV bars; can persist selected rows to local Parquet lake |
+| GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
 | GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
+| GET | `/v1/universe/top-volume` | Universe filter by historical quote volume |
+| GET | `/v1/universe/percent-change` | Universe filter by percent change |
+| GET | `/v1/universe/volatility` | Universe filter by realized volatility |
+| GET | `/v1/universe/spread-filter` | Universe filter by current spread |
+| GET | `/v1/universe/cross-market` | Spot/perp and cross-exchange availability |
+| GET | `/v1/universe/market-cap` | Market-cap ranking from external aggregate signals |
+| GET | `/v1/universe/age-filter` | Listing-age filter based on first stored kline |
+| GET | `/v1/universe/new-listings` | Recent listing candidates from first stored kline |
+| GET | `/v1/universe/delist-risk` | Missing/stale quote risk for historically seen markets |
+| GET | `/v1/research/features` | Multi-timeframe research feature bundle |
+| GET | `/v1/research/market-regime` | Aggregate regime snapshot |
+| GET | `/v1/storage/manifest` | Local lake manifest, quality, coverage, and file index |
+| DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter |
+| GET | `/v1/agent/context` | AI/agent-friendly compact market context |
+| GET | `/v1/agent/capabilities` | AI/agent-friendly capability inventory |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -780,12 +798,14 @@ curl -s "http://127.0.0.1:8080/v1/market/liquidations?symbols=BTCUSDT&exchanges=
 
 SQLite-backed OHLCV bars. Historical REST backfill supports Binance and OKX;
 realtime bars are aggregated from live quote ticks and written once per update
-batch. Enable it in config:
+batch. Add `persist=true` only when you want the returned rows written to the
+local Parquet lake. Enable it in config:
 
 ```yaml
 klines:
   enabled: true
   sqlite_path: "data/marketbridge.sqlite"
+  lake_root: "data/lake"
   intervals: [1m, 5m, 15m, 1h]
   history_limit: 1500
   backfill_on_start: false
@@ -800,12 +820,67 @@ Query params:
 - `interval=1m|5m|15m|1h`
 - `start_ms`, `end_ms`, optional Unix milliseconds
 - `limit`, default `500`, max `5000`
+- `persist=true|false`, default `false`
+- `candle_type=spot|futures|perp|mark|index|premiumIndex|funding_rate`
 
 Examples:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
+curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=1000&persist=true" | jq
 ```
+
+### `GET /v1/history/candles`
+
+On-demand public historical candles. This is the preferred endpoint for
+research candles beyond ordinary OHLCV. It can write only the requested result
+to the local Parquet lake with `persist=true`.
+
+Supported candle types:
+
+- Binance: `spot`, `futures`, `perp`, `mark`, `index`, `premiumIndex`,
+  `funding_rate`
+- OKX: `spot`, `perp`, `mark`, `index`, `funding_rate`
+
+Query params:
+
+- `exchange=binance|okx`
+- `symbol=BTCUSDT`
+- `candle_type=spot|futures|perp|mark|index|premiumIndex|funding_rate`
+- `interval=1m|3m|5m|15m|30m|1h|4h|1d`, where supported by the venue
+- `start_ms`, `end_ms`
+- `limit`
+- `persist=true|false`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark&interval=1m&limit=1000&persist=true" | jq
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=premiumIndex&interval=1m&limit=500&persist=true" | jq
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
+```
+
+### Local Parquet Lake
+
+MarketBridge uses SQLite as the manifest/index and Parquet as the local columnar
+lake. The lake is opt-in: no request is persisted unless it sets
+`persist=true`.
+
+Manifest:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/storage/manifest?domain=candles&symbol=BTCUSDT" | jq
+```
+
+Delete by filter:
+
+```bash
+curl -X DELETE "http://127.0.0.1:8080/v1/storage/partitions?domain=candles&exchange=binance&symbol=BTCUSDT&interval=1m&candle_type=mark" | jq
+```
+
+Manifest fields include rows, bytes, first/last timestamps, latest watermark,
+gap count, duplicate count, coverage ratio, latency p50/p95, stale count, and
+file path.
 
 ### `GET /v1/market/order-flow`
 
@@ -831,9 +906,68 @@ Key fields:
 
 - `buy_qty`, `sell_qty`
 - `buy_notional`, `sell_notional`
+- `buy_trade_count`, `sell_trade_count`
 - `delta_qty`, `delta_notional`
 - `cumulative_delta_qty`, `cumulative_delta_notional`
+- `aggressive_buy_ratio`, `aggressive_sell_ratio`
 - `large_trade_count`
+
+Multi-window query:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/order-flow/windows?exchange=binance&market=perp&symbol=BTCUSDT&windows_ms=60000,300000,900000" | jq
+```
+
+### `GET /v1/market/footprint`
+
+Footprint/orderflow profile derived from recent live trades kept in the rolling
+in-memory trade buffer.
+
+Query params:
+
+- `exchange`
+- `market=spot|perp`
+- `symbol`
+- `interval_ms`, default `60000`
+- `scale`, price-bin size, default `1.0`
+- `start_ms`, `end_ms`
+- `imbalance_ratio`, default `3.0`
+- `imbalance_volume`, default `0.0`
+- `stacked_imbalance_range`, default `3`
+- `include_trades=true|false`
+- `limit`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/footprint?exchange=binance&market=perp&symbol=BTCUSDT&interval_ms=60000&scale=1" | jq
+```
+
+### Universe, Research, And Agent APIs
+
+Universe filters:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/universe/top-volume?exchange=binance&market=perp&interval=1d&limit=50" | jq
+curl -s "http://127.0.0.1:8080/v1/universe/spread-filter?product_type=perp&max_spread_bps=5" | jq
+curl -s "http://127.0.0.1:8080/v1/universe/new-listings?max_age_days=7" | jq
+```
+
+Research features:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/research/features?symbols=BTCUSDT,ETHUSDT&intervals=1h,4h,1d&benchmark_symbol=BTCUSDT&correlated_symbols=ETHUSDT,SOLUSDT" | jq
+curl -s "http://127.0.0.1:8080/v1/research/market-regime?symbols=BTCUSDT,ETHUSDT&intervals=1h,4h" | jq
+```
+
+Agent-friendly read-only context:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/agent/capabilities" | jq
+curl -s "http://127.0.0.1:8080/v1/agent/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
+```
+
+For a full walkthrough, see [docs/usage_full.md](docs/usage_full.md).
 
 ### `GET /v1/market/basis`
 
