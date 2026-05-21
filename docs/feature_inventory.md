@@ -181,5 +181,5 @@ Status labels:
 | Conservative fallback fees | implemented | P0 | Missing venue fee config uses `strategy.fallback_maker_fee_bps` / `strategy.fallback_taker_fee_bps` instead of zero-fee assumptions. |
 | Dynamic catalog from runtime config | implemented | P2 | `/v1/catalog/sources` reports startup-cached `enabled`, `available`, or `enabled_missing_api_key` from the active config. |
 | Aggregator extended event analytics | planned | P1 | Funding/OI/book/trade/liquidation are stored by API but ignored by spread engine. |
-| Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.1 Linux/macOS/Windows packages with binary, configs, README, and docs. |
+| Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.2 Linux/macOS/Windows packages with binary, configs, README, and docs. |
 | SQLite kline store | implemented | P1 | `klines.enabled` stores Binance/OKX historical candles and realtime tick bars in `klines.sqlite_path`. |

@@ -5,7 +5,7 @@ DeFi, macro, aggregate, and sentiment data. MarketBridge normalizes public data,
 caches fresh state, marks stale records, and exposes one stable API surface for
 downstream research systems.
 
-Current version: `v0.0.1`
+Current version: `v0.0.2`
 
 [中文文档](README.zh-CN.md)
 
@@ -147,6 +147,43 @@ flowchart LR
 6. `SpreadAggregator` computes cross-exchange opportunity signals with fee/slippage logic.
 7. API/WebSocket/optional Redis expose normalized data to quant consumers.
 
+The layers deliberately separate responsibilities:
+
+| Layer | Owns | Does not own |
+|---|---|---|
+| Connector | Venue protocol, REST polling, websocket subscriptions, symbol conversion, parser tests | Cross-source strategy rules |
+| Domain | Normalized `DataEnvelope`, cache keys, freshness, stale flags, query filters | Venue-specific retry logic |
+| Runtime | Source supervision, reconnect backoff, backpressure, broadcast fanout | Data interpretation |
+| Derived stores | Basis, order flow, klines, health summaries | Alpha approval or execution |
+| API | Stable REST/WebSocket/Redis delivery | Wallet signing or order routing |
+
+### Update Frequency Model
+
+MarketBridge does not downsample websocket feeds before cache/stream delivery.
+WebSocket sources are processed as venue messages arrive. Polling sources use
+configurable or connector-level intervals so rate-limited public APIs are not
+abused.
+
+| Data family | Default behavior |
+|---|---|
+| Core CEX websocket quotes/trades/books | Event-driven, source-push speed |
+| Binance depth | `depth20@100ms` stream |
+| Binance mark/funding | `markPrice@1s` stream |
+| REST-only CEX adapters | Usually 5 second polling |
+| Options chains | `refresh_secs`, default 10 seconds |
+| Polymarket CLOB books | REST seed plus websocket patch stream |
+| Polymarket Gamma market discovery | `refresh_secs`, default 300 seconds |
+| DeFi quote/pool sources | `poll_secs`, default 10 seconds |
+| On-chain transfer sources | `poll_secs`, default 60 seconds |
+| Macro/sentiment/aggregate sources | Source-specific `poll_secs`, usually 60 seconds or slower |
+| Spread report logs | `runtime.report_interval_ms`, default 1000 ms, minimum 100 ms |
+| `/v1/stream` snapshot domains | `snapshot_interval_ms`, default 1000 ms, minimum 250 ms |
+
+If the goal is maximum raw ingestion, prefer websocket-capable CEX sources,
+raise `runtime.queue_capacity`, keep `runtime.backpressure: drop_newest` for
+low latency, and only lower REST polling intervals after checking venue rate
+limits.
+
 ## Quick Start
 
 ### 1) Build From Source
@@ -206,17 +243,40 @@ curl -s "http://127.0.0.1:8080/funding?symbols=BTCUSDT" | jq
 curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
 ```
 
+### 5) Stream Live Data
+
+```bash
+npx wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote,trade,order_book&symbols=BTCUSDT&product_type=perp&snapshot_interval_ms=250"
+```
+
+### 6) Feed PolyAlpha
+
+Keep MarketBridge running, then fetch a long-table context file from PolyAlpha:
+
+```bash
+cd /path/to/PolyAlpha
+PYTHONPATH=profiler .venv/bin/python profiler/profile_wallets.py fetch-marketbridge-context \
+  --base-url http://127.0.0.1:8080 \
+  --symbol BTCUSDT \
+  --symbol ETHUSDT \
+  --exchange binance \
+  --exchange okx \
+  --market perp \
+  --include-snapshots \
+  --out data/profiler/marketbridge_context.csv
+```
+
 ## Use Downloaded Binaries
 
 GitHub Actions builds release packages for:
 
 | Package suffix | Download file | Use when |
 |---|---|---|
-| `linux-x86_64` | `market-bridge-v0.0.1-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
-| `linux-i686` | `market-bridge-v0.0.1-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
-| `macos-x86_64` | `market-bridge-v0.0.1-macos-x86_64.tar.gz` | Intel Mac. |
-| `macos-aarch64` | `market-bridge-v0.0.1-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
-| `windows-x86_64` | `market-bridge-v0.0.1-windows-x86_64.zip` | 64-bit Windows. |
+| `linux-x86_64` | `market-bridge-v0.0.2-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
+| `linux-i686` | `market-bridge-v0.0.2-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
+| `macos-x86_64` | `market-bridge-v0.0.2-macos-x86_64.tar.gz` | Intel Mac. |
+| `macos-aarch64` | `market-bridge-v0.0.2-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
+| `windows-x86_64` | `market-bridge-v0.0.2-windows-x86_64.zip` | 64-bit Windows. |
 
 Each package contains:
 
@@ -231,8 +291,8 @@ Each package contains:
 Linux/macOS usage:
 
 ```bash
-tar -xzf market-bridge-v0.0.1-linux-x86_64.tar.gz   # replace suffix for your platform
-cd market-bridge-v0.0.1-linux-x86_64
+tar -xzf market-bridge-v0.0.2-linux-x86_64.tar.gz   # replace suffix for your platform
+cd market-bridge-v0.0.2-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```
@@ -246,8 +306,8 @@ xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
 Windows PowerShell:
 
 ```powershell
-Expand-Archive .\market-bridge-v0.0.1-windows-x86_64.zip
-cd .\market-bridge-v0.0.1-windows-x86_64\market-bridge-v0.0.1-windows-x86_64
+Expand-Archive .\market-bridge-v0.0.2-windows-x86_64.zip
+cd .\market-bridge-v0.0.2-windows-x86_64\market-bridge-v0.0.2-windows-x86_64
 $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 .\market-bridge.exe
 ```
@@ -294,38 +354,38 @@ CI has two workflows:
 - `.github/workflows/release.yml`: builds cross-platform release packages and uploads artifacts.
 
 Automatic package builds run on pushes to `main` or `master`, tag pushes like
-`v0.0.1`, and manual `workflow_dispatch`.
+`v0.0.2`, and manual `workflow_dispatch`.
 
-To publish `v0.0.1`:
+To publish `v0.0.2`:
 
 ```bash
-git tag -f v0.0.1 HEAD
+git tag -f v0.0.2 HEAD
 git push origin master
-git push --force origin refs/tags/v0.0.1
+git push --force origin refs/tags/v0.0.2
 ```
 
-For a first-time tag where no previous `v0.0.1` exists, this also works:
+For a first-time tag where no previous `v0.0.2` exists, this also works:
 
 ```bash
-git tag v0.0.1
-git push origin v0.0.1
+git tag v0.0.2
+git push origin v0.0.2
 ```
 
 The release workflow builds:
 
 ```text
-market-bridge-v0.0.1-linux-x86_64.tar.gz
-market-bridge-v0.0.1-linux-i686.tar.gz
-market-bridge-v0.0.1-macos-x86_64.tar.gz
-market-bridge-v0.0.1-macos-aarch64.tar.gz
-market-bridge-v0.0.1-windows-x86_64.zip
+market-bridge-v0.0.2-linux-x86_64.tar.gz
+market-bridge-v0.0.2-linux-i686.tar.gz
+market-bridge-v0.0.2-macos-x86_64.tar.gz
+market-bridge-v0.0.2-macos-aarch64.tar.gz
+market-bridge-v0.0.2-windows-x86_64.zip
 ```
 
 For normal branch pushes, download the packages from the workflow run
 artifacts. For tag pushes, the same packages are also attached to the GitHub
 Release.
 
-When re-cutting `v0.0.1`, confirm the GitHub Release assets were produced from
+When re-cutting `v0.0.2`, confirm the GitHub Release assets were produced from
 the latest tag commit, not an older branch artifact.
 
 ## Configuration

@@ -69,22 +69,32 @@ jobs:
       - name: Build release binary
         run: cargo build --release --locked --target ${{ matrix.target }}
 
+      - name: Resolve package version
+        id: package_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk -F '"' '/^version = / {print $2; exit}' Cargo.toml)"
+          echo "version=v${version}" >> "$GITHUB_OUTPUT"
+
       - name: Stage package
         shell: bash
         run: |
           set -euo pipefail
-          pkg="market-bridge-v0.0.1-${{ matrix.name }}"
+          release_version="${{ steps.package_version.outputs.version }}"
+          pkg="market-bridge-${release_version}-${{ matrix.name }}"
           mkdir -p "dist/${pkg}"
           cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${pkg}/"
           cp README.md README.zh-CN.md config.yaml config.min.yaml config.all-exchanges.example.yaml "dist/${pkg}/"
           cp -R docs "dist/${pkg}/docs"
-          printf '%s\n' "market-bridge v0.0.1 ${{ matrix.name }}" > "dist/${pkg}/VERSION"
+          printf '%s\n' "market-bridge ${release_version} ${{ matrix.name }}" > "dist/${pkg}/VERSION"
 
       - name: Archive package
         shell: bash
         run: |
           set -euo pipefail
-          pkg="market-bridge-v0.0.1-${{ matrix.name }}"
+          release_version="${{ steps.package_version.outputs.version }}"
+          pkg="market-bridge-${release_version}-${{ matrix.name }}"
           if [ "${{ matrix.archive }}" = "zip" ]; then
             (cd dist && 7z a "../${pkg}.zip" "${pkg}")
           else
@@ -94,12 +104,12 @@ jobs:
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: market-bridge-v0.0.1-${{ matrix.name }}
-          path: market-bridge-v0.0.1-${{ matrix.name }}.${{ matrix.archive }}
+          name: market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}
+          path: market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}
           if-no-files-found: error
 
       - name: Attach package to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: market-bridge-v0.0.1-${{ matrix.name }}.${{ matrix.archive }}
+          files: market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}
