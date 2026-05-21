@@ -34,7 +34,7 @@ use super::binance_perp::BinancePerpBookTicker;
 use super::bingx::BingxSwapFeed;
 use super::bitbank::BitbankSpotFeed;
 use super::bitfinex::{BitfinexSpotRestFeed, BitfinexTicker};
-use super::bitfinex_perp::BitfinexPerpTicker;
+use super::bitfinex_perp::{BitfinexPerpRestFeed, BitfinexPerpTicker};
 use super::bitflyer::BitflyerSpotFeed;
 use super::bitget::BitgetSpotTicker;
 use super::bitget_perp::BitgetPerpTicker;
@@ -571,9 +571,14 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(BitfinexSpotRestFeed::new(bitfinex_spot_symbols)));
                 }
                 if !perp_symbols.is_empty() {
+                    let bitfinex_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_bitfinex_perp(s))
+                        .collect::<Vec<_>>();
                     out.push(Arc::new(BitfinexPerpTicker::new(
-                        perp_symbols.iter().map(|s| to_bitfinex_perp(s)).collect(),
+                        bitfinex_perp_symbols.clone(),
                     )));
+                    out.push(Arc::new(BitfinexPerpRestFeed::new(bitfinex_perp_symbols)));
                 }
             }
             "bitflyer" if !spot_symbols.is_empty() => {

@@ -147,6 +147,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Native public REST spot ticker, order book, and recent trades are wired without external runtime dependency.",
     },
     RoadmapSource {
+        source: "bitfinex",
+        source_type: "exchange",
+        product_types: SPOT_PERP,
+        domains: PERP_MARKET,
+        upstreams: UP_HB_CCXT,
+        marketbridge_status: "partial",
+        priority: "P1",
+        notes: "Spot/perp ticker, REST book/trades, and derivative liquidation history are wired; funding/OI remain planned because stable public semantics are not confirmed.",
+    },
+    RoadmapSource {
         source: "bitbank",
         source_type: "exchange",
         product_types: SPOT,
