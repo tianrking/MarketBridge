@@ -17,6 +17,7 @@ use crate::event_snapshots::NormalizedTick;
 
 const WRITER_BATCH_MAX: usize = 256;
 const WRITER_FLUSH_MS: u64 = 1_000;
+const REALTIME_BAR_RETENTION_WINDOWS: u64 = 1_000;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct KlineBar {
@@ -361,8 +362,9 @@ impl RealtimeKlineAggregator {
             return Vec::new();
         }
         let mut out = Vec::with_capacity(self.intervals.len());
-        for (interval, interval_ms) in &self.intervals {
+        for (interval, interval_ms) in self.intervals.clone() {
             let open_time_ms = tick.ts / interval_ms * interval_ms;
+            self.evict_old_bars(tick.ts, interval_ms);
             let key = format!(
                 "{}:{}:{}:{}:{}",
                 tick.exchange, tick.market, tick.symbol, interval, open_time_ms
@@ -389,6 +391,17 @@ impl RealtimeKlineAggregator {
             out.push(row.clone());
         }
         out
+    }
+
+    fn evict_old_bars(&mut self, now_ms: u64, interval_ms: u64) {
+        let retention_ms = interval_ms.saturating_mul(REALTIME_BAR_RETENTION_WINDOWS);
+        let min_open_time = now_ms.saturating_sub(retention_ms);
+        self.bars.retain(|key, _| {
+            key.rsplit(':')
+                .next()
+                .and_then(|x| x.parse::<u64>().ok())
+                .is_none_or(|open_time| open_time >= min_open_time)
+        });
     }
 }
 
@@ -606,5 +619,27 @@ mod tests {
         assert_eq!(bar.open, 100.0);
         assert_eq!(bar.high, 110.0);
         assert_eq!(bar.close, 110.0);
+    }
+
+    #[test]
+    fn realtime_aggregator_evicts_old_bars() {
+        let mut agg = RealtimeKlineAggregator::new(vec!["1m".to_string()]);
+        for minute in 0..1_010_u64 {
+            let ts = minute * 60_000 + 1;
+            agg.update(NormalizedTick {
+                version: "v1",
+                exchange: "binance",
+                market: "spot",
+                symbol: "BTCUSDT".to_string(),
+                bid: 99.0,
+                ask: 101.0,
+                mark: None,
+                funding: None,
+                ts,
+                source_latency_ms: 0,
+                stale: false,
+            });
+        }
+        assert!(agg.bars.len() <= 1_001);
     }
 }
