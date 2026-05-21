@@ -6,13 +6,22 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
-use crate::connectors::options::deribit::fetch_deribit_option_summaries;
+use crate::connectors::options::deribit::{
+    fetch_deribit_option_book_from, fetch_deribit_option_summaries,
+};
 use crate::deribit_cache::OptionFilter;
 use crate::domains::options::chain::envelope_from_option_summary;
 
 #[derive(Debug, Deserialize)]
 pub struct DeribitOptionsQuery {
     currency: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeribitOptionBookQuery {
+    instrument_name: String,
+    depth: Option<usize>,
+    base_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -43,6 +52,33 @@ pub async fn deribit_options_summary(
             "currency": currency.to_ascii_uppercase(),
             "error": error.to_string(),
             "summaries": []
+        })),
+    }
+}
+
+pub async fn deribit_option_book(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<DeribitOptionBookQuery>,
+) -> impl IntoResponse {
+    let base_url = q
+        .base_url
+        .unwrap_or_else(|| "https://www.deribit.com/api/v2/".to_string());
+    match fetch_deribit_option_book_from(
+        &state.http,
+        &base_url,
+        &q.instrument_name,
+        q.depth.unwrap_or(10),
+    )
+    .await
+    {
+        Ok(book) => Json(serde_json::json!({
+            "source": "deribit",
+            "book": book
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "deribit",
+            "instrument_name": q.instrument_name,
+            "error": error.to_string()
         })),
     }
 }

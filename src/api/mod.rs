@@ -91,6 +91,10 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::options::deribit_live_options_summary),
         )
         .route(
+            "/options/deribit/book",
+            get(routes::options::deribit_option_book),
+        )
+        .route(
             "/polymarket/crypto-markets",
             get(routes::prediction::polymarket_crypto_markets),
         )
