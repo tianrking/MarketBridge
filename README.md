@@ -427,6 +427,30 @@ This service is the unified data plane for downstream strategy engines such as
 `PolyAlpha`. Strategy logic, factor validation, paper execution, and live order
 management should stay outside this repo.
 
+### Data and Interface Matrix
+
+| Data family | What you get | Primary interface | Stream support | Default freshness model | Key required |
+|---|---|---|---|---|---|
+| Spot quotes | bid/ask/mid, source, symbol, stale flag | `GET /v1/market/quotes?product_type=spot` | `WS /v1/stream?domains=market_quote` | websocket push where available; REST adapters usually 5s | No |
+| Perp quotes | bid/ask/mid, mark/index when venue sends it | `GET /v1/market/quotes?product_type=perp` | `WS /v1/stream?domains=market_quote` | websocket push where available | No |
+| L2 order books | normalized bid/ask levels, best bid/ask, depth metadata | `GET /v1/market/order-books` | `WS /v1/stream?domains=order_book` | source push where available; Binance depth is `100ms` | No |
+| Public trades | price, size, side, trade id, source timestamp | `GET /v1/market/trades` | `WS /v1/stream?domains=trade` | source push where available | No |
+| Funding rates | funding rate, next funding time, mark/index if present | `GET /v1/market/funding` | `WS /v1/stream?domains=funding` | source push or venue poller | No |
+| Open interest | OI quantity/notional where venue exposes it | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | source push or venue poller | No |
+| Liquidations | public liquidation events | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | source push where stable public feed exists | No |
+| Klines | SQLite OHLCV from REST backfill and live ticks | `GET /v1/market/klines` | No direct stream | configured intervals, default `1m/5m/15m/1h` | No |
+| Basis | spot-perp basis and basis bps | `GET /v1/market/basis` | No direct stream | derived from latest quote cache | No |
+| Order flow | buy/sell pressure, delta, CVD, large-trade count | `GET /v1/market/order-flow` | No direct stream | derived from live trade events | No |
+| Options chains | strikes, expiries, bid/ask/mark, IV-style fields, OI where present | `GET /v1/options/chains` | `WS /v1/stream?domains=options_chain` snapshots | REST cache, default 10s refresh | No |
+| Polymarket books | YES/NO CLOB books, spreads, midpoints, executable prices | `GET /v1/prediction/books`, `/polymarket/*` | `WS /v1/stream?domains=prediction_book` snapshots | REST seed plus CLOB websocket patch | No |
+| DeFi prices/quotes | Jupiter/Raydium/Uniswap/ParaSwap/1inch/DexScreener quote or pool price | `GET /v1/market/quotes?exchanges=...` | `market_quote` when enabled | `poll_secs`, default 10s | Usually no; depends on configured gateway |
+| TradFi references | DXY, VIX, US10Y | `GET /v1/market/quotes?exchanges=dxy,vix,us10y` | `market_quote` when enabled | `poll_secs`, usually 60s+ | US10Y needs FRED key |
+| Aggregate crypto signals | CoinGecko/CoinCap/CMC prices, CoinGlass derivatives metrics | `GET /v1/external/signals`, quote surface for price sources | `external_signal` | `poll_secs`, usually 60s+ | Some sources require keys |
+| Sentiment/news | Fear & Greed, CryptoPanic, Santiment, LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | `poll_secs`, source-specific | Most except Fear & Greed need keys |
+| On-chain transfers | Whale Alert, mempool.space BTC, Etherscan watched-address transfers | `GET /v1/onchain/transfers` | No direct stream | `poll_secs`, default 60s | Whale Alert/Etherscan need keys |
+| Catalog and health | enabled sources, API-key status, domains, instruments, freshness | `/v1/catalog/*`, `/coverage`, `/metrics` | No | updated from runtime caches/metrics | No |
+| Redis sink | normalized event stream export | `runtime.redis_url` | Redis Streams | batched XADD with JSONL dead letters | Redis required |
+
 ### Exchange Data
 
 | Capability | Status | Interface | Notes |
