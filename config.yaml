@@ -13,6 +13,9 @@ runtime:
   # Slow consumers skip their own stale messages instead of blocking publishers
   # or other subscribers.
   broadcast_capacity: 65536
+  # Number of shards for high-volume event/domain broadcasts. Keep 1 for local
+  # research; raise after load testing broad multi-symbol deployments.
+  event_bus_shards: 1
 
   # Backpressure strategy when channel is full:
   # - drop_newest: low-latency priority, may drop some fresh ticks

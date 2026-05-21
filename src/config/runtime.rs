@@ -9,6 +9,8 @@ pub struct RuntimeConfig {
     pub router_publish_queue_capacity: usize,
     #[serde(default = "default_broadcast_capacity")]
     pub broadcast_capacity: usize,
+    #[serde(default = "default_event_bus_shards")]
+    pub event_bus_shards: usize,
     pub backpressure: BackpressureConfig,
     pub report_interval_ms: u64,
     pub stale_ttl_ms: u64,
@@ -68,6 +70,10 @@ fn default_api_key_env() -> Option<String> {
 
 fn default_broadcast_capacity() -> usize {
     65_536
+}
+
+fn default_event_bus_shards() -> usize {
+    1
 }
 
 fn default_redis_stream_prefix() -> String {

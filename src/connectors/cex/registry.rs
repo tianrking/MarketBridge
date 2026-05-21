@@ -1027,6 +1027,7 @@ mod tests {
                 queue_capacity: 16,
                 router_publish_queue_capacity: 16,
                 broadcast_capacity: 16,
+                event_bus_shards: 1,
                 backpressure: BackpressureConfig::Block,
                 report_interval_ms: 1000,
                 stale_ttl_ms: 1000,

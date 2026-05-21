@@ -409,6 +409,8 @@ Default file: `config.yaml`
 - `runtime.queue_capacity`: source->router channel capacity
 - `runtime.router_publish_queue_capacity`: router->bus worker channel capacity; `0` or omitted reuses `queue_capacity`
 - `runtime.broadcast_capacity`: per-domain websocket/redis broadcast buffer
+- `runtime.event_bus_shards`: event/domain broadcast shard count; keep `1`
+  for local research and raise after load testing broad multi-symbol deployments
 - `runtime.backpressure`: `block` or `drop_newest`
 - `runtime.report_interval_ms`: signal report interval
 - `runtime.stale_ttl_ms`: stale threshold

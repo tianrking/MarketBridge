@@ -4,6 +4,7 @@ runtime:
   queue_capacity: 4096
   router_publish_queue_capacity: 4096
   broadcast_capacity: 65536
+  event_bus_shards: 1
   backpressure: drop_newest
   report_interval_ms: 1000
   stale_ttl_ms: 1500

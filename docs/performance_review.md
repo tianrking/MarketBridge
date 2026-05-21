@@ -165,6 +165,13 @@ Risk:
 
 Shard high-volume event broadcast by symbol or `exchange:symbol`.
 
+Status:
+
+- Implemented as configurable event/domain broadcast shards through
+  `runtime.event_bus_shards`.
+- Default remains `1` to keep local research simple. Increase only after load
+  tests show one broadcast domain is the bottleneck.
+
 Expected benefit:
 
 - More parallelism for hot symbols.
@@ -228,8 +235,8 @@ Without a dedicated load test, treat these as engineering estimates only:
    mixed event streams.
 3. Use the synthetic load generator in CI/manual release checks and record
    measured throughput per machine class.
-4. Consider per-symbol or per-domain sharding only after measured load tests
-   show single-bus contention.
+4. Increase `runtime.event_bus_shards` only after measured load tests show
+   single-domain broadcast contention.
 
 ## Bottom Line
 

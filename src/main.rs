@@ -77,7 +77,11 @@ async fn main() -> anyhow::Result<()> {
     let shutdown = handle.shutdown.clone();
     let mut tasks = handle.tasks;
 
-    let bus = EventBus::new(cfg.runtime.broadcast_capacity, cfg.runtime.stale_ttl_ms);
+    let bus = EventBus::new_sharded(
+        cfg.runtime.broadcast_capacity,
+        cfg.runtime.stale_ttl_ms,
+        cfg.runtime.event_bus_shards,
+    );
 
     let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
