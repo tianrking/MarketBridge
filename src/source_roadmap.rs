@@ -152,9 +152,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented",
         priority: "P1",
-        notes: "Spot/perp ticker, REST book/trades, and derivative liquidation history are wired; funding/OI remain planned because stable public semantics are not confirmed.",
+        notes: "Spot/perp ticker, REST book/trades, derivative status funding/OI, and public derivative liquidation history are wired.",
     },
     RoadmapSource {
         source: "bitbank",

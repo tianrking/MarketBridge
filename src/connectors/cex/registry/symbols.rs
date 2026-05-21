@@ -53,7 +53,8 @@ pub(super) fn to_htx_perp(s: &str) -> String {
 
 pub(super) fn to_bitfinex_perp(s: &str) -> String {
     let (b, q) = split_quote(s);
-    format!("t{b}F0:{q}F0")
+    let quote = if q == "USDT" { "UST" } else { q };
+    format!("t{b}F0:{quote}F0")
 }
 
 pub(super) fn to_kraken_perp(s: &str) -> String {
@@ -83,7 +84,7 @@ mod tests {
         assert_eq!(to_bitfinex("BTCUSDT"), "tBTCUSDT");
         assert_eq!(to_kucoin_perp("BTCUSDT"), "BTCUSDTM");
         assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
-        assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USDTF0");
+        assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USTF0");
         assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");
         assert_eq!(to_dydx_market("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_underscore("BTCJPY"), "BTC_JPY");

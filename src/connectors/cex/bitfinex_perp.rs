@@ -8,8 +8,8 @@ use tokio::time::interval;
 use crate::connectors::cex::bitfinex::run_bitfinex;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, LiquidationTick, MarketKind, MarketTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
+    OpenInterestTick, OrderBookTick, TradeSide, TradeTick, now_ms,
 };
 
 pub struct BitfinexPerpTicker {
@@ -85,6 +85,16 @@ impl ExchangeSource for BitfinexPerpRestFeed {
 
 async fn poll_bitfinex_perp_rest(client: &reqwest::Client, symbol: &str) -> Result<Vec<DataEvent>> {
     let mut events = Vec::new();
+
+    let status = client
+        .get("https://api-pub.bitfinex.com/v2/status/deriv")
+        .query(&[("keys", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    events.extend(parse_bitfinex_perp_status(&status));
 
     let book = client
         .get(format!("https://api-pub.bitfinex.com/v2/book/{symbol}/P0"))
@@ -179,6 +189,52 @@ fn parse_bitfinex_perp_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }));
 
     events
+}
+
+fn parse_bitfinex_perp_status(value: &Value) -> Vec<DataEvent> {
+    value
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|row| row.as_array())
+        .flat_map(|row| {
+            let symbol = row
+                .first()
+                .and_then(Value::as_str)
+                .unwrap_or("UNKNOWN")
+                .to_ascii_uppercase();
+            let ts_ms = row.get(1).and_then(Value::as_u64).unwrap_or_else(now_ms);
+            let mark_price = row.get(15).and_then(Value::as_f64);
+            let index_price = row.get(3).and_then(Value::as_f64);
+            let mut events = Vec::new();
+
+            if let Some(funding_rate) = row.get(12).and_then(Value::as_f64) {
+                events.push(DataEvent::FundingRate(FundingRateTick {
+                    exchange: "bitfinex",
+                    symbol: symbol.clone().into_boxed_str(),
+                    funding_rate,
+                    next_funding_time_ms: row.get(8).and_then(Value::as_u64),
+                    mark_price,
+                    index_price,
+                    ts_ms,
+                }));
+            }
+
+            let oi_index = if row.len() == 23 { 17 } else { 18 };
+            if let Some(open_interest) = row.get(oi_index).and_then(Value::as_f64) {
+                events.push(DataEvent::OpenInterest(OpenInterestTick {
+                    exchange: "bitfinex",
+                    symbol: symbol.into_boxed_str(),
+                    open_interest,
+                    open_interest_value: None,
+                    ts_ms,
+                }));
+            }
+
+            events
+        })
+        .collect()
 }
 
 fn parse_bitfinex_perp_trades(symbol: &str, value: &Value) -> Vec<DataEvent> {
@@ -304,6 +360,45 @@ mod tests {
             DataEvent::Liquidation(liq) => {
                 assert_eq!(liq.qty, 8.0);
                 assert_eq!(liq.price, 33255.0);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_bitfinex_perp_status_funding_and_open_interest() {
+        let events = parse_bitfinex_perp_status(&json!([[
+            "tBTCF0:USTF0",
+            1779329627000_u64,
+            null,
+            77908.448541525,
+            77862.0,
+            null,
+            65087935.8179998,
+            null,
+            1779350400000_u64,
+            0.00017684,
+            2573,
+            null,
+            0.00019544,
+            null,
+            null,
+            77862.4727,
+            null,
+            null,
+            8895.46676059,
+            null,
+            null,
+            null,
+            0.0005,
+            0.0025
+        ]]));
+
+        assert!(matches!(events[0], DataEvent::FundingRate(_)));
+        match &events[1] {
+            DataEvent::OpenInterest(oi) => {
+                assert_eq!(oi.symbol.as_ref(), "TBTCF0:USTF0");
+                assert_eq!(oi.open_interest, 8895.46676059);
             }
             other => panic!("unexpected event: {other:?}"),
         }
