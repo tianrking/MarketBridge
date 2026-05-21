@@ -11,10 +11,13 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use crate::connectors::cex::common::parse_value_f64;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, TradeSide, TradeTick, now_ms,
+    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick,
+    TradeSide, TradeTick, now_ms,
 };
 
 const VERTEX_WS_URL: &str = "wss://gateway.prod.vertexprotocol.com/v1/subscribe";
+const VERTEX_QUERY_URL: &str = "https://gateway.prod.vertexprotocol.com/v1/query";
+const VERTEX_ARCHIVE_URL: &str = "https://archive.prod.vertexprotocol.com/v1";
 
 #[derive(Debug, Clone)]
 pub struct VertexMarket {
@@ -35,11 +38,15 @@ impl VertexMarket {
 
 pub struct VertexFeed {
     markets: Vec<VertexMarket>,
+    client: reqwest::Client,
 }
 
 impl VertexFeed {
     pub fn new(markets: Vec<VertexMarket>) -> Self {
-        Self { markets }
+        Self {
+            markets,
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -83,10 +90,23 @@ impl ExchangeSource for VertexFeed {
             .map(|market| (market.product_id, market.clone()))
             .collect::<HashMap<_, _>>();
         let mut ping_tick = interval(Duration::from_secs(15));
+        let mut metrics_tick = interval(Duration::from_secs(30));
         let mut last_seen = Instant::now();
 
         loop {
             tokio::select! {
+                _ = metrics_tick.tick() => {
+                    match fetch_vertex_metrics(&self.client, &self.markets).await {
+                        Ok(events) => {
+                            for event in events {
+                                ctx.emit(event).await?;
+                            }
+                        }
+                        Err(error) => {
+                            tracing::warn!(%error, exchange = "vertex", "metrics poll failed");
+                        }
+                    }
+                }
                 _ = ping_tick.tick() => {
                     if last_seen.elapsed() > Duration::from_secs(60) {
                         anyhow::bail!("vertex heartbeat timeout");
@@ -114,6 +134,48 @@ impl ExchangeSource for VertexFeed {
     }
 }
 
+async fn fetch_vertex_metrics(
+    client: &reqwest::Client,
+    markets: &[VertexMarket],
+) -> Result<Vec<DataEvent>> {
+    let perp_markets = markets
+        .iter()
+        .filter(|market| market.market == MarketKind::Perp)
+        .cloned()
+        .collect::<Vec<_>>();
+    if perp_markets.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut events = Vec::new();
+
+    let products = client
+        .post(VERTEX_QUERY_URL)
+        .json(&json!({"type": "all_products"}))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    events.extend(parse_vertex_open_interest(&products, &perp_markets));
+
+    let product_ids = perp_markets
+        .iter()
+        .map(|market| market.product_id)
+        .collect::<Vec<_>>();
+    let funding = client
+        .post(VERTEX_ARCHIVE_URL)
+        .json(&json!({"funding_rates": {"product_ids": product_ids}}))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    events.extend(parse_vertex_funding_rates(&funding, &perp_markets));
+
+    Ok(events)
+}
+
 fn parse_vertex_events(text: &str, markets: &HashMap<u64, VertexMarket>) -> Result<Vec<DataEvent>> {
     if text.contains("\"error\"") {
         anyhow::bail!("vertex error message: {text}");
@@ -124,6 +186,60 @@ fn parse_vertex_events(text: &str, markets: &HashMap<u64, VertexMarket>) -> Resu
         Some("trade") => Ok(parse_vertex_trade(&value, markets).into_iter().collect()),
         _ => Ok(Vec::new()),
     }
+}
+
+fn parse_vertex_open_interest(value: &Value, markets: &[VertexMarket]) -> Vec<DataEvent> {
+    let Some(products) = value
+        .pointer("/data/perp_products")
+        .and_then(Value::as_array)
+    else {
+        return Vec::new();
+    };
+    let market_map = markets
+        .iter()
+        .map(|market| (market.product_id, market))
+        .collect::<HashMap<_, _>>();
+    products
+        .iter()
+        .filter_map(|product| {
+            let product_id = product.get("product_id").and_then(parse_u64)?;
+            let market = market_map.get(&product_id)?;
+            let open_interest = product
+                .pointer("/state/open_interest")
+                .and_then(parse_x18)?;
+            let oracle_price = product.get("oracle_price_x18").and_then(parse_x18);
+            Some(DataEvent::OpenInterest(OpenInterestTick {
+                exchange: "vertex",
+                symbol: market.symbol.clone().into_boxed_str(),
+                open_interest,
+                open_interest_value: oracle_price.map(|price| price * open_interest),
+                ts_ms: now_ms(),
+            }))
+        })
+        .collect()
+}
+
+fn parse_vertex_funding_rates(value: &Value, markets: &[VertexMarket]) -> Vec<DataEvent> {
+    markets
+        .iter()
+        .filter_map(|market| {
+            let key = market.product_id.to_string();
+            let row = value.get(&key)?;
+            Some(DataEvent::FundingRate(FundingRateTick {
+                exchange: "vertex",
+                symbol: market.symbol.clone().into_boxed_str(),
+                funding_rate: row.get("funding_rate_x18").and_then(parse_x18)?,
+                next_funding_time_ms: None,
+                mark_price: None,
+                index_price: None,
+                ts_ms: row
+                    .get("update_time")
+                    .and_then(parse_u64)
+                    .map(|seconds| seconds.saturating_mul(1_000))
+                    .unwrap_or_else(now_ms),
+            }))
+        })
+        .collect()
 }
 
 fn parse_vertex_book(value: &Value, markets: &HashMap<u64, VertexMarket>) -> Vec<DataEvent> {
@@ -321,6 +437,61 @@ mod tests {
                 assert_eq!(trade.side, TradeSide::Sell);
                 assert!((trade.price - 77659.2).abs() < 0.0000001);
                 assert_eq!(trade.qty, 4.192);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn vertex_parses_open_interest_from_all_products() {
+        let market = VertexMarket::new(2, "BTC-PERP", MarketKind::Perp);
+        let events = parse_vertex_open_interest(
+            &json!({
+                "status": "success",
+                "data": {
+                    "perp_products": [{
+                        "product_id": 2,
+                        "oracle_price_x18": "100000000000000000000000",
+                        "state": {
+                            "open_interest": "2500000000000000000"
+                        }
+                    }]
+                }
+            }),
+            &[market],
+        );
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            DataEvent::OpenInterest(tick) => {
+                assert_eq!(tick.exchange, "vertex");
+                assert_eq!(tick.symbol.as_ref(), "BTC-PERP");
+                assert_eq!(tick.open_interest, 2.5);
+                assert!((tick.open_interest_value.expect("oi value") - 250000.0).abs() < 0.0000001);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn vertex_parses_funding_rates() {
+        let market = VertexMarket::new(2, "BTC-PERP", MarketKind::Perp);
+        let events = parse_vertex_funding_rates(
+            &json!({
+                "2": {
+                    "product_id": 2,
+                    "funding_rate_x18": "2447900598160952",
+                    "update_time": "1680116326"
+                }
+            }),
+            &[market],
+        );
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            DataEvent::FundingRate(tick) => {
+                assert_eq!(tick.exchange, "vertex");
+                assert_eq!(tick.symbol.as_ref(), "BTC-PERP");
+                assert!((tick.funding_rate - 0.002447900598160952).abs() < 0.000000000000001);
+                assert_eq!(tick.ts_ms, 1_680_116_326_000);
             }
             other => panic!("unexpected event: {other:?}"),
         }

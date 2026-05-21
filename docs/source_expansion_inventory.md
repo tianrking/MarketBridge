@@ -35,7 +35,7 @@ visibility. A source enters the runtime only after it has at least:
 
 | Priority | Scope | Rationale |
 |---|---|---|
-| P0 | Close remaining non-Polymarket semantic gaps: Vertex funding/OI, XRPL trades, keyed Architect/Decibel OI validation | These are the only exchange/CLOB rows still marked `planned` for non-Polymarket data. |
+| P0 | Close remaining non-Polymarket semantic gaps: XRPL trades and keyed Architect/Decibel OI validation | These are the only exchange/CLOB rows still marked `planned` for non-Polymarket data. |
 | P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Quote and price snapshots are wired; native state requires chain-specific APIs or indexers. |
 | P2 | Extend options websocket depth/trade parity when needed | REST chains, per-instrument depth, and low-latency WS ticker/summary cache updates are wired for Deribit/OKX/Bybit/Binance. Native WS option book/trade streams are a latency upgrade, not a missing research input. |
 | P3 | Add new long-tail centralized venues as native REST snapshot sources only when they add useful coverage | Broad coverage is useful for research, but schema quality and operational behavior come first. |
@@ -322,16 +322,15 @@ Most high-value CEX/perp sources in the earlier wave are now implemented or
 explicitly marked unavailable for specific domains in
 [`feature_inventory.md`](feature_inventory.md). The next practical work is:
 
-1. Vertex funding/OI: wire only after stable public query behavior is verified.
-2. XRPL trades: use ledger/indexer semantics; never synthesize trades from
+1. XRPL trades: use ledger/indexer semantics; never synthesize trades from
    `book_offers` snapshots.
-3. Architect/Decibel OI: validate with credentials before normalizing keyed OI.
-4. DeFi native state: add chain-specific pool liquidity, route depth, and swap
+2. Architect/Decibel OI: validate with credentials before normalizing keyed OI.
+3. DeFi native state: add chain-specific pool liquidity, route depth, and swap
    feeds where reliable public/indexed data exists.
-5. Options WS depth/trade parity: add native low-latency option book/trade
+4. Options WS depth/trade parity: add native low-latency option book/trade
    streams only where REST depth plus WS ticker/summary cache updates are not
    enough for a real-time strategy.
-6. Aggregator analytics: extend the implemented funding/OI/trade/liquidation
+5. Aggregator analytics: extend the implemented funding/OI/trade/liquidation
    signal logs into API-visible research features if downstream users need them.
 
 For each new CEX source, implement in this order:

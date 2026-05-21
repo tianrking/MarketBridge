@@ -65,7 +65,6 @@ Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
-| P1 | Vertex | Add funding/OI only after stable public query behavior is confirmed. |
 | P1 | XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
 | P1 | Architect / Decibel | Validate keyed OI before normalizing it. |
 | P2 | Perp liquidation long tail | Most venues without stable public liquidation feeds are now explicit `n/a`; add new feeds only when a reliable endpoint is confirmed. |

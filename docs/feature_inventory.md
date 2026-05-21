@@ -69,7 +69,7 @@ Status labels:
 | Pacifica | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp order books/trades/prices with funding and OI. CCXT marks public liquidation fetch unavailable. |
 | Upbit | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | GRVT | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp book/trade/ticker streams with funding and OI; no stable public liquidation endpoint is exposed in the CCXT reference. |
-| Vertex | partial | implemented | implemented | planned | planned | n/a | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids; liquidation is not exposed as a stable public feed. |
+| Vertex | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids; gateway `all_products` emits OI and archive `funding_rates` emits funding. Liquidation is not exposed as a stable public feed. |
 | Injective | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding and OI pollers; liquidation is not exposed as a stable public feed. |
 | XRPL | partial | implemented | planned | n/a | n/a | n/a | keyless | Public book_offers snapshots; issuer-aware mapping currently includes XRP/USD. Funding/OI/liquidation do not apply to spot XRPL books. |
 | Architect | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. No public liquidation feed is exposed. |
@@ -120,7 +120,6 @@ public endpoint is later confirmed.
 
 | Area | Missing data | Status | Why it remains open |
 |---|---|---:|---|
-| Vertex | Funding and open interest | planned | Book/trade streams are wired. Funding/OI need a stable public Vertex query path verified against live endpoints before wiring. |
 | XRPL | Executed trades | planned | Book snapshots are wired from `book_offers`; trades require ledger/indexer semantics and must not be synthesized from order books. |
 | Architect | Open interest | planned | Venue is keyed; needs credentialed validation before normalizing OI. |
 | Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
