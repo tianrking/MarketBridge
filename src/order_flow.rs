@@ -195,19 +195,28 @@ pub fn spawn_order_flow_service(
 }
 
 fn prune_buckets(buckets: &mut HashMap<String, OrderFlowBucket>) {
-    if buckets.len() <= MAX_BUCKETS_PER_KEY {
-        return;
+    let mut grouped: HashMap<String, Vec<(String, u64)>> = HashMap::new();
+    for (key, row) in buckets.iter() {
+        grouped
+            .entry(format!(
+                "{}:{}:{}:{}",
+                row.exchange, row.market, row.symbol, row.window_ms
+            ))
+            .or_default()
+            .push((key.clone(), row.bucket_start_ms));
     }
-    let mut rows = buckets
-        .iter()
-        .map(|(key, row)| (key.clone(), row.bucket_start_ms))
-        .collect::<Vec<_>>();
-    rows.sort_by_key(|(_, ts)| *ts);
-    for (key, _) in rows
-        .into_iter()
-        .take(buckets.len().saturating_sub(MAX_BUCKETS_PER_KEY))
-    {
-        buckets.remove(&key);
+
+    for rows in grouped.values_mut() {
+        if rows.len() <= MAX_BUCKETS_PER_KEY {
+            continue;
+        }
+        rows.sort_by_key(|(_, ts)| *ts);
+        for (key, _) in rows
+            .iter()
+            .take(rows.len().saturating_sub(MAX_BUCKETS_PER_KEY))
+        {
+            buckets.remove(key);
+        }
     }
 }
 
@@ -220,7 +229,7 @@ fn market_label(market: crate::types::MarketKind) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{OrderFlowQuery, OrderFlowStore};
+    use super::{MAX_BUCKETS_PER_KEY, OrderFlowQuery, OrderFlowStore};
     use crate::types::{MarketKind, TradeSide, TradeTick};
 
     #[tokio::test]
@@ -264,5 +273,43 @@ mod tests {
         assert_eq!(rows[0].buy_qty, 2.0);
         assert_eq!(rows[0].sell_qty, 1.0);
         assert_eq!(rows[0].delta_qty, 1.0);
+    }
+
+    #[tokio::test]
+    async fn order_flow_prunes_per_symbol_window_not_globally() {
+        let store = OrderFlowStore::new(100_000.0);
+        for bucket in 0..=MAX_BUCKETS_PER_KEY {
+            for symbol in ["BTCUSDT", "ETHUSDT"] {
+                store
+                    .update_trade(&TradeTick {
+                        exchange: "binance",
+                        market: MarketKind::Perp,
+                        symbol: symbol.into(),
+                        price: 100.0,
+                        qty: 1.0,
+                        side: TradeSide::Buy,
+                        trade_id: None,
+                        ts_ms: (bucket as u64) * 60_000,
+                    })
+                    .await;
+            }
+        }
+
+        for symbol in ["BTCUSDT", "ETHUSDT"] {
+            let rows = store
+                .query(OrderFlowQuery {
+                    exchange: Some("binance".to_string()),
+                    market: Some("perp".to_string()),
+                    symbol: Some(symbol.to_string()),
+                    window_ms: Some(60_000),
+                    limit: 1_000,
+                })
+                .await;
+            assert_eq!(rows.len(), MAX_BUCKETS_PER_KEY);
+            assert_eq!(
+                rows.last().expect("oldest retained").bucket_start_ms,
+                60_000
+            );
+        }
     }
 }
