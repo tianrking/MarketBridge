@@ -2,7 +2,10 @@ use anyhow::{Context, Result};
 use reqwest::Url;
 use serde::Deserialize;
 
-use super::common::{OptionSummary, option_side_from_code, parse_f64_opt, parse_yy_mm_dd_expiry};
+use super::common::{
+    OptionBook, OptionSummary, option_side_from_code, parse_f64_opt, parse_yy_mm_dd_expiry,
+};
+use crate::types::BookLevel;
 
 #[derive(Debug, Deserialize)]
 struct OkxResponse<T> {
@@ -37,6 +40,17 @@ struct OkxOptionSummary {
     theta_bs: Option<String>,
     #[serde(default)]
     vega_bs: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OkxOptionBookRow {
+    #[serde(default)]
+    bids: Vec<Vec<String>>,
+    #[serde(default)]
+    asks: Vec<Vec<String>>,
+    #[serde(default)]
+    ts: Option<String>,
 }
 
 pub async fn fetch_okx_option_summaries_from(
@@ -93,6 +107,71 @@ pub async fn fetch_okx_option_summaries_from(
         .collect())
 }
 
+pub async fn fetch_okx_option_book_from(
+    client: &reqwest::Client,
+    base_url: &str,
+    instrument_name: &str,
+    depth: usize,
+) -> Result<OptionBook> {
+    let mut url = Url::parse(base_url)?.join("market/books")?;
+    url.query_pairs_mut()
+        .append_pair("instId", instrument_name)
+        .append_pair("sz", &depth.clamp(1, 400).to_string());
+
+    let response = client
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<OkxResponse<Vec<OkxOptionBookRow>>>()
+        .await
+        .context("failed to decode okx option order book")?;
+
+    let row = response
+        .data
+        .into_iter()
+        .next()
+        .context("okx option order book response was empty")?;
+    Ok(row.into_book(instrument_name))
+}
+
+impl OkxOptionBookRow {
+    fn into_book(self, instrument_name: &str) -> OptionBook {
+        let bids = okx_levels(self.bids);
+        let asks = okx_levels(self.asks);
+        OptionBook {
+            venue: "okx".to_string(),
+            instrument_name: instrument_name.to_string(),
+            timestamp: self.ts.and_then(|value| value.parse::<u64>().ok()),
+            state: None,
+            bid_price: bids.first().map(|level| level.price),
+            ask_price: asks.first().map(|level| level.price),
+            mark_price: None,
+            mark_iv: None,
+            underlying_price: None,
+            underlying_index: None,
+            open_interest: None,
+            delta: None,
+            gamma: None,
+            theta: None,
+            vega: None,
+            bids,
+            asks,
+        }
+    }
+}
+
+fn okx_levels(rows: Vec<Vec<String>>) -> Vec<BookLevel> {
+    rows.into_iter()
+        .filter_map(|row| {
+            Some(BookLevel {
+                price: parse_f64_opt(row.first().map(String::as_str))?,
+                qty: parse_f64_opt(row.get(1).map(String::as_str))?,
+            })
+        })
+        .collect()
+}
+
 fn parse_okx_instrument(name: &str) -> Option<(String, f64, String)> {
     let parts = name.split('-').collect::<Vec<_>>();
     if parts.len() < 5 {
@@ -137,5 +216,28 @@ mod tests {
         assert_eq!(parse_f64_opt(raw.gamma_bs.as_deref()), Some(0.00001));
         assert_eq!(parse_f64_opt(raw.theta_bs.as_deref()), Some(-12.5));
         assert_eq!(parse_f64_opt(raw.vega_bs.as_deref()), Some(50.5));
+    }
+
+    #[test]
+    fn okx_option_book_extracts_depth() {
+        let book = OkxOptionBookRow {
+            bids: vec![vec![
+                "0.021".to_string(),
+                "12".to_string(),
+                "0".to_string(),
+                "1".to_string(),
+            ]],
+            asks: vec![vec![
+                "0.023".to_string(),
+                "10".to_string(),
+                "0".to_string(),
+                "1".to_string(),
+            ]],
+            ts: Some("1779334083503".to_string()),
+        }
+        .into_book("BTC-USD-260626-100000-C");
+        assert_eq!(book.bid_price, Some(0.021));
+        assert_eq!(book.ask_price, Some(0.023));
+        assert_eq!(book.timestamp, Some(1779334083503));
     }
 }

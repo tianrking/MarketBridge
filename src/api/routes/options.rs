@@ -11,6 +11,7 @@ use crate::connectors::options::bybit::fetch_bybit_option_book_from;
 use crate::connectors::options::deribit::{
     fetch_deribit_option_book_from, fetch_deribit_option_summaries,
 };
+use crate::connectors::options::okx::fetch_okx_option_book_from;
 use crate::deribit_cache::OptionFilter;
 use crate::domains::options::chain::envelope_from_option_summary;
 
@@ -140,6 +141,33 @@ pub async fn binance_option_book(
         })),
         Err(error) => Json(serde_json::json!({
             "source": "binance",
+            "instrument_name": q.instrument_name,
+            "error": error.to_string()
+        })),
+    }
+}
+
+pub async fn okx_option_book(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<OptionBookQuery>,
+) -> impl IntoResponse {
+    let base_url = q
+        .base_url
+        .unwrap_or_else(|| "https://www.okx.com/api/v5/".to_string());
+    match fetch_okx_option_book_from(
+        &state.http,
+        &base_url,
+        &q.instrument_name,
+        q.depth.unwrap_or(10),
+    )
+    .await
+    {
+        Ok(book) => Json(serde_json::json!({
+            "source": "okx",
+            "book": book
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "okx",
             "instrument_name": q.instrument_name,
             "error": error.to_string()
         })),

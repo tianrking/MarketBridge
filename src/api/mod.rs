@@ -102,6 +102,7 @@ pub fn build_router(state: ApiState) -> Router {
             "/options/binance/book",
             get(routes::options::binance_option_book),
         )
+        .route("/options/okx/book", get(routes::options::okx_option_book))
         .route(
             "/polymarket/crypto-markets",
             get(routes::prediction::polymarket_crypto_markets),
