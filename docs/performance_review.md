@@ -22,9 +22,12 @@ Current strengths:
   cache/broadcast work inline with source receive.
 - EventBus has per-domain broadcast channels for funding, OI, trades,
   liquidations, books, and external signals.
-- EventBus publishes `SharedEvent` objects for non-quote event domains. Each
-  shared event carries both `Arc<DataEvent>` and one pre-serialized JSON payload
-  so WebSocket and Redis consumers do not repeatedly serialize the same event.
+- EventBus publishes `SharedEvent` and `SharedQuote` objects. JSON payloads are
+  generated lazily on first WebSocket/Redis use and then reused, so idle
+  research runs do not pay serialization cost just because an event passed
+  through the bus.
+- Options and prediction snapshot streams use a shared broadcaster and skip
+  cache scans when there are no subscribers.
 - Redis uses a local drain channel plus batched `XADD` pipeline and JSONL
   dead-letter writes.
 - WebSocket sends are bounded by `runtime.ws_send_timeout_ms`, so one slow
@@ -42,10 +45,10 @@ Expected next bottlenecks under higher load:
 | Area | Current behavior | Why it becomes expensive |
 |---|---|---|
 | Router fanout | Router clones each `DataEvent` once so the aggregator can own one copy while the bus owns an `Arc<DataEvent>`. | Large `OrderBook` events still clone level vectors once on the hot path. |
-| EventBus fanout | Non-quote event domains use `SharedEvent` and avoid one extra bus-level event clone. | Good first step; quote envelopes and legacy ticks still have their own paths. |
-| WebSocket events | Non-quote domain streams reuse the `SharedEvent` JSON payload. | Quote envelopes and snapshot streams still serialize per subscriber. |
-| Options/prediction snapshot streams | Each subscriber periodically scans cache and serializes snapshots. | CPU and allocations scale linearly with subscriber count. |
-| Redis payload | Redis sink reuses `SharedEvent` JSON for event payloads. | Still copies the string into the Redis row; pipeline I/O remains the main Redis cost. |
+| EventBus fanout | Event domains use `SharedEvent`; quote streams use `SharedQuote`. | Aggregator still receives an owned clone, so large L2 books pay one clone before analytics. |
+| WebSocket events | Domain and quote streams reuse lazy JSON payloads after the first consumer needs them. | Legacy `/ws/ticks` still serializes per matching subscriber. |
+| Options/prediction snapshot streams | One shared broadcaster scans caches and serializes snapshots only while subscribers exist. | Client-side filters still receive the shared stream and drop nonmatching rows. |
+| Redis payload | Redis sink reuses lazy `SharedEvent` JSON for event payloads. | Still copies the string into the Redis row; pipeline I/O remains the main Redis cost. |
 | Snapshot keys | Hot updates allocate formatted `String` keys. | Moderate cost at high tick rates; not the first bottleneck. |
 
 ## Priority Optimizations
@@ -86,7 +89,7 @@ Introduce a small internal wrapper:
 ```rust
 struct SharedEvent {
     event: Arc<DataEvent>,
-    json: Arc<str>,
+    json: OnceLock<Arc<str>>,
 }
 ```
 
@@ -94,8 +97,9 @@ Use it for WebSocket and Redis fanout where the exact event JSON is needed.
 
 Status:
 
-- First pass implemented for non-quote event domains through `SharedEvent`.
-  WebSocket domain streams and Redis reuse the same serialized event payload.
+- Implemented for event domains and market quotes.
+- JSON is lazy: it is not generated until a WebSocket or Redis consumer needs
+  it, and then it is reused by later consumers.
 
 Expected benefit:
 
@@ -178,6 +182,13 @@ network I/O.
 Status:
 
 - Implemented as `market-bridge load-test`.
+- Latest local smoke run on this machine:
+  - `events_published`: `10000`
+  - `subscribers`: `4`
+  - `subscriber_deliveries_observed`: `40000`
+  - `subscriber_lagged_events`: `0`
+  - `publish_events_per_sec`: about `82k`
+  - `delivered_messages_per_sec`: about `328k`
 
 Example:
 
@@ -211,13 +222,14 @@ Without a dedicated load test, treat these as engineering estimates only:
 
 ## Recommended Next Build Order
 
-1. Add shared snapshot broadcaster for options and prediction snapshots.
-2. Extend pre-serialized payloads to quote envelopes where it has clear value.
+1. Move aggregator input to `Arc<DataEvent>` or split large L2 books into
+   shared payloads so analytics and bus paths do not clone level vectors.
+2. Add measured load-test profiles for quote-only, trade-only, order-book, and
+   mixed event streams.
 3. Use the synthetic load generator in CI/manual release checks and record
    measured throughput per machine class.
-4. Use `runtime.api_key_env` / `runtime.api_key` and
-   `runtime.api_rate_limit_per_minute` before exposing this as a public
-   multi-tenant data service.
+4. Consider per-symbol or per-domain sharding only after measured load tests
+   show single-bus contention.
 
 ## Bottom Line
 
