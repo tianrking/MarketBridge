@@ -10,7 +10,7 @@ use tracing::warn;
 use crate::api::routes::stream::{TickFilterQuery, V1StreamQuery};
 use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::{DataEnvelope, ProductType};
-use crate::event_bus::{EventDomain, NormalizedTick};
+use crate::event_bus::{EventDomain, NormalizedTick, SharedEvent};
 use crate::types::{DataEvent, MarketKind};
 
 const DEFAULT_WS_SEND_TIMEOUT_MS: u64 = 3_000;
@@ -266,8 +266,8 @@ pub fn event_matches(
     }
 }
 
-pub async fn send_event(socket: &mut WebSocket, event: &DataEvent) -> StreamSendResult {
-    send_json(socket, event, "v1 stream event serialize failed").await
+pub async fn send_shared_event(socket: &mut WebSocket, event: &SharedEvent) -> StreamSendResult {
+    send_ws(socket, Message::Text(event.json.as_ref().to_string())).await
 }
 
 pub async fn send_envelope<T: Serialize>(

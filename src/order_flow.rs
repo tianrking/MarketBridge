@@ -589,7 +589,7 @@ pub fn spawn_order_flow_service(
                 received = rx.recv() => {
                     match received {
                         Ok(event) => {
-                            if let DataEvent::Trade(trade) = event.as_ref() {
+                            if let DataEvent::Trade(trade) = event.event.as_ref() {
                                 store.update_trade(trade).await;
                             }
                         }

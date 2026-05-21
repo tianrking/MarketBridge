@@ -31,6 +31,8 @@ MarketBridge does not own:
   downstream systems such as PolyAlpha.
 - [`feature_inventory.md`](feature_inventory.md): implementation matrix and
   intentional gaps.
+- [`performance_review.md`](performance_review.md): current hot-path analysis,
+  practical capacity notes, and the next performance roadmap.
 - [`source_expansion_inventory.md`](source_expansion_inventory.md): future
   connector candidates and parity planning.
 - [`ccxt_parity_audit.md`](ccxt_parity_audit.md): reference audit against CCXT

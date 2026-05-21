@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
-use crate::event_bus::EventBus;
+use crate::event_bus::{EventBus, SharedEvent};
 use crate::metrics::AppMetrics;
 use crate::types::{DataEvent, MarketKind};
 
@@ -41,7 +41,7 @@ pub fn spawn_redis_sink(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut rx = bus.subscribe_events();
-        let (local_tx, mut local_rx) = mpsc::channel::<Arc<DataEvent>>(REDIS_LOCAL_BUFFER);
+        let (local_tx, mut local_rx) = mpsc::channel::<Arc<SharedEvent>>(REDIS_LOCAL_BUFFER);
         let drain_shutdown = shutdown.clone();
         let drain_handle = tokio::spawn(async move {
             loop {
@@ -141,30 +141,16 @@ pub fn spawn_redis_sink(
     })
 }
 
-fn redis_event_row(prefix: &str, event: &DataEvent) -> RedisEventRow {
+fn redis_event_row(prefix: &str, shared: &SharedEvent) -> RedisEventRow {
+    let event = shared.event.as_ref();
     let (source, domain, symbol, ts) = redis_event_fields(event);
-    let payload = match serde_json::to_string(event) {
-        Ok(payload) => payload,
-        Err(error) => {
-            error!(%error, domain, source, "redis payload serialization failed");
-            serde_json::json!({
-                "type": "serialization_error",
-                "source": source,
-                "domain": domain,
-                "symbol": symbol.as_deref(),
-                "ts": ts,
-                "error": error.to_string(),
-            })
-            .to_string()
-        }
-    };
     RedisEventRow {
         stream: redis_stream_name(prefix, event),
         source,
         domain,
         symbol: symbol.unwrap_or_else(|| "*".to_string()),
         ts,
-        payload,
+        payload: shared.json.as_ref().to_string(),
     }
 }
 
@@ -346,6 +332,9 @@ mod tests {
     };
     use std::time::Duration;
 
+    use std::sync::Arc;
+
+    use crate::event_bus::SharedEvent;
     use crate::types::{DataEvent, FundingRateTick};
 
     #[test]
@@ -383,7 +372,8 @@ mod tests {
             ts_ms: 1,
         });
 
-        let row = redis_event_row("ticks", &event);
+        let shared = SharedEvent::new(Arc::new(event.clone()));
+        let row = redis_event_row("ticks", &shared);
         assert_eq!(
             row,
             RedisEventRow {

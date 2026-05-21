@@ -86,6 +86,9 @@ domain model.
 The consumer-facing endpoint map is maintained in
 [docs/data_interfaces.md](docs/data_interfaces.md).
 
+The current performance review and next optimization roadmap are maintained in
+[docs/performance_review.md](docs/performance_review.md).
+
 The external source expansion inventory is tracked in
 [docs/source_expansion_inventory.md](docs/source_expansion_inventory.md). It uses
 third-party projects only as reference lists; MarketBridge does not call, embed,
@@ -142,7 +145,7 @@ flowchart LR
    sentiment, aggregate, and on-chain data.
 2. `SourceRuntime` supervises source tasks and reconnects with backoff.
 3. `EventRouter` fans data to both `EventBus` and `SpreadAggregator`.
-4. `EventBus` maintains ArcSwap latest snapshots and per-domain broadcast streams.
+4. `EventBus` maintains DashMap latest snapshots and per-domain broadcast streams.
 5. `OrderFlowStore` and `KlineStore` derive reusable market features from live
    trade/quote events.
 6. `SpreadAggregator` computes cross-exchange opportunity signals with fee/slippage logic.

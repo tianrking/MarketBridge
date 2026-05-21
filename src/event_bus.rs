@@ -11,17 +11,38 @@ use crate::types::{
     OrderBookTick, TradeTick,
 };
 
+#[derive(Debug, Clone)]
+pub struct SharedEvent {
+    pub event: Arc<DataEvent>,
+    pub json: Arc<str>,
+}
+
+impl SharedEvent {
+    pub fn new(event: Arc<DataEvent>) -> Self {
+        let json = serde_json::to_string(event.as_ref())
+            .unwrap_or_else(|error| {
+                serde_json::json!({
+                    "type": "serialization_error",
+                    "error": error.to_string(),
+                })
+                .to_string()
+            })
+            .into();
+        Self { event, json }
+    }
+}
+
 #[derive(Clone)]
 pub struct EventBus {
     tx: broadcast::Sender<NormalizedTick>,
-    event_tx: broadcast::Sender<Arc<DataEvent>>,
+    event_tx: broadcast::Sender<Arc<SharedEvent>>,
     quote_tx: broadcast::Sender<DataEnvelope<QuotePayload>>,
-    funding_tx: broadcast::Sender<Arc<DataEvent>>,
-    open_interest_tx: broadcast::Sender<Arc<DataEvent>>,
-    trade_tx: broadcast::Sender<Arc<DataEvent>>,
-    liquidation_tx: broadcast::Sender<Arc<DataEvent>>,
-    order_book_tx: broadcast::Sender<Arc<DataEvent>>,
-    external_signal_tx: broadcast::Sender<Arc<DataEvent>>,
+    funding_tx: broadcast::Sender<Arc<SharedEvent>>,
+    open_interest_tx: broadcast::Sender<Arc<SharedEvent>>,
+    trade_tx: broadcast::Sender<Arc<SharedEvent>>,
+    liquidation_tx: broadcast::Sender<Arc<SharedEvent>>,
+    order_book_tx: broadcast::Sender<Arc<SharedEvent>>,
+    external_signal_tx: broadcast::Sender<Arc<SharedEvent>>,
     snapshots: EventSnapshotStore,
     stale_ttl_ms: u64,
 }
@@ -66,7 +87,7 @@ impl EventBus {
         self.tx.subscribe()
     }
 
-    pub fn subscribe_events(&self) -> broadcast::Receiver<Arc<DataEvent>> {
+    pub fn subscribe_events(&self) -> broadcast::Receiver<Arc<SharedEvent>> {
         self.event_tx.subscribe()
     }
 
@@ -74,7 +95,7 @@ impl EventBus {
         self.quote_tx.subscribe()
     }
 
-    pub fn subscribe_domain(&self, domain: EventDomain) -> broadcast::Receiver<Arc<DataEvent>> {
+    pub fn subscribe_domain(&self, domain: EventDomain) -> broadcast::Receiver<Arc<SharedEvent>> {
         match domain {
             EventDomain::Funding => self.funding_tx.subscribe(),
             EventDomain::OpenInterest => self.open_interest_tx.subscribe(),
@@ -85,37 +106,42 @@ impl EventBus {
         }
     }
 
+    #[cfg(test)]
     pub fn publish_from_event(&self, event: &DataEvent) {
-        let shared = Arc::new(event.clone());
+        self.publish_shared_event(Arc::new(event.clone()));
+    }
+
+    pub fn publish_shared_event(&self, event: Arc<DataEvent>) {
+        let shared = Arc::new(SharedEvent::new(event));
         let _ = self.event_tx.send(shared.clone());
-        match event {
+        match shared.event.as_ref() {
             DataEvent::Tick(t) => {
                 let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
                 let _ = self.tx.send(normalized);
                 let _ = self.quote_tx.send(quote_envelope);
             }
             DataEvent::FundingRate(t) => {
-                let _ = self.funding_tx.send(shared);
+                let _ = self.funding_tx.send(shared.clone());
                 self.snapshots.upsert_funding(t);
             }
             DataEvent::OpenInterest(t) => {
-                let _ = self.open_interest_tx.send(shared);
+                let _ = self.open_interest_tx.send(shared.clone());
                 self.snapshots.upsert_open_interest(t);
             }
             DataEvent::Trade(t) => {
-                let _ = self.trade_tx.send(shared);
+                let _ = self.trade_tx.send(shared.clone());
                 self.snapshots.upsert_trade(t);
             }
             DataEvent::Liquidation(t) => {
-                let _ = self.liquidation_tx.send(shared);
+                let _ = self.liquidation_tx.send(shared.clone());
                 self.snapshots.upsert_liquidation(t);
             }
             DataEvent::OrderBook(t) => {
-                let _ = self.order_book_tx.send(shared);
+                let _ = self.order_book_tx.send(shared.clone());
                 self.snapshots.upsert_order_book(t);
             }
             DataEvent::ExternalSignal(t) => {
-                let _ = self.external_signal_tx.send(shared);
+                let _ = self.external_signal_tx.send(shared.clone());
                 self.snapshots.upsert_external_signal(t);
             }
             DataEvent::Heartbeat { .. } => {}
@@ -194,7 +220,7 @@ mod tests {
         });
         let received = rx.recv().await.expect("heartbeat event should publish");
         assert!(matches!(
-            received.as_ref(),
+            received.event.as_ref(),
             DataEvent::Heartbeat {
                 exchange: "okx",
                 ..
@@ -301,7 +327,7 @@ mod tests {
         }));
 
         let received = funding_rx.recv().await.expect("funding event");
-        assert!(matches!(received.as_ref(), DataEvent::FundingRate(_)));
+        assert!(matches!(received.event.as_ref(), DataEvent::FundingRate(_)));
         assert!(trade_rx.try_recv().is_err());
     }
 }

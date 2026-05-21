@@ -11,7 +11,7 @@ use tracing::warn;
 use crate::api::ApiState;
 use crate::api::streaming::{
     EnvelopeFilter, SUPPORTED_STREAM_DOMAINS, StreamDomainFilter, TickFilter, event_matches,
-    send_envelope, send_event, send_json, send_ws,
+    send_envelope, send_json, send_shared_event, send_ws,
 };
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
@@ -120,8 +120,8 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                 }
             }, if domain_rx.is_some() => {
                 match msg {
-                    Some(Ok(event)) if event_matches(event.as_ref(), &domains, &filter) => {
-                        if let Err(error) = send_event(&mut socket, event.as_ref()).await {
+                    Some(Ok(event)) if event_matches(event.event.as_ref(), &domains, &filter) => {
+                        if let Err(error) = send_shared_event(&mut socket, event.as_ref()).await {
                             warn!(%error, "v1 stream domain event send failed");
                             break;
                         }
@@ -142,8 +142,8 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                 }
             }, if all_event_rx.is_some() => {
                 match msg {
-                    Some(Ok(event)) if event_matches(event.as_ref(), &domains, &filter) => {
-                        if let Err(error) = send_event(&mut socket, event.as_ref()).await {
+                    Some(Ok(event)) if event_matches(event.event.as_ref(), &domains, &filter) => {
+                        if let Err(error) = send_shared_event(&mut socket, event.as_ref()).await {
                             warn!(%error, "v1 stream mixed event send failed");
                             break;
                         }

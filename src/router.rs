@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tokio::sync::mpsc;
 
 use crate::event_bus::EventBus;
@@ -30,17 +32,17 @@ impl EventRouter {
     }
 
     pub async fn run(mut self) {
-        let (bus_tx, mut bus_rx) = mpsc::channel::<DataEvent>(self.bus_queue_capacity);
+        let (bus_tx, mut bus_rx) = mpsc::channel::<Arc<DataEvent>>(self.bus_queue_capacity);
         let bus = self.bus.clone();
         let metrics = self.metrics.clone();
         let bus_task = tokio::spawn(async move {
             while let Some(event) = bus_rx.recv().await {
-                bus.publish_from_event(&event);
+                bus.publish_shared_event(event.clone());
                 metrics
                     .bus_events_published_total
-                    .with_label_values(&[event_type(&event)])
+                    .with_label_values(&[event_type(event.as_ref())])
                     .inc();
-                if matches!(&event, DataEvent::Tick(_)) {
+                if matches!(event.as_ref(), DataEvent::Tick(_)) {
                     metrics.bus_publish_total.inc();
                 }
             }
@@ -54,7 +56,7 @@ impl EventRouter {
             if matches!(&event, DataEvent::Tick(_)) {
                 self.metrics.ticks_ingested_total.inc();
             }
-            if bus_tx.send(event.clone()).await.is_err() {
+            if bus_tx.send(Arc::new(event.clone())).await.is_err() {
                 break;
             }
             if self.agg_tx.send(event).await.is_err() {
