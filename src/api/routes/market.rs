@@ -36,6 +36,8 @@ pub struct KlinesQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    persist: Option<bool>,
+    candle_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -326,6 +328,12 @@ pub async fn v1_market_klines(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<KlinesQuery>,
 ) -> impl IntoResponse {
+    let persist = q.persist.unwrap_or(false);
+    let candle_type = q
+        .candle_type
+        .clone()
+        .or_else(|| q.market.clone())
+        .unwrap_or_else(|| "spot".to_string());
     let query = KlineQuery {
         exchange: q.exchange.map(|x| x.trim().to_ascii_lowercase()),
         market: q.market.map(|x| x.trim().to_ascii_lowercase()),
@@ -345,7 +353,21 @@ pub async fn v1_market_klines(
                     .then(a.interval.cmp(&b.interval))
                     .then(a.open_time_ms.cmp(&b.open_time_ms))
             });
-            Json(serde_json::json!({"version":"v1","domain":"market_kline","klines":rows}))
+            let persist_result = if persist {
+                match state
+                    .data_lake_store
+                    .persist_klines(rows.clone(), candle_type)
+                    .await
+                {
+                    Ok(partitions) => serde_json::json!({"ok": true, "partitions": partitions}),
+                    Err(error) => serde_json::json!({"ok": false, "error": error.to_string()}),
+                }
+            } else {
+                serde_json::json!({"ok": false, "reason": "persist_query_param_not_set"})
+            };
+            Json(
+                serde_json::json!({"version":"v1","domain":"market_kline","persist":persist_result,"klines":rows}),
+            )
         }
         Err(error) => Json(serde_json::json!({
             "version":"v1",

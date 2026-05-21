@@ -5,6 +5,7 @@ mod catalog;
 mod config;
 mod connectors;
 mod core;
+mod data_lake;
 mod deribit_cache;
 mod domains;
 mod event_bus;
@@ -26,6 +27,7 @@ use api::streaming::set_ws_send_timeout_ms;
 use api::{ApiState, build_router};
 use config::AppConfig;
 use connectors::cex::registry::build_sources;
+use data_lake::DataLakeStore;
 use deribit_cache::{
     DeribitOptionCache, spawn_binance_option_cache, spawn_binance_option_ws_cache,
     spawn_bybit_option_cache, spawn_bybit_option_ws_cache, spawn_deribit_option_cache,
@@ -72,6 +74,11 @@ async fn main() -> anyhow::Result<()> {
     let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
     let kline_store = KlineStore::new(cfg.klines.sqlite_path.clone());
+    let data_lake_store =
+        DataLakeStore::new(cfg.klines.lake_root.clone(), cfg.klines.sqlite_path.clone());
+    if let Err(error) = data_lake_store.init().await {
+        error!(%error, "data lake manifest init failed");
+    }
     set_ws_send_timeout_ms(cfg.runtime.ws_send_timeout_ms);
 
     let order_flow_store = OrderFlowStore::new(cfg.runtime.order_flow_large_trade_notional_usdt);
@@ -87,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
         deribit_cache: deribit_cache.clone(),
         polymarket_cache: polymarket_cache.clone(),
         kline_store: kline_store.clone(),
+        data_lake_store: data_lake_store.clone(),
         order_flow_store: order_flow_store.clone(),
         onchain_store: onchain_store.clone(),
     });

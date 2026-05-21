@@ -6,6 +6,8 @@ pub struct KlineConfig {
     pub enabled: bool,
     #[serde(default = "default_kline_sqlite_path")]
     pub sqlite_path: String,
+    #[serde(default = "default_kline_lake_root")]
+    pub lake_root: String,
     #[serde(default = "default_kline_intervals")]
     pub intervals: Vec<String>,
     #[serde(default = "default_kline_history_limit")]
@@ -21,6 +23,7 @@ impl Default for KlineConfig {
         Self {
             enabled: false,
             sqlite_path: default_kline_sqlite_path(),
+            lake_root: default_kline_lake_root(),
             intervals: default_kline_intervals(),
             history_limit: default_kline_history_limit(),
             backfill_on_start: false,
@@ -31,6 +34,10 @@ impl Default for KlineConfig {
 
 fn default_kline_sqlite_path() -> String {
     "data/marketbridge.sqlite".to_string()
+}
+
+fn default_kline_lake_root() -> String {
+    "data/lake".to_string()
 }
 
 fn default_kline_intervals() -> Vec<String> {

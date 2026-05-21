@@ -113,6 +113,9 @@ klines:
   # Stores historical REST candles and realtime tick-aggregated candles in SQLite.
   enabled: true
   sqlite_path: "data/marketbridge.sqlite"
+  # On-demand local lake root. Nothing is written here unless an endpoint opts in
+  # with persist=true; SQLite keeps only the manifest/index for these partitions.
+  lake_root: "data/lake"
   intervals: [1m, 5m, 15m, 1h]
   history_limit: 1500
   backfill_on_start: false

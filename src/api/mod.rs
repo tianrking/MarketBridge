@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::routing::get;
+use axum::routing::{delete, get};
 
 use crate::catalog::CatalogSource;
+use crate::data_lake::DataLakeStore;
 use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
 use crate::klines::KlineStore;
@@ -26,6 +27,7 @@ pub struct ApiState {
     pub deribit_cache: DeribitOptionCache,
     pub polymarket_cache: PolymarketBookCache,
     pub kline_store: KlineStore,
+    pub data_lake_store: DataLakeStore,
     pub order_flow_store: OrderFlowStore,
     pub onchain_store: OnchainTransferStore,
 }
@@ -115,6 +117,11 @@ pub fn build_router(state: ApiState) -> Router {
         .route(
             "/v1/research/market-regime",
             get(routes::research::market_regime),
+        )
+        .route("/v1/storage/manifest", get(routes::storage::manifest))
+        .route(
+            "/v1/storage/partitions",
+            delete(routes::storage::delete_partitions),
         )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))

@@ -6,6 +6,7 @@ pub mod onchain;
 pub mod options;
 pub mod prediction;
 pub mod research;
+pub mod storage;
 pub mod stream;
 pub mod system;
 pub mod universe;
