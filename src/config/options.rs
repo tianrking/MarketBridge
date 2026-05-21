@@ -22,6 +22,8 @@ pub struct OkxOptionsConfig {
     pub enabled: bool,
     #[serde(default = "default_okx_options_base_url")]
     pub base_url: String,
+    #[serde(default = "default_okx_options_ws_url")]
+    pub ws_url: String,
     #[serde(default = "default_deribit_currencies")]
     pub currencies: Vec<String>,
     #[serde(default = "default_deribit_refresh_secs")]
@@ -97,6 +99,10 @@ fn default_deribit_stale_ttl_ms() -> u64 {
 
 fn default_okx_options_base_url() -> String {
     "https://www.okx.com/api/v5/".to_string()
+}
+
+fn default_okx_options_ws_url() -> String {
+    "wss://ws.okx.com:8443/ws/v5/public".to_string()
 }
 
 fn default_bybit_options_base_url() -> String {
@@ -176,6 +182,7 @@ impl Default for OkxOptionsConfig {
         Self {
             enabled: false,
             base_url: default_okx_options_base_url(),
+            ws_url: default_okx_options_ws_url(),
             currencies: default_deribit_currencies(),
             refresh_secs: default_deribit_refresh_secs(),
         }

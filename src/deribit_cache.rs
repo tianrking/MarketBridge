@@ -278,6 +278,79 @@ pub fn spawn_bybit_option_ws_cache(
     })
 }
 
+pub fn spawn_okx_option_ws_cache(
+    cfg: OkxOptionsConfig,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        if !cfg.enabled {
+            return;
+        }
+        loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            match run_okx_option_ws_once(&cfg, cache.clone(), shutdown.clone()).await {
+                Ok(()) => {}
+                Err(error) => warn!(%error, "okx option websocket stopped"),
+            }
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+            }
+        }
+    })
+}
+
+async fn run_okx_option_ws_once(
+    cfg: &OkxOptionsConfig,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> Result<()> {
+    let currencies = normalized_currencies(&cfg.currencies);
+    if currencies.is_empty() {
+        return Ok(());
+    }
+    let args = currencies
+        .iter()
+        .map(|currency| {
+            json!({
+                "channel": "opt-summary",
+                "uly": format!("{currency}-USD")
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let (ws, _) = connect_async(&cfg.ws_url)
+        .await
+        .context("okx option websocket connect failed")?;
+    let (mut sink, mut stream) = ws.split();
+    sink.send(Message::Text(
+        json!({"op": "subscribe", "args": args}).to_string(),
+    ))
+    .await?;
+
+    loop {
+        tokio::select! {
+            _ = shutdown.cancelled() => return Ok(()),
+            msg = stream.next() => {
+                let msg = msg.context("okx option websocket ended")??;
+                match msg {
+                    Message::Text(text) => {
+                        for summary in parse_okx_ws_option_summaries(&text) {
+                            cache.upsert_live_summary("okx_ws_opt_summary", summary).await;
+                        }
+                    }
+                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Close(_) => return Ok(()),
+                }
+            }
+        }
+    }
+}
+
 async fn run_bybit_option_ws_once(
     cfg: &BybitOptionsConfig,
     client: reqwest::Client,
@@ -400,6 +473,49 @@ async fn run_deribit_option_ws_once(
     }
 }
 
+fn parse_okx_ws_option_summaries(text: &str) -> Vec<OptionSummary> {
+    let Ok(value) = serde_json::from_str::<Value>(text) else {
+        return Vec::new();
+    };
+    value
+        .get("data")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter_map(parse_okx_ws_option_summary)
+        .collect()
+}
+
+fn parse_okx_ws_option_summary(row: &Value) -> Option<OptionSummary> {
+    let instrument_name = row.get("instId").and_then(Value::as_str)?;
+    let currency = instrument_name.split('-').next()?.to_ascii_uppercase();
+    let parsed = parse_okx_option_instrument(instrument_name);
+    Some(OptionSummary {
+        venue: "okx".to_string(),
+        currency,
+        instrument_name: instrument_name.to_string(),
+        option_type: row
+            .get("optType")
+            .and_then(Value::as_str)
+            .map(crate::connectors::options::common::option_side_from_code)
+            .or_else(|| parsed.as_ref().map(|p| p.2.clone())),
+        strike: json_f64(row, &["stk"]).or_else(|| parsed.as_ref().map(|p| p.1)),
+        expiry_time: parsed.map(|p| p.0),
+        bid_price: None,
+        ask_price: None,
+        mark_price: None,
+        mark_iv: json_f64(row, &["markVol", "bidVol", "askVol"]),
+        delta: json_f64(row, &["deltaBS"]),
+        gamma: json_f64(row, &["gammaBS"]),
+        theta: json_f64(row, &["thetaBS"]),
+        vega: json_f64(row, &["vegaBS"]),
+        underlying_price: json_f64(row, &["idxPx", "fwdPx"]),
+        underlying_index: row.get("uly").and_then(Value::as_str).map(str::to_string),
+        open_interest: None,
+    })
+}
+
 fn parse_bybit_ws_option_summary(text: &str) -> Option<OptionSummary> {
     let value = serde_json::from_str::<Value>(text).ok()?;
     let data = value.get("data")?;
@@ -463,6 +579,17 @@ fn parse_deribit_ws_option_summary(text: &str) -> Option<OptionSummary> {
             .map(str::to_string),
         open_interest: row.get("open_interest").and_then(Value::as_f64),
     })
+}
+
+fn parse_okx_option_instrument(name: &str) -> Option<(String, f64, String)> {
+    let parts = name.split('-').collect::<Vec<_>>();
+    if parts.len() < 5 {
+        return None;
+    }
+    let expiry_time = crate::connectors::options::common::parse_yy_mm_dd_expiry(parts[2])?;
+    let strike = parts[3].parse::<f64>().ok()?;
+    let option_type = crate::connectors::options::common::option_side_from_code(parts[4]);
+    Some((expiry_time, strike, option_type))
 }
 
 fn parse_bybit_option_instrument(name: &str) -> Option<(String, f64, String)> {
@@ -692,5 +819,33 @@ mod tests {
         assert_eq!(summary.bid_price, Some(10745.0));
         assert_eq!(summary.open_interest, Some(123.4));
         assert_eq!(summary.vega, Some(20.1));
+    }
+
+    #[test]
+    fn parses_okx_ws_option_summary() {
+        let rows = parse_okx_ws_option_summaries(
+            &json!({
+                "arg": {"channel": "opt-summary", "uly": "BTC-USD"},
+                "data": [{
+                    "instId": "BTC-USD-260626-100000-C",
+                    "uly": "BTC-USD",
+                    "optType": "C",
+                    "stk": "100000",
+                    "markVol": "0.45",
+                    "idxPx": "78000",
+                    "deltaBS": "0.25",
+                    "gammaBS": "0.00001",
+                    "thetaBS": "-12.5",
+                    "vegaBS": "50.5"
+                }]
+            })
+            .to_string(),
+        );
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].venue, "okx");
+        assert_eq!(rows[0].option_type.as_deref(), Some("call"));
+        assert_eq!(rows[0].delta, Some(0.25));
+        assert_eq!(rows[0].vega, Some(50.5));
     }
 }
