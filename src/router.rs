@@ -8,7 +8,7 @@ use crate::types::DataEvent;
 
 pub struct EventRouter {
     source_rx: mpsc::Receiver<DataEvent>,
-    agg_tx: mpsc::Sender<DataEvent>,
+    agg_tx: mpsc::Sender<Arc<DataEvent>>,
     bus: EventBus,
     metrics: std::sync::Arc<AppMetrics>,
     bus_queue_capacity: usize,
@@ -17,7 +17,7 @@ pub struct EventRouter {
 impl EventRouter {
     pub fn new(
         source_rx: mpsc::Receiver<DataEvent>,
-        agg_tx: mpsc::Sender<DataEvent>,
+        agg_tx: mpsc::Sender<Arc<DataEvent>>,
         bus: EventBus,
         metrics: std::sync::Arc<AppMetrics>,
         bus_queue_capacity: usize,
@@ -56,7 +56,8 @@ impl EventRouter {
             if matches!(&event, DataEvent::Tick(_)) {
                 self.metrics.ticks_ingested_total.inc();
             }
-            if bus_tx.send(Arc::new(event.clone())).await.is_err() {
+            let event = Arc::new(event);
+            if bus_tx.send(event.clone()).await.is_err() {
                 break;
             }
             if self.agg_tx.send(event).await.is_err() {
@@ -112,7 +113,10 @@ mod tests {
             .expect("source channel should accept test tick");
         drop(source_tx);
 
-        assert!(matches!(agg_rx.recv().await, Some(DataEvent::Tick(_))));
+        assert!(matches!(
+            agg_rx.recv().await.as_deref(),
+            Some(DataEvent::Tick(_))
+        ));
         router_task.await.expect("router task should finish");
         assert_eq!(bus.snapshot_all().await.len(), 1);
     }
@@ -141,7 +145,7 @@ mod tests {
         drop(source_tx);
 
         assert!(matches!(
-            agg_rx.recv().await,
+            agg_rx.recv().await.as_deref(),
             Some(DataEvent::FundingRate(_))
         ));
         router_task.await.expect("router task should finish");

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::mpsc;
@@ -81,14 +82,14 @@ impl SpreadAggregator {
         }
     }
 
-    pub async fn run(mut self, mut rx: mpsc::Receiver<DataEvent>) {
+    pub async fn run(mut self, mut rx: mpsc::Receiver<Arc<DataEvent>>) {
         let mut report_tick = interval(self.report_interval);
 
         loop {
             tokio::select! {
                 _ = report_tick.tick() => self.report_once(),
                 maybe = rx.recv() => {
-                    match maybe {
+                    match maybe.as_deref() {
                         Some(DataEvent::Tick(t)) => self.on_tick(t),
                         Some(DataEvent::OrderBook(book)) => self.on_order_book(book),
                         Some(DataEvent::FundingRate(funding)) => self.on_funding(funding),
@@ -110,10 +111,13 @@ impl SpreadAggregator {
         }
     }
 
-    fn on_tick(&mut self, tick: MarketTick) {
+    fn on_tick(&mut self, tick: &MarketTick) {
         let key = normalize_symbol(&tick.symbol, tick.market);
         let ex = tick.exchange;
-        self.books.entry(key.clone()).or_default().insert(ex, tick);
+        self.books
+            .entry(key.clone())
+            .or_default()
+            .insert(ex, tick.clone());
         *self
             .tick_counts
             .entry(key)
@@ -122,23 +126,23 @@ impl SpreadAggregator {
             .or_default() += 1;
     }
 
-    fn on_order_book(&mut self, book: OrderBookTick) {
+    fn on_order_book(&mut self, book: &OrderBookTick) {
         let key = normalize_symbol(&book.symbol, book.market);
         self.order_books
             .entry(key)
             .or_default()
-            .insert(book.exchange, book);
+            .insert(book.exchange, book.clone());
     }
 
-    fn on_funding(&mut self, tick: FundingRateTick) {
+    fn on_funding(&mut self, tick: &FundingRateTick) {
         let key = normalize_symbol(&tick.symbol, crate::types::MarketKind::Perp);
         self.funding
             .entry(key)
             .or_default()
-            .insert(tick.exchange, tick);
+            .insert(tick.exchange, tick.clone());
     }
 
-    fn on_open_interest(&mut self, tick: OpenInterestTick) {
+    fn on_open_interest(&mut self, tick: &OpenInterestTick) {
         let key = normalize_symbol(&tick.symbol, crate::types::MarketKind::Perp);
         let by_exchange = self.open_interest.entry(key).or_default();
         let previous = by_exchange
@@ -148,12 +152,12 @@ impl SpreadAggregator {
             tick.exchange,
             OpenInterestState {
                 previous,
-                current: tick,
+                current: tick.clone(),
             },
         );
     }
 
-    fn on_trade(&mut self, trade: TradeTick) {
+    fn on_trade(&mut self, trade: &TradeTick) {
         let key = normalize_symbol(&trade.symbol, trade.market);
         self.trade_flow.entry(key).or_default().add(
             trade.ts_ms,
@@ -161,7 +165,7 @@ impl SpreadAggregator {
         );
     }
 
-    fn on_liquidation(&mut self, liquidation: LiquidationTick) {
+    fn on_liquidation(&mut self, liquidation: &LiquidationTick) {
         let key = normalize_symbol(&liquidation.symbol, crate::types::MarketKind::Perp);
         self.liquidation_flow.entry(key).or_default().add(
             liquidation.ts_ms,

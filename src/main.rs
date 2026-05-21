@@ -244,7 +244,7 @@ async fn main() -> anyhow::Result<()> {
         shutdown.clone(),
     );
 
-    let (agg_tx, agg_rx) = mpsc::channel::<DataEvent>(cfg.runtime.queue_capacity);
+    let (agg_tx, agg_rx) = mpsc::channel::<std::sync::Arc<DataEvent>>(cfg.runtime.queue_capacity);
     let router = EventRouter::new(
         handle.rx,
         agg_tx,
