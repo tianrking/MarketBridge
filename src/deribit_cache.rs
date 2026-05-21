@@ -79,11 +79,13 @@ impl OptionCache {
         let currency = filter.currency.map(|x| x.trim().to_ascii_uppercase());
         let option_type = filter.option_type.map(|x| x.trim().to_ascii_lowercase());
         let guard = self.inner.read().await;
+        let now_ms = now_ms();
         guard
             .iter()
-            .cloned()
-            .map(|row| self.with_stale(row))
-            .filter(|row| filter.include_stale || !row.stale)
+            .filter(|row| {
+                filter.include_stale
+                    || now_ms.saturating_sub(row.received_at_ms) <= self.stale_ttl_ms
+            })
             .filter(|row| {
                 venue
                     .as_ref()
@@ -128,12 +130,12 @@ impl OptionCache {
                         .is_some_and(|x| x <= max.as_str())
                 })
             })
+            .cloned()
+            .map(|mut row| {
+                row.stale = now_ms.saturating_sub(row.received_at_ms) > self.stale_ttl_ms;
+                row
+            })
             .collect()
-    }
-
-    fn with_stale(&self, mut row: CachedOptionSummary) -> CachedOptionSummary {
-        row.stale = now_ms().saturating_sub(row.received_at_ms) > self.stale_ttl_ms;
-        row
     }
 }
 
