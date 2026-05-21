@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -15,6 +16,7 @@ const XADD_INITIAL_BACKOFF_MS: u64 = 100;
 const XADD_MAX_BACKOFF_MS: u64 = 5_000;
 const XADD_BATCH_MAX: usize = 100;
 const XADD_BATCH_FLUSH_MS: u64 = 50;
+const REDIS_LOCAL_BUFFER: usize = 100_000;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct RedisEventRow {
     stream: String,
@@ -39,6 +41,27 @@ pub fn spawn_redis_sink(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut rx = bus.subscribe_events();
+        let (local_tx, mut local_rx) = mpsc::channel::<Arc<DataEvent>>(REDIS_LOCAL_BUFFER);
+        let drain_shutdown = shutdown.clone();
+        let drain_handle = tokio::spawn(async move {
+            loop {
+                let received = tokio::select! {
+                    _ = drain_shutdown.cancelled() => break,
+                    received = rx.recv() => received,
+                };
+                match received {
+                    Ok(event) => {
+                        if local_tx.send(event).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        warn!(skipped = n, "redis sink broadcast drain lagged");
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
 
         let client = match redis::Client::open(redis_url.as_str()) {
             Ok(c) => c,
@@ -88,10 +111,10 @@ pub fn spawn_redis_sink(
                     }
                     continue;
                 }
-                received = rx.recv() => received,
+                received = local_rx.recv() => received,
             };
             match received {
-                Ok(event) => {
+                Some(event) => {
                     batch.push(redis_event_row(&stream_prefix, event.as_ref()));
                     if batch.len() >= XADD_BATCH_MAX
                         && !flush_redis_batch(
@@ -106,10 +129,7 @@ pub fn spawn_redis_sink(
                         return;
                     }
                 }
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                    warn!(skipped = n, "redis sink lagged");
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                None => break,
             }
         }
 
@@ -117,6 +137,7 @@ pub fn spawn_redis_sink(
             let _ = flush_redis_batch(&client, &mut conn, &mut batch, &dead_letter_path, &metrics)
                 .await;
         }
+        drain_handle.abort();
     })
 }
 
