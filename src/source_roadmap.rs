@@ -124,7 +124,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P3",
-        notes: "Public spot simple-depth WS stream wired; trades remain planned.",
+        notes: "Public spot simple-depth WS stream plus recent-trade REST polling are wired; BBO is derived from the book top.",
     },
     RoadmapSource {
         source: "bithumb",
@@ -304,7 +304,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P3",
-        notes: "Public Brazil spot REST order-book snapshots wired; WS trades remain planned.",
+        notes: "Public Brazil spot REST order-book snapshots and recent-trade polling are wired.",
     },
     RoadmapSource {
         source: "gate_io",
@@ -344,7 +344,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "Perp L2/trades/funding/OI are wired; add spot coverage and liquidation if public data is reliable.",
+        notes: "Perp L2/trades/funding/OI are wired; activeAssetCtx now emits funding and OI together when both are present. Add spot coverage and liquidation if public data is reliable.",
     },
     RoadmapSource {
         source: "injective_v2",
@@ -424,7 +424,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P3",
-        notes: "Public Canadian spot L2 snapshots wired via GetInstruments/GetL2Snapshot; trades remain planned.",
+        notes: "Public Canadian spot L2 snapshots and GetLastTrades polling are wired via GetInstruments symbol resolution.",
     },
     RoadmapSource {
         source: "okx",

@@ -627,8 +627,10 @@ curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&asset=BTC
 ### Exchange Public Data Coverage
 
 The table below is the current runtime/API coverage. The full operating matrix
-is maintained in [docs/feature_inventory.md](docs/feature_inventory.md) and must
-be updated with every connector change.
+is maintained in [docs/feature_inventory.md](docs/feature_inventory.md), and the
+CCXT reference gap audit lives in
+[docs/ccxt_parity_audit.md](docs/ccxt_parity_audit.md). Both must be updated
+with connector changes.
 
 | Venue group | BBO | L2 book | Trades | Funding | OI | Liquidations | Notes |
 |---|---:|---:|---:|---:|---:|---:|---|

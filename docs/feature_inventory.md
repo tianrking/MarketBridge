@@ -43,7 +43,7 @@ Status labels:
 | Binance | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
 | Bybit | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
 | OKX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | REST liquidation poller. |
-| Hyperliquid | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp DEX source. |
+| Hyperliquid | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp DEX source; `activeAssetCtx` emits funding and OI from the same update when both fields are present. |
 | dYdX v4 | partial | implemented | implemented | implemented | implemented | planned | keyless | REST market metadata plus WS book/trades. |
 | Backpack | partial | implemented | implemented | planned | planned | planned | keyless | Product dependent public fields. |
 | MEXC | partial | implemented | implemented | partial | planned | planned | keyless | Spot/futures depth/deals; funding when ticker field exists. |
@@ -52,7 +52,7 @@ Status labels:
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
 | BitMEX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST instrument/book/trades/liquidations for perpetual markets. |
 | Bitstamp | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades. |
-| Bitrue | partial | implemented | planned | planned | planned | planned | keyless | Public spot simple-depth stream from Hummingbot connector. |
+| Bitrue | partial | implemented | implemented | planned | planned | planned | keyless | Public spot simple-depth stream plus recent-trade REST polling with trade-id dedupe. |
 | Bithumb | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Bitvavo | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | BloFin | implemented | implemented | implemented | implemented | planned | planned | keyless | Native public REST perp ticker, order book, trades, and funding. |
@@ -88,8 +88,8 @@ Status labels:
 | Coinone | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Crypto.com | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
 | Cube | partial | implemented | planned | planned | planned | planned | keyless | Public REST MBP snapshots with market metadata scaling; protobuf WS diffs/trades remain planned. |
-| Foxbit | partial | implemented | planned | planned | planned | planned | keyless | Public Brazil spot REST order-book snapshots; WS trades remain planned. |
-| NDAX | partial | implemented | planned | planned | planned | planned | keyless | Public Canadian spot L2 snapshots via GetInstruments/GetL2Snapshot. |
+| Foxbit | partial | implemented | implemented | planned | planned | planned | keyless | Public Brazil spot REST order-book snapshots plus recent-trade REST polling with trade-id dedupe. |
+| NDAX | partial | implemented | implemented | planned | planned | planned | keyless | Public Canadian spot L2 snapshots and GetLastTrades polling after GetInstruments symbol resolution. |
 
 ## DeFi Connector Coverage
 

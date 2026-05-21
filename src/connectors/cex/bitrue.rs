@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -9,17 +10,24 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::connectors::cex::common::parse_value_f64;
 use crate::source::{ExchangeSource, SourceContext};
-use crate::types::{BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, now_ms};
+use crate::types::{
+    BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, TradeSide, TradeTick, now_ms,
+};
 
 const BITRUE_WS_URL: &str = "wss://ws.bitrue.com/market/ws";
+const BITRUE_REST_URL: &str = "https://www.bitrue.com/api/v1";
 
 pub struct BitrueSpotFeed {
     symbols: Vec<String>,
+    client: reqwest::Client,
 }
 
 impl BitrueSpotFeed {
     pub fn new(symbols: Vec<String>) -> Self {
-        Self { symbols }
+        Self {
+            symbols,
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -36,6 +44,7 @@ impl ExchangeSource for BitrueSpotFeed {
 
         let (ws, _) = connect_async(BITRUE_WS_URL).await?;
         let (mut sink, mut stream) = ws.split();
+        let mut last_trade_ids = HashMap::<String, u64>::new();
         for symbol in &self.symbols {
             let lower = symbol.to_ascii_lowercase();
             sink.send(Message::Text(
@@ -52,10 +61,27 @@ impl ExchangeSource for BitrueSpotFeed {
         }
 
         let mut heartbeat = interval(Duration::from_secs(25));
+        let mut trade_poll = interval(Duration::from_secs(5));
         let mut last_seen = Instant::now();
 
         loop {
             tokio::select! {
+                _ = trade_poll.tick() => {
+                    for symbol in &self.symbols {
+                        let last_seen_trade = last_trade_ids.get(symbol).copied();
+                        match poll_bitrue_trades(&self.client, symbol, last_seen_trade).await {
+                            Ok((events, max_trade_id)) => {
+                                if let Some(trade_id) = max_trade_id {
+                                    last_trade_ids.insert(symbol.clone(), trade_id);
+                                }
+                                for event in events {
+                                    ctx.emit(event).await?;
+                                }
+                            }
+                            Err(err) => tracing::warn!(exchange = "bitrue", symbol, error = %err, "trade poll failed"),
+                        }
+                    }
+                }
                 _ = heartbeat.tick() => {
                     if last_seen.elapsed() > Duration::from_secs(90) {
                         anyhow::bail!("bitrue heartbeat timeout");
@@ -84,6 +110,22 @@ impl ExchangeSource for BitrueSpotFeed {
             }
         }
     }
+}
+
+async fn poll_bitrue_trades(
+    client: &reqwest::Client,
+    symbol: &str,
+    last_seen_trade: Option<u64>,
+) -> Result<(Vec<DataEvent>, Option<u64>)> {
+    let value = client
+        .get(format!("{BITRUE_REST_URL}/trades"))
+        .query(&[("symbol", symbol), ("limit", "100")])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    Ok(parse_bitrue_trades(symbol, &value, last_seen_trade))
 }
 
 fn parse_bitrue_events(text: &str) -> Result<Vec<DataEvent>> {
@@ -153,6 +195,55 @@ fn parse_bitrue_book(value: &Value) -> Vec<DataEvent> {
     events
 }
 
+fn parse_bitrue_trades(
+    symbol: &str,
+    value: &Value,
+    last_seen_trade: Option<u64>,
+) -> (Vec<DataEvent>, Option<u64>) {
+    let rows = value.as_array().map(Vec::as_slice).unwrap_or_default();
+    let mut max_trade_id = last_seen_trade;
+    let mut events = Vec::new();
+    for item in rows {
+        let trade_id = item.get("id").and_then(Value::as_u64);
+        if trade_id.is_some_and(|id| last_seen_trade.is_some_and(|last| id <= last)) {
+            continue;
+        }
+        if let Some(id) = trade_id {
+            max_trade_id = Some(max_trade_id.map_or(id, |max| max.max(id)));
+        }
+        let Some(price) = item.get("price").and_then(parse_value_f64) else {
+            continue;
+        };
+        let Some(qty) = item.get("qty").and_then(parse_value_f64) else {
+            continue;
+        };
+        events.push(DataEvent::Trade(TradeTick {
+            exchange: "bitrue",
+            market: MarketKind::Spot,
+            symbol: symbol.to_ascii_uppercase().into_boxed_str(),
+            price,
+            qty,
+            side: match (
+                item.get("isBuyer").and_then(Value::as_bool),
+                item.get("isBuyerMaker").and_then(Value::as_bool),
+            ) {
+                (Some(true), _) => TradeSide::Buy,
+                (Some(false), _) => TradeSide::Sell,
+                (None, Some(true)) => TradeSide::Sell,
+                (None, Some(false)) => TradeSide::Buy,
+                (None, None) => TradeSide::Unknown,
+            },
+            trade_id: trade_id.map(|id| id.to_string().into_boxed_str()),
+            ts_ms: item
+                .get("time")
+                .or_else(|| item.get("ctime"))
+                .and_then(Value::as_u64)
+                .unwrap_or_else(now_ms),
+        }));
+    }
+    (events, max_trade_id)
+}
+
 fn bitrue_levels(items: &[Value]) -> Vec<BookLevel> {
     items
         .iter()
@@ -204,5 +295,26 @@ mod tests {
             bitrue_pong(&json!({"ping": 123}).to_string()).as_deref(),
             Some(r#"{"pong":123}"#)
         );
+    }
+
+    #[test]
+    fn bitrue_parses_recent_trades_with_dedupe() {
+        let (events, max_trade_id) = parse_bitrue_trades(
+            "BTCUSDT",
+            &json!([
+                {"id": 10, "price": "100.1", "qty": "0.2", "time": 1779290460001_u64, "isBuyerMaker": true},
+                {"id": 11, "price": "100.2", "qty": "0.3", "time": 1779290460002_u64, "isBuyer": true}
+            ]),
+            Some(10),
+        );
+        assert_eq!(max_trade_id, Some(11));
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            DataEvent::Trade(trade) => {
+                assert_eq!(trade.trade_id.as_deref(), Some("11"));
+                assert_eq!(trade.side, TradeSide::Buy);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }

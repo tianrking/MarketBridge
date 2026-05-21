@@ -106,7 +106,7 @@ fn parse_hyperliquid_events(value: &Value) -> Vec<DataEvent> {
     match channel {
         "l2Book" => parse_l2_book(data).into_iter().collect(),
         "trades" => parse_trades(data),
-        "activeAssetCtx" => parse_active_asset_ctx(data).into_iter().collect(),
+        "activeAssetCtx" => parse_active_asset_ctx(data),
         _ => Vec::new(),
     }
 }
@@ -164,15 +164,18 @@ fn parse_trades(data: &Value) -> Vec<DataEvent> {
         .collect()
 }
 
-fn parse_active_asset_ctx(data: &Value) -> Option<DataEvent> {
-    let coin = data.get("coin").and_then(Value::as_str)?;
+fn parse_active_asset_ctx(data: &Value) -> Vec<DataEvent> {
+    let Some(coin) = data.get("coin").and_then(Value::as_str) else {
+        return Vec::new();
+    };
     let ctx = data.get("ctx").unwrap_or(data);
+    let mut events = Vec::with_capacity(2);
     if let Some(funding_rate) = ctx
         .get("funding")
         .and_then(Value::as_str)
         .and_then(|x| x.parse::<f64>().ok())
     {
-        return Some(DataEvent::FundingRate(FundingRateTick {
+        events.push(DataEvent::FundingRate(FundingRateTick {
             exchange: "hyperliquid",
             symbol: coin.to_string().into_boxed_str(),
             funding_rate,
@@ -188,18 +191,20 @@ fn parse_active_asset_ctx(data: &Value) -> Option<DataEvent> {
             ts_ms: now_ms(),
         }));
     }
-    ctx.get("openInterest")
+    if let Some(open_interest) = ctx
+        .get("openInterest")
         .and_then(Value::as_str)
         .and_then(|x| x.parse::<f64>().ok())
-        .map(|open_interest| {
-            DataEvent::OpenInterest(OpenInterestTick {
-                exchange: "hyperliquid",
-                symbol: coin.to_string().into_boxed_str(),
-                open_interest,
-                open_interest_value: None,
-                ts_ms: now_ms(),
-            })
-        })
+    {
+        events.push(DataEvent::OpenInterest(OpenInterestTick {
+            exchange: "hyperliquid",
+            symbol: coin.to_string().into_boxed_str(),
+            open_interest,
+            open_interest_value: None,
+            ts_ms: now_ms(),
+        }));
+    }
+    events
 }
 
 fn side_from_str(side: &str) -> TradeSide {
@@ -208,13 +213,33 @@ fn side_from_str(side: &str) -> TradeSide {
 
 #[cfg(test)]
 mod tests {
-    use super::side_from_str;
-    use crate::types::TradeSide;
+    use super::{parse_hyperliquid_events, side_from_str};
+    use crate::types::{DataEvent, TradeSide};
+    use serde_json::json;
 
     #[test]
     fn hyperliquid_side_parser_accepts_wire_labels() {
         assert_eq!(side_from_str("B"), TradeSide::Buy);
         assert_eq!(side_from_str("A"), TradeSide::Sell);
         assert_eq!(side_from_str("?"), TradeSide::Unknown);
+    }
+
+    #[test]
+    fn hyperliquid_active_asset_ctx_emits_funding_and_open_interest() {
+        let events = parse_hyperliquid_events(&json!({
+            "channel": "activeAssetCtx",
+            "data": {
+                "coin": "BTC",
+                "ctx": {
+                    "funding": "0.0000125",
+                    "markPx": "100001.5",
+                    "oraclePx": "99998.2",
+                    "openInterest": "12345.67"
+                }
+            }
+        }));
+        assert_eq!(events.len(), 2);
+        assert!(matches!(events[0], DataEvent::FundingRate(_)));
+        assert!(matches!(events[1], DataEvent::OpenInterest(_)));
     }
 }

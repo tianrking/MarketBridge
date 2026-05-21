@@ -298,7 +298,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 
 ### CEX
 
-当前运行覆盖以 [`docs/feature_inventory.md`](docs/feature_inventory.md) 为准。下面是 README 里的快速矩阵：
+当前运行覆盖以 [`docs/feature_inventory.md`](docs/feature_inventory.md) 为准，CCXT 参考缺口盘点在 [`docs/ccxt_parity_audit.md`](docs/ccxt_parity_audit.md)。下面是 README 里的快速矩阵：
 
 | 交易所 / 交易所组 | BBO | L2 | Trades | Funding | OI | Liquidations | 说明 |
 |---|---:|---:|---:|---:|---:|---:|---|
