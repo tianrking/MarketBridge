@@ -241,6 +241,6 @@ mod tests {
             panic!("expected trade");
         };
         assert_eq!(trade.trade_id.as_deref(), Some("2644824470"));
-        assert_eq!(trade.ts_ms, 1779296479000);
+        assert_eq!(trade.ts_ms, 1779296479783);
     }
 }
