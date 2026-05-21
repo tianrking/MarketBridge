@@ -59,6 +59,8 @@ onchain:
     enabled: false
     api_key_env: ETHERSCAN_API_KEY
     min_value_eth: 1000
+    safe_confirmations: 12
+    request_delay_ms: 250
     addresses: []
 
 symbols: [BTCUSDT]

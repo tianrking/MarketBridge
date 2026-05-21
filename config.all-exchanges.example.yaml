@@ -53,6 +53,8 @@ onchain:
     api_key_env: ETHERSCAN_API_KEY
     poll_secs: 60
     min_value_eth: 1000
+    safe_confirmations: 12
+    request_delay_ms: 250
     addresses: []
 
 # Global defaults (spot/perp), can be overridden per exchange below.

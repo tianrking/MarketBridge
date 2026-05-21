@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
+use reqwest::StatusCode;
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
@@ -13,6 +14,9 @@ use tracing::{info, warn};
 use crate::config::{EtherscanConfig, MempoolSpaceConfig, OnchainConfig, WhaleAlertConfig};
 
 const MAX_TRANSFERS: usize = 5_000;
+const ETHERSCAN_MAX_ATTEMPTS: usize = 5;
+const ETHERSCAN_INITIAL_BACKOFF_MS: u64 = 500;
+const ETHERSCAN_MAX_BACKOFF_MS: u64 = 10_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OnchainTransfer {
@@ -315,10 +319,21 @@ fn spawn_etherscan(
             tokio::select! {
                 _ = shutdown.cancelled() => break,
                 _ = tick.tick() => {
+                    let safe_to_block = match fetch_etherscan_safe_to_block(&http, &cfg, &api_key).await {
+                        Ok(block) => block,
+                        Err(error) => {
+                            warn!(%error, "etherscan latest block poll failed");
+                            continue;
+                        }
+                    };
                     for address in &cfg.addresses {
-                        match fetch_etherscan_address(&http, &cfg, &api_key, address).await {
+                        match fetch_etherscan_address(&http, &cfg, &api_key, address, safe_to_block).await {
                             Ok(rows) => store.insert_many(rows).await,
                             Err(error) => warn!(%error, address, "etherscan poll failed"),
+                        }
+                        tokio::select! {
+                            _ = shutdown.cancelled() => break,
+                            _ = tokio::time::sleep(Duration::from_millis(cfg.request_delay_ms)) => {}
                         }
                     }
                 }
@@ -332,23 +347,23 @@ async fn fetch_etherscan_address(
     cfg: &EtherscanConfig,
     api_key: &str,
     address: &str,
+    safe_to_block: u64,
 ) -> Result<Vec<OnchainTransfer>> {
-    let payload = http
-        .get(&cfg.base_url)
-        .query(&[
-            ("module", "account"),
-            ("action", "txlist"),
-            ("address", address),
-            ("sort", "desc"),
-            ("page", "1"),
-            ("offset", "100"),
-            ("apikey", api_key),
-        ])
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Value>()
-        .await?;
+    let payload = get_etherscan_json(
+        http,
+        cfg,
+        &[
+            ("module", "account".to_string()),
+            ("action", "txlist".to_string()),
+            ("address", address.to_string()),
+            ("sort", "desc".to_string()),
+            ("page", "1".to_string()),
+            ("offset", "100".to_string()),
+            ("endblock", safe_to_block.to_string()),
+            ("apikey", api_key.to_string()),
+        ],
+    )
+    .await?;
     let rows = payload
         .get("result")
         .and_then(Value::as_array)
@@ -406,6 +421,78 @@ async fn fetch_etherscan_address(
         .collect())
 }
 
+async fn fetch_etherscan_safe_to_block(
+    http: &reqwest::Client,
+    cfg: &EtherscanConfig,
+    api_key: &str,
+) -> Result<u64> {
+    let payload = get_etherscan_json(
+        http,
+        cfg,
+        &[
+            ("module", "proxy".to_string()),
+            ("action", "eth_blockNumber".to_string()),
+            ("apikey", api_key.to_string()),
+        ],
+    )
+    .await?;
+    let latest = payload
+        .get("result")
+        .and_then(Value::as_str)
+        .and_then(|hex| u64::from_str_radix(hex.trim_start_matches("0x"), 16).ok())
+        .context("etherscan eth_blockNumber result missing")?;
+    Ok(latest.saturating_sub(cfg.safe_confirmations))
+}
+
+async fn get_etherscan_json(
+    http: &reqwest::Client,
+    cfg: &EtherscanConfig,
+    query: &[(&str, String)],
+) -> Result<Value> {
+    let mut backoff = Duration::from_millis(ETHERSCAN_INITIAL_BACKOFF_MS);
+    for attempt in 1..=ETHERSCAN_MAX_ATTEMPTS {
+        let response = http.get(&cfg.base_url).query(query).send().await;
+        match response {
+            Ok(response)
+                if response.status() == StatusCode::TOO_MANY_REQUESTS
+                    || response.status().is_server_error() =>
+            {
+                warn!(
+                    status = response.status().as_u16(),
+                    attempt, "etherscan request rate-limited or transiently failed"
+                );
+            }
+            Ok(response) => {
+                let payload = response.error_for_status()?.json::<Value>().await?;
+                if etherscan_payload_is_rate_limited(&payload) {
+                    warn!(attempt, "etherscan payload reports rate limit");
+                } else {
+                    return Ok(payload);
+                }
+            }
+            Err(error) => {
+                warn!(%error, attempt, "etherscan request failed");
+            }
+        }
+
+        if attempt < ETHERSCAN_MAX_ATTEMPTS {
+            tokio::time::sleep(backoff).await;
+            backoff = (backoff * 2).min(Duration::from_millis(ETHERSCAN_MAX_BACKOFF_MS));
+        }
+    }
+    anyhow::bail!("etherscan request failed after {ETHERSCAN_MAX_ATTEMPTS} attempts")
+}
+
+fn etherscan_payload_is_rate_limited(payload: &Value) -> bool {
+    let message = ["status", "message", "result"]
+        .into_iter()
+        .filter_map(|key| payload.get(key).and_then(Value::as_str))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase();
+    message.contains("rate limit") || message.contains("max rate") || message.contains("too many")
+}
+
 fn sum_vout_sats(value: &Value) -> Option<f64> {
     Some(
         value
@@ -439,7 +526,11 @@ pub fn log_onchain_start(cfg: &OnchainConfig) {
 
 #[cfg(test)]
 mod tests {
-    use super::{OnchainTransfer, OnchainTransferQuery, OnchainTransferStore};
+    use super::{
+        OnchainTransfer, OnchainTransferQuery, OnchainTransferStore,
+        etherscan_payload_is_rate_limited,
+    };
+    use serde_json::json;
 
     #[tokio::test]
     async fn onchain_store_deduplicates_and_filters() {
@@ -489,5 +580,19 @@ mod tests {
             })
             .await;
         assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn etherscan_rate_limit_payloads_are_detected() {
+        assert!(etherscan_payload_is_rate_limited(&json!({
+            "status": "0",
+            "message": "NOTOK",
+            "result": "Max rate limit reached"
+        })));
+        assert!(!etherscan_payload_is_rate_limited(&json!({
+            "status": "1",
+            "message": "OK",
+            "result": []
+        })));
     }
 }

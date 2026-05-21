@@ -52,6 +52,10 @@ pub struct EtherscanConfig {
     pub poll_secs: u64,
     #[serde(default = "default_eth_large_transfer_eth")]
     pub min_value_eth: f64,
+    #[serde(default = "default_etherscan_safe_confirmations")]
+    pub safe_confirmations: u64,
+    #[serde(default = "default_etherscan_request_delay_ms")]
+    pub request_delay_ms: u64,
     #[serde(default)]
     pub addresses: Vec<String>,
 }
@@ -89,6 +93,8 @@ impl Default for EtherscanConfig {
             api_key_env: default_etherscan_api_key_env(),
             poll_secs: default_onchain_poll_secs(),
             min_value_eth: default_eth_large_transfer_eth(),
+            safe_confirmations: default_etherscan_safe_confirmations(),
+            request_delay_ms: default_etherscan_request_delay_ms(),
             addresses: Vec::new(),
         }
     }
@@ -128,4 +134,12 @@ fn default_etherscan_api_key_env() -> String {
 
 fn default_eth_large_transfer_eth() -> f64 {
     1_000.0
+}
+
+fn default_etherscan_safe_confirmations() -> u64 {
+    12
+}
+
+fn default_etherscan_request_delay_ms() -> u64 {
+    250
 }

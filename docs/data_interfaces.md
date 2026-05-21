@@ -186,6 +186,8 @@ onchain:
     enabled: true
     api_key_env: ETHERSCAN_API_KEY
     min_value_eth: 1000
+    safe_confirmations: 12
+    request_delay_ms: 250
     addresses:
       - "0x..."
 ```
@@ -205,6 +207,9 @@ Important boundaries:
   feed, not a full labeled whale classifier.
 - Etherscan is address-watchlist based in this project. Full-chain Ethereum
   transfer firehose requires an archive/indexing provider or node stack.
+- Etherscan polling waits for `safe_confirmations` and queries only up to that
+  safe block. Requests are also spaced by `request_delay_ms` and retried with
+  backoff on rate-limit or transient server responses.
 
 ## Prediction, Options, External Data
 
