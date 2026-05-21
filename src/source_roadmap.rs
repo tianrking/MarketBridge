@@ -392,9 +392,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented_public",
         priority: "P0",
-        notes: "Spot/perp ticker plus spot REST order book and recent trades are wired; add perp L2/trades/funding/OI/liquidation parity.",
+        notes: "Spot/perp ticker, spot REST book/trades, and futures REST book/trades/funding/OI are wired; no stable public liquidation feed is exposed in the CCXT reference.",
     },
     RoadmapSource {
         source: "upbit",

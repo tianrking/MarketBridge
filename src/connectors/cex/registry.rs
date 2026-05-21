@@ -73,7 +73,7 @@ use super::injective::InjectiveFeed;
 use super::kraken::{KrakenRestFeed, KrakenTicker};
 use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
-use super::kucoin_perp::KucoinPerpTicker;
+use super::kucoin_perp::{KucoinPerpRestFeed, KucoinPerpTicker};
 use super::kucoin_rest::KucoinRestFeed;
 use super::mexc::{MexcFeed, MexcFundingPoller};
 use super::ndax::NdaxSpotFeed;
@@ -493,9 +493,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(KucoinRestFeed::new(spot_markets)));
                 }
                 if !perp_symbols.is_empty() {
-                    out.push(Arc::new(KucoinPerpTicker::new(
-                        perp_symbols.iter().map(|s| to_kucoin_perp(s)).collect(),
-                    )));
+                    let kucoin_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_kucoin_perp(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(KucoinPerpTicker::new(kucoin_perp_symbols.clone())));
+                    out.push(Arc::new(KucoinPerpRestFeed::new(kucoin_perp_symbols)));
                 }
             }
             "gate" => {

@@ -44,7 +44,9 @@ pub(super) fn to_bitfinex(s: &str) -> String {
 }
 
 pub(super) fn to_kucoin_perp(s: &str) -> String {
-    format!("{s}M")
+    let (base, quote) = split_quote(s);
+    let base = if base == "BTC" { "XBT" } else { base };
+    format!("{base}{quote}M")
 }
 
 pub(super) fn to_htx_perp(s: &str) -> String {
@@ -82,7 +84,7 @@ mod tests {
         assert_eq!(to_underscore("BTCUSDT"), "BTC_USDT");
         assert_eq!(to_slash("ETHUSDT"), "ETH/USDT");
         assert_eq!(to_bitfinex("BTCUSDT"), "tBTCUSDT");
-        assert_eq!(to_kucoin_perp("BTCUSDT"), "BTCUSDTM");
+        assert_eq!(to_kucoin_perp("BTCUSDT"), "XBTUSDTM");
         assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USTF0");
         assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");

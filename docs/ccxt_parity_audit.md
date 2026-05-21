@@ -49,6 +49,7 @@ Recent parity closes:
 | MEXC | Public contract funding-rate endpoint added beside the existing spot/futures depth and deals streams; CCXT marks public OI/liquidation fetches unavailable. | `FundingRate` |
 | Bitmart | Public futures open-interest endpoint added beside existing depth/trade/funding streams; public liquidation fetch remains unavailable in CCXT. | `OpenInterest` |
 | Cube | Public market-data REST recent trades added beside existing MBP snapshots with trade-id dedupe. | `Trade` |
+| KuCoin | Futures REST depth, recent trades, funding, and open-interest metrics added; BTC futures id mapping fixed to `XBTUSDTM`. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
 
 Remaining high-value CCXT parity queue:
 
