@@ -477,7 +477,7 @@ management should stay outside this repo.
 | Bybit option depth | Implemented | `GET /options/bybit/book?instrument_name=BTC-26MAR27-78000-P-USDT&depth=10` | Public per-instrument option book. |
 | Binance option tickers | Implemented | `GET /v1/options/chains?venue=binance&currency=BTC` | Public European option ticker plus optional mark data; open interest is not in this public ticker payload. |
 | Binance option depth | Implemented | `GET /options/binance/book?instrument_name=BTC-260626-140000-C&depth=10` | Public per-instrument option book; requested depth is mapped to Binance's allowed depth buckets. |
-| Deribit websocket IV | Not implemented | N/A | REST cache is enough for first paper loop; websocket IV cache is future work if REST freshness is not enough. |
+| Options websocket parity | Planned/partial | N/A | REST chain/depth coverage is wired. Full low-latency WS ticker/book/trades parity for Deribit/OKX/Bybit/Binance remains tracked in `docs/feature_inventory.md`. |
 
 ### Polymarket Data
 
@@ -652,6 +652,12 @@ All exchange connectors are data-only. They do not sign requests, place orders,
 cancel orders, or depend on third-party trading libraries at runtime. Where a
 venue does not provide a stable public feed for a domain, MarketBridge leaves the
 domain empty instead of fabricating a signal.
+
+The remaining non-Polymarket data gaps are tracked in
+[docs/feature_inventory.md](docs/feature_inventory.md#remaining-non-polymarket-data-gaps).
+At this checkpoint they are: Vertex funding/OI, XRPL executed trades,
+credentialed Architect/Decibel OI validation, native DeFi pool/trade state,
+options websocket parity, and extended aggregator analytics.
 
 ## API Details
 

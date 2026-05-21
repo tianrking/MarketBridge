@@ -222,6 +222,11 @@ Important boundaries:
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
 | External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush. |
 
+Known non-Polymarket gaps are centralized in
+[`feature_inventory.md`](feature_inventory.md#remaining-non-polymarket-data-gaps).
+Do not infer missing domains from empty API responses: many venues simply do not
+publish stable public liquidation, OI, or trade semantics for every product.
+
 ## Streaming
 
 Live domain stream:

@@ -31,7 +31,9 @@ Important boundary:
   available, not stable, or not yet wired.
 - `planned` means no normalized event is emitted for that domain yet.
 - `n/a` means the venue/product does not naturally provide that domain, such as
-  spot-only exchanges with no funding rate.
+  spot-only exchanges with no funding rate, or no stable public endpoint is
+  known. `n/a` rows are not implementation gaps until a stable public source is
+  confirmed.
 
 Recent parity closes:
 
@@ -63,8 +65,10 @@ Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
+| P1 | Vertex | Add funding/OI only after stable public query behavior is confirmed. |
 | P1 | XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
-| P2 | Perp liquidation long tail | Add liquidation feeds only when a stable public endpoint is confirmed; otherwise keep the domain explicit as unavailable. |
+| P1 | Architect / Decibel | Validate keyed OI before normalizing it. |
+| P2 | Perp liquidation long tail | Most venues without stable public liquidation feeds are now explicit `n/a`; add new feeds only when a reliable endpoint is confirmed. |
 | P2 | Extra CCXT long tail | Add native Rust connectors by liquidity and strategy value, not by blindly wrapping every CCXT file. |
 
 Rule for future work:

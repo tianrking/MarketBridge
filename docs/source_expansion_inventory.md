@@ -5,7 +5,7 @@ into its roadmap. It is intentionally an inventory, not an implementation claim.
 Only sources listed as `implemented` in `docs/feature_inventory.md` are wired
 into the runtime/API today.
 
-Last checked: 2026-05-20
+Last checked: 2026-05-21
 
 ## Source References
 
@@ -35,10 +35,10 @@ visibility. A source enters the runtime only after it has at least:
 
 | Priority | Scope | Rationale |
 |---|---|---|
-| P0 | Finish depth on existing high-liquidity sources: Binance, OKX, Bybit, Bitget, KuCoin, Gate, Kraken, HTX, Bitfinex, Coinbase, MEXC, BingX, Backpack, Hyperliquid, dYdX | Highest immediate value; reduces partial rows before adding long tail. |
-| P1 | Harden newly added Hummingbot overlap: Vertex, Injective, XRPL, Architect, Decibel | Connector code paths are wired; keyed venues and partial fields still need credentialed runtime validation and deeper edge-case coverage. |
-| P2 | Add liquid centralized venues from the reference inventory: BitMEX, Crypto.com, CoinEx, Gemini, HashKey, Bitvavo, Bullish, WOO X, Phemex, Poloniex, Upbit, Bithumb | Strong market-data utility; good candidates for REST-first then WS. |
-| P3 | Add long-tail centralized venues as native REST snapshot sources | Broad coverage for research, but lower operational priority. |
+| P0 | Close remaining non-Polymarket semantic gaps: Vertex funding/OI, XRPL trades, keyed Architect/Decibel OI validation | These are the only exchange/CLOB rows still marked `planned` for non-Polymarket data. |
+| P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Quote and price snapshots are wired; native state requires chain-specific APIs or indexers. |
+| P2 | Complete options websocket parity for Deribit/OKX/Bybit/Binance | REST chains and per-instrument depth are wired; WS parity is a latency upgrade. |
+| P3 | Add new long-tail centralized venues as native REST snapshot sources only when they add useful coverage | Broad coverage is useful for research, but schema quality and operational behavior come first. |
 | P4 | Wallet/order/account-only capabilities | Out of scope unless MarketBridge grows an execution subsystem. |
 
 ## CCXT Exchange Ids
@@ -285,37 +285,53 @@ xrpl
 Already implemented non-CLOB or external sources:
 
 ```text
+balancer
 coingecko
 coincap
 coinmarketcap
 coinglass
 cryptopanic
+curve
 etherscan
+etcswap
 fear_greed
 fred/us10y
 jupiter
 lunarcrush
 mempool_space
+meteora
 oneinch
+orca
+pancakeswap
 paraswap
 polymarket
+quickswap
 raydium
 santiment
+sushiswap
+traderjoe
 uniswap_v3
 whale_alert
 yahoo/dxy
 yahoo/vix
 ```
 
-## Recommended Next Connectors
+## Recommended Next Work
 
-The next practical implementation wave should be:
+Most high-value CEX/perp sources in the earlier wave are now implemented or
+explicitly marked unavailable for specific domains in
+[`feature_inventory.md`](feature_inventory.md). The next practical work is:
 
-1. CoinEx spot/perp: CCXT certified, useful long-tail liquidity.
-2. Phemex spot/perp: derivatives venue with clear public feeds.
-3. Upbit/Bithumb spot: KRW market regime signal.
-4. Injective/Vertex/Dexalot: CLOB DEX sources from Hummingbot coverage.
-5. Meteora/Orca/PancakeSwap/Balancer/Curve/SushiSwap: DeFi depth and pool-state expansion.
+1. Vertex funding/OI: wire only after stable public query behavior is verified.
+2. XRPL trades: use ledger/indexer semantics; never synthesize trades from
+   `book_offers` snapshots.
+3. Architect/Decibel OI: validate with credentials before normalizing keyed OI.
+4. DeFi native state: add chain-specific pool liquidity, route depth, and swap
+   feeds where reliable public/indexed data exists.
+5. Options WS parity: add low-latency WS ticker/book/trades on top of the
+   existing REST chain/depth coverage.
+6. Aggregator analytics: turn funding/OI/trade/liquidation events into explicit
+   signal models.
 
 For each new CEX source, implement in this order:
 

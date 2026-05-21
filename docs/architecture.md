@@ -263,18 +263,24 @@ GET /v1/market/liquidations
 Purpose: CEX and DEX market data by source, venue, asset, product, symbol, and
 instrument.
 
-Current public connector coverage includes Binance, Bybit, OKX, Hyperliquid,
-dYdX v4, Backpack, MEXC, and BingX in addition to the existing CEX adapters.
+Current public connector coverage is tracked in
+[`feature_inventory.md`](feature_inventory.md). That matrix is the source of
+truth for which venues expose BBO, L2 books, trades, funding, OI, and
+liquidations.
 
 ### Options Data
 
 ```text
 GET /v1/options/chains
-GET /v1/options/iv
-GET /v1/options/instruments
+GET /options/deribit/book
+GET /options/okx/book
+GET /options/bybit/book
+GET /options/binance/book
 ```
 
-Purpose: Deribit, OKX, Bybit, and Binance option venues.
+Purpose: Deribit, OKX, Bybit, and Binance option venues. REST chain and
+per-instrument depth are wired; full websocket ticker/book/trade parity is a
+remaining latency upgrade tracked in the feature inventory.
 
 ### Prediction Market Data
 
@@ -300,7 +306,8 @@ GET /v1/market/quotes?exchanges=oneinch
 
 Purpose: normalize DEX aggregator quotes and AMM pool prices into the same
 `market_quote` domain used by CEX sources. Wallet transfers, raw RPC event
-indexing, and oracle feeds are future domains.
+indexing, native pool liquidity state, and raw swap/trade feeds are future
+domains.
 
 ### Traditional Finance Reference Data
 
@@ -396,6 +403,7 @@ Implemented today:
 - Aggregate and sentiment signals through `GET /v1/external/signals`.
 - Deribit option summary direct REST and multi-venue option background cache.
 - Envelope-based Deribit/OKX/Bybit/Binance option chains through `GET /v1/options/chains`.
+- Per-instrument Deribit/OKX/Bybit/Binance option depth endpoints.
 - Polymarket crypto market discovery, REST books, and live CLOB cache.
 - Envelope-based Polymarket books through `GET /v1/prediction/books`.
 - Freshness fields for exchange ticks, option cache rows, and Polymarket live books.
@@ -403,10 +411,12 @@ Implemented today:
 Known architecture gaps:
 
 - Legacy endpoints are source-specific rather than `/v1` domain APIs.
-- Options and prediction stream domains currently emit cached snapshots rather
-  than push-native connector events.
+- Options websocket parity is incomplete: REST chain/depth is wired, while full
+  push-native ticker/book/trade parity remains future work.
 - Runtime source health is cache-derived; deeper connector lifecycle telemetry
   is still a future enhancement.
+- Remaining non-Polymarket data gaps are centralized in
+  `feature_inventory.md#remaining-non-polymarket-data-gaps`.
 
 ## Migration Plan
 
@@ -431,7 +441,8 @@ Status: implemented for first-pass exchange quote snapshots and streaming.
 - Move Polymarket book payload into `domains/prediction/book.rs`.
 - Add `/v1/options/chains` and `/v1/prediction/books`.
 
-Status: implemented for first-pass Deribit chains and Polymarket books.
+Status: implemented for multi-venue option chain snapshots, per-instrument
+option books, and Polymarket books.
 
 ### Phase 4: Catalog and Source Registry
 

@@ -14,6 +14,8 @@ Status labels:
 - `implemented`: code path exists and is wired into runtime/API.
 - `partial`: some fields or venues exist, but coverage is incomplete.
 - `planned`: not implemented yet.
+- `n/a`: not applicable to that venue/product, or no stable public endpoint is
+  known; do not fabricate this data.
 - `keyed`: requires user API key in config or environment variable.
 - `keyless`: public endpoint without API key.
 
@@ -109,6 +111,22 @@ Status labels:
 | QuickSwap | implemented | partial | planned | keyless | DexScreener-backed Polygon pool quote snapshots for Gateway coverage. |
 | Trader Joe | implemented | partial | planned | keyless | DexScreener-backed Avalanche pool quote snapshots for Gateway coverage. |
 | ETCSwap | implemented | partial | planned | keyless | DexScreener-backed Ethereum Classic pool quote snapshots for Gateway coverage. |
+
+## Remaining Non-Polymarket Data Gaps
+
+These are the remaining intentional gaps after the public CEX/perp coverage
+cleanup. Anything marked `n/a` above is not considered missing unless a stable
+public endpoint is later confirmed.
+
+| Area | Missing data | Status | Why it remains open |
+|---|---|---:|---|
+| Vertex | Funding and open interest | planned | Book/trade streams are wired. Funding/OI need a stable public Vertex query path verified against live endpoints before wiring. |
+| XRPL | Executed trades | planned | Book snapshots are wired from `book_offers`; trades require ledger/indexer semantics and must not be synthesized from order books. |
+| Architect | Open interest | planned | Venue is keyed; needs credentialed validation before normalizing OI. |
+| Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
+| DeFi native state | Pool liquidity, route depth, swaps/trades | planned | Current connectors expose quotes or pool price snapshots. Native pool/trade state needs chain-specific RPC/subgraph/indexer work. |
+| Options websocket parity | Full WS ticker/book/trades across Deribit/OKX/Bybit/Binance | planned/partial | REST chain and per-instrument depth are wired; full low-latency WS parity is separate from REST cache coverage. |
+| Aggregator signal layer | Funding/OI/trade/liquidation analytics | planned | Raw events and API caches exist; strategy analytics beyond BBO/L2 spread still need explicit signal models. |
 
 ## Polymarket Coverage
 
