@@ -83,6 +83,29 @@ pub fn build_router(state: ApiState) -> Router {
             "/v1/onchain/transfers",
             get(routes::onchain::v1_onchain_transfers),
         )
+        .route("/v1/universe/top-volume", get(routes::universe::top_volume))
+        .route(
+            "/v1/universe/percent-change",
+            get(routes::universe::percent_change),
+        )
+        .route("/v1/universe/volatility", get(routes::universe::volatility))
+        .route(
+            "/v1/universe/spread-filter",
+            get(routes::universe::spread_filter),
+        )
+        .route(
+            "/v1/universe/cross-market",
+            get(routes::universe::cross_market),
+        )
+        .route("/v1/universe/market-cap", get(routes::universe::market_cap))
+        .route(
+            "/v1/universe/new-listings",
+            get(routes::universe::new_listings),
+        )
+        .route(
+            "/v1/universe/delist-risk",
+            get(routes::universe::delist_risk),
+        )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))
         .route("/funding", get(routes::legacy::funding))

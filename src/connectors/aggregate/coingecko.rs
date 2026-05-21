@@ -10,7 +10,7 @@ use tracing::warn;
 use crate::config::{CoinGeckoConfig, CoinPriceAsset};
 use crate::source::{ExchangeSource, SourceContext};
 
-use super::common::{configured_api_key, emit_price_quote, parse_f64_value};
+use super::common::{configured_api_key, emit_external_signal, emit_price_quote, parse_f64_value};
 
 pub struct CoinGeckoPricePoller {
     cfg: CoinGeckoConfig,
@@ -47,6 +47,7 @@ impl ExchangeSource for CoinGeckoPricePoller {
                             )
                             .await?;
                         }
+                        emit_asset_metrics(&ctx, self.name(), &prices, asset).await?;
                     }
                 }
                 Err(error) => warn!(%error, "coingecko price refresh failed"),
@@ -102,6 +103,38 @@ fn asset_price(prices: &Value, asset: &CoinPriceAsset) -> Option<f64> {
     parse_f64_value(prices.get(&asset.id)?.get(&asset.vs_currency)?)
 }
 
+async fn emit_asset_metrics(
+    ctx: &SourceContext,
+    source: &'static str,
+    prices: &Value,
+    asset: &CoinPriceAsset,
+) -> Result<()> {
+    for (metric, value) in [
+        ("market_cap", asset_metric(prices, asset, "market_cap")),
+        ("volume_24h", asset_metric(prices, asset, "24h_vol")),
+        ("change_24h_pct", asset_metric(prices, asset, "24h_change")),
+    ] {
+        if let Some(value) = value {
+            emit_external_signal(
+                ctx,
+                source,
+                "market_reference",
+                Some(&asset.symbol),
+                metric,
+                Some(value),
+                None,
+            )
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+fn asset_metric(prices: &Value, asset: &CoinPriceAsset, suffix: &str) -> Option<f64> {
+    let key = format!("{}_{}", asset.vs_currency, suffix);
+    parse_f64_value(prices.get(&asset.id)?.get(&key)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,5 +148,27 @@ mod tests {
         };
         let prices = serde_json::json!({"bitcoin": {"usd": 100.0}});
         assert_eq!(asset_price(&prices, &asset), Some(100.0));
+    }
+
+    #[test]
+    fn extracts_asset_market_metrics() {
+        let asset = CoinPriceAsset {
+            symbol: "BTCUSD".to_string(),
+            id: "bitcoin".to_string(),
+            vs_currency: "usd".to_string(),
+        };
+        let prices = serde_json::json!({
+            "bitcoin": {
+                "usd_market_cap": 1_000_000.0,
+                "usd_24h_vol": 50_000.0,
+                "usd_24h_change": 2.5
+            }
+        });
+        assert_eq!(
+            asset_metric(&prices, &asset, "market_cap"),
+            Some(1_000_000.0)
+        );
+        assert_eq!(asset_metric(&prices, &asset, "24h_vol"), Some(50_000.0));
+        assert_eq!(asset_metric(&prices, &asset, "24h_change"), Some(2.5));
     }
 }
