@@ -55,13 +55,14 @@ Recent parity closes:
 | Aevo | Public instrument `markets.total_oi` is emitted beside the existing REST funding and instrument quote path. | `OpenInterest` |
 | Derive | Public ticker `open_interest` is emitted beside existing WS book/trade and perp funding paths. | `OpenInterest` |
 | Evedex | Public instrument `openInterest` is emitted beside existing REST depth, trades, and funding metrics. | `OpenInterest` |
+| Backpack | Public mark-price funding and open-interest endpoints are emitted beside existing WS book/trade paths. | `FundingRate`, `OpenInterest` |
 
 Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
 | P1 | XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
-| P2 | Backpack | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
+| P2 | Perp liquidation long tail | Add liquidation feeds only when a stable public endpoint is confirmed; otherwise keep the domain explicit as unavailable. |
 | P2 | Extra CCXT long tail | Add native Rust connectors by liquidity and strategy value, not by blindly wrapping every CCXT file. |
 
 Rule for future work:

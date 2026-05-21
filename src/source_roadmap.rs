@@ -50,7 +50,7 @@ const ROADMAP: &[RoadmapSource] = &[
         source: "ascend_ex",
         source_type: "exchange",
         product_types: SPOT,
-        domains: QUOTE_BOOK_TRADE,
+        domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P2",
@@ -64,7 +64,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "MarketBridge has spot/perp feed paths; remaining funding/OI/liquidation depth depends on venue support.",
+        notes: "Public spot/perp WS book/trade paths plus perp mark-price funding and open-interest REST polling are wired; liquidation remains planned only if a stable public endpoint is confirmed.",
     },
     RoadmapSource {
         source: "binance",
