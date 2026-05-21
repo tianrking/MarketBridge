@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -313,11 +313,12 @@ async fn run_polymarket_ws_cache(
         markets = response.markets.len(),
         "polymarket ws cache subscribing"
     );
-    run_ws_connection(cfg, cache, &response.clob_asset_ids, shutdown).await
+    run_ws_connection(cfg, client, cache, &response.clob_asset_ids, shutdown).await
 }
 
 async fn run_ws_connection(
     cfg: &PolymarketConfig,
+    client: &reqwest::Client,
     cache: &PolymarketBookCache,
     assets: &[String],
     shutdown: &CancellationToken,
@@ -325,18 +326,8 @@ async fn run_ws_connection(
     let (mut socket, _) = connect_async(&cfg.ws_url)
         .await
         .with_context(|| format!("failed to connect {}", cfg.ws_url))?;
-    for chunk in assets.chunks(cfg.chunk_size) {
-        socket
-            .send(Message::Text(
-                json!({
-                    "assets_ids": chunk,
-                    "type": "market",
-                    "custom_feature_enabled": true
-                })
-                .to_string(),
-            ))
-            .await?;
-    }
+    let mut subscribed = assets.iter().cloned().collect::<HashSet<_>>();
+    subscribe_assets(&mut socket, assets, cfg.chunk_size).await?;
 
     let mut ping = tokio::time::interval(Duration::from_secs(cfg.ping_secs.max(1)));
     let mut refresh = tokio::time::interval(Duration::from_secs(cfg.refresh_secs.max(1)));
@@ -349,19 +340,88 @@ async fn run_ws_connection(
                 socket.send(Message::Text("PING".into())).await?;
             }
             _ = refresh.tick() => {
-                return Ok(());
+                refresh_polymarket_subscriptions(cfg, client, cache, &mut socket, &mut subscribed).await?;
             }
             message = socket.next() => {
                 let Some(message) = message else { return Ok(()); };
                 let message = message?;
-                if let Some(payload) = payload_text(message)?
-                    && let Err(error) = cache.apply_ws_payload(&payload).await
-                {
-                    warn!(%error, "failed to apply polymarket ws payload");
+                match message {
+                    Message::Ping(payload) => {
+                        socket.send(Message::Pong(payload)).await?;
+                        continue;
+                    }
+                    Message::Close(_) => return Ok(()),
+                    other => {
+                        if let Some(payload) = payload_text(other)?
+                            && let Err(error) = cache.apply_ws_payload(&payload).await
+                        {
+                            warn!(%error, "failed to apply polymarket ws payload");
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+async fn refresh_polymarket_subscriptions(
+    cfg: &PolymarketConfig,
+    client: &reqwest::Client,
+    cache: &PolymarketBookCache,
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+    subscribed: &mut HashSet<String>,
+) -> Result<()> {
+    let response =
+        fetch_polymarket_crypto_markets(client, &cfg.gamma_base_url, cfg.limit, cfg.max_offset)
+            .await?;
+    let new_assets = response
+        .clob_asset_ids
+        .iter()
+        .filter(|asset| subscribed.insert((*asset).clone()))
+        .cloned()
+        .collect::<Vec<_>>();
+    if new_assets.is_empty() {
+        return Ok(());
+    }
+
+    for result in
+        crate::connectors::prediction::polymarket::fetch_polymarket_books(client, &new_assets).await
+    {
+        match result {
+            Ok(summary) => cache.upsert_rest_summary(summary).await,
+            Err(error) => warn!(%error, "failed to seed newly discovered polymarket book"),
+        }
+    }
+    subscribe_assets(socket, &new_assets, cfg.chunk_size).await?;
+    info!(
+        assets = new_assets.len(),
+        "polymarket ws cache added subscriptions"
+    );
+    Ok(())
+}
+
+async fn subscribe_assets(
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+    assets: &[String],
+    chunk_size: usize,
+) -> Result<()> {
+    for chunk in assets.chunks(chunk_size) {
+        socket
+            .send(Message::Text(
+                json!({
+                    "assets_ids": chunk,
+                    "type": "market",
+                    "custom_feature_enabled": true
+                })
+                .to_string(),
+            ))
+            .await?;
+    }
+    Ok(())
 }
 
 fn payload_text(message: Message) -> Result<Option<String>> {
