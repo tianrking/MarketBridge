@@ -5,7 +5,7 @@ DeFi, macro, aggregate, and sentiment data. MarketBridge normalizes public data,
 caches fresh state, marks stale records, and exposes one stable API surface for
 downstream research systems.
 
-Current version: `v0.0.2`
+Current version: `v0.0.3`
 
 [中文文档](README.zh-CN.md)
 
@@ -273,11 +273,11 @@ GitHub Actions builds release packages for:
 
 | Package suffix | Download file | Use when |
 |---|---|---|
-| `linux-x86_64` | `market-bridge-v0.0.2-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
-| `linux-i686` | `market-bridge-v0.0.2-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
-| `macos-x86_64` | `market-bridge-v0.0.2-macos-x86_64.tar.gz` | Intel Mac. |
-| `macos-aarch64` | `market-bridge-v0.0.2-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
-| `windows-x86_64` | `market-bridge-v0.0.2-windows-x86_64.zip` | 64-bit Windows. |
+| `linux-x86_64` | `market-bridge-v0.0.3-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
+| `linux-i686` | `market-bridge-v0.0.3-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
+| `macos-x86_64` | `market-bridge-v0.0.3-macos-x86_64.tar.gz` | Intel Mac. |
+| `macos-aarch64` | `market-bridge-v0.0.3-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
+| `windows-x86_64` | `market-bridge-v0.0.3-windows-x86_64.zip` | 64-bit Windows. |
 
 Each package contains:
 
@@ -292,8 +292,8 @@ Each package contains:
 Linux/macOS usage:
 
 ```bash
-tar -xzf market-bridge-v0.0.2-linux-x86_64.tar.gz   # replace suffix for your platform
-cd market-bridge-v0.0.2-linux-x86_64
+tar -xzf market-bridge-v0.0.3-linux-x86_64.tar.gz   # replace suffix for your platform
+cd market-bridge-v0.0.3-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```
@@ -307,8 +307,8 @@ xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
 Windows PowerShell:
 
 ```powershell
-Expand-Archive .\market-bridge-v0.0.2-windows-x86_64.zip
-cd .\market-bridge-v0.0.2-windows-x86_64\market-bridge-v0.0.2-windows-x86_64
+Expand-Archive .\market-bridge-v0.0.3-windows-x86_64.zip
+cd .\market-bridge-v0.0.3-windows-x86_64\market-bridge-v0.0.3-windows-x86_64
 $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 .\market-bridge.exe
 ```
@@ -355,38 +355,38 @@ CI has two workflows:
 - `.github/workflows/release.yml`: builds cross-platform release packages and uploads artifacts.
 
 Automatic package builds run on pushes to `main` or `master`, tag pushes like
-`v0.0.2`, and manual `workflow_dispatch`.
+`v0.0.3`, and manual `workflow_dispatch`.
 
-To publish `v0.0.2`:
+To publish `v0.0.3`:
 
 ```bash
-git tag -f v0.0.2 HEAD
+git tag -f v0.0.3 HEAD
 git push origin master
-git push --force origin refs/tags/v0.0.2
+git push --force origin refs/tags/v0.0.3
 ```
 
-For a first-time tag where no previous `v0.0.2` exists, this also works:
+For a first-time tag where no previous `v0.0.3` exists, this also works:
 
 ```bash
-git tag v0.0.2
-git push origin v0.0.2
+git tag v0.0.3
+git push origin v0.0.3
 ```
 
 The release workflow builds:
 
 ```text
-market-bridge-v0.0.2-linux-x86_64.tar.gz
-market-bridge-v0.0.2-linux-i686.tar.gz
-market-bridge-v0.0.2-macos-x86_64.tar.gz
-market-bridge-v0.0.2-macos-aarch64.tar.gz
-market-bridge-v0.0.2-windows-x86_64.zip
+market-bridge-v0.0.3-linux-x86_64.tar.gz
+market-bridge-v0.0.3-linux-i686.tar.gz
+market-bridge-v0.0.3-macos-x86_64.tar.gz
+market-bridge-v0.0.3-macos-aarch64.tar.gz
+market-bridge-v0.0.3-windows-x86_64.zip
 ```
 
 For normal branch pushes, download the packages from the workflow run
 artifacts. For tag pushes, the same packages are also attached to the GitHub
 Release.
 
-When re-cutting `v0.0.2`, confirm the GitHub Release assets were produced from
+When re-cutting `v0.0.3`, confirm the GitHub Release assets were produced from
 the latest tag commit, not an older branch artifact.
 
 ## Configuration

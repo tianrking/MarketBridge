@@ -200,5 +200,5 @@ public endpoint is later confirmed.
 | Conservative fallback fees | implemented | P0 | Missing venue fee config uses `strategy.fallback_maker_fee_bps` / `strategy.fallback_taker_fee_bps` instead of zero-fee assumptions. |
 | Dynamic catalog from runtime config | implemented | P2 | `/v1/catalog/sources` reports startup-cached `enabled`, `available`, or `enabled_missing_api_key` from the active config. |
 | Aggregator extended event analytics | implemented | P1 | Spread engine consumes funding/OI/book/trade/liquidation events and emits derived analytics logs. |
-| Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.2 Linux/macOS/Windows packages with binary, configs, README, and docs. |
+| Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.3 Linux/macOS/Windows packages with binary, configs, README, and docs. |
 | SQLite kline store | implemented | P1 | `klines.enabled` stores Binance/OKX historical candles and realtime tick bars in `klines.sqlite_path`. |
