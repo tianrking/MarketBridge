@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use arc_swap::ArcSwap;
+use dashmap::DashMap;
 use serde::Serialize;
 
 use crate::core::schema::DataEnvelope;
@@ -123,11 +122,7 @@ impl EventSnapshotStore {
     pub async fn snapshot_by_symbol(&self, symbol: &str) -> Vec<NormalizedTick> {
         let needle = symbol.to_ascii_uppercase();
         self.snapshots
-            .snapshot()
-            .values()
-            .filter(|t| t.symbol.eq_ignore_ascii_case(&needle))
-            .cloned()
-            .collect()
+            .values_matching(|tick| tick.symbol.eq_ignore_ascii_case(&needle))
     }
 
     pub async fn snapshot_all(&self) -> Vec<NormalizedTick> {
@@ -164,7 +159,7 @@ impl EventSnapshotStore {
 }
 
 struct SnapshotMap<T> {
-    inner: Arc<ArcSwap<HashMap<String, T>>>,
+    inner: Arc<DashMap<String, T>>,
 }
 
 impl<T> Clone for SnapshotMap<T> {
@@ -178,23 +173,29 @@ impl<T> Clone for SnapshotMap<T> {
 impl<T: Clone> SnapshotMap<T> {
     fn new() -> Self {
         Self {
-            inner: Arc::new(ArcSwap::from_pointee(HashMap::new())),
+            inner: Arc::new(DashMap::new()),
         }
     }
 
     fn upsert(&self, key: String, value: T) {
-        let current = self.inner.load();
-        let mut next = (**current).clone();
-        next.insert(key, value);
-        self.inner.store(Arc::new(next));
-    }
-
-    fn snapshot(&self) -> Arc<HashMap<String, T>> {
-        self.inner.load_full()
+        self.inner.insert(key, value);
     }
 
     fn values(&self) -> Vec<T> {
-        self.snapshot().values().cloned().collect()
+        self.inner
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    fn values_matching(&self, predicate: impl Fn(&T) -> bool) -> Vec<T> {
+        self.inner
+            .iter()
+            .filter_map(|entry| {
+                let value = entry.value();
+                predicate(value).then(|| value.clone())
+            })
+            .collect()
     }
 }
 
