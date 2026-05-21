@@ -54,6 +54,10 @@ pub fn build_router(state: ApiState) -> Router {
             "/v1/market/order-flow",
             get(routes::market::v1_market_order_flow),
         )
+        .route(
+            "/v1/market/footprint",
+            get(routes::market::v1_market_footprint),
+        )
         .route("/v1/market/klines", get(routes::market::v1_market_klines))
         .route(
             "/v1/market/liquidations",

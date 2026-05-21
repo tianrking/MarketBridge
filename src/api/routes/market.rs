@@ -11,7 +11,7 @@ use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::ProductType;
 use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
-use crate::order_flow::OrderFlowQuery;
+use crate::order_flow::{FootprintQuery, OrderFlowQuery};
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
     symbols: Option<String>,
@@ -44,6 +44,22 @@ pub struct OrderFlowHttpQuery {
     market: Option<String>,
     symbol: Option<String>,
     window_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct FootprintHttpQuery {
+    exchange: Option<String>,
+    market: Option<String>,
+    symbol: Option<String>,
+    interval_ms: Option<u64>,
+    scale: Option<f64>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    imbalance_ratio: Option<f64>,
+    imbalance_volume: Option<f64>,
+    stacked_imbalance_range: Option<usize>,
+    include_trades: Option<bool>,
     limit: Option<usize>,
 }
 
@@ -240,6 +256,30 @@ pub async fn v1_market_order_flow(
         })
         .await;
     Json(serde_json::json!({"version":"v1","domain":"market_order_flow","order_flow":rows}))
+}
+
+pub async fn v1_market_footprint(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<FootprintHttpQuery>,
+) -> impl IntoResponse {
+    let rows = state
+        .order_flow_store
+        .query_footprint(FootprintQuery {
+            exchange: q.exchange.map(|x| x.trim().to_ascii_lowercase()),
+            market: q.market.map(|x| x.trim().to_ascii_lowercase()),
+            symbol: q.symbol.map(|x| x.trim().to_ascii_uppercase()),
+            interval_ms: q.interval_ms.unwrap_or(60_000),
+            scale: q.scale.unwrap_or(1.0),
+            start_ms: q.start_ms,
+            end_ms: q.end_ms,
+            imbalance_ratio: q.imbalance_ratio.unwrap_or(3.0),
+            imbalance_volume: q.imbalance_volume.unwrap_or(0.0),
+            stacked_imbalance_range: q.stacked_imbalance_range.unwrap_or(3),
+            include_trades: q.include_trades.unwrap_or(false),
+            limit: q.limit.unwrap_or(100),
+        })
+        .await;
+    Json(serde_json::json!({"version":"v1","domain":"market_footprint","footprints":rows}))
 }
 
 pub async fn v1_market_klines(
