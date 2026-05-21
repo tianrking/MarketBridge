@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc, Mutex, mpsc as std_mpsc};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use rusqlite::{Connection, params};
 use serde::Serialize;
 use serde_json::Value;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
@@ -50,24 +51,53 @@ pub struct KlineQuery {
 #[derive(Clone)]
 pub struct KlineStore {
     path: String,
+    writer: Arc<Mutex<Option<std_mpsc::Sender<KlineWriteRequest>>>>,
+}
+
+struct KlineWriteRequest {
+    rows: Vec<KlineBar>,
+    respond_to: oneshot::Sender<Result<()>>,
 }
 
 impl KlineStore {
     pub fn new(path: impl Into<String>) -> Self {
-        Self { path: path.into() }
+        Self {
+            path: path.into(),
+            writer: Arc::new(Mutex::new(None)),
+        }
     }
 
     pub async fn init(&self) -> Result<()> {
         let path = self.path.clone();
-        tokio::task::spawn_blocking(move || init_db(&path)).await?
+        tokio::task::spawn_blocking(move || init_db(&path)).await??;
+
+        let mut writer = self.writer.lock().expect("kline writer mutex poisoned");
+        if writer.is_some() {
+            return Ok(());
+        }
+        let path = self.path.clone();
+        let (tx, rx) = std_mpsc::channel::<KlineWriteRequest>();
+        tokio::task::spawn_blocking(move || run_sqlite_writer(path, rx));
+        *writer = Some(tx);
+        Ok(())
     }
 
     pub async fn upsert_many(&self, rows: Vec<KlineBar>) -> Result<()> {
         if rows.is_empty() {
             return Ok(());
         }
-        let path = self.path.clone();
-        tokio::task::spawn_blocking(move || upsert_many_blocking(&path, &rows)).await?
+        let tx = self
+            .writer
+            .lock()
+            .expect("kline writer mutex poisoned")
+            .clone()
+            .context("kline store not initialized")?;
+        let (respond_to, response) = oneshot::channel();
+        tx.send(KlineWriteRequest { rows, respond_to })
+            .context("kline sqlite writer stopped")?;
+        response
+            .await
+            .context("kline sqlite writer dropped response")?
     }
 
     pub async fn query(&self, q: KlineQuery) -> Result<Vec<KlineBar>> {
@@ -412,6 +442,10 @@ fn init_db(path: &str) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     let conn = Connection::open(path)?;
+    init_db_connection(&conn)
+}
+
+fn init_db_connection(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         r#"
         PRAGMA journal_mode = WAL;
@@ -438,8 +472,35 @@ fn init_db(path: &str) -> Result<()> {
     Ok(())
 }
 
-fn upsert_many_blocking(path: &str, rows: &[KlineBar]) -> Result<()> {
-    let mut conn = Connection::open(path)?;
+fn run_sqlite_writer(path: String, rx: std_mpsc::Receiver<KlineWriteRequest>) {
+    let mut conn = match Connection::open(&path) {
+        Ok(conn) => conn,
+        Err(error) => {
+            let error = error.to_string();
+            while let Ok(request) = rx.recv() {
+                let _ = request.respond_to.send(Err(anyhow::anyhow!(
+                    "kline sqlite writer init failed: {error}"
+                )));
+            }
+            return;
+        }
+    };
+    if let Err(error) = init_db_connection(&conn) {
+        let error = error.to_string();
+        while let Ok(request) = rx.recv() {
+            let _ = request.respond_to.send(Err(anyhow::anyhow!(
+                "kline sqlite writer init failed: {error}"
+            )));
+        }
+        return;
+    }
+    while let Ok(request) = rx.recv() {
+        let result = upsert_many_with_conn(&mut conn, &request.rows);
+        let _ = request.respond_to.send(result);
+    }
+}
+
+fn upsert_many_with_conn(conn: &mut Connection, rows: &[KlineBar]) -> Result<()> {
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare(
