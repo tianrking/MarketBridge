@@ -87,7 +87,7 @@ Status labels:
 | CoinEx | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
 | Coinone | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Crypto.com | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
-| Cube | partial | implemented | planned | planned | planned | planned | keyless | Public REST MBP snapshots with market metadata scaling; protobuf WS diffs/trades remain planned. |
+| Cube | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public REST MBP snapshots plus recent-trade polling with trade-id dedupe for configured spot markets; derivatives domains do not apply to the current spot connector. |
 | Foxbit | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public Brazil spot REST order-book snapshots plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
 | NDAX | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public Canadian spot L2 snapshots and GetLastTrades polling after GetInstruments symbol resolution; derivatives domains do not apply. |
 

@@ -282,9 +282,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented_public",
         priority: "P3",
-        notes: "Public REST MBP snapshots wired with metadata scaling; protobuf WS diffs/trades remain planned.",
+        notes: "Public REST MBP snapshots and recent trades are wired with metadata scaling and trade-id dedupe for configured spot markets.",
     },
     RoadmapSource {
         source: "derive",

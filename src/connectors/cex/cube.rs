@@ -9,7 +9,9 @@ use tracing::warn;
 
 use crate::connectors::cex::common::parse_value_f64;
 use crate::source::{ExchangeSource, SourceContext};
-use crate::types::{BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, now_ms};
+use crate::types::{
+    BookLevel, DataEvent, MarketKind, MarketTick, OrderBookTick, TradeSide, TradeTick, now_ms,
+};
 
 const CUBE_REST_URL: &str = "https://api.cube.exchange";
 
@@ -48,11 +50,16 @@ impl ExchangeSource for CubeSpotFeed {
         }
 
         let mut tick = interval(Duration::from_secs(5));
+        let mut last_trade_ids = HashMap::<u64, u64>::new();
         loop {
             tick.tick().await;
             for market in &markets {
-                match poll_cube_market(&self.client, market).await {
-                    Ok(events) => {
+                let since_trade_id = last_trade_ids.get(&market.market_id).copied();
+                match poll_cube_market(&self.client, market, since_trade_id).await {
+                    Ok((events, max_trade_id)) => {
+                        if let Some(max_trade_id) = max_trade_id {
+                            last_trade_ids.insert(market.market_id, max_trade_id);
+                        }
                         for event in events {
                             ctx.emit(event).await?;
                         }
@@ -99,7 +106,11 @@ async fn resolve_cube_markets(
         .collect())
 }
 
-async fn poll_cube_market(client: &reqwest::Client, market: &CubeMarket) -> Result<Vec<DataEvent>> {
+async fn poll_cube_market(
+    client: &reqwest::Client,
+    market: &CubeMarket,
+    since_trade_id: Option<u64>,
+) -> Result<(Vec<DataEvent>, Option<u64>)> {
     let value = client
         .get(format!(
             "{CUBE_REST_URL}/md/v0/book/{}/snapshot",
@@ -111,7 +122,22 @@ async fn poll_cube_market(client: &reqwest::Client, market: &CubeMarket) -> Resu
         .error_for_status()?
         .json::<Value>()
         .await?;
-    Ok(parse_cube_snapshot(market, &value))
+    let mut events = parse_cube_snapshot(market, &value);
+
+    let trades = client
+        .get(format!(
+            "{CUBE_REST_URL}/md/v0/book/{}/recent-trades",
+            market.market_id
+        ))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    let (trade_events, max_trade_id) = parse_cube_trades(market, &trades, since_trade_id);
+    events.extend(trade_events);
+
+    Ok((events, max_trade_id))
 }
 
 fn parse_cube_market(row: &Value) -> Option<CubeMarket> {
@@ -196,6 +222,57 @@ fn cube_level(level: &Value, market: &CubeMarket) -> Option<BookLevel> {
     })
 }
 
+fn parse_cube_trades(
+    market: &CubeMarket,
+    value: &Value,
+    since_trade_id: Option<u64>,
+) -> (Vec<DataEvent>, Option<u64>) {
+    let rows = value
+        .pointer("/result/trades")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let mut max_trade_id = since_trade_id;
+    let mut events = Vec::new();
+
+    for row in rows {
+        let Some(trade_id) = row.get("tradeId").and_then(Value::as_u64) else {
+            continue;
+        };
+        max_trade_id = Some(max_trade_id.map_or(trade_id, |current| current.max(trade_id)));
+        if since_trade_id.is_some_and(|seen| trade_id <= seen) {
+            continue;
+        }
+        let Some(price) = row.get("price").and_then(parse_value_f64) else {
+            continue;
+        };
+        let Some(qty) = row.get("fillQuantity").and_then(parse_value_f64) else {
+            continue;
+        };
+        let side = match row.get("aggressingSide").and_then(Value::as_i64) {
+            Some(0) => TradeSide::Buy,
+            Some(1) => TradeSide::Sell,
+            _ => TradeSide::Unknown,
+        };
+        events.push(DataEvent::Trade(TradeTick {
+            exchange: "cube",
+            market: MarketKind::Spot,
+            symbol: market.symbol.clone().into_boxed_str(),
+            price: price * market.price_scaler,
+            qty: qty * market.quantity_scaler,
+            side,
+            trade_id: Some(trade_id.to_string().into_boxed_str()),
+            ts_ms: row
+                .get("transactTime")
+                .and_then(Value::as_u64)
+                .map(|ns| ns / 1_000_000)
+                .unwrap_or_else(now_ms),
+        }));
+    }
+
+    (events, max_trade_id)
+}
+
 fn compact_symbol(symbol: &str) -> String {
     symbol
         .chars()
@@ -250,6 +327,41 @@ mod tests {
         }
         match &events[1] {
             DataEvent::OrderBook(book) => assert!((book.asks[0].qty - 0.16707).abs() < 1e-10),
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn cube_parses_recent_trades_with_dedupe() {
+        let market = CubeMarket {
+            market_id: 100004,
+            symbol: "BTCUSDC".to_string(),
+            price_scaler: 0.1,
+            quantity_scaler: 0.00001,
+        };
+        let (events, max_trade_id) = parse_cube_trades(
+            &market,
+            &json!({
+                "result": {
+                    "trades": [
+                        {"tradeId": 10, "price": 677310, "aggressingSide": 0, "fillQuantity": 922, "transactTime": 1774983523280736003_u64},
+                        {"tradeId": 11, "price": 678504, "aggressingSide": 1, "fillQuantity": 3, "transactTime": 1774983618016689462_u64}
+                    ]
+                }
+            }),
+            Some(10),
+        );
+
+        assert_eq!(max_trade_id, Some(11));
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            DataEvent::Trade(trade) => {
+                assert_eq!(trade.symbol.as_ref(), "BTCUSDC");
+                assert_eq!(trade.side, TradeSide::Sell);
+                assert!((trade.price - 67850.4).abs() < 1e-9);
+                assert!((trade.qty - 0.00003).abs() < 1e-12);
+                assert_eq!(trade.trade_id.as_deref(), Some("11"));
+            }
             other => panic!("unexpected event: {other:?}"),
         }
     }

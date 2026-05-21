@@ -47,13 +47,14 @@ Recent parity closes:
 | BingX | Public swap premium-index funding and open-interest endpoints added beside the existing depth/trade stream; force-order liquidation history is private-only in CCXT. | `FundingRate`, `OpenInterest` |
 | MEXC | Public contract funding-rate endpoint added beside the existing spot/futures depth and deals streams; CCXT marks public OI/liquidation fetches unavailable. | `FundingRate` |
 | Bitmart | Public futures open-interest endpoint added beside existing depth/trade/funding streams; public liquidation fetch remains unavailable in CCXT. | `OpenInterest` |
+| Cube | Public market-data REST recent trades added beside existing MBP snapshots with trade-id dedupe. | `Trade` |
 
 Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
 | P0 | Bitfinex derivative analytics | Confirm stable public funding/OI semantics where they are still marked planned; do not fabricate missing domains. |
-| P1 | Cube / XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
+| P1 | XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
 | P2 | Backpack / Aevo / BloFin / Derive / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
 | P2 | Extra CCXT long tail | Add native Rust connectors by liquidity and strategy value, not by blindly wrapping every CCXT file. |
 
