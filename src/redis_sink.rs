@@ -150,7 +150,7 @@ fn redis_event_row(prefix: &str, shared: &SharedEvent) -> RedisEventRow {
         domain,
         symbol: symbol.unwrap_or_else(|| "*".to_string()),
         ts,
-        payload: shared.json.as_ref().to_string(),
+        payload: shared.json().as_ref().to_string(),
     }
 }
 

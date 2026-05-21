@@ -300,11 +300,11 @@ pub fn snapshot_domain_matches(snapshot: &SharedSnapshot, domains: &StreamDomain
 }
 
 pub async fn send_shared_event(socket: &mut WebSocket, event: &SharedEvent) -> StreamSendResult {
-    send_ws(socket, Message::Text(event.json.as_ref().to_string())).await
+    send_ws(socket, Message::Text(event.json().as_ref().to_string())).await
 }
 
 pub async fn send_shared_quote(socket: &mut WebSocket, quote: &SharedQuote) -> StreamSendResult {
-    send_ws(socket, Message::Text(quote.json.as_ref().to_string())).await
+    send_ws(socket, Message::Text(quote.json().as_ref().to_string())).await
 }
 
 pub async fn send_shared_snapshot(

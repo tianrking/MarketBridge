@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use tokio::sync::broadcast;
 
@@ -11,47 +12,62 @@ use crate::types::{
     OrderBookTick, TradeTick,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SharedEvent {
     pub event: Arc<DataEvent>,
-    pub json: Arc<str>,
+    json: OnceLock<Arc<str>>,
 }
 
 impl SharedEvent {
     pub fn new(event: Arc<DataEvent>) -> Self {
-        let json = serde_json::to_string(event.as_ref())
-            .unwrap_or_else(|error| {
-                serde_json::json!({
-                    "type": "serialization_error",
-                    "error": error.to_string(),
-                })
-                .to_string()
-            })
-            .into();
-        Self { event, json }
+        Self {
+            event,
+            json: OnceLock::new(),
+        }
+    }
+
+    pub fn json(&self) -> Arc<str> {
+        self.json
+            .get_or_init(|| serialize_event_json(self.event.as_ref()))
+            .clone()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SharedQuote {
     pub envelope: Arc<DataEnvelope<QuotePayload>>,
-    pub json: Arc<str>,
+    json: OnceLock<Arc<str>>,
 }
 
 impl SharedQuote {
     pub fn new(envelope: DataEnvelope<QuotePayload>) -> Self {
-        let envelope = Arc::new(envelope);
-        let json = serde_json::to_string(envelope.as_ref())
-            .unwrap_or_else(|error| {
-                serde_json::json!({
-                    "type": "serialization_error",
-                    "error": error.to_string(),
-                })
-                .to_string()
-            })
-            .into();
-        Self { envelope, json }
+        Self {
+            envelope: Arc::new(envelope),
+            json: OnceLock::new(),
+        }
     }
+
+    pub fn json(&self) -> Arc<str> {
+        self.json
+            .get_or_init(|| serialize_json(self.envelope.as_ref()))
+            .clone()
+    }
+}
+
+fn serialize_event_json(event: &DataEvent) -> Arc<str> {
+    serialize_json(event)
+}
+
+fn serialize_json<T: serde::Serialize>(value: &T) -> Arc<str> {
+    serde_json::to_string(value)
+        .unwrap_or_else(|error| {
+            serde_json::json!({
+                "type": "serialization_error",
+                "error": error.to_string(),
+            })
+            .to_string()
+        })
+        .into()
 }
 
 #[derive(Clone)]
@@ -140,9 +156,11 @@ impl EventBus {
             DataEvent::Tick(t) => {
                 let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
                 let _ = self.tx.send(normalized);
-                let _ = self
-                    .quote_tx
-                    .send(Arc::new(SharedQuote::new(quote_envelope)));
+                if self.quote_tx.receiver_count() > 0 {
+                    let _ = self
+                        .quote_tx
+                        .send(Arc::new(SharedQuote::new(quote_envelope)));
+                }
             }
             DataEvent::FundingRate(t) => {
                 let _ = self.funding_tx.send(shared.clone());

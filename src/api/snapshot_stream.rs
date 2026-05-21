@@ -53,6 +53,14 @@ impl SnapshotStreamHub {
         self.prediction_tx.subscribe()
     }
 
+    fn has_options_subscribers(&self) -> bool {
+        self.options_tx.receiver_count() > 0
+    }
+
+    fn has_prediction_subscribers(&self) -> bool {
+        self.prediction_tx.receiver_count() > 0
+    }
+
     pub fn spawn(
         &self,
         deribit_cache: DeribitOptionCache,
@@ -69,8 +77,12 @@ impl SnapshotStreamHub {
                 tokio::select! {
                     _ = shutdown.cancelled() => break,
                     _ = interval.tick() => {
-                        hub.publish_options(&deribit_cache).await;
-                        hub.publish_predictions(&polymarket_cache).await;
+                        if hub.has_options_subscribers() {
+                            hub.publish_options(&deribit_cache).await;
+                        }
+                        if hub.has_prediction_subscribers() {
+                            hub.publish_predictions(&polymarket_cache).await;
+                        }
                     }
                 }
             }
