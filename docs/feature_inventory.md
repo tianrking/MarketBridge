@@ -80,7 +80,7 @@ Status labels:
 | Gate | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot bookTicker plus REST book/trades; perp bookTicker plus REST book/trades/contracts funding/OI/liquidations. |
 | Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
 | Kraken | implemented | implemented | implemented | planned | planned | planned | keyless | Spot V2 ticker plus REST order book and recent trades; separate futures ticker today. |
-| HTX | implemented | implemented | implemented | planned | planned | planned | keyless | Spot BBO plus native public REST order book and recent trades. |
+| HTX | implemented | implemented | implemented | implemented | implemented | planned | keyless | Spot BBO plus REST book/trades; linear swap BBO plus REST book/trades/funding/OI. |
 | Bitfinex | implemented | implemented | implemented | planned | planned | planned | keyless | Spot/perp ticker plus native public spot REST order book and recent trades. |
 | Coinbase | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Advanced Trade ticker plus Exchange REST order book and recent trades. |
 | Coincheck | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |

@@ -67,7 +67,7 @@ use super::gate_perp::{GatePerpBookTicker, GatePerpRestFeed};
 use super::gemini::GeminiSpotFeed;
 use super::grvt::GrvtPerpFeed;
 use super::htx::{HtxBbo, HtxSpotRestFeed};
-use super::htx_perp::HtxPerpBbo;
+use super::htx_perp::{HtxPerpBbo, HtxPerpRestFeed};
 use super::hyperliquid::HyperliquidFeed;
 use super::injective::InjectiveFeed;
 use super::kraken::{KrakenRestFeed, KrakenTicker};
@@ -553,9 +553,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(HtxSpotRestFeed::new(htx_spot_symbols)));
                 }
                 if !perp_symbols.is_empty() {
-                    out.push(Arc::new(HtxPerpBbo::new(
-                        perp_symbols.iter().map(|s| to_htx_perp(s)).collect(),
-                    )));
+                    let htx_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_htx_perp(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(HtxPerpBbo::new(htx_perp_symbols.clone())));
+                    out.push(Arc::new(HtxPerpRestFeed::new(htx_perp_symbols)));
                 }
             }
             "bitfinex" => {
