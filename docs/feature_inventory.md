@@ -62,7 +62,7 @@ Status labels:
 | WOO X | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST spot/perp order books and trades plus perp funding and OI. |
 | BTC Markets | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order book and trades; derivatives domains do not apply. |
 | Bullish | implemented | implemented | implemented | n/a | partial | planned | keyless | Native public REST spot ticker, order book, and recent trades; endpoint may be geofenced. |
-| Aevo | partial | implemented | implemented | implemented | planned | planned | keyless | Public perp order books/trades plus REST funding and instrument BBO. |
+| Aevo | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp order books/trades plus REST funding, instrument BBO, and instrument open interest. |
 | Phemex | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST linear perp ticker/book/trades with funding and OI. |
 | Pacifica | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp order books/trades/prices with funding and OI. |
 | Upbit | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |

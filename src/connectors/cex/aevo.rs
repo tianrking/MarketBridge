@@ -12,7 +12,8 @@ use tracing::warn;
 use crate::connectors::cex::common::{parse_array_levels, parse_value_f64, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeSide,
+    TradeTick, now_ms,
 };
 
 const AEVO_REST_URL: &str = "https://api.aevo.xyz";
@@ -307,6 +308,20 @@ fn parse_aevo_funding(symbol: &str, funding: &Value, instrument: &Value) -> Vec<
         }));
     }
 
+    if let Some(open_interest) = instrument
+        .get("markets")
+        .and_then(|markets| markets.get("total_oi"))
+        .and_then(parse_value_f64)
+    {
+        events.push(DataEvent::OpenInterest(OpenInterestTick {
+            exchange: "aevo",
+            symbol: symbol.to_string().into_boxed_str(),
+            open_interest,
+            open_interest_value: mark_price.map(|mark_price| mark_price * open_interest),
+            ts_ms,
+        }));
+    }
+
     events
 }
 
@@ -420,12 +435,13 @@ mod tests {
             &json!({
                 "mark_price":"2129.662945",
                 "index_price":"2129.754844",
+                "markets":{"total_oi":"42.125"},
                 "best_bid":{"price":"2129.31","amount":"0.87"},
                 "best_ask":{"price":"2129.62","amount":"0.9"}
             }),
         );
 
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 3);
         match &events[0] {
             DataEvent::FundingRate(funding) => {
                 assert_eq!(funding.symbol.as_ref(), "ETH-PERP");
@@ -435,5 +451,6 @@ mod tests {
             other => panic!("unexpected event: {other:?}"),
         }
         assert!(matches!(&events[1], DataEvent::Tick(_)));
+        assert!(matches!(&events[2], DataEvent::OpenInterest(_)));
     }
 }
