@@ -68,7 +68,7 @@ Status labels:
 | Upbit | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | GRVT | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp book/trade/ticker streams with funding and OI. |
 | Vertex | partial | implemented | implemented | planned | planned | planned | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids. |
-| Injective | partial | implemented | implemented | implemented | planned | planned | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding poller. |
+| Injective | partial | implemented | implemented | implemented | implemented | planned | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding and OI pollers. |
 | XRPL | partial | implemented | planned | planned | planned | planned | keyless | Public book_offers snapshots; issuer-aware mapping currently includes XRP/USD. |
 | Architect | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. |
 | Decibel | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. |

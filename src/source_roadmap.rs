@@ -364,7 +364,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_SPOT,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "Public LCD/Sentry spot/perp order books and trades wired; perp funding poller added.",
+        notes: "Public LCD/Sentry spot/perp order books and trades wired; perp funding and open-interest pollers added.",
     },
     RoadmapSource {
         source: "phemex",

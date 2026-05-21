@@ -10,8 +10,8 @@ use tracing::warn;
 use crate::connectors::cex::common::{parse_object_levels, parse_value_f64};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick,
+    TradeSide, TradeTick, now_ms,
 };
 
 const LCD_BASE: &str = "https://lcd.injective.network/injective/exchange/v1beta1";
@@ -188,6 +188,16 @@ async fn poll_injective_market(
             .json::<Value>()
             .await?;
         events.extend(parse_injective_funding(market, &funding));
+
+        let open_interest = client
+            .get(format!("{SENTRY_BASE}/derivative/v1/openInterest"))
+            .query(&[("marketIDs", market.market_id.as_str())])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?;
+        events.extend(parse_injective_open_interest(market, &open_interest));
     }
 
     Ok(events)
@@ -362,6 +372,38 @@ fn parse_injective_funding(market: &InjectiveMarket, value: &Value) -> Vec<DataE
     })]
 }
 
+fn parse_injective_open_interest(market: &InjectiveMarket, value: &Value) -> Vec<DataEvent> {
+    let Some(row) = value
+        .get("openInterests")
+        .and_then(Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("marketId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| id.eq_ignore_ascii_case(&market.market_id))
+            })
+        })
+        .or_else(|| {
+            value
+                .get("openInterests")
+                .and_then(Value::as_array)
+                .and_then(|items| items.first())
+        })
+    else {
+        return Vec::new();
+    };
+    let Some(open_interest) = row.get("openInterest").and_then(parse_value_f64) else {
+        return Vec::new();
+    };
+    vec![DataEvent::OpenInterest(OpenInterestTick {
+        exchange: "injective",
+        symbol: market.symbol.clone().into_boxed_str(),
+        open_interest,
+        open_interest_value: None,
+        ts_ms: now_ms(),
+    })]
+}
+
 fn normalize_price(market: &InjectiveMarket, price: f64) -> f64 {
     match market.market {
         MarketKind::Spot => price * 10f64.powi(market.base_decimals - market.quote_decimals),
@@ -466,5 +508,24 @@ mod tests {
             &json!({"fundingRates":[{"rate":"0.000038","timestamp":1779289200163u64}]}),
         );
         assert!(matches!(&events[0], DataEvent::FundingRate(_)));
+    }
+
+    #[test]
+    fn injective_parses_open_interest() {
+        let events = parse_injective_open_interest(
+            &perp_market(),
+            &json!({"openInterests":[{
+                "marketId":"0xabc",
+                "openInterest":"0.8951"
+            }]}),
+        );
+        match &events[0] {
+            DataEvent::OpenInterest(oi) => {
+                assert_eq!(oi.exchange, "injective");
+                assert_eq!(oi.symbol.as_ref(), "BTC/USDC-PERP");
+                assert_eq!(oi.open_interest, 0.8951);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }
