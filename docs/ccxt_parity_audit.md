@@ -51,13 +51,14 @@ Recent parity closes:
 | Cube | Public market-data REST recent trades added beside existing MBP snapshots with trade-id dedupe. | `Trade` |
 | KuCoin | Futures REST depth, recent trades, funding, and open-interest metrics added; BTC futures id mapping fixed to `XBTUSDTM`. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
 | Kraken | Futures REST ticker, depth, recent trades, funding, and open-interest metrics added with `PF_` symbol mapping. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
+| BloFin | Public perp open-interest endpoint added beside existing REST ticker, depth, trades, and funding. | `OpenInterest` |
 
 Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
 | P1 | XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
-| P2 | Backpack / Aevo / BloFin / Derive / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
+| P2 | Backpack / Aevo / Derive / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
 | P2 | Extra CCXT long tail | Add native Rust connectors by liquidity and strategy value, not by blindly wrapping every CCXT file. |
 
 Rule for future work:

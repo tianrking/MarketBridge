@@ -55,7 +55,7 @@ Status labels:
 | Bitrue | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot simple-depth stream plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
 | Bithumb | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Bitvavo | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
-| BloFin | implemented | implemented | implemented | implemented | planned | planned | keyless | Native public REST perp ticker, order book, trades, and funding. |
+| BloFin | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. |
 | bitFlyer | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | bitbank | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | AscendEX | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint; derivatives domains do not apply. |

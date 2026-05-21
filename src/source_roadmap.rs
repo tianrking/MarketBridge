@@ -194,7 +194,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_CCXT,
         marketbridge_status: "implemented",
         priority: "P2",
-        notes: "Native public REST perp ticker, order book, trades, and funding are wired without external runtime dependency.",
+        notes: "Native public REST perp ticker, order book, trades, funding, and open interest are wired without external runtime dependency.",
     },
     RoadmapSource {
         source: "btc_markets",

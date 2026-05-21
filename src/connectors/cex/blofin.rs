@@ -9,7 +9,8 @@ use tracing::warn;
 use crate::connectors::cex::common::{parse_array_levels, parse_value_f64, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeTick,
+    now_ms,
 };
 
 const BLOFIN_REST_URL: &str = "https://openapi.blofin.com/api/v1";
@@ -103,6 +104,16 @@ async fn poll_blofin_market(client: &reqwest::Client, symbol: &str) -> Result<Ve
         .json::<Value>()
         .await?;
     events.extend(parse_blofin_funding(symbol, &funding));
+
+    let open_interest = client
+        .get(format!("{BLOFIN_REST_URL}/market/open-interest"))
+        .query(&[("instId", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    events.extend(parse_blofin_open_interest(symbol, &open_interest));
 
     Ok(events)
 }
@@ -257,6 +268,32 @@ fn parse_blofin_funding(symbol: &str, value: &Value) -> Vec<DataEvent> {
         .unwrap_or_default()
 }
 
+fn parse_blofin_open_interest(symbol: &str, value: &Value) -> Vec<DataEvent> {
+    let row = first_data_row(value);
+    row.get("openInterestCurrency")
+        .or_else(|| row.get("openInterest"))
+        .and_then(parse_value_f64)
+        .map(|open_interest| {
+            vec![DataEvent::OpenInterest(OpenInterestTick {
+                exchange: "blofin",
+                symbol: row
+                    .get("instId")
+                    .and_then(Value::as_str)
+                    .unwrap_or(symbol)
+                    .to_ascii_uppercase()
+                    .into_boxed_str(),
+                open_interest,
+                open_interest_value: row.get("openInterest").and_then(parse_value_f64),
+                ts_ms: row
+                    .get("ts")
+                    .and_then(parse_value_f64)
+                    .map(|ts| ts as u64)
+                    .unwrap_or_else(now_ms),
+            })]
+        })
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,10 +338,20 @@ mod tests {
                 "fundingTime": "1779321600000"
             }]}),
         );
+        let open_interest = parse_blofin_open_interest(
+            "BTC-USDT",
+            &json!({"data": [{
+                "instId": "BTC-USDT",
+                "openInterest": "5284413",
+                "openInterestCurrency": "5284.413",
+                "ts": "1779330660000"
+            }]}),
+        );
 
         assert!(matches!(ticker[0], DataEvent::Tick(_)));
         assert!(matches!(book[1], DataEvent::OrderBook(_)));
         assert!(matches!(trades[0], DataEvent::Trade(_)));
         assert!(matches!(funding[0], DataEvent::FundingRate(_)));
+        assert!(matches!(open_interest[0], DataEvent::OpenInterest(_)));
     }
 }
