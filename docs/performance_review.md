@@ -215,8 +215,9 @@ Without a dedicated load test, treat these as engineering estimates only:
 2. Extend pre-serialized payloads to quote envelopes where it has clear value.
 3. Use the synthetic load generator in CI/manual release checks and record
    measured throughput per machine class.
-4. Add API key/rate-limit layer before exposing this as a public multi-tenant
-   data service.
+4. Use `runtime.api_key_env` / `runtime.api_key` and
+   `runtime.api_rate_limit_per_minute` before exposing this as a public
+   multi-tenant data service.
 
 ## Bottom Line
 

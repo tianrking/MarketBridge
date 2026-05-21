@@ -14,6 +14,12 @@ pub struct RuntimeConfig {
     pub stale_ttl_ms: u64,
     #[serde(default = "default_api_addr")]
     pub api_addr: String,
+    #[serde(default = "default_api_key_env")]
+    pub api_key_env: Option<String>,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub api_rate_limit_per_minute: u64,
     #[serde(default)]
     pub redis_url: Option<String>,
     #[serde(default = "default_redis_stream_prefix")]
@@ -54,6 +60,10 @@ impl RuntimeConfig {
 
 fn default_api_addr() -> String {
     "0.0.0.0:8080".to_string()
+}
+
+fn default_api_key_env() -> Option<String> {
+    Some("MARKETBRIDGE_API_KEY".to_string())
 }
 
 fn default_broadcast_capacity() -> usize {

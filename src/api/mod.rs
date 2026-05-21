@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum::middleware;
 use axum::routing::{delete, get};
 
 use crate::catalog::CatalogSource;
+use crate::config::RuntimeConfig;
 use crate::data_lake::DataLakeStore;
 use crate::deribit_cache::DeribitOptionCache;
 use crate::event_bus::EventBus;
@@ -14,6 +16,7 @@ use crate::order_flow::OrderFlowStore;
 use crate::polymarket_ws::PolymarketBookCache;
 
 pub mod error;
+pub mod guard;
 pub mod routes;
 pub mod snapshot_stream;
 pub mod streaming;
@@ -32,9 +35,17 @@ pub struct ApiState {
     pub order_flow_store: OrderFlowStore,
     pub onchain_store: OnchainTransferStore,
     pub snapshot_stream_hub: snapshot_stream::SnapshotStreamHub,
+    pub api_access_guard: guard::ApiAccessGuard,
+}
+
+impl ApiState {
+    pub fn api_access_guard_from_runtime(runtime: &RuntimeConfig) -> guard::ApiAccessGuard {
+        guard::ApiAccessGuard::from_runtime(runtime)
+    }
 }
 
 pub fn build_router(state: ApiState) -> Router {
+    let api_access_guard = state.api_access_guard.clone();
     Router::new()
         .route("/ws/ticks", get(routes::stream::ws_ticks))
         .route("/v1/stream", get(routes::stream::v1_stream))
@@ -200,5 +211,9 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/coverage", get(routes::legacy::coverage))
         .route("/metrics", get(routes::system::metrics))
         .route("/", get(routes::system::root))
+        .layer(middleware::from_fn_with_state(
+            api_access_guard,
+            guard::api_guard,
+        ))
         .with_state(Arc::new(state))
 }

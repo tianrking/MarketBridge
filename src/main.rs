@@ -107,6 +107,7 @@ async fn main() -> anyhow::Result<()> {
         order_flow_store: order_flow_store.clone(),
         onchain_store: onchain_store.clone(),
         snapshot_stream_hub: snapshot_stream_hub.clone(),
+        api_access_guard: ApiState::api_access_guard_from_runtime(&cfg.runtime),
     });
     let api_addr = cfg.runtime.api_addr.clone();
     let api_shutdown = shutdown.clone();

@@ -60,6 +60,20 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 ```
 
+If `runtime.api_key` is configured, or the environment variable named by
+`runtime.api_key_env` is present, send either header:
+
+```bash
+curl -H "x-api-key: $MARKETBRIDGE_API_KEY" \
+  -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
+
+curl -H "authorization: Bearer $MARKETBRIDGE_API_KEY" \
+  -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
+```
+
+Set `runtime.api_rate_limit_per_minute` to a positive value to enable the
+in-process per-client limiter. `0` disables rate limiting for local research.
+
 Synthetic local load test:
 
 ```bash

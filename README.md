@@ -413,6 +413,12 @@ Default file: `config.yaml`
 - `runtime.report_interval_ms`: signal report interval
 - `runtime.stale_ttl_ms`: stale threshold
 - `runtime.api_addr`: API bind address
+- `runtime.api_key_env`: optional environment variable used for API auth;
+  default is `MARKETBRIDGE_API_KEY`
+- `runtime.api_key`: optional direct API key value; prefer env for shared
+  deployments
+- `runtime.api_rate_limit_per_minute`: optional in-process per-client limiter;
+  `0` disables it
 - `runtime.redis_url`: optional Redis sink
 - `runtime.redis_stream_prefix`: Redis Stream prefix when Redis is enabled
 - `runtime.redis_dead_letter_path`: JSONL dead-letter path for Redis batches that still fail after retries

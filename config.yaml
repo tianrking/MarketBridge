@@ -30,6 +30,13 @@ runtime:
   # WebSocket send timeout before disconnecting a slow client.
   ws_send_timeout_ms: 3000
 
+  # Optional public-service protection. By default MARKETBRIDGE_API_KEY is read
+  # if present; leave api_key unset for local unauthenticated use.
+  api_key_env: MARKETBRIDGE_API_KEY
+  # api_key: "replace-me"
+  # 0 disables the in-process per-client limiter.
+  api_rate_limit_per_minute: 0
+
   # Large trade threshold used by /v1/market/order-flow.
   order_flow_large_trade_notional_usdt: 100000.0
 
