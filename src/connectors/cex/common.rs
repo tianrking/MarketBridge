@@ -136,15 +136,35 @@ pub fn side_from_labels(side: &str, buy_labels: &[&str], sell_labels: &[&str]) -
 
 pub fn parse_exchange_datetime_ms(text: &str) -> Option<u64> {
     let cleaned = text.trim_end_matches('Z').replace('T', " ");
-    let cleaned = cleaned.split('.').next().unwrap_or(&cleaned);
-    let mut parts = cleaned.split([' ', '-', ':']);
+    let (datetime, fraction) = cleaned
+        .split_once('.')
+        .map_or((cleaned.as_str(), None), |(datetime, fraction)| {
+            (datetime, Some(fraction))
+        });
+    let mut parts = datetime.split([' ', '-', ':']);
     let year = parts.next()?.parse::<i64>().ok()?;
     let month = parts.next()?.parse::<i64>().ok()?;
     let day = parts.next()?.parse::<i64>().ok()?;
     let hour = parts.next()?.parse::<i64>().ok()?;
     let minute = parts.next()?.parse::<i64>().ok()?;
     let second = parts.next()?.parse::<i64>().ok()?;
-    Some(datetime_to_unix_ms(year, month, day, hour, minute, second))
+    Some(datetime_to_unix_ms(year, month, day, hour, minute, second) + fraction_ms(fraction))
+}
+
+fn fraction_ms(fraction: Option<&str>) -> u64 {
+    let Some(fraction) = fraction else {
+        return 0;
+    };
+    let digits = fraction
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .take(3)
+        .collect::<String>();
+    if digits.is_empty() {
+        return 0;
+    }
+    let padded = format!("{digits:0<3}");
+    padded.parse::<u64>().unwrap_or(0)
 }
 
 fn datetime_to_unix_ms(
@@ -195,8 +215,12 @@ mod tests {
             TradeSide::Buy
         );
         assert_eq!(
-            parse_exchange_datetime_ms("2026-05-20T16:58:43.000Z"),
-            Some(1_779_296_323_000)
+            parse_exchange_datetime_ms("2026-05-20T16:58:43.789Z"),
+            Some(1_779_296_323_789)
+        );
+        assert_eq!(
+            parse_exchange_datetime_ms("2026-05-20T16:58:43.7Z"),
+            Some(1_779_296_323_700)
         );
         assert_eq!(
             parse_exchange_datetime_ms("2026-05-21 01:45:46"),
