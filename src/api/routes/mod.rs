@@ -5,6 +5,7 @@ pub mod market;
 pub mod onchain;
 pub mod options;
 pub mod prediction;
+pub mod research;
 pub mod stream;
 pub mod system;
 pub mod universe;

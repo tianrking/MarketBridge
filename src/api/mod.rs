@@ -106,6 +106,11 @@ pub fn build_router(state: ApiState) -> Router {
             "/v1/universe/delist-risk",
             get(routes::universe::delist_risk),
         )
+        .route("/v1/research/features", get(routes::research::features))
+        .route(
+            "/v1/research/market-regime",
+            get(routes::research::market_regime),
+        )
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))
         .route("/funding", get(routes::legacy::funding))
