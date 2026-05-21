@@ -32,11 +32,33 @@ impl SharedEvent {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct SharedQuote {
+    pub envelope: Arc<DataEnvelope<QuotePayload>>,
+    pub json: Arc<str>,
+}
+
+impl SharedQuote {
+    pub fn new(envelope: DataEnvelope<QuotePayload>) -> Self {
+        let envelope = Arc::new(envelope);
+        let json = serde_json::to_string(envelope.as_ref())
+            .unwrap_or_else(|error| {
+                serde_json::json!({
+                    "type": "serialization_error",
+                    "error": error.to_string(),
+                })
+                .to_string()
+            })
+            .into();
+        Self { envelope, json }
+    }
+}
+
 #[derive(Clone)]
 pub struct EventBus {
     tx: broadcast::Sender<NormalizedTick>,
     event_tx: broadcast::Sender<Arc<SharedEvent>>,
-    quote_tx: broadcast::Sender<DataEnvelope<QuotePayload>>,
+    quote_tx: broadcast::Sender<Arc<SharedQuote>>,
     funding_tx: broadcast::Sender<Arc<SharedEvent>>,
     open_interest_tx: broadcast::Sender<Arc<SharedEvent>>,
     trade_tx: broadcast::Sender<Arc<SharedEvent>>,
@@ -91,7 +113,7 @@ impl EventBus {
         self.event_tx.subscribe()
     }
 
-    pub fn subscribe_quotes(&self) -> broadcast::Receiver<DataEnvelope<QuotePayload>> {
+    pub fn subscribe_quotes(&self) -> broadcast::Receiver<Arc<SharedQuote>> {
         self.quote_tx.subscribe()
     }
 
@@ -118,7 +140,9 @@ impl EventBus {
             DataEvent::Tick(t) => {
                 let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
                 let _ = self.tx.send(normalized);
-                let _ = self.quote_tx.send(quote_envelope);
+                let _ = self
+                    .quote_tx
+                    .send(Arc::new(SharedQuote::new(quote_envelope)));
             }
             DataEvent::FundingRate(t) => {
                 let _ = self.funding_tx.send(shared.clone());

@@ -11,7 +11,8 @@ use tracing::warn;
 use crate::api::ApiState;
 use crate::api::streaming::{
     EnvelopeFilter, SUPPORTED_STREAM_DOMAINS, StreamDomainFilter, TickFilter, event_matches,
-    send_json, send_shared_event, send_shared_snapshot, send_ws, snapshot_domain_matches,
+    send_json, send_shared_event, send_shared_quote, send_shared_snapshot, send_ws,
+    snapshot_domain_matches,
 };
 use crate::event_bus::EventBus;
 use crate::metrics::AppMetrics;
@@ -100,10 +101,10 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
             }, if quote_rx.is_some() => {
                 match msg {
                     Some(Ok(envelope)) => {
-                        if !filter.matches(&envelope) {
+                        if !filter.matches(envelope.envelope.as_ref()) {
                             continue;
                         }
-                        if let Err(error) = crate::api::streaming::send_envelope(&mut socket, &envelope).await {
+                        if let Err(error) = send_shared_quote(&mut socket, envelope.as_ref()).await {
                             warn!(%error, "v1 stream quote send failed");
                             break;
                         }

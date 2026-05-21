@@ -11,7 +11,7 @@ use crate::api::routes::stream::{TickFilterQuery, V1StreamQuery};
 use crate::api::snapshot_stream::{SharedSnapshot, SnapshotStreamDomain};
 use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::{DataEnvelope, ProductType};
-use crate::event_bus::{EventDomain, NormalizedTick, SharedEvent};
+use crate::event_bus::{EventDomain, NormalizedTick, SharedEvent, SharedQuote};
 use crate::types::{DataEvent, MarketKind};
 
 const DEFAULT_WS_SEND_TIMEOUT_MS: u64 = 3_000;
@@ -303,18 +303,15 @@ pub async fn send_shared_event(socket: &mut WebSocket, event: &SharedEvent) -> S
     send_ws(socket, Message::Text(event.json.as_ref().to_string())).await
 }
 
+pub async fn send_shared_quote(socket: &mut WebSocket, quote: &SharedQuote) -> StreamSendResult {
+    send_ws(socket, Message::Text(quote.json.as_ref().to_string())).await
+}
+
 pub async fn send_shared_snapshot(
     socket: &mut WebSocket,
     snapshot: &SharedSnapshot,
 ) -> StreamSendResult {
     send_ws(socket, Message::Text(snapshot.json.as_ref().to_string())).await
-}
-
-pub async fn send_envelope<T: Serialize>(
-    socket: &mut WebSocket,
-    envelope: &DataEnvelope<T>,
-) -> StreamSendResult {
-    send_json(socket, envelope, "v1 stream serialize failed").await
 }
 
 pub async fn send_json<T: Serialize>(
