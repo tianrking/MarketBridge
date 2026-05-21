@@ -11,8 +11,7 @@ use tracing::warn;
 use crate::api::ApiState;
 use crate::api::streaming::{
     EnvelopeFilter, SUPPORTED_STREAM_DOMAINS, StreamDomainFilter, TickFilter, event_matches,
-    send_json, send_shared_event, send_shared_quote, send_shared_snapshot, send_ws,
-    snapshot_domain_matches,
+    send_shared_event, send_shared_quote, send_shared_snapshot, send_ws, snapshot_domain_matches,
 };
 use crate::event_bus::EventBus;
 use crate::metrics::AppMetrics;
@@ -246,10 +245,10 @@ async fn ws_loop(
             msg = rx.recv() => {
                 match msg {
                     Ok(tick) => {
-                        if !filter.matches(&tick) {
+                        if !filter.matches(tick.tick.as_ref()) {
                             continue;
                         }
-                        if let Err(error) = send_json(&mut socket, &tick, "ws serialize failed").await {
+                        if let Err(error) = send_ws(&mut socket, Message::Text(tick.json().as_ref().to_string())).await {
                             warn!(%error, "legacy tick stream send failed");
                             break;
                         }

@@ -13,6 +13,27 @@ use crate::types::{
 };
 
 #[derive(Debug)]
+pub struct SharedTick {
+    pub tick: Arc<NormalizedTick>,
+    json: OnceLock<Arc<str>>,
+}
+
+impl SharedTick {
+    pub fn new(tick: NormalizedTick) -> Self {
+        Self {
+            tick: Arc::new(tick),
+            json: OnceLock::new(),
+        }
+    }
+
+    pub fn json(&self) -> Arc<str> {
+        self.json
+            .get_or_init(|| serialize_json(self.tick.as_ref()))
+            .clone()
+    }
+}
+
+#[derive(Debug)]
 pub struct SharedEvent {
     pub event: Arc<DataEvent>,
     json: OnceLock<Arc<str>>,
@@ -72,7 +93,7 @@ fn serialize_json<T: serde::Serialize>(value: &T) -> Arc<str> {
 
 #[derive(Clone)]
 pub struct EventBus {
-    tx: broadcast::Sender<NormalizedTick>,
+    tx: broadcast::Sender<Arc<SharedTick>>,
     event_tx: broadcast::Sender<Arc<SharedEvent>>,
     quote_tx: broadcast::Sender<Arc<SharedQuote>>,
     funding_tx: broadcast::Sender<Arc<SharedEvent>>,
@@ -121,7 +142,7 @@ impl EventBus {
         }
     }
 
-    pub fn subscribe(&self) -> broadcast::Receiver<NormalizedTick> {
+    pub fn subscribe(&self) -> broadcast::Receiver<Arc<SharedTick>> {
         self.tx.subscribe()
     }
 
@@ -155,7 +176,9 @@ impl EventBus {
         match shared.event.as_ref() {
             DataEvent::Tick(t) => {
                 let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
-                let _ = self.tx.send(normalized);
+                if self.tx.receiver_count() > 0 {
+                    let _ = self.tx.send(Arc::new(SharedTick::new(normalized)));
+                }
                 if self.quote_tx.receiver_count() > 0 {
                     let _ = self
                         .quote_tx

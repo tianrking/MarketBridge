@@ -141,7 +141,7 @@ pub fn spawn_kline_service(
                 received = rx.recv() => {
                     match received {
                         Ok(tick) => {
-                            for bar in aggregator.update(tick) {
+                            for bar in aggregator.update(tick.tick.as_ref()) {
                                 if tx.try_send(bar).is_err() {
                                     warn!("kline writer channel full, dropping realtime kline update");
                                 }
@@ -386,7 +386,7 @@ impl RealtimeKlineAggregator {
         }
     }
 
-    fn update(&mut self, tick: NormalizedTick) -> Vec<KlineBar> {
+    fn update(&mut self, tick: &NormalizedTick) -> Vec<KlineBar> {
         let price = (tick.bid + tick.ask) / 2.0;
         if !price.is_finite() || price <= 0.0 {
             return Vec::new();
@@ -671,10 +671,10 @@ mod tests {
             ..first.clone()
         };
 
-        let bar = agg.update(first).pop().expect("first bar");
+        let bar = agg.update(&first).pop().expect("first bar");
         assert_eq!(bar.open_time_ms, 60_000);
         assert_eq!(bar.open, 100.0);
-        let bar = agg.update(second).pop().expect("updated bar");
+        let bar = agg.update(&second).pop().expect("updated bar");
         assert_eq!(bar.open, 100.0);
         assert_eq!(bar.high, 110.0);
         assert_eq!(bar.close, 110.0);
@@ -685,7 +685,7 @@ mod tests {
         let mut agg = RealtimeKlineAggregator::new(vec!["1m".to_string()]);
         for minute in 0..1_010_u64 {
             let ts = minute * 60_000 + 1;
-            agg.update(NormalizedTick {
+            agg.update(&NormalizedTick {
                 version: "v1",
                 exchange: "binance",
                 market: "spot",

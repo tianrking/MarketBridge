@@ -3,9 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket};
-use serde::Serialize;
 use tokio::time::timeout;
-use tracing::warn;
 
 use crate::api::routes::stream::{TickFilterQuery, V1StreamQuery};
 use crate::api::snapshot_stream::{SharedSnapshot, SnapshotStreamDomain};
@@ -312,20 +310,6 @@ pub async fn send_shared_snapshot(
     snapshot: &SharedSnapshot,
 ) -> StreamSendResult {
     send_ws(socket, Message::Text(snapshot.json.as_ref().to_string())).await
-}
-
-pub async fn send_json<T: Serialize>(
-    socket: &mut WebSocket,
-    value: &T,
-    error_message: &'static str,
-) -> StreamSendResult {
-    match serde_json::to_string(value) {
-        Ok(line) => send_ws(socket, Message::Text(line)).await,
-        Err(error) => {
-            warn!(%error, error_message);
-            Err(format!("{error_message}: {error}"))
-        }
-    }
 }
 
 pub type StreamSendResult = Result<(), String>;
