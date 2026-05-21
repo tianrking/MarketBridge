@@ -319,13 +319,11 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(VertexFeed::new(markets)));
                 }
             }
-            "injective" => {
-                if !spot_symbols.is_empty() || !perp_symbols.is_empty() {
-                    out.push(Arc::new(InjectiveFeed::new(
-                        spot_symbols.iter().map(|s| to_injective_spot(s)).collect(),
-                        perp_symbols.iter().map(|s| to_injective_perp(s)).collect(),
-                    )));
-                }
+            "injective" if !spot_symbols.is_empty() || !perp_symbols.is_empty() => {
+                out.push(Arc::new(InjectiveFeed::new(
+                    spot_symbols.iter().map(|s| to_injective_spot(s)).collect(),
+                    perp_symbols.iter().map(|s| to_injective_perp(s)).collect(),
+                )));
             }
             "xrpl" if !spot_symbols.is_empty() => {
                 let pairs = spot_symbols

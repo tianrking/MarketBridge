@@ -166,22 +166,22 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                         })
                         .await;
                     for envelope in rows.into_iter().map(envelope_from_deribit_summary) {
-                        if filter.matches(&envelope) {
-                            if let Err(error) = send_envelope(&mut socket, &envelope).await {
-                                warn!(%error, "v1 stream options snapshot send failed");
-                                return;
-                            }
+                        if filter.matches(&envelope)
+                            && let Err(error) = send_envelope(&mut socket, &envelope).await
+                        {
+                            warn!(%error, "v1 stream options snapshot send failed");
+                            return;
                         }
                     }
                 }
                 if domains.prediction_book {
                     let rows = state.polymarket_cache.all().await;
                     for envelope in rows.into_iter().map(envelope_from_polymarket_book) {
-                        if filter.matches(&envelope) {
-                            if let Err(error) = send_envelope(&mut socket, &envelope).await {
-                                warn!(%error, "v1 stream prediction snapshot send failed");
-                                return;
-                            }
+                        if filter.matches(&envelope)
+                            && let Err(error) = send_envelope(&mut socket, &envelope).await
+                        {
+                            warn!(%error, "v1 stream prediction snapshot send failed");
+                            return;
                         }
                     }
                 }
