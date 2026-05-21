@@ -65,6 +65,7 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::market::v1_market_footprint),
         )
         .route("/v1/market/klines", get(routes::market::v1_market_klines))
+        .route("/v1/history/candles", get(routes::history::candles))
         .route(
             "/v1/market/liquidations",
             get(routes::market::v1_market_liquidations),
@@ -123,6 +124,8 @@ pub fn build_router(state: ApiState) -> Router {
             "/v1/storage/partitions",
             delete(routes::storage::delete_partitions),
         )
+        .route("/v1/agent/context", get(routes::agent::context))
+        .route("/v1/agent/capabilities", get(routes::agent::capabilities))
         .route("/health", get(routes::system::health))
         .route("/snapshot", get(routes::legacy::snapshot))
         .route("/funding", get(routes::legacy::funding))

@@ -1,9 +1,14 @@
 use std::collections::{HashMap, HashSet};
-use std::fs::OpenOptions;
-use std::io::{BufWriter, Write};
+use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
+use arrow_array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
+use arrow_schema::{DataType, Field, Schema};
+use parquet::arrow::ArrowWriter;
+use parquet::basic::Compression;
+use parquet::file::properties::WriterProperties;
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 
@@ -201,14 +206,14 @@ fn persist_klines_blocking(
     let mut conn = Connection::open(manifest_path)?;
     let mut written = 0;
     for partition in partitions {
-        let path = partition_path(root_dir, &partition.key, "jsonl");
+        let path = partition_path(root_dir, &partition.key, "parquet");
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let stats = quality_stats(&partition.rows, &partition.key.interval);
-        write_jsonl(&path, &partition.rows)?;
+        write_parquet(&path, &partition.rows)?;
         let bytes = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
-        upsert_manifest(&mut conn, &partition.key, &path, "jsonl", bytes, &stats)?;
+        upsert_manifest(&mut conn, &partition.key, &path, "parquet", bytes, &stats)?;
         written += 1;
     }
     Ok(written)
@@ -248,14 +253,89 @@ fn partition_klines(rows: Vec<KlineBar>, candle_type: String) -> Vec<PartitionWr
     grouped.into_values().collect()
 }
 
-fn write_jsonl(path: &Path, rows: &[KlineBar]) -> Result<()> {
-    let file = OpenOptions::new().create(true).append(true).open(path)?;
-    let mut writer = BufWriter::new(file);
-    for row in rows {
-        serde_json::to_writer(&mut writer, row)?;
-        writer.write_all(b"\n")?;
-    }
-    writer.flush()?;
+fn write_parquet(path: &Path, rows: &[KlineBar]) -> Result<()> {
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("exchange", DataType::Utf8, false),
+        Field::new("market", DataType::Utf8, false),
+        Field::new("symbol", DataType::Utf8, false),
+        Field::new("interval", DataType::Utf8, false),
+        Field::new("open_time_ms", DataType::Int64, false),
+        Field::new("close_time_ms", DataType::Int64, false),
+        Field::new("open", DataType::Float64, false),
+        Field::new("high", DataType::Float64, false),
+        Field::new("low", DataType::Float64, false),
+        Field::new("close", DataType::Float64, false),
+        Field::new("volume", DataType::Float64, true),
+        Field::new("source", DataType::Utf8, false),
+        Field::new("updated_at_ms", DataType::Int64, false),
+    ]));
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(StringArray::from(
+                rows.iter()
+                    .map(|row| row.exchange.as_str())
+                    .collect::<Vec<_>>(),
+            )) as ArrayRef,
+            Arc::new(StringArray::from(
+                rows.iter()
+                    .map(|row| row.market.as_str())
+                    .collect::<Vec<_>>(),
+            )),
+            Arc::new(StringArray::from(
+                rows.iter()
+                    .map(|row| row.symbol.as_str())
+                    .collect::<Vec<_>>(),
+            )),
+            Arc::new(StringArray::from(
+                rows.iter()
+                    .map(|row| row.interval.as_str())
+                    .collect::<Vec<_>>(),
+            )),
+            Arc::new(Int64Array::from(
+                rows.iter()
+                    .map(|row| row.open_time_ms as i64)
+                    .collect::<Vec<_>>(),
+            )),
+            Arc::new(Int64Array::from(
+                rows.iter()
+                    .map(|row| row.close_time_ms as i64)
+                    .collect::<Vec<_>>(),
+            )),
+            Arc::new(Float64Array::from(
+                rows.iter().map(|row| row.open).collect::<Vec<_>>(),
+            )),
+            Arc::new(Float64Array::from(
+                rows.iter().map(|row| row.high).collect::<Vec<_>>(),
+            )),
+            Arc::new(Float64Array::from(
+                rows.iter().map(|row| row.low).collect::<Vec<_>>(),
+            )),
+            Arc::new(Float64Array::from(
+                rows.iter().map(|row| row.close).collect::<Vec<_>>(),
+            )),
+            Arc::new(Float64Array::from(
+                rows.iter().map(|row| row.volume).collect::<Vec<_>>(),
+            )),
+            Arc::new(StringArray::from(
+                rows.iter()
+                    .map(|row| row.source.as_str())
+                    .collect::<Vec<_>>(),
+            )),
+            Arc::new(Int64Array::from(
+                rows.iter()
+                    .map(|row| row.updated_at_ms as i64)
+                    .collect::<Vec<_>>(),
+            )),
+        ],
+    )?;
+    let file = File::create(path)?;
+    let props = WriterProperties::builder()
+        .set_compression(Compression::SNAPPY)
+        .build();
+    let mut writer = ArrowWriter::try_new(file, schema, Some(props))?;
+    writer.write(&batch)?;
+    writer.close()?;
     Ok(())
 }
 
