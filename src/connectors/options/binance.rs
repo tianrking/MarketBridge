@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use reqwest::Url;
 use serde::Deserialize;
 
-use super::common::{OptionSummary, option_side_from_code, parse_f64_opt, parse_yy_mm_dd_expiry};
+use super::common::{
+    OptionBook, OptionSummary, option_side_from_code, parse_f64_opt, parse_yy_mm_dd_expiry,
+};
+use crate::types::BookLevel;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +41,19 @@ struct BinanceOptionMark {
     theta: Option<String>,
     #[serde(default)]
     vega: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BinanceOptionDepth {
+    #[serde(default)]
+    bids: Vec<[String; 2]>,
+    #[serde(default)]
+    asks: Vec<[String; 2]>,
+    #[serde(default)]
+    last_update_id: Option<u64>,
+    #[serde(default, rename = "T")]
+    time: Option<u64>,
 }
 
 pub async fn fetch_binance_option_summaries_from(
@@ -92,6 +108,78 @@ pub async fn fetch_binance_option_summaries_from(
         .collect())
 }
 
+pub async fn fetch_binance_option_book_from(
+    client: &reqwest::Client,
+    base_url: &str,
+    instrument_name: &str,
+    depth: usize,
+) -> Result<OptionBook> {
+    let mut url = Url::parse(base_url)?.join("eapi/v1/depth")?;
+    url.query_pairs_mut()
+        .append_pair("symbol", instrument_name)
+        .append_pair("limit", &binance_depth_limit(depth).to_string());
+
+    let response = client
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<BinanceOptionDepth>()
+        .await
+        .context("failed to decode binance option order book")?;
+
+    Ok(response.into_book(instrument_name))
+}
+
+impl BinanceOptionDepth {
+    fn into_book(self, instrument_name: &str) -> OptionBook {
+        let bids = binance_levels(self.bids);
+        let asks = binance_levels(self.asks);
+        OptionBook {
+            venue: "binance".to_string(),
+            instrument_name: instrument_name.to_string(),
+            timestamp: self.time,
+            state: self
+                .last_update_id
+                .map(|value| format!("last_update_id:{value}")),
+            bid_price: bids.first().map(|level| level.price),
+            ask_price: asks.first().map(|level| level.price),
+            mark_price: None,
+            mark_iv: None,
+            underlying_price: None,
+            underlying_index: None,
+            open_interest: None,
+            delta: None,
+            gamma: None,
+            theta: None,
+            vega: None,
+            bids,
+            asks,
+        }
+    }
+}
+
+fn binance_depth_limit(depth: usize) -> usize {
+    match depth {
+        0..=10 => 10,
+        11..=20 => 20,
+        21..=50 => 50,
+        51..=100 => 100,
+        _ => 1000,
+    }
+}
+
+fn binance_levels(rows: Vec<[String; 2]>) -> Vec<BookLevel> {
+    rows.into_iter()
+        .filter_map(|row| {
+            Some(BookLevel {
+                price: parse_f64_opt(Some(row[0].as_str()))?,
+                qty: parse_f64_opt(Some(row[1].as_str()))?,
+            })
+        })
+        .collect()
+}
+
 async fn fetch_marks(client: &reqwest::Client, url: Url) -> HashMap<String, BinanceOptionMark> {
     match client.get(url).send().await {
         Ok(response) => match response.error_for_status() {
@@ -129,5 +217,21 @@ mod tests {
         assert_eq!(parsed.0, "2026-06-26T08:00:00Z");
         assert_eq!(parsed.1, 140_000.0);
         assert_eq!(parsed.2, "call");
+    }
+
+    #[test]
+    fn binance_option_book_extracts_depth() {
+        let book = BinanceOptionDepth {
+            bids: vec![["5.000".to_string(), "0.21".to_string()]],
+            asks: vec![["15.000".to_string(), "1.10".to_string()]],
+            last_update_id: Some(18803530158),
+            time: Some(1779334083503),
+        }
+        .into_book("BTC-260626-140000-C");
+        assert_eq!(book.bid_price, Some(5.0));
+        assert_eq!(book.ask_price, Some(15.0));
+        assert_eq!(book.asks[0].qty, 1.10);
+        assert_eq!(binance_depth_limit(5), 10);
+        assert_eq!(binance_depth_limit(51), 100);
     }
 }

@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use crate::types::BookLevel;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct OptionSummary {
     pub venue: String,
@@ -19,6 +21,27 @@ pub struct OptionSummary {
     pub underlying_price: Option<f64>,
     pub underlying_index: Option<String>,
     pub open_interest: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OptionBook {
+    pub venue: String,
+    pub instrument_name: String,
+    pub timestamp: Option<u64>,
+    pub state: Option<String>,
+    pub bid_price: Option<f64>,
+    pub ask_price: Option<f64>,
+    pub mark_price: Option<f64>,
+    pub mark_iv: Option<f64>,
+    pub underlying_price: Option<f64>,
+    pub underlying_index: Option<String>,
+    pub open_interest: Option<f64>,
+    pub delta: Option<f64>,
+    pub gamma: Option<f64>,
+    pub theta: Option<f64>,
+    pub vega: Option<f64>,
+    pub bids: Vec<BookLevel>,
+    pub asks: Vec<BookLevel>,
 }
 
 pub fn option_side_from_code(code: &str) -> String {

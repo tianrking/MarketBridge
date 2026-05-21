@@ -6,6 +6,8 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 use crate::api::ApiState;
+use crate::connectors::options::binance::fetch_binance_option_book_from;
+use crate::connectors::options::bybit::fetch_bybit_option_book_from;
 use crate::connectors::options::deribit::{
     fetch_deribit_option_book_from, fetch_deribit_option_summaries,
 };
@@ -19,6 +21,13 @@ pub struct DeribitOptionsQuery {
 
 #[derive(Debug, Deserialize)]
 pub struct DeribitOptionBookQuery {
+    instrument_name: String,
+    depth: Option<usize>,
+    base_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OptionBookQuery {
     instrument_name: String,
     depth: Option<usize>,
     base_url: Option<String>,
@@ -77,6 +86,60 @@ pub async fn deribit_option_book(
         })),
         Err(error) => Json(serde_json::json!({
             "source": "deribit",
+            "instrument_name": q.instrument_name,
+            "error": error.to_string()
+        })),
+    }
+}
+
+pub async fn bybit_option_book(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<OptionBookQuery>,
+) -> impl IntoResponse {
+    let base_url = q
+        .base_url
+        .unwrap_or_else(|| "https://api.bybit.com/v5/".to_string());
+    match fetch_bybit_option_book_from(
+        &state.http,
+        &base_url,
+        &q.instrument_name,
+        q.depth.unwrap_or(10),
+    )
+    .await
+    {
+        Ok(book) => Json(serde_json::json!({
+            "source": "bybit",
+            "book": book
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "bybit",
+            "instrument_name": q.instrument_name,
+            "error": error.to_string()
+        })),
+    }
+}
+
+pub async fn binance_option_book(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<OptionBookQuery>,
+) -> impl IntoResponse {
+    let base_url = q
+        .base_url
+        .unwrap_or_else(|| "https://eapi.binance.com/".to_string());
+    match fetch_binance_option_book_from(
+        &state.http,
+        &base_url,
+        &q.instrument_name,
+        q.depth.unwrap_or(10),
+    )
+    .await
+    {
+        Ok(book) => Json(serde_json::json!({
+            "source": "binance",
+            "book": book
+        })),
+        Err(error) => Json(serde_json::json!({
+            "source": "binance",
             "instrument_name": q.instrument_name,
             "error": error.to_string()
         })),

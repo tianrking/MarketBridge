@@ -2,7 +2,9 @@ use anyhow::{Context, Result};
 use reqwest::Url;
 use serde::Deserialize;
 
-use super::common::{OptionSummary, option_side_from_code, parse_day_month_year_expiry};
+use super::common::{
+    OptionBook, OptionSummary, option_side_from_code, parse_day_month_year_expiry,
+};
 use crate::types::BookLevel;
 
 #[derive(Debug, Deserialize)]
@@ -20,27 +22,6 @@ struct DeribitRawSummary {
     underlying_price: Option<f64>,
     underlying_index: Option<String>,
     open_interest: Option<f64>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct DeribitOptionBook {
-    pub venue: String,
-    pub instrument_name: String,
-    pub timestamp: Option<u64>,
-    pub state: Option<String>,
-    pub bid_price: Option<f64>,
-    pub ask_price: Option<f64>,
-    pub mark_price: Option<f64>,
-    pub mark_iv: Option<f64>,
-    pub underlying_price: Option<f64>,
-    pub underlying_index: Option<String>,
-    pub open_interest: Option<f64>,
-    pub delta: Option<f64>,
-    pub gamma: Option<f64>,
-    pub theta: Option<f64>,
-    pub vega: Option<f64>,
-    pub bids: Vec<BookLevel>,
-    pub asks: Vec<BookLevel>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -134,7 +115,7 @@ pub async fn fetch_deribit_option_book_from(
     base_url: &str,
     instrument_name: &str,
     depth: usize,
-) -> Result<DeribitOptionBook> {
+) -> Result<OptionBook> {
     let mut url = Url::parse(base_url)?.join("public/get_order_book")?;
     url.query_pairs_mut()
         .append_pair("instrument_name", instrument_name)
@@ -151,8 +132,8 @@ pub async fn fetch_deribit_option_book_from(
 }
 
 impl DeribitRawBook {
-    fn into_book(self) -> DeribitOptionBook {
-        DeribitOptionBook {
+    fn into_book(self) -> OptionBook {
+        OptionBook {
             venue: "deribit".to_string(),
             instrument_name: self.instrument_name,
             timestamp: self.timestamp,
