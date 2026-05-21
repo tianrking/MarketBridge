@@ -494,7 +494,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_PERP,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "Read-only perp WS book/trade and REST funding wired; bearer token required.",
+        notes: "Read-only perp WS book/trade and REST funding wired; OI normalization is wired when keyed funding payloads expose OI fields. Bearer token required.",
     },
     RoadmapSource {
         source: "decibel",
@@ -504,7 +504,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_PERP,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "Read-only Aptos Decibel perp depth/trade/market_price streams wired; bearer token required.",
+        notes: "Read-only Aptos Decibel perp depth/trade/market_price streams wired; OI normalization is wired when keyed market_price payloads expose OI fields. Bearer token required.",
     },
     RoadmapSource {
         source: "deribit",

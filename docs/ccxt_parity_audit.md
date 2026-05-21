@@ -65,7 +65,7 @@ Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
-| P1 | Architect / Decibel | Validate keyed OI before normalizing it. |
+| P1 | Architect / Decibel | OI parsing is wired for keyed payloads that expose OI fields; validate exact live fields with credentials. |
 | P2 | Perp liquidation long tail | Most venues without stable public liquidation feeds are now explicit `n/a`; add new feeds only when a reliable endpoint is confirmed. |
 | P2 | Extra CCXT long tail | Add native Rust connectors by liquidity and strategy value, not by blindly wrapping every CCXT file. |
 

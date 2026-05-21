@@ -13,8 +13,8 @@ use tokio_tungstenite::{
 use crate::connectors::cex::common::{parse_value_f64, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeSide,
-    TradeTick, now_ms,
+    BookLevel, DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick,
+    TradeSide, TradeTick, now_ms,
 };
 
 const DECIBEL_REST_URL: &str = "https://api.mainnet.aptoslabs.com/decibel";
@@ -289,7 +289,7 @@ fn parse_decibel_funding(market: &DecibelMarket, value: &Value) -> Vec<DataEvent
     else {
         return Vec::new();
     };
-    vec![DataEvent::FundingRate(FundingRateTick {
+    let mut events = vec![DataEvent::FundingRate(FundingRateTick {
         exchange: "decibel",
         symbol: market.symbol.clone().into_boxed_str(),
         funding_rate: funding_bps / 10_000.0,
@@ -299,7 +299,37 @@ fn parse_decibel_funding(market: &DecibelMarket, value: &Value) -> Vec<DataEvent
         index_price: first_value(price, &["oracle_px", "index_price", "indexPrice"])
             .and_then(parse_value_f64),
         ts_ms: now_ms(),
-    })]
+    })];
+    if let Some(open_interest) = first_value(
+        price,
+        &[
+            "open_interest",
+            "openInterest",
+            "open_interest_contracts",
+            "openInterestContracts",
+            "oi",
+        ],
+    )
+    .and_then(parse_value_f64)
+    {
+        events.push(DataEvent::OpenInterest(OpenInterestTick {
+            exchange: "decibel",
+            symbol: market.symbol.clone().into_boxed_str(),
+            open_interest,
+            open_interest_value: first_value(
+                price,
+                &[
+                    "open_interest_value",
+                    "openInterestValue",
+                    "open_interest_notional",
+                    "openInterestNotional",
+                ],
+            )
+            .and_then(parse_value_f64),
+            ts_ms: now_ms(),
+        }));
+    }
+    events
 }
 
 fn configured_decibel_market(symbol: &str) -> Option<DecibelMarket> {
@@ -496,7 +526,9 @@ mod tests {
                 "price": {
                     "funding_rate_bps": 5,
                     "mark_px": "50120.5",
-                    "oracle_px": "50100"
+                    "oracle_px": "50100",
+                    "open_interest": "25",
+                    "open_interest_value": "1250000"
                 }
             })
             .to_string(),
@@ -507,6 +539,13 @@ mod tests {
             DataEvent::FundingRate(funding) => {
                 assert_eq!(funding.funding_rate, 0.0005);
                 assert_eq!(funding.mark_price, Some(50120.5));
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+        match &events[1] {
+            DataEvent::OpenInterest(oi) => {
+                assert_eq!(oi.open_interest, 25.0);
+                assert_eq!(oi.open_interest_value, Some(1_250_000.0));
             }
             other => panic!("unexpected event: {other:?}"),
         }

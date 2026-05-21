@@ -72,8 +72,8 @@ Status labels:
 | Vertex | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids; gateway `all_products` emits OI and archive `funding_rates` emits funding. Liquidation is not exposed as a stable public feed. |
 | Injective | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding and OI pollers; liquidation is not exposed as a stable public feed. |
 | XRPL | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Public book_offers snapshots plus validated transaction stream parsing for executed Offer fills; issuer-aware mapping currently includes XRP/USD. Funding/OI/liquidation do not apply to spot XRPL books. |
-| Architect | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. No public liquidation feed is exposed. |
-| Decibel | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. No public liquidation feed is exposed. |
+| Architect | partial | implemented | implemented | implemented | partial | n/a | keyed | Read-only perp WS book/trade and REST funding; OI is normalized when keyed funding responses expose OI fields. Requires bearer token. No public liquidation feed is exposed. |
+| Decibel | partial | implemented | implemented | implemented | partial | n/a | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; OI is normalized when keyed market_price payloads expose OI fields. Requires bearer token and market address discovery. No public liquidation feed is exposed. |
 | Deribit | implemented | implemented | implemented | implemented | implemented | partial | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. Public bankruptcy settlements exist, but they do not carry normal liquidation price/qty semantics for `LiquidationTick`. |
 | Evedex | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp REST depth, recent trades, funding, and open-interest metrics; no stable public liquidation endpoint is exposed. |
 | Derive | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public spot/perp order books and trades plus perp ticker funding and open interest. CCXT marks public liquidation fetch unavailable. |
@@ -120,8 +120,8 @@ public endpoint is later confirmed.
 
 | Area | Missing data | Status | Why it remains open |
 |---|---|---:|---|
-| Architect | Open interest | planned | Venue is keyed; needs credentialed validation before normalizing OI. |
-| Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
+| Architect | Open interest | partial | OI normalization is wired for keyed payloads that expose OI fields; live endpoint validation still requires credentials. |
+| Decibel | Open interest | partial | OI normalization is wired for keyed market_price payloads that expose OI fields; live endpoint validation still requires credentials and market-address discovery. |
 | DeFi native state | Pool liquidity, route depth, swaps/trades | partial | DexScreener-backed pool sources emit liquidity, volume, and swap-count metrics; Uniswap V3 subgraph emits liquidity/TVL/volume/txCount. Route depth and protocol-native swap streams remain connector-specific extensions. |
 | Options websocket depth/trade parity | Native WS book/trades across Deribit/OKX/Bybit/Binance | partial | REST chain and per-instrument depth are wired; Deribit/OKX/Bybit/Binance WS ticker/summary updates refresh the option cache. Native WS option book/trade streams remain a latency extension, not a missing research input. |
 | Aggregator signal layer | Funding/OI/trade/liquidation analytics | implemented | SpreadAggregator emits funding divergence, OI change, trade imbalance, liquidation burst, and depth-pressure signals from normalized events. |

@@ -14,7 +14,8 @@ use tracing::warn;
 use crate::connectors::cex::common::{parse_object_levels, parse_value_f64};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeSide,
+    TradeTick, now_ms,
 };
 
 const ARCHITECT_WS_URL: &str = "wss://gateway.architect.exchange/md/ws";
@@ -234,7 +235,7 @@ fn parse_architect_funding(symbol: &str, value: &Value) -> Vec<DataEvent> {
     else {
         return Vec::new();
     };
-    vec![DataEvent::FundingRate(FundingRateTick {
+    let mut events = vec![DataEvent::FundingRate(FundingRateTick {
         exchange: "architect",
         symbol: symbol.to_string().into_boxed_str(),
         funding_rate: rate,
@@ -248,7 +249,41 @@ fn parse_architect_funding(symbol: &str, value: &Value) -> Vec<DataEvent> {
             .or_else(|| row.get("index_price"))
             .and_then(parse_value_f64),
         ts_ms: now_ms(),
-    })]
+    })];
+    if let Some(open_interest) = first_value(
+        row,
+        &[
+            "open_interest",
+            "openInterest",
+            "oi",
+            "open_interest_contracts",
+            "openInterestContracts",
+        ],
+    )
+    .and_then(parse_value_f64)
+    {
+        events.push(DataEvent::OpenInterest(OpenInterestTick {
+            exchange: "architect",
+            symbol: symbol.to_string().into_boxed_str(),
+            open_interest,
+            open_interest_value: first_value(
+                row,
+                &[
+                    "open_interest_value",
+                    "openInterestValue",
+                    "open_interest_notional",
+                    "openInterestNotional",
+                ],
+            )
+            .and_then(parse_value_f64),
+            ts_ms: now_ms(),
+        }));
+    }
+    events
+}
+
+fn first_value<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
+    keys.iter().find_map(|key| value.get(*key))
 }
 
 fn seconds_to_ms(value: Option<&Value>) -> Option<u64> {
@@ -314,9 +349,18 @@ mod tests {
                 "funding_rate":"0.0001",
                 "timestamp_ns":"1779292800000000000",
                 "settlement_price":"100",
-                "benchmark_price":"101"
+                "benchmark_price":"101",
+                "open_interest":"1234",
+                "open_interest_value":"123400"
             }]),
         );
         assert!(matches!(&events[0], DataEvent::FundingRate(_)));
+        match &events[1] {
+            DataEvent::OpenInterest(oi) => {
+                assert_eq!(oi.open_interest, 1234.0);
+                assert_eq!(oi.open_interest_value, Some(123400.0));
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }

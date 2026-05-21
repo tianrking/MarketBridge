@@ -35,7 +35,7 @@ visibility. A source enters the runtime only after it has at least:
 
 | Priority | Scope | Rationale |
 |---|---|---|
-| P0 | Close remaining keyed non-Polymarket semantic gaps: Architect/Decibel OI validation | These are the only exchange/CLOB rows still marked `planned` for non-Polymarket data and they require credentials. |
+| P0 | Credentialed validation for Architect/Decibel OI | OI normalization is wired when keyed payloads expose OI fields; live validation still requires venue credentials. |
 | P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Quote and price snapshots are wired; native state requires chain-specific APIs or indexers. |
 | P2 | Extend options websocket depth/trade parity when needed | REST chains, per-instrument depth, and low-latency WS ticker/summary cache updates are wired for Deribit/OKX/Bybit/Binance. Native WS option book/trade streams are a latency upgrade, not a missing research input. |
 | P3 | Add new long-tail centralized venues as native REST snapshot sources only when they add useful coverage | Broad coverage is useful for research, but schema quality and operational behavior come first. |
@@ -322,7 +322,8 @@ Most high-value CEX/perp sources in the earlier wave are now implemented or
 explicitly marked unavailable for specific domains in
 [`feature_inventory.md`](feature_inventory.md). The next practical work is:
 
-1. Architect/Decibel OI: validate with credentials before normalizing keyed OI.
+1. Architect/Decibel OI: run credentialed validation against live accounts and
+   record exact upstream field names for OI payloads.
 2. DeFi native state: extend beyond the implemented DexScreener liquidity /
    volume / swap-count metrics and Uniswap V3 subgraph pool state only where a
    reliable chain-specific RPC/subgraph/indexer exists.
