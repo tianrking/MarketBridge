@@ -28,7 +28,8 @@ use config::AppConfig;
 use connectors::cex::registry::build_sources;
 use deribit_cache::{
     DeribitOptionCache, spawn_binance_option_cache, spawn_bybit_option_cache,
-    spawn_deribit_option_cache, spawn_deribit_option_ws_cache, spawn_okx_option_cache,
+    spawn_bybit_option_ws_cache, spawn_deribit_option_cache, spawn_deribit_option_ws_cache,
+    spawn_okx_option_cache,
 };
 use event_bus::EventBus;
 use klines::{KlineStore, spawn_kline_service};
@@ -155,6 +156,14 @@ async fn main() -> anyhow::Result<()> {
             shutdown.clone(),
         )
     });
+    let bybit_options_ws_task = cfg.bybit_options.enabled.then(|| {
+        spawn_bybit_option_ws_cache(
+            cfg.bybit_options.clone(),
+            http.clone(),
+            deribit_cache.clone(),
+            shutdown.clone(),
+        )
+    });
 
     let binance_options_task = cfg.binance_options.enabled.then(|| {
         spawn_binance_option_cache(
@@ -237,6 +246,9 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(bybit_options_task) = bybit_options_task {
         wait_task("bybit_options", bybit_options_task).await;
+    }
+    if let Some(bybit_options_ws_task) = bybit_options_ws_task {
+        wait_task("bybit_options_ws", bybit_options_ws_task).await;
     }
 
     if let Some(binance_options_task) = binance_options_task {

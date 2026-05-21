@@ -250,6 +250,94 @@ pub fn spawn_deribit_option_ws_cache(
     })
 }
 
+pub fn spawn_bybit_option_ws_cache(
+    cfg: BybitOptionsConfig,
+    client: reqwest::Client,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        if !cfg.enabled {
+            return;
+        }
+        loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            match run_bybit_option_ws_once(&cfg, client.clone(), cache.clone(), shutdown.clone())
+                .await
+            {
+                Ok(()) => {}
+                Err(error) => warn!(%error, "bybit option websocket stopped"),
+            }
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+            }
+        }
+    })
+}
+
+async fn run_bybit_option_ws_once(
+    cfg: &BybitOptionsConfig,
+    client: reqwest::Client,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> Result<()> {
+    let currencies = normalized_currencies(&cfg.currencies);
+    if currencies.is_empty() {
+        return Ok(());
+    }
+
+    let mut instruments = Vec::new();
+    for currency in &currencies {
+        let rows = fetch_bybit_option_summaries_from(&client, &cfg.base_url, currency).await?;
+        instruments.extend(rows.into_iter().map(|row| row.instrument_name));
+    }
+    instruments.sort();
+    instruments.dedup();
+    if instruments.is_empty() {
+        return Ok(());
+    }
+
+    let args = instruments
+        .iter()
+        .map(|instrument| format!("tickers.{instrument}"))
+        .collect::<Vec<_>>();
+
+    let (ws, _) = connect_async(&cfg.ws_url)
+        .await
+        .context("bybit option websocket connect failed")?;
+    let (mut sink, mut stream) = ws.split();
+    sink.send(Message::Text(
+        json!({
+            "op": "subscribe",
+            "args": args
+        })
+        .to_string(),
+    ))
+    .await?;
+
+    loop {
+        tokio::select! {
+            _ = shutdown.cancelled() => return Ok(()),
+            msg = stream.next() => {
+                let msg = msg.context("bybit option websocket ended")??;
+                match msg {
+                    Message::Text(text) => {
+                        if let Some(summary) = parse_bybit_ws_option_summary(&text) {
+                            cache.upsert_live_summary("bybit_ws_ticker", summary).await;
+                        }
+                    }
+                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Close(_) => return Ok(()),
+                }
+            }
+        }
+    }
+}
+
 async fn run_deribit_option_ws_once(
     cfg: &DeribitConfig,
     client: reqwest::Client,
@@ -312,6 +400,40 @@ async fn run_deribit_option_ws_once(
     }
 }
 
+fn parse_bybit_ws_option_summary(text: &str) -> Option<OptionSummary> {
+    let value = serde_json::from_str::<Value>(text).ok()?;
+    let data = value.get("data")?;
+    let row = data
+        .as_array()
+        .and_then(|items| items.first())
+        .unwrap_or(data);
+    let symbol = row
+        .get("symbol")
+        .or_else(|| row.get("s"))
+        .and_then(Value::as_str)?;
+    let currency = symbol.split('-').next()?.to_ascii_uppercase();
+    let parsed = parse_bybit_option_instrument(symbol);
+    Some(OptionSummary {
+        venue: "bybit".to_string(),
+        currency,
+        instrument_name: symbol.to_string(),
+        option_type: parsed.as_ref().map(|p| p.2.clone()),
+        strike: parsed.as_ref().map(|p| p.1),
+        expiry_time: parsed.map(|p| p.0),
+        bid_price: json_f64(row, &["bid1Price", "bidPrice", "bp"]),
+        ask_price: json_f64(row, &["ask1Price", "askPrice", "ap"]),
+        mark_price: json_f64(row, &["markPrice", "mp"]),
+        mark_iv: json_f64(row, &["markIv", "markIV", "iv"]),
+        delta: json_f64(row, &["delta"]),
+        gamma: json_f64(row, &["gamma"]),
+        theta: json_f64(row, &["theta"]),
+        vega: json_f64(row, &["vega"]),
+        underlying_price: json_f64(row, &["underlyingPrice", "indexPrice"]),
+        underlying_index: Some(symbol.split('-').next()?.to_ascii_uppercase()),
+        open_interest: json_f64(row, &["openInterest", "oi"]),
+    })
+}
+
 fn parse_deribit_ws_option_summary(text: &str) -> Option<OptionSummary> {
     let value = serde_json::from_str::<Value>(text).ok()?;
     let row = value.pointer("/params/data")?;
@@ -343,6 +465,17 @@ fn parse_deribit_ws_option_summary(text: &str) -> Option<OptionSummary> {
     })
 }
 
+fn parse_bybit_option_instrument(name: &str) -> Option<(String, f64, String)> {
+    let parts = name.split('-').collect::<Vec<_>>();
+    if parts.len() < 4 {
+        return None;
+    }
+    let expiry_time = crate::connectors::options::common::parse_day_month_year_expiry(parts[1])?;
+    let strike = parts[2].parse::<f64>().ok()?;
+    let option_type = crate::connectors::options::common::option_side_from_code(parts[3]);
+    Some((expiry_time, strike, option_type))
+}
+
 fn parse_deribit_option_instrument(name: &str) -> Option<(String, f64, String)> {
     let parts = name.split('-').collect::<Vec<_>>();
     if parts.len() < 4 {
@@ -352,6 +485,16 @@ fn parse_deribit_option_instrument(name: &str) -> Option<(String, f64, String)> 
     let strike = parts[2].parse::<f64>().ok()?;
     let option_type = crate::connectors::options::common::option_side_from_code(parts[3]);
     Some((expiry_time, strike, option_type))
+}
+
+fn json_f64(row: &Value, keys: &[&str]) -> Option<f64> {
+    keys.iter().find_map(|key| {
+        row.get(*key).and_then(|value| {
+            value
+                .as_f64()
+                .or_else(|| value.as_str().and_then(|text| text.parse::<f64>().ok()))
+        })
+    })
 }
 
 fn merge_option_summary(mut old: OptionSummary, live: OptionSummary) -> OptionSummary {
@@ -517,5 +660,37 @@ mod tests {
         assert_eq!(summary.option_type.as_deref(), Some("put"));
         assert_eq!(summary.delta, Some(-0.05645));
         assert_eq!(summary.open_interest, Some(3544.6));
+    }
+
+    #[test]
+    fn parses_bybit_ws_ticker_summary() {
+        let summary = parse_bybit_ws_option_summary(
+            &json!({
+                "topic": "tickers.BTC-26MAR27-78000-P-USDT",
+                "type": "snapshot",
+                "data": {
+                    "symbol": "BTC-26MAR27-78000-P-USDT",
+                    "bid1Price": "10745",
+                    "ask1Price": "13140",
+                    "markPrice": "11900",
+                    "markIv": "0.55",
+                    "underlyingPrice": "77967.19",
+                    "openInterest": "123.4",
+                    "delta": "-0.12",
+                    "gamma": "0.00002",
+                    "theta": "-10.5",
+                    "vega": "20.1"
+                }
+            })
+            .to_string(),
+        )
+        .expect("summary");
+
+        assert_eq!(summary.venue, "bybit");
+        assert_eq!(summary.currency, "BTC");
+        assert_eq!(summary.option_type.as_deref(), Some("put"));
+        assert_eq!(summary.bid_price, Some(10745.0));
+        assert_eq!(summary.open_interest, Some(123.4));
+        assert_eq!(summary.vega, Some(20.1));
     }
 }
