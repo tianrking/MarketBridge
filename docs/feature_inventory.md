@@ -46,7 +46,7 @@ Status labels:
 | Hyperliquid | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp DEX source; `activeAssetCtx` emits funding and OI from the same update when both fields are present. |
 | dYdX v4 | partial | implemented | implemented | implemented | implemented | planned | keyless | REST market metadata plus WS book/trades. |
 | Backpack | partial | implemented | implemented | planned | planned | planned | keyless | Product dependent public fields. |
-| MEXC | partial | implemented | implemented | partial | planned | planned | keyless | Spot/futures depth/deals; funding when ticker field exists. |
+| MEXC | partial | implemented | implemented | implemented | n/a | n/a | keyless | Spot/futures depth/deals plus public contract funding-rate poller; CCXT reference marks public open-interest and public liquidation fetches unavailable. |
 | BingX | partial | implemented | implemented | implemented | implemented | n/a | keyless | Swap ticker/depth/trade plus public premium-index funding and open-interest poller; liquidation/force-order history is private-only in the CCXT reference. |
 | Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |

@@ -6,12 +6,17 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::warn;
 
 use crate::connectors::cex::common::{
     emit_tick_ext, first_str, parse_array_levels, side_from_labels,
 };
 use crate::source::{ExchangeSource, SourceContext};
-use crate::types::{DataEvent, MarketKind, OrderBookTick, TradeSide, TradeTick, now_ms};
+use crate::types::{
+    DataEvent, FundingRateTick, MarketKind, OrderBookTick, TradeSide, TradeTick, now_ms,
+};
+
+const MEXC_CONTRACT_REST_URL: &str = "https://api.mexc.com/api/v1/contract";
 
 pub struct MexcFeed {
     market: MarketKind,
@@ -21,6 +26,47 @@ pub struct MexcFeed {
 impl MexcFeed {
     pub fn new(market: MarketKind, symbols: Vec<String>) -> Self {
         Self { market, symbols }
+    }
+}
+
+pub struct MexcFundingPoller {
+    symbols: Vec<String>,
+    client: reqwest::Client,
+}
+
+impl MexcFundingPoller {
+    pub fn new(symbols: Vec<String>) -> Self {
+        Self {
+            symbols,
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ExchangeSource for MexcFundingPoller {
+    fn name(&self) -> &'static str {
+        "mexc"
+    }
+
+    async fn run(&self, ctx: SourceContext) -> Result<()> {
+        if self.symbols.is_empty() {
+            bail!("mexc funding symbols empty");
+        }
+
+        let mut tick = interval(Duration::from_secs(15));
+        loop {
+            tick.tick().await;
+            for symbol in &self.symbols {
+                match poll_mexc_funding(&self.client, symbol).await {
+                    Ok(Some(event)) => ctx.emit(event).await?,
+                    Ok(None) => {}
+                    Err(err) => {
+                        warn!(exchange = "mexc", symbol, error = %err, "funding poll failed")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -36,6 +82,17 @@ impl ExchangeSource for MexcFeed {
             MarketKind::Perp => run_mexc_contract(&self.symbols, ctx).await,
         }
     }
+}
+
+async fn poll_mexc_funding(client: &reqwest::Client, symbol: &str) -> Result<Option<DataEvent>> {
+    let response = client
+        .get(format!("{MEXC_CONTRACT_REST_URL}/funding_rate/{symbol}"))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    Ok(parse_mexc_funding(&response))
 }
 
 async fn run_mexc_spot(symbols: &[String], ctx: SourceContext) -> Result<()> {
@@ -238,6 +295,23 @@ fn side_from_str(side: &str) -> TradeSide {
     side_from_labels(side, &["1", "buy"], &["2", "sell"])
 }
 
+fn parse_mexc_funding(value: &Value) -> Option<DataEvent> {
+    let data = value.get("data").unwrap_or(value);
+    let funding_rate = first_value_f64(data, &["fundingRate", "rate"])?;
+    Some(DataEvent::FundingRate(FundingRateTick {
+        exchange: "mexc",
+        symbol: first_value_str(data, &["symbol"])
+            .unwrap_or("UNKNOWN")
+            .to_string()
+            .into_boxed_str(),
+        funding_rate,
+        next_funding_time_ms: first_value_u64(data, &["nextSettleTime"]),
+        mark_price: None,
+        index_price: None,
+        ts_ms: first_value_u64(data, &["timestamp"]).unwrap_or_else(now_ms),
+    }))
+}
+
 fn first_value_str<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a str> {
     keys.iter().find_map(|key| value.get(*key)?.as_str())
 }
@@ -274,8 +348,10 @@ fn first_value_u64(value: &Value, keys: &[&str]) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{first_value_f64, first_value_string, first_value_u64, side_from_str};
-    use crate::types::TradeSide;
+    use super::{
+        first_value_f64, first_value_string, first_value_u64, parse_mexc_funding, side_from_str,
+    };
+    use crate::types::{DataEvent, TradeSide};
     use serde_json::json;
 
     #[test]
@@ -294,5 +370,30 @@ mod tests {
         assert_eq!(first_value_string(&item, &["T"]).as_deref(), Some("2"));
         assert_eq!(first_value_string(&item, &["id"]).as_deref(), Some("42"));
         assert_eq!(first_value_u64(&item, &["time"]), Some(1_710_000_000_000));
+    }
+
+    #[test]
+    fn mexc_funding_parser_accepts_contract_payload() {
+        let event = parse_mexc_funding(&json!({
+            "success": true,
+            "code": 0,
+            "data": {
+                "symbol": "BTC_USDT",
+                "fundingRate": 0.000014,
+                "nextSettleTime": 1643241600000_u64,
+                "timestamp": 1643240373359_u64
+            }
+        }))
+        .expect("funding event");
+
+        match event {
+            DataEvent::FundingRate(tick) => {
+                assert_eq!(tick.symbol.as_ref(), "BTC_USDT");
+                assert_eq!(tick.funding_rate, 0.000014);
+                assert_eq!(tick.next_funding_time_ms, Some(1643241600000));
+                assert_eq!(tick.ts_ms, 1643240373359);
+            }
+            _ => panic!("unexpected event type"),
+        }
     }
 }

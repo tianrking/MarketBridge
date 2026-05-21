@@ -75,7 +75,7 @@ use super::kraken_perp::KrakenPerpTicker;
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::KucoinPerpTicker;
 use super::kucoin_rest::KucoinRestFeed;
-use super::mexc::MexcFeed;
+use super::mexc::{MexcFeed, MexcFundingPoller};
 use super::ndax::NdaxSpotFeed;
 use super::okx::{
     OkxDepthFeed, OkxFundingFeed, OkxLiquidationPoller, OkxOpenInterestFeed, OkxTicker,
@@ -174,10 +174,15 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     )));
                 }
                 if !perp_symbols.is_empty() {
+                    let mexc_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_underscore(s))
+                        .collect::<Vec<_>>();
                     out.push(Arc::new(MexcFeed::new(
                         crate::types::MarketKind::Perp,
-                        perp_symbols.iter().map(|s| to_underscore(s)).collect(),
+                        mexc_perp_symbols.clone(),
                     )));
+                    out.push(Arc::new(MexcFundingPoller::new(mexc_perp_symbols)));
                 }
             }
             "bingx" if !perp_symbols.is_empty() => {

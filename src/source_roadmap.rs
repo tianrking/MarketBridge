@@ -422,9 +422,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented_public",
         priority: "P1",
-        notes: "MarketBridge has spot/futures depth and trade feed; finish funding/OI/liquidation where available.",
+        notes: "Spot/futures depth/deals plus public contract funding-rate polling are wired; CCXT reference marks public open-interest and liquidation fetches unavailable.",
     },
     RoadmapSource {
         source: "ndax",
