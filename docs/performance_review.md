@@ -21,11 +21,17 @@ Current strengths:
 - Router snapshot publishing is offloaded to a bus worker instead of doing all
   cache/broadcast work inline with source receive.
 - EventBus has per-domain broadcast channels for funding, OI, trades,
-  liquidations, books, and external signals.
+  liquidations, books, and external signals. Those event/domain channels can be
+  sharded with `runtime.event_bus_shards`.
+- Router wraps each `DataEvent` once in an `Arc`; both the bus worker and
+  `SpreadAggregator` consume the shared event pointer, so large order-book
+  payloads are not cloned just to reach analytics.
 - EventBus publishes `SharedEvent` and `SharedQuote` objects. JSON payloads are
   generated lazily on first WebSocket/Redis use and then reused, so idle
   research runs do not pay serialization cost just because an event passed
   through the bus.
+- Legacy `/ws/ticks` now uses shared tick payloads and lazy JSON as well. High
+  performance users should still prefer `/v1/stream`.
 - Options and prediction snapshot streams use a shared broadcaster and skip
   cache scans when there are no subscribers.
 - Redis uses a local drain channel plus batched `XADD` pipeline and JSONL
@@ -44,9 +50,9 @@ Expected next bottlenecks under higher load:
 
 | Area | Current behavior | Why it becomes expensive |
 |---|---|---|
-| Router fanout | Router clones each `DataEvent` once so the aggregator can own one copy while the bus owns an `Arc<DataEvent>`. | Large `OrderBook` events still clone level vectors once on the hot path. |
-| EventBus fanout | Event domains use `SharedEvent`; quote streams use `SharedQuote`. | Aggregator still receives an owned clone, so large L2 books pay one clone before analytics. |
-| WebSocket events | Domain and quote streams reuse lazy JSON payloads after the first consumer needs them. | Legacy `/ws/ticks` still serializes per matching subscriber. |
+| Router fanout | Router shares `Arc<DataEvent>` with both EventBus and aggregator. | Downstream analytics still clone only fields they retain in their own stores. |
+| EventBus fanout | Event domains use `SharedEvent`; quote streams use `SharedQuote`; domain channels can be sharded. | More shards add fan-in task overhead, so keep `event_bus_shards=1` until load tests justify it. |
+| WebSocket events | `/v1/stream` and legacy `/ws/ticks` reuse lazy JSON payloads after the first consumer needs them. | Socket send cost remains per subscriber, as expected. |
 | Options/prediction snapshot streams | One shared broadcaster scans caches and serializes snapshots only while subscribers exist. | Client-side filters still receive the shared stream and drop nonmatching rows. |
 | Redis payload | Redis sink reuses lazy `SharedEvent` JSON for event payloads. | Still copies the string into the Redis row; pipeline I/O remains the main Redis cost. |
 | Snapshot keys | Hot updates allocate formatted `String` keys. | Moderate cost at high tick rates; not the first bottleneck. |
@@ -55,21 +61,21 @@ Expected next bottlenecks under higher load:
 
 ### P0: Arc Event Pipeline
 
-Change router and bus handoff from owned `DataEvent` to shared
-`Arc<DataEvent>` for the bus path.
+Change router, bus handoff, and aggregator input from owned `DataEvent` clones
+to shared `Arc<DataEvent>`.
 
 Target:
 
 ```text
 source event -> Arc<DataEvent>
              -> bus publish without cloning payload
-             -> aggregator receives owned event or Arc depending on later refactor
+             -> aggregator receives same Arc without cloning payload
 ```
 
 Status:
 
-- First pass implemented for the bus path: router sends `Arc<DataEvent>` to the
-  bus worker and the aggregator still receives the owned event.
+- Implemented. Router sends the same shared `Arc<DataEvent>` to the bus worker
+  and the aggregator path.
 
 Expected benefit:
 
@@ -79,8 +85,8 @@ Expected benefit:
 
 Risk:
 
-- Medium. The aggregator currently owns `DataEvent`, so either it keeps one
-  clone or moves to `Arc<DataEvent>` as a second step.
+- Low to medium. Analytics must avoid retaining full large payloads unless the
+  store explicitly needs them.
 
 ### P0: Pre-Serialized Broadcast Payloads
 
@@ -139,6 +145,10 @@ Risk:
 
 - Medium. Need to preserve `include_stale`, symbol, exchange, and product
   filters at the client edge.
+
+Status:
+
+- Implemented for `options_chain` and `prediction_book` snapshot domains.
 
 ### P1: Backpressure By Domain
 
@@ -223,24 +233,24 @@ Without a dedicated load test, treat these as engineering estimates only:
 | Single-user or small research team | Good. |
 | Many REST dashboard readers | Good for latest snapshots; heavy full-book requests still clone book vectors. |
 | 10-50 WebSocket subscribers on filtered quote/trade domains | Reasonable, depending on symbol filters and source count. |
-| Many subscribers to options/prediction snapshots | Needs shared snapshot broadcaster. |
+| Many subscribers to options/prediction snapshots | Improved by shared snapshot broadcaster; still measure client-side filter cost. |
 | Redis archival under bursts | Improved by local drain + pipeline, but still serializes separately. |
 | Public multi-tenant service | Needs auth/rate limits plus pre-serialized fanout and load tests first. |
 
 ## Recommended Next Build Order
 
-1. Move aggregator input to `Arc<DataEvent>` or split large L2 books into
-   shared payloads so analytics and bus paths do not clone level vectors.
-2. Add measured load-test profiles for quote-only, trade-only, order-book, and
+1. Add measured load-test profiles for quote-only, trade-only, order-book, and
    mixed event streams.
-3. Use the synthetic load generator in CI/manual release checks and record
+2. Use the synthetic load generator in CI/manual release checks and record
    measured throughput per machine class.
-4. Increase `runtime.event_bus_shards` only after measured load tests show
+3. Increase `runtime.event_bus_shards` only after measured load tests show
    single-domain broadcast contention.
+4. If full-book REST dashboards become hot, add pre-sorted/cached pages for
+   `/v1/market/order-books`.
 
 ## Bottom Line
 
-MarketBridge is not at the performance limit. The current design is already
-solid for local and team-level research, but the next serious scalability jump
-requires reducing clone/serialization multiplication and centralizing snapshot
-broadcasts. Those are architecture-level improvements, not more connector work.
+MarketBridge is not at the performance limit. The current design is solid for
+local and team-level research, and the largest avoidable clone/serialization
+multipliers have been removed. The next scalability jump should be driven by
+measured load profiles, not speculative rewrites.

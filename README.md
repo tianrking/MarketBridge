@@ -123,7 +123,7 @@ flowchart LR
   RT --> Q[mpsc Queue]
   Q --> R[EventRouter]
 
-  R --> BUS[EventBus\nArcSwap Snapshots + Domain Broadcast]
+  R --> BUS[EventBus\nDashMap Snapshots + Sharded Domain Broadcast]
   R --> AGG[SpreadAggregator\nBBO + L2 Signals]
   BUS --> OF[OrderFlow Store\nTrade Windows + CVD]
   BUS --> K[SQLite Klines\nREST Backfill + Live Buckets]

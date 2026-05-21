@@ -187,9 +187,9 @@ public endpoint is later confirmed.
 | Redis dead-letter JSONL | implemented | P0 | Failed batches are appended to `runtime.redis_dead_letter_path` after retries so events are inspectable instead of silently discarded. |
 | Event type metrics | implemented | P0 | Router counts every `DataEvent` via `events_ingested_total{event_type=...}` and `bus_events_published_total{event_type=...}`; legacy tick counters remain. |
 | Non-finite number guard | implemented | P0 | `SourceContext::emit` drops NaN/Inf events before they reach JSON, Redis, API caches, or TTL logic. |
-| Lock-free event snapshots | implemented | P0 | Latest-state caches use ArcSwap copy-on-write maps for lock-free readers and isolated writer swaps. |
+| Concurrent event snapshots | implemented | P0 | Latest-state caches use DashMap in-place updates, so writers do not clone whole snapshot maps on every tick. |
 | Async router snapshot publishing | implemented | P0 | Router hands bus/snapshot publication to a worker before forwarding original events to the aggregator. |
-| Extended EventBus broadcast | implemented | P1 | `subscribe_events()` broadcasts shared `Arc<DataEvent>` values; high-volume domains also have isolated broadcast channels. |
+| Extended EventBus broadcast | implemented | P1 | `subscribe_events()` broadcasts shared `Arc<DataEvent>` values; high-volume domains have isolated channels and optional sharding via `runtime.event_bus_shards`. |
 | CEX websocket reconnect framework | partial | P1 | Shared `run_reconnecting` exists and is wired into Hyperliquid, Backpack, and dYdX; remaining legacy adapters should migrate incrementally. |
 | Per-domain websocket subscriptions | implemented | P0 | `/v1/stream` can subscribe to quote/funding/OI/trade/liquidation/book/external_signal domains without unrelated quote receivers. |
 | Large configurable broadcast buffers | implemented | P0 | `runtime.broadcast_capacity` defaults to 65,536; slow subscribers lag only their own receiver. |

@@ -58,7 +58,7 @@ flowchart LR
   RT --> Q[mpsc Queue]
   Q --> R[EventRouter]
 
-  R --> BUS[EventBus\nArcSwap 快照 + Domain Broadcast]
+  R --> BUS[EventBus\nDashMap 快照 + 分片 Domain Broadcast]
   R --> AGG[SpreadAggregator\nBBO + L2 信号]
   BUS --> OF[OrderFlow Store\n成交窗口 + CVD]
   BUS --> K[SQLite Klines\n历史回补 + 实时聚合]
@@ -79,7 +79,7 @@ flowchart LR
 1. 各类公开数据连接器采集 CEX、期权、预测市场、DeFi、宏观、情绪、聚合行情和链上数据。
 2. `SourceRuntime` 管理任务生命周期、断线重连和背压。
 3. `EventRouter` 把事件分发给 `EventBus` 和 `SpreadAggregator`。
-4. `EventBus` 保存 ArcSwap 最新快照，并按 domain 广播实时数据。
+4. `EventBus` 保存 DashMap 最新快照，并按 domain / shard 广播实时数据。
 5. `OrderFlowStore` 从成交流中计算买卖压力和 CVD。
 6. `KlineStore` 从历史 REST 和实时 tick 中生成 OHLCV。
 7. REST / WebSocket / 可选 Redis 把数据暴露给下游策略系统。
@@ -228,6 +228,7 @@ $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 - `runtime.queue_capacity`：source 到 router 的 channel 容量。
 - `runtime.router_publish_queue_capacity`：router 到 bus worker 的 channel 容量；为 `0` 或省略时复用 `queue_capacity`。
 - `runtime.broadcast_capacity`：WebSocket / Redis broadcast buffer。
+- `runtime.event_bus_shards`：event/domain broadcast 分片数；本地研究保持 `1`，多 symbol / 多订阅者压测确认后再调高。
 - `runtime.backpressure`：`block` 或 `drop_newest`。
 - `runtime.api_addr`：API 监听地址，默认 `0.0.0.0:8080`。
 - `runtime.redis_url`：可选 Redis sink。
@@ -285,19 +286,15 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | Polymarket Gamma / CLOB 公开数据 | 不需要 | 无 |
 | DeFi 默认 quote / pool 数据 | 通常不需要 | 无，取决于自定义 gateway |
 | DXY / VIX | 不需要 | 无 |
-| mempool.space BTC mempool | 不需要 | 无 |
-| Architect | 需要 bearer token | `ARCHITECT_API_TOKEN` |
-| Decibel | 需要 bearer token | `DECIBEL_API_TOKEN` |
-| CoinGecko | 可选 | `COINGECKO_API_KEY` |
-| CoinCap | 可选 | `COINCAP_API_KEY` |
+| US10Y | 需要 | `FRED_API_KEY` |
+| CoinGecko / CoinCap | 可选 | `COINGECKO_API_KEY` / `COINCAP_API_KEY` |
 | CoinMarketCap | 需要 | `COINMARKETCAP_API_KEY` |
 | CoinGlass | 需要 | `COINGLASS_API_KEY` |
-| US10Y / FRED | 需要 | `FRED_API_KEY` |
-| CryptoPanic | 需要 | `CRYPTOPANIC_API_KEY` |
-| Santiment | 需要 | `SANTIMENT_API_KEY` |
-| LunarCrush | 需要 | `LUNARCRUSH_API_KEY` |
-| Whale Alert | 需要 | `WHALE_ALERT_API_KEY` |
-| Etherscan | 需要 | `ETHERSCAN_API_KEY` |
+| CryptoPanic / Santiment / LunarCrush | 需要 | `CRYPTOPANIC_API_KEY` / `SANTIMENT_API_KEY` / `LUNARCRUSH_API_KEY` |
+| mempool.space BTC mempool | 不需要 | 无 |
+| Whale Alert / Etherscan | 需要 | `WHALE_ALERT_API_KEY` / `ETHERSCAN_API_KEY` |
+| Architect | 需要 bearer token | `ARCHITECT_API_TOKEN` |
+| Decibel | 需要 bearer token | `DECIBEL_API_TOKEN` |
 
 原则：
 
@@ -566,6 +563,31 @@ wscat -c "ws://127.0.0.1:8080/v1/stream?domains=market_quote&symbols=BTCUSDT&pro
 wscat -c "ws://127.0.0.1:8080/v1/stream?domains=funding&symbols=BTCUSDT&exchanges=binance,okx"
 wscat -c "ws://127.0.0.1:8080/v1/stream?domains=order_book,trade&symbols=BTCUSDT&product_type=perp"
 ```
+
+## 性能与本地压测
+
+当前高频路径已经做了几件关键优化：
+
+- `EventRouter` 将同一个 `Arc<DataEvent>` 同步给 `EventBus` 和 `SpreadAggregator`，大型 L2 order book 不会因为进入分析器再复制一份完整 levels。
+- 最新快照使用 DashMap 原地更新，避免每条 tick 全量 clone 快照 map。
+- `/v1/stream`、`/ws/ticks`、Redis event payload 使用共享对象和 lazy JSON，同一条事件不会被每个订阅者重复序列化。
+- `options_chain` 和 `prediction_book` 使用共享 snapshot broadcaster，多客户端订阅时不会每个连接都重新扫全量 cache。
+- `runtime.event_bus_shards` 可以开启 event/domain broadcast 分片；本地研究默认 `1`，只有在压测证明单 channel 成为瓶颈后再调高。
+
+本地 synthetic load test 不连接交易所，只压内部 EventBus / 序列化 / subscriber 路径：
+
+```bash
+./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536 --event-bus-shards 1
+./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536 --event-bus-shards 4
+```
+
+输出是 JSON，重点看：
+
+- `subscriber_deliveries_expected`
+- `subscriber_deliveries_observed`
+- `subscriber_lagged_events`
+- `publish_events_per_sec`
+- `delivered_messages_per_sec`
 
 ## 指标与运维
 

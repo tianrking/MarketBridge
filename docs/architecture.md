@@ -378,9 +378,10 @@ MarketBridge keeps current-state snapshots in `src/event_snapshots.rs` and
 event fanout in `src/event_bus.rs`.
 
 - `event_snapshots.rs`: latest quote/funding/OI/trade/liquidation/book/external
-  signal rows, cache key rules, and ArcSwap copy-on-write snapshot maps.
-- `event_bus.rs`: raw event broadcast, per-domain broadcast channels, and
-  update orchestration.
+  signal rows, cache key rules, and DashMap in-place latest-state maps.
+- `event_bus.rs`: shared raw event broadcast, per-domain broadcast channels,
+  optional event/domain sharding through `runtime.event_bus_shards`, and update
+  orchestration.
 - `router.rs`: source fanout into the spread aggregator and an asynchronous
   bus worker so snapshot publication does not sit on the router hot path.
 - `redis_sink.rs`: optional Redis Stream persistence with batched `XADD`
