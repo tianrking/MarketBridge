@@ -23,6 +23,7 @@ mod source_roadmap;
 mod types;
 
 use aggregator::SpreadAggregator;
+use api::snapshot_stream::SnapshotStreamHub;
 use api::streaming::set_ws_send_timeout_ms;
 use api::{ApiState, build_router};
 use config::AppConfig;
@@ -73,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
 
     let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);
+    let snapshot_stream_hub = SnapshotStreamHub::new(cfg.runtime.broadcast_capacity);
     let kline_store = KlineStore::new(cfg.klines.sqlite_path.clone());
     let data_lake_store =
         DataLakeStore::new(cfg.klines.lake_root.clone(), cfg.klines.sqlite_path.clone());
@@ -97,6 +99,7 @@ async fn main() -> anyhow::Result<()> {
         data_lake_store: data_lake_store.clone(),
         order_flow_store: order_flow_store.clone(),
         onchain_store: onchain_store.clone(),
+        snapshot_stream_hub: snapshot_stream_hub.clone(),
     });
     let api_addr = cfg.runtime.api_addr.clone();
     let api_shutdown = shutdown.clone();
@@ -201,10 +204,16 @@ async fn main() -> anyhow::Result<()> {
         spawn_polymarket_ws_cache(
             cfg.polymarket.clone(),
             http.clone(),
-            polymarket_cache,
+            polymarket_cache.clone(),
             shutdown.clone(),
         )
     });
+
+    let snapshot_stream_task = snapshot_stream_hub.spawn(
+        deribit_cache.clone(),
+        polymarket_cache.clone(),
+        shutdown.clone(),
+    );
 
     let kline_task = cfg.klines.enabled.then(|| {
         spawn_kline_service(
@@ -293,6 +302,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     wait_task("order_flow", order_flow_task).await;
+    wait_task("snapshot_stream", snapshot_stream_task).await;
 
     for task in onchain_tasks {
         wait_task("onchain_collector", task).await;

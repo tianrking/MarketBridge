@@ -11,11 +11,8 @@ use tracing::warn;
 use crate::api::ApiState;
 use crate::api::streaming::{
     EnvelopeFilter, SUPPORTED_STREAM_DOMAINS, StreamDomainFilter, TickFilter, event_matches,
-    send_envelope, send_json, send_shared_event, send_ws,
+    send_json, send_shared_event, send_shared_snapshot, send_ws, snapshot_domain_matches,
 };
-use crate::deribit_cache::DeribitOptionFilter;
-use crate::domains::options::chain::envelope_from_deribit_summary;
-use crate::domains::prediction::book::envelope_from_polymarket_book;
 use crate::event_bus::EventBus;
 use crate::metrics::AppMetrics;
 
@@ -77,9 +74,15 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
     let mut all_event_rx = domains
         .needs_mixed_event_bus()
         .then(|| state.bus.subscribe_events());
+    let mut options_snapshot_rx = domains
+        .options_chain
+        .then(|| state.snapshot_stream_hub.subscribe_options());
+    let mut prediction_snapshot_rx = domains
+        .prediction_book
+        .then(|| state.snapshot_stream_hub.subscribe_prediction());
     let mut hb = interval(Duration::from_secs(15));
-    let snapshot_interval_ms = q.snapshot_interval_ms.unwrap_or(1_000).clamp(250, 60_000);
-    let mut snapshots = interval(Duration::from_millis(snapshot_interval_ms));
+    let _requested_snapshot_interval_ms =
+        q.snapshot_interval_ms.unwrap_or(1_000).clamp(250, 60_000);
 
     loop {
         tokio::select! {
@@ -100,7 +103,7 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                         if !filter.matches(&envelope) {
                             continue;
                         }
-                        if let Err(error) = send_envelope(&mut socket, &envelope).await {
+                        if let Err(error) = crate::api::streaming::send_envelope(&mut socket, &envelope).await {
                             warn!(%error, "v1 stream quote send failed");
                             break;
                         }
@@ -157,33 +160,54 @@ async fn v1_stream_loop(mut socket: WebSocket, state: Arc<ApiState>, q: V1Stream
                     None => {}
                 }
             }
-            _ = snapshots.tick() => {
-                if domains.options_chain {
-                    let rows = state.deribit_cache
-                        .filtered(DeribitOptionFilter {
-                            include_stale: filter.include_stale,
-                            ..Default::default()
-                        })
-                        .await;
-                    for envelope in rows.into_iter().map(envelope_from_deribit_summary) {
-                        if filter.matches(&envelope)
-                            && let Err(error) = send_envelope(&mut socket, &envelope).await
-                        {
-                            warn!(%error, "v1 stream options snapshot send failed");
-                            return;
-                        }
-                    }
+            msg = async {
+                match &mut options_snapshot_rx {
+                    Some(rx) => Some(rx.recv().await),
+                    None => None,
                 }
-                if domains.prediction_book {
-                    let rows = state.polymarket_cache.all().await;
-                    for envelope in rows.into_iter().map(envelope_from_polymarket_book) {
-                        if filter.matches(&envelope)
-                            && let Err(error) = send_envelope(&mut socket, &envelope).await
-                        {
-                            warn!(%error, "v1 stream prediction snapshot send failed");
-                            return;
+            }, if options_snapshot_rx.is_some() => {
+                match msg {
+                    Some(Ok(snapshot))
+                        if snapshot_domain_matches(snapshot.as_ref(), &domains)
+                            && filter.matches_snapshot(snapshot.as_ref()) =>
+                    {
+                        if let Err(error) = send_shared_snapshot(&mut socket, snapshot.as_ref()).await {
+                            warn!(%error, "v1 stream options snapshot send failed");
+                            break;
                         }
                     }
+                    Some(Ok(_)) => {}
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
+                        warn!(skipped, "v1 stream consumer lagged behind options snapshot bus");
+                        continue;
+                    }
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
+                    None => {}
+                }
+            }
+            msg = async {
+                match &mut prediction_snapshot_rx {
+                    Some(rx) => Some(rx.recv().await),
+                    None => None,
+                }
+            }, if prediction_snapshot_rx.is_some() => {
+                match msg {
+                    Some(Ok(snapshot))
+                        if snapshot_domain_matches(snapshot.as_ref(), &domains)
+                            && filter.matches_snapshot(snapshot.as_ref()) =>
+                    {
+                        if let Err(error) = send_shared_snapshot(&mut socket, snapshot.as_ref()).await {
+                            warn!(%error, "v1 stream prediction snapshot send failed");
+                            break;
+                        }
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
+                        warn!(skipped, "v1 stream consumer lagged behind prediction snapshot bus");
+                        continue;
+                    }
+                    Some(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
+                    None => {}
                 }
             }
             incoming = socket.recv() => {

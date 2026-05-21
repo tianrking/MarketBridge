@@ -15,6 +15,7 @@ use crate::polymarket_ws::PolymarketBookCache;
 
 pub mod error;
 pub mod routes;
+pub mod snapshot_stream;
 pub mod streaming;
 pub mod utils;
 
@@ -30,6 +31,7 @@ pub struct ApiState {
     pub data_lake_store: DataLakeStore,
     pub order_flow_store: OrderFlowStore,
     pub onchain_store: OnchainTransferStore,
+    pub snapshot_stream_hub: snapshot_stream::SnapshotStreamHub,
 }
 
 pub fn build_router(state: ApiState) -> Router {

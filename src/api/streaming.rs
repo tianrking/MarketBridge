@@ -8,6 +8,7 @@ use tokio::time::timeout;
 use tracing::warn;
 
 use crate::api::routes::stream::{TickFilterQuery, V1StreamQuery};
+use crate::api::snapshot_stream::{SharedSnapshot, SnapshotStreamDomain};
 use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::{DataEnvelope, ProductType};
 use crate::event_bus::{EventDomain, NormalizedTick, SharedEvent};
@@ -161,6 +162,31 @@ impl EnvelopeFilter {
         }
         true
     }
+
+    pub fn matches_snapshot(&self, snapshot: &SharedSnapshot) -> bool {
+        if !self.include_stale && snapshot.stale {
+            return false;
+        }
+        if let Some(symbols) = &self.symbols {
+            let Some(symbol) = snapshot.symbol.as_deref() else {
+                return false;
+            };
+            if !contains_ascii_case(symbols, symbol) {
+                return false;
+            }
+        }
+        if let Some(exchanges) = &self.exchanges
+            && !contains_ascii_case(exchanges, &snapshot.source)
+        {
+            return false;
+        }
+        if let Some(product_type) = &self.product_type
+            && snapshot.product_type != product_type
+        {
+            return false;
+        }
+        true
+    }
 }
 
 impl StreamDomainFilter {
@@ -266,8 +292,22 @@ pub fn event_matches(
     }
 }
 
+pub fn snapshot_domain_matches(snapshot: &SharedSnapshot, domains: &StreamDomainFilter) -> bool {
+    match snapshot.domain {
+        SnapshotStreamDomain::OptionsChain => domains.options_chain,
+        SnapshotStreamDomain::PredictionBook => domains.prediction_book,
+    }
+}
+
 pub async fn send_shared_event(socket: &mut WebSocket, event: &SharedEvent) -> StreamSendResult {
     send_ws(socket, Message::Text(event.json.as_ref().to_string())).await
+}
+
+pub async fn send_shared_snapshot(
+    socket: &mut WebSocket,
+    snapshot: &SharedSnapshot,
+) -> StreamSendResult {
+    send_ws(socket, Message::Text(snapshot.json.as_ref().to_string())).await
 }
 
 pub async fn send_envelope<T: Serialize>(
