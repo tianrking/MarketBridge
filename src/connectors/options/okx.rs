@@ -29,6 +29,14 @@ struct OkxOptionSummary {
     fwd_px: Option<String>,
     #[serde(default)]
     idx_px: Option<String>,
+    #[serde(default)]
+    delta_bs: Option<String>,
+    #[serde(default)]
+    gamma_bs: Option<String>,
+    #[serde(default)]
+    theta_bs: Option<String>,
+    #[serde(default)]
+    vega_bs: Option<String>,
 }
 
 pub async fn fetch_okx_option_summaries_from(
@@ -72,10 +80,10 @@ pub async fn fetch_okx_option_summaries_from(
                 mark_iv: parse_f64_opt(raw.mark_vol.as_deref())
                     .or_else(|| parse_f64_opt(raw.bid_vol.as_deref()))
                     .or_else(|| parse_f64_opt(raw.ask_vol.as_deref())),
-                delta: None,
-                gamma: None,
-                theta: None,
-                vega: None,
+                delta: parse_f64_opt(raw.delta_bs.as_deref()),
+                gamma: parse_f64_opt(raw.gamma_bs.as_deref()),
+                theta: parse_f64_opt(raw.theta_bs.as_deref()),
+                vega: parse_f64_opt(raw.vega_bs.as_deref()),
                 underlying_price: parse_f64_opt(raw.idx_px.as_deref())
                     .or_else(|| parse_f64_opt(raw.fwd_px.as_deref())),
                 underlying_index: raw.uly,
@@ -106,5 +114,28 @@ mod tests {
         assert_eq!(parsed.0, "2026-06-26T08:00:00Z");
         assert_eq!(parsed.1, 100_000.0);
         assert_eq!(parsed.2, "call");
+    }
+
+    #[test]
+    fn okx_summary_carries_black_scholes_greeks() {
+        let raw = OkxOptionSummary {
+            inst_id: "BTC-USD-260626-100000-C".to_string(),
+            uly: Some("BTC-USD".to_string()),
+            opt_type: Some("C".to_string()),
+            stk: Some("100000".to_string()),
+            bid_vol: None,
+            ask_vol: None,
+            mark_vol: Some("0.45".to_string()),
+            fwd_px: None,
+            idx_px: Some("78000".to_string()),
+            delta_bs: Some("0.25".to_string()),
+            gamma_bs: Some("0.00001".to_string()),
+            theta_bs: Some("-12.5".to_string()),
+            vega_bs: Some("50.5".to_string()),
+        };
+        assert_eq!(parse_f64_opt(raw.delta_bs.as_deref()), Some(0.25));
+        assert_eq!(parse_f64_opt(raw.gamma_bs.as_deref()), Some(0.00001));
+        assert_eq!(parse_f64_opt(raw.theta_bs.as_deref()), Some(-12.5));
+        assert_eq!(parse_f64_opt(raw.vega_bs.as_deref()), Some(50.5));
     }
 }

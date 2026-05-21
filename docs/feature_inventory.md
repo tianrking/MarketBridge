@@ -130,7 +130,7 @@ Status labels:
 | Venue | Summary chain | Greeks | WS ticker/book/trades | Depth | API key | Notes |
 |---|---:|---:|---:|---:|---:|---|
 | Deribit | implemented | implemented | partial | implemented | keyless | Summary chain plus `/options/deribit/book` for per-instrument depth and delta/gamma/theta/vega. |
-| OKX Options | implemented | partial | planned | planned | keyless | REST option summary. |
+| OKX Options | implemented | implemented | planned | planned | keyless | REST option summary parses IV plus deltaBS/gammaBS/thetaBS/vegaBS when present. |
 | Bybit Options | implemented | implemented | implemented | planned | keyless | Public ticker emits IV, OI, and delta/gamma/theta/vega. |
 | Binance Options | implemented | partial | implemented | planned | keyless | Public ticker plus mark endpoint emits IV and delta/gamma/theta/vega. |
 
