@@ -133,6 +133,13 @@ impl EventSnapshotStore {
         self.quote_snapshots.values()
     }
 
+    pub async fn quote_snapshots_matching(
+        &self,
+        predicate: impl Fn(&DataEnvelope<QuotePayload>) -> bool,
+    ) -> Vec<DataEnvelope<QuotePayload>> {
+        self.quote_snapshots.values_matching(predicate)
+    }
+
     pub async fn funding_snapshot_all(&self) -> Vec<FundingRateTick> {
         self.funding_snapshots.values()
     }
@@ -149,8 +156,11 @@ impl EventSnapshotStore {
         self.liquidation_snapshots.values()
     }
 
-    pub async fn order_book_snapshot_all(&self) -> Vec<OrderBookTick> {
-        self.order_book_snapshots.values()
+    pub async fn order_book_snapshots_matching(
+        &self,
+        predicate: impl Fn(&OrderBookTick) -> bool,
+    ) -> Vec<OrderBookTick> {
+        self.order_book_snapshots.values_matching(predicate)
     }
 
     pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {

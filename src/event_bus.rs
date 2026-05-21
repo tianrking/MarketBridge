@@ -202,6 +202,13 @@ impl EventBus {
         self.snapshots.quote_snapshot_all().await
     }
 
+    pub async fn quote_snapshots_matching(
+        &self,
+        predicate: impl Fn(&DataEnvelope<QuotePayload>) -> bool,
+    ) -> Vec<DataEnvelope<QuotePayload>> {
+        self.snapshots.quote_snapshots_matching(predicate).await
+    }
+
     pub async fn funding_snapshot_all(&self) -> Vec<FundingRateTick> {
         self.snapshots.funding_snapshot_all().await
     }
@@ -218,8 +225,13 @@ impl EventBus {
         self.snapshots.liquidation_snapshot_all().await
     }
 
-    pub async fn order_book_snapshot_all(&self) -> Vec<OrderBookTick> {
-        self.snapshots.order_book_snapshot_all().await
+    pub async fn order_book_snapshots_matching(
+        &self,
+        predicate: impl Fn(&OrderBookTick) -> bool,
+    ) -> Vec<OrderBookTick> {
+        self.snapshots
+            .order_book_snapshots_matching(predicate)
+            .await
     }
 
     pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {
@@ -335,7 +347,7 @@ mod tests {
         assert_eq!(bus.open_interest_snapshot_all().await.len(), 1);
         assert_eq!(bus.trade_snapshot_all().await.len(), 1);
         assert_eq!(bus.liquidation_snapshot_all().await.len(), 1);
-        assert_eq!(bus.order_book_snapshot_all().await.len(), 1);
+        assert_eq!(bus.order_book_snapshots_matching(|_| true).await.len(), 1);
         bus.publish_from_event(&DataEvent::ExternalSignal(ExternalSignalTick {
             source: "fear_greed",
             category: "sentiment".into(),
