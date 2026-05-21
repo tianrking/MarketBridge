@@ -279,8 +279,9 @@ GET /options/binance/book
 ```
 
 Purpose: Deribit, OKX, Bybit, and Binance option venues. REST chain and
-per-instrument depth are wired; full websocket ticker/book/trade parity is a
-remaining latency upgrade tracked in the feature inventory.
+per-instrument depth are wired; public websocket ticker/summary cache updates
+are wired for all four venues. Native websocket option book/trade streams remain
+a latency extension tracked in the feature inventory.
 
 ### Prediction Market Data
 
@@ -411,8 +412,8 @@ Implemented today:
 Known architecture gaps:
 
 - Legacy endpoints are source-specific rather than `/v1` domain APIs.
-- Options websocket parity is incomplete: REST chain/depth is wired, while full
-  push-native ticker/book/trade parity remains future work.
+- Options websocket book/trade parity is a latency extension: REST chain/depth
+  and public websocket ticker/summary cache updates are wired.
 - Runtime source health is cache-derived; deeper connector lifecycle telemetry
   is still a future enhancement.
 - Remaining non-Polymarket data gaps are centralized in

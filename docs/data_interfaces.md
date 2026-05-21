@@ -220,7 +220,7 @@ Important boundaries:
 | Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
-| External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush. |
+| External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush, and DeFi native-state metrics emitted by pool connectors. |
 
 Known non-Polymarket gaps are centralized in
 [`feature_inventory.md`](feature_inventory.md#remaining-non-polymarket-data-gaps).
