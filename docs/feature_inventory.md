@@ -71,7 +71,7 @@ Status labels:
 | GRVT | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp book/trade/ticker streams with funding and OI; no stable public liquidation endpoint is exposed in the CCXT reference. |
 | Vertex | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids; gateway `all_products` emits OI and archive `funding_rates` emits funding. Liquidation is not exposed as a stable public feed. |
 | Injective | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding and OI pollers; liquidation is not exposed as a stable public feed. |
-| XRPL | partial | implemented | planned | n/a | n/a | n/a | keyless | Public book_offers snapshots; issuer-aware mapping currently includes XRP/USD. Funding/OI/liquidation do not apply to spot XRPL books. |
+| XRPL | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Public book_offers snapshots plus validated transaction stream parsing for executed Offer fills; issuer-aware mapping currently includes XRP/USD. Funding/OI/liquidation do not apply to spot XRPL books. |
 | Architect | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. No public liquidation feed is exposed. |
 | Decibel | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. No public liquidation feed is exposed. |
 | Deribit | implemented | implemented | implemented | implemented | implemented | partial | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. Public bankruptcy settlements exist, but they do not carry normal liquidation price/qty semantics for `LiquidationTick`. |
@@ -120,7 +120,6 @@ public endpoint is later confirmed.
 
 | Area | Missing data | Status | Why it remains open |
 |---|---|---:|---|
-| XRPL | Executed trades | planned | Book snapshots are wired from `book_offers`; trades require ledger/indexer semantics and must not be synthesized from order books. |
 | Architect | Open interest | planned | Venue is keyed; needs credentialed validation before normalizing OI. |
 | Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
 | DeFi native state | Pool liquidity, route depth, swaps/trades | planned | Current connectors expose quotes or pool price snapshots. Native pool/trade state needs chain-specific RPC/subgraph/indexer work. |

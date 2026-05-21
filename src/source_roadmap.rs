@@ -472,9 +472,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT,
         domains: QUOTE_BOOK_TRADE,
         upstreams: UP_HB_SPOT,
-        marketbridge_status: "partial",
-        priority: "P2",
-        notes: "Public book_offers snapshots wired; issuer-aware mapping currently includes XRP/USD.",
+        marketbridge_status: "implemented",
+        priority: "P1",
+        notes: "Public book_offers snapshots and validated transaction-stream Offer fills are wired; issuer-aware mapping currently includes XRP/USD.",
     },
     RoadmapSource {
         source: "aevo",
