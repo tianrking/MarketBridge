@@ -6,6 +6,8 @@ pub struct DeribitConfig {
     pub enabled: bool,
     #[serde(default = "default_deribit_base_url")]
     pub base_url: String,
+    #[serde(default = "default_deribit_ws_url")]
+    pub ws_url: String,
     #[serde(default = "default_deribit_currencies")]
     pub currencies: Vec<String>,
     #[serde(default = "default_deribit_refresh_secs")]
@@ -73,6 +75,10 @@ pub struct PolymarketConfig {
 }
 fn default_deribit_base_url() -> String {
     "https://www.deribit.com/api/v2/".to_string()
+}
+
+fn default_deribit_ws_url() -> String {
+    "wss://www.deribit.com/ws/api/v2".to_string()
 }
 
 fn default_deribit_currencies() -> Vec<String> {
@@ -151,6 +157,7 @@ impl Default for DeribitConfig {
         Self {
             enabled: false,
             base_url: default_deribit_base_url(),
+            ws_url: default_deribit_ws_url(),
             currencies: default_deribit_currencies(),
             refresh_secs: default_deribit_refresh_secs(),
             stale_ttl_ms: default_deribit_stale_ttl_ms(),

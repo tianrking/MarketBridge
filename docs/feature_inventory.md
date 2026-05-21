@@ -125,7 +125,7 @@ public endpoint is later confirmed.
 | Architect | Open interest | planned | Venue is keyed; needs credentialed validation before normalizing OI. |
 | Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
 | DeFi native state | Pool liquidity, route depth, swaps/trades | planned | Current connectors expose quotes or pool price snapshots. Native pool/trade state needs chain-specific RPC/subgraph/indexer work. |
-| Options websocket parity | Full WS ticker/book/trades across Deribit/OKX/Bybit/Binance | planned/partial | REST chain and per-instrument depth are wired; full low-latency WS parity is separate from REST cache coverage. |
+| Options websocket parity | Full WS ticker/book/trades across Deribit/OKX/Bybit/Binance | partial | Deribit WS ticker updates are wired; OKX/Bybit/Binance WS parity remains. REST chain and per-instrument depth are wired. |
 | Aggregator signal layer | Funding/OI/trade/liquidation analytics | implemented | SpreadAggregator emits funding divergence, OI change, trade imbalance, liquidation burst, and depth-pressure signals from normalized events. |
 
 ## Polymarket Coverage
@@ -147,7 +147,7 @@ public endpoint is later confirmed.
 
 | Venue | Summary chain | Greeks | WS ticker/book/trades | Depth | API key | Notes |
 |---|---:|---:|---:|---:|---:|---|
-| Deribit | implemented | implemented | partial | implemented | keyless | Summary chain plus `/options/deribit/book` for per-instrument depth and delta/gamma/theta/vega. |
+| Deribit | implemented | implemented | implemented | implemented | keyless | Summary chain plus `/options/deribit/book`; public WS ticker updates cache bid/ask/mark/IV/Greeks/OI. |
 | OKX Options | implemented | implemented | planned | implemented | keyless | REST option summary parses IV plus deltaBS/gammaBS/thetaBS/vegaBS when present; `/options/okx/book` returns per-instrument depth. |
 | Bybit Options | implemented | implemented | implemented | implemented | keyless | Public ticker emits IV, OI, and delta/gamma/theta/vega; `/options/bybit/book` returns per-instrument depth. |
 | Binance Options | implemented | partial | implemented | implemented | keyless | Public ticker plus mark endpoint emits IV and delta/gamma/theta/vega; `/options/binance/book` returns per-instrument depth. |

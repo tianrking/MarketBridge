@@ -28,7 +28,7 @@ use config::AppConfig;
 use connectors::cex::registry::build_sources;
 use deribit_cache::{
     DeribitOptionCache, spawn_binance_option_cache, spawn_bybit_option_cache,
-    spawn_deribit_option_cache, spawn_okx_option_cache,
+    spawn_deribit_option_cache, spawn_deribit_option_ws_cache, spawn_okx_option_cache,
 };
 use event_bus::EventBus;
 use klines::{KlineStore, spawn_kline_service};
@@ -129,6 +129,14 @@ async fn main() -> anyhow::Result<()> {
             shutdown.clone(),
         )
     });
+    let deribit_ws_task = cfg.deribit.enabled.then(|| {
+        spawn_deribit_option_ws_cache(
+            cfg.deribit.clone(),
+            http.clone(),
+            deribit_cache.clone(),
+            shutdown.clone(),
+        )
+    });
 
     let okx_options_task = cfg.okx_options.enabled.then(|| {
         spawn_okx_option_cache(
@@ -218,6 +226,9 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(deribit_task) = deribit_task {
         wait_task("deribit_options", deribit_task).await;
+    }
+    if let Some(deribit_ws_task) = deribit_ws_task {
+        wait_task("deribit_options_ws", deribit_ws_task).await;
     }
 
     if let Some(okx_options_task) = okx_options_task {

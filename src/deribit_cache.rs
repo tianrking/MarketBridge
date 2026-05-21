@@ -2,8 +2,12 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::{Context, Result};
+use futures_util::{SinkExt, StreamExt};
 use serde::Serialize;
+use serde_json::{Value, json};
 use tokio::sync::RwLock;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
@@ -72,6 +76,31 @@ impl OptionCache {
             stale: false,
             summary,
         }));
+    }
+
+    pub async fn upsert_live_summary(&self, source: &str, summary: OptionSummary) {
+        let received_at_ms = now_ms();
+        let mut guard = self.inner.write().await;
+        if let Some(row) = guard.iter_mut().find(|row| {
+            row.summary
+                .venue
+                .eq_ignore_ascii_case(summary.venue.as_str())
+                && row.summary.instrument_name == summary.instrument_name
+        }) {
+            row.source = source.to_string();
+            row.received_at_ms = received_at_ms;
+            row.stale = false;
+            row.summary = merge_option_summary(row.summary.clone(), summary);
+            return;
+        }
+
+        guard.push(CachedOptionSummary {
+            version: "v1",
+            source: source.to_string(),
+            received_at_ms,
+            stale: false,
+            summary,
+        });
     }
 
     pub async fn filtered(&self, filter: OptionFilter) -> Vec<CachedOptionSummary> {
@@ -193,6 +222,153 @@ option_cache_spawner!(
     fetch_binance_option_summaries_from
 );
 
+pub fn spawn_deribit_option_ws_cache(
+    cfg: DeribitConfig,
+    client: reqwest::Client,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        if !cfg.enabled {
+            return;
+        }
+        loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            match run_deribit_option_ws_once(&cfg, client.clone(), cache.clone(), shutdown.clone())
+                .await
+            {
+                Ok(()) => {}
+                Err(error) => warn!(%error, "deribit option websocket stopped"),
+            }
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+            }
+        }
+    })
+}
+
+async fn run_deribit_option_ws_once(
+    cfg: &DeribitConfig,
+    client: reqwest::Client,
+    cache: OptionCache,
+    shutdown: CancellationToken,
+) -> Result<()> {
+    let currencies = normalized_currencies(&cfg.currencies);
+    if currencies.is_empty() {
+        return Ok(());
+    }
+
+    let mut instruments = Vec::new();
+    for currency in &currencies {
+        let rows = fetch_deribit_option_summaries_from(&client, &cfg.base_url, currency).await?;
+        instruments.extend(rows.into_iter().map(|row| row.instrument_name));
+    }
+    instruments.sort();
+    instruments.dedup();
+    if instruments.is_empty() {
+        return Ok(());
+    }
+
+    let channels = instruments
+        .iter()
+        .map(|instrument| format!("ticker.{instrument}.100ms"))
+        .collect::<Vec<_>>();
+
+    let (ws, _) = connect_async(&cfg.ws_url)
+        .await
+        .context("deribit option websocket connect failed")?;
+    let (mut sink, mut stream) = ws.split();
+    sink.send(Message::Text(
+        json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "public/subscribe",
+            "params": {"channels": channels}
+        })
+        .to_string(),
+    ))
+    .await?;
+
+    loop {
+        tokio::select! {
+            _ = shutdown.cancelled() => return Ok(()),
+            msg = stream.next() => {
+                let msg = msg.context("deribit option websocket ended")??;
+                match msg {
+                    Message::Text(text) => {
+                        if let Some(summary) = parse_deribit_ws_option_summary(&text) {
+                            cache.upsert_live_summary("deribit_ws_ticker", summary).await;
+                        }
+                    }
+                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
+                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Close(_) => return Ok(()),
+                }
+            }
+        }
+    }
+}
+
+fn parse_deribit_ws_option_summary(text: &str) -> Option<OptionSummary> {
+    let value = serde_json::from_str::<Value>(text).ok()?;
+    let row = value.pointer("/params/data")?;
+    let instrument_name = row.get("instrument_name").and_then(Value::as_str)?;
+    let currency = instrument_name.split('-').next()?.to_ascii_uppercase();
+    let parsed = parse_deribit_option_instrument(instrument_name);
+    let greeks = row.get("greeks");
+    Some(OptionSummary {
+        venue: "deribit".to_string(),
+        currency,
+        instrument_name: instrument_name.to_string(),
+        option_type: parsed.as_ref().map(|p| p.2.clone()),
+        strike: parsed.as_ref().map(|p| p.1),
+        expiry_time: parsed.map(|p| p.0),
+        bid_price: row.get("best_bid_price").and_then(Value::as_f64),
+        ask_price: row.get("best_ask_price").and_then(Value::as_f64),
+        mark_price: row.get("mark_price").and_then(Value::as_f64),
+        mark_iv: row.get("mark_iv").and_then(Value::as_f64),
+        delta: greeks.and_then(|g| g.get("delta")).and_then(Value::as_f64),
+        gamma: greeks.and_then(|g| g.get("gamma")).and_then(Value::as_f64),
+        theta: greeks.and_then(|g| g.get("theta")).and_then(Value::as_f64),
+        vega: greeks.and_then(|g| g.get("vega")).and_then(Value::as_f64),
+        underlying_price: row.get("underlying_price").and_then(Value::as_f64),
+        underlying_index: row
+            .get("underlying_index")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        open_interest: row.get("open_interest").and_then(Value::as_f64),
+    })
+}
+
+fn parse_deribit_option_instrument(name: &str) -> Option<(String, f64, String)> {
+    let parts = name.split('-').collect::<Vec<_>>();
+    if parts.len() < 4 {
+        return None;
+    }
+    let expiry_time = crate::connectors::options::common::parse_day_month_year_expiry(parts[1])?;
+    let strike = parts[2].parse::<f64>().ok()?;
+    let option_type = crate::connectors::options::common::option_side_from_code(parts[3]);
+    Some((expiry_time, strike, option_type))
+}
+
+fn merge_option_summary(mut old: OptionSummary, live: OptionSummary) -> OptionSummary {
+    old.bid_price = live.bid_price.or(old.bid_price);
+    old.ask_price = live.ask_price.or(old.ask_price);
+    old.mark_price = live.mark_price.or(old.mark_price);
+    old.mark_iv = live.mark_iv.or(old.mark_iv);
+    old.delta = live.delta.or(old.delta);
+    old.gamma = live.gamma.or(old.gamma);
+    old.theta = live.theta.or(old.theta);
+    old.vega = live.vega.or(old.vega);
+    old.underlying_price = live.underlying_price.or(old.underlying_price);
+    old.underlying_index = live.underlying_index.or(old.underlying_index);
+    old.open_interest = live.open_interest.or(old.open_interest);
+    old
+}
+
 struct OptionCacheJob {
     venue: &'static str,
     base_url: String,
@@ -304,5 +480,42 @@ mod tests {
             .await;
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].summary.strike, Some(90_000.0));
+    }
+
+    #[test]
+    fn parses_deribit_ws_ticker_summary() {
+        let summary = parse_deribit_ws_option_summary(
+            &json!({
+                "jsonrpc": "2.0",
+                "method": "subscription",
+                "params": {
+                    "channel": "ticker.BTC-29MAY26-70000-P.100ms",
+                    "data": {
+                        "instrument_name": "BTC-29MAY26-70000-P",
+                        "best_bid_price": 0.0016,
+                        "best_ask_price": 0.0019,
+                        "mark_price": 0.0017,
+                        "mark_iv": 46.4,
+                        "underlying_price": 77967.19,
+                        "underlying_index": "BTC-29MAY26",
+                        "open_interest": 3544.6,
+                        "greeks": {
+                            "delta": -0.05645,
+                            "gamma": 0.00002,
+                            "theta": -37.55606,
+                            "vega": 13.26425
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("summary");
+
+        assert_eq!(summary.venue, "deribit");
+        assert_eq!(summary.currency, "BTC");
+        assert_eq!(summary.option_type.as_deref(), Some("put"));
+        assert_eq!(summary.delta, Some(-0.05645));
+        assert_eq!(summary.open_interest, Some(3544.6));
     }
 }

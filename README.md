@@ -477,7 +477,7 @@ management should stay outside this repo.
 | Bybit option depth | Implemented | `GET /options/bybit/book?instrument_name=BTC-26MAR27-78000-P-USDT&depth=10` | Public per-instrument option book. |
 | Binance option tickers | Implemented | `GET /v1/options/chains?venue=binance&currency=BTC` | Public European option ticker plus optional mark data; open interest is not in this public ticker payload. |
 | Binance option depth | Implemented | `GET /options/binance/book?instrument_name=BTC-260626-140000-C&depth=10` | Public per-instrument option book; requested depth is mapped to Binance's allowed depth buckets. |
-| Options websocket parity | Planned/partial | N/A | REST chain/depth coverage is wired. Full low-latency WS ticker/book/trades parity for Deribit/OKX/Bybit/Binance remains tracked in `docs/feature_inventory.md`. |
+| Options websocket parity | Partial | N/A | Deribit public WS ticker updates the option cache; REST chain/depth coverage is wired. OKX/Bybit/Binance low-latency WS parity remains tracked in `docs/feature_inventory.md`. |
 
 ### Polymarket Data
 
@@ -657,7 +657,7 @@ The remaining non-Polymarket data gaps are tracked in
 [docs/feature_inventory.md](docs/feature_inventory.md#remaining-non-polymarket-data-gaps).
 At this checkpoint they are: Vertex funding/OI, XRPL executed trades,
 credentialed Architect/Decibel OI validation, native DeFi pool/trade state,
-and options websocket parity. Aggregator analytics for funding divergence, OI
+and remaining OKX/Bybit/Binance options websocket parity. Aggregator analytics for funding divergence, OI
 change, trade imbalance, liquidation burst, and depth pressure are emitted by
 the spread aggregator.
 
