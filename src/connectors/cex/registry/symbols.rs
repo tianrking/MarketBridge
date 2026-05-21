@@ -60,8 +60,13 @@ pub(super) fn to_bitfinex_perp(s: &str) -> String {
 }
 
 pub(super) fn to_kraken_perp(s: &str) -> String {
-    // Kraken futures symbols vary across venues; pass through for user override compatibility.
-    s.to_string()
+    if s.starts_with("PF_") || s.starts_with("PI_") {
+        return s.to_string();
+    }
+    let (base, quote) = split_quote(s);
+    let base = if base == "BTC" { "XBT" } else { base };
+    let quote = if quote == "USDT" { "USD" } else { quote };
+    format!("PF_{base}{quote}")
 }
 
 pub(super) fn to_hyperliquid_coin(s: &str) -> String {
@@ -87,6 +92,7 @@ mod tests {
         assert_eq!(to_kucoin_perp("BTCUSDT"), "XBTUSDTM");
         assert_eq!(to_htx_perp("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_bitfinex_perp("BTCUSDT"), "tBTCF0:USTF0");
+        assert_eq!(to_kraken_perp("BTCUSDT"), "PF_XBTUSD");
         assert_eq!(to_hyperliquid_coin("BTCUSDT"), "BTC");
         assert_eq!(to_dydx_market("BTCUSDT"), "BTC-USDT");
         assert_eq!(to_underscore("BTCJPY"), "BTC_JPY");

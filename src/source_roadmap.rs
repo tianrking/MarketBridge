@@ -382,9 +382,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented_public",
         priority: "P0",
-        notes: "Spot ticker, REST order book, and recent trades are wired; add perp L2/trades and derivatives parity.",
+        notes: "Spot ticker/REST book/trades and futures REST ticker/book/trades/funding/OI are wired with PF_ symbol mapping; public liquidation feed is unavailable in CCXT.",
     },
     RoadmapSource {
         source: "kucoin",

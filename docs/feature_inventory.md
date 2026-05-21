@@ -79,7 +79,7 @@ Status labels:
 | KuCoin | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Spot/perp ticker plus spot REST book/trades and futures REST book/trades/funding/OI; no stable public liquidation feed in the CCXT reference. |
 | Gate | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot bookTicker plus REST book/trades; perp bookTicker plus REST book/trades/contracts funding/OI/liquidations. |
 | Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
-| Kraken | implemented | implemented | implemented | planned | planned | planned | keyless | Spot V2 ticker plus REST order book and recent trades; separate futures ticker today. |
+| Kraken | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Spot V2 ticker plus REST book/trades; futures REST ticker/book/trades/funding/OI with `PF_` symbol mapping. Public liquidation feed is not exposed in the CCXT reference. |
 | HTX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot BBO plus REST book/trades; linear swap BBO plus REST book/trades/funding/OI/liquidations. |
 | Bitfinex | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp ticker; spot/perp REST book/trades, derivative status funding/OI, and public liquidation history filtered by symbol. |
 | Coinbase | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Advanced Trade ticker plus Exchange REST order book and recent trades. |

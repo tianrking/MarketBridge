@@ -71,7 +71,7 @@ use super::htx_perp::{HtxPerpBbo, HtxPerpRestFeed};
 use super::hyperliquid::HyperliquidFeed;
 use super::injective::InjectiveFeed;
 use super::kraken::{KrakenRestFeed, KrakenTicker};
-use super::kraken_perp::KrakenPerpTicker;
+use super::kraken_perp::{KrakenPerpRestFeed, KrakenPerpTicker};
 use super::kucoin::KucoinTicker;
 use super::kucoin_perp::{KucoinPerpRestFeed, KucoinPerpTicker};
 use super::kucoin_rest::KucoinRestFeed;
@@ -481,9 +481,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     )));
                 }
                 if !perp_symbols.is_empty() {
-                    out.push(Arc::new(KrakenPerpTicker::new(
-                        perp_symbols.iter().map(|s| to_kraken_perp(s)).collect(),
-                    )));
+                    let kraken_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_kraken_perp(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(KrakenPerpTicker::new(kraken_perp_symbols.clone())));
+                    out.push(Arc::new(KrakenPerpRestFeed::new(kraken_perp_symbols)));
                 }
             }
             "kucoin" => {

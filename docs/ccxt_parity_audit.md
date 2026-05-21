@@ -50,6 +50,7 @@ Recent parity closes:
 | Bitmart | Public futures open-interest endpoint added beside existing depth/trade/funding streams; public liquidation fetch remains unavailable in CCXT. | `OpenInterest` |
 | Cube | Public market-data REST recent trades added beside existing MBP snapshots with trade-id dedupe. | `Trade` |
 | KuCoin | Futures REST depth, recent trades, funding, and open-interest metrics added; BTC futures id mapping fixed to `XBTUSDTM`. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
+| Kraken | Futures REST ticker, depth, recent trades, funding, and open-interest metrics added with `PF_` symbol mapping. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
 
 Remaining high-value CCXT parity queue:
 
