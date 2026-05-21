@@ -175,6 +175,16 @@ Risk:
 Add a synthetic source mode that emits controlled quotes/books/trades without
 network I/O.
 
+Status:
+
+- Implemented as `market-bridge load-test`.
+
+Example:
+
+```bash
+market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536
+```
+
 Measure:
 
 - events/sec in
@@ -203,7 +213,8 @@ Without a dedicated load test, treat these as engineering estimates only:
 
 1. Add shared snapshot broadcaster for options and prediction snapshots.
 2. Extend pre-serialized payloads to quote envelopes where it has clear value.
-3. Add synthetic load generator and document measured throughput.
+3. Use the synthetic load generator in CI/manual release checks and record
+   measured throughput per machine class.
 4. Add API key/rate-limit layer before exposing this as a public multi-tenant
    data service.
 

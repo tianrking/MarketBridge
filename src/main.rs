@@ -11,6 +11,7 @@ mod domains;
 mod event_bus;
 mod event_snapshots;
 mod klines;
+mod load_test;
 mod metrics;
 mod onchain;
 mod order_flow;
@@ -52,6 +53,12 @@ use types::DataEvent;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(load_test_cfg) = load_test::load_test_config_from_args(&args) {
+        load_test::run_load_test(load_test_cfg).await;
+        return Ok(());
+    }
 
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?))

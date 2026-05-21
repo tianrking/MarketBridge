@@ -60,6 +60,15 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 ```
 
+Synthetic local load test:
+
+```bash
+./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536
+```
+
+This mode does not connect to exchanges. It publishes synthetic normalized
+events through the same in-process bus and prints JSON throughput metrics.
+
 Use `config.min.yaml` for a small smoke test, `config.yaml` for normal local
 research, and `config.all-exchanges.example.yaml` as an editable broad-coverage
 example.

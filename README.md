@@ -350,6 +350,16 @@ Choose one of the included configs:
 - `config.all-exchanges.example.yaml`: broad connector example; edit before
   running if you do not want every public source enabled.
 
+Synthetic local load test:
+
+```bash
+./market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536
+```
+
+The load test does not connect to exchanges. It publishes synthetic normalized
+events through the same `EventBus`/serialization path and prints JSON metrics
+for publish throughput, subscriber deliveries, and lagged broadcast events.
+
 ## Release Builds
 
 CI has two workflows:
