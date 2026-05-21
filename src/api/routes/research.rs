@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use axum::Json;
@@ -22,8 +22,16 @@ pub struct ResearchFeatureQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     benchmark_symbol: Option<String>,
+    correlated_symbols: Option<String>,
     depth_levels: Option<usize>,
     limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct CorrelatedAssetFeature {
+    symbol: String,
+    rolling_return_pct: Option<f64>,
+    correlation: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -42,6 +50,7 @@ struct ResearchFeatureRow {
     z_score: Option<f64>,
     benchmark_symbol: Option<String>,
     benchmark_correlation: Option<f64>,
+    correlated_assets: Vec<CorrelatedAssetFeature>,
     funding_rate: Option<f64>,
     open_interest: Option<f64>,
     open_interest_value: Option<f64>,
@@ -73,6 +82,14 @@ struct MarketContext {
     open_interest: HashMap<String, OpenInterestTick>,
     order_books: HashMap<String, OrderBookTick>,
     benchmark_returns: HashMap<String, Vec<f64>>,
+    correlated_returns: HashMap<String, Vec<CorrelatedAssetReturns>>,
+}
+
+#[derive(Clone)]
+struct CorrelatedAssetReturns {
+    symbol: String,
+    returns: Vec<f64>,
+    rolling_return_pct: Option<f64>,
 }
 
 #[derive(Default)]
@@ -92,6 +109,7 @@ pub async fn features(
     let context = load_context(&state, &q, &groups).await;
     let mut rows = groups
         .into_iter()
+        .filter(|group| is_target_group(group, &q))
         .filter_map(|group| feature_row(group, &q, &context))
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| {
@@ -113,6 +131,7 @@ pub async fn market_regime(
     let context = load_context(&state, &q, &groups).await;
     let rows = groups
         .into_iter()
+        .filter(|group| is_target_group(group, &q))
         .filter_map(|group| feature_row(group, &q, &context))
         .collect::<Vec<_>>();
     let snapshot = regime_snapshot(&rows);
@@ -120,7 +139,7 @@ pub async fn market_regime(
 }
 
 async fn load_groups(state: &ApiState, q: &ResearchFeatureQuery) -> Vec<KlineGroup> {
-    let symbols = q.symbols.as_ref().cloned().map(parse_csv_set_upper);
+    let symbols = query_symbol_set(q);
     let intervals = q
         .intervals
         .as_deref()
@@ -206,6 +225,7 @@ async fn load_context(
         .map(|benchmark| benchmark.to_ascii_uppercase())
         .map(|benchmark| benchmark_return_map(groups, &benchmark))
         .unwrap_or_default();
+    let correlated_returns = correlated_return_map(groups, q);
 
     MarketContext {
         quotes,
@@ -213,6 +233,7 @@ async fn load_context(
         open_interest,
         order_books,
         benchmark_returns,
+        correlated_returns,
     }
 }
 
@@ -239,6 +260,21 @@ fn feature_row(
         .as_ref()
         .and_then(|_| context.benchmark_returns.get(&group.interval))
         .and_then(|benchmark| correlation(&returns, benchmark));
+    let correlated_assets = context
+        .correlated_returns
+        .get(&group.interval)
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| !item.symbol.eq_ignore_ascii_case(&group.symbol))
+                .map(|item| CorrelatedAssetFeature {
+                    symbol: item.symbol.clone(),
+                    rolling_return_pct: item.rolling_return_pct,
+                    correlation: correlation(&returns, &item.returns),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     let funding = context
         .funding
         .get(&perp_key(&group.exchange, &group.symbol));
@@ -279,6 +315,7 @@ fn feature_row(
         z_score,
         benchmark_symbol,
         benchmark_correlation,
+        correlated_assets,
         funding_rate: funding.map(|tick| tick.funding_rate),
         open_interest: open_interest.map(|tick| tick.open_interest),
         open_interest_value: open_interest.and_then(|tick| tick.open_interest_value),
@@ -293,6 +330,32 @@ fn feature_row(
     })
 }
 
+fn query_symbol_set(q: &ResearchFeatureQuery) -> Option<HashSet<String>> {
+    let mut set = q
+        .symbols
+        .as_ref()
+        .cloned()
+        .map(parse_csv_set_upper)
+        .unwrap_or_default();
+    if let Some(benchmark) = q.benchmark_symbol.as_ref() {
+        let benchmark = benchmark.trim().to_ascii_uppercase();
+        if !benchmark.is_empty() {
+            set.insert(benchmark);
+        }
+    }
+    if let Some(correlated) = q.correlated_symbols.as_ref() {
+        set.extend(parse_csv_set_upper(correlated.clone()));
+    }
+    (!set.is_empty()).then_some(set)
+}
+
+fn is_target_group(group: &KlineGroup, q: &ResearchFeatureQuery) -> bool {
+    q.symbols
+        .as_ref()
+        .map(|symbols| parse_csv_set_upper(symbols.clone()))
+        .is_none_or(|symbols| symbols.contains(&group.symbol.to_ascii_uppercase()))
+}
+
 fn benchmark_return_map(groups: &[KlineGroup], benchmark: &str) -> HashMap<String, Vec<f64>> {
     let mut out = HashMap::new();
     for group in groups {
@@ -301,6 +364,42 @@ fn benchmark_return_map(groups: &[KlineGroup], benchmark: &str) -> HashMap<Strin
         }
     }
     out
+}
+
+fn correlated_return_map(
+    groups: &[KlineGroup],
+    q: &ResearchFeatureQuery,
+) -> HashMap<String, Vec<CorrelatedAssetReturns>> {
+    let Some(symbols) = q
+        .correlated_symbols
+        .as_ref()
+        .cloned()
+        .map(parse_csv_set_upper)
+    else {
+        return HashMap::new();
+    };
+    let mut out = HashMap::<String, Vec<CorrelatedAssetReturns>>::new();
+    for group in groups {
+        if !symbols.contains(&group.symbol.to_ascii_uppercase()) {
+            continue;
+        }
+        out.entry(group.interval.clone())
+            .or_default()
+            .push(CorrelatedAssetReturns {
+                symbol: group.symbol.clone(),
+                returns: log_returns(&group.bars),
+                rolling_return_pct: rolling_return_pct(&group.bars),
+            });
+    }
+    out
+}
+
+fn rolling_return_pct(bars: &[KlineBar]) -> Option<f64> {
+    let first = bars.first()?;
+    let last = bars.last()?;
+    (first.close > 0.0)
+        .then_some((last.close - first.close) / first.close * 100.0)
+        .filter(|value| value.is_finite())
 }
 
 fn log_returns(bars: &[KlineBar]) -> Vec<f64> {
