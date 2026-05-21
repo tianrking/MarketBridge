@@ -439,7 +439,6 @@ fn init_db(path: &str) -> Result<()> {
 }
 
 fn upsert_many_blocking(path: &str, rows: &[KlineBar]) -> Result<()> {
-    init_db(path)?;
     let mut conn = Connection::open(path)?;
     let tx = conn.transaction()?;
     {
@@ -485,7 +484,6 @@ fn upsert_many_blocking(path: &str, rows: &[KlineBar]) -> Result<()> {
 }
 
 fn query_blocking(path: &str, q: KlineQuery) -> Result<Vec<KlineBar>> {
-    init_db(path)?;
     let conn = Connection::open(path)?;
     let mut sql = String::from(
         "SELECT exchange, market, symbol, interval, open_time_ms, close_time_ms, open, high, low, close, volume, source, updated_at_ms FROM klines WHERE 1=1",
@@ -580,7 +578,7 @@ pub fn interval_to_ms(interval: &str) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{RealtimeKlineAggregator, interval_to_ms};
+    use super::{KlineStore, RealtimeKlineAggregator, interval_to_ms};
     use crate::event_snapshots::NormalizedTick;
 
     #[test]
@@ -641,5 +639,37 @@ mod tests {
             });
         }
         assert!(agg.bars.len() <= 1_001);
+    }
+
+    #[tokio::test]
+    async fn kline_store_requires_explicit_init_before_write() {
+        let path = std::env::temp_dir().join(format!(
+            "market_bridge_kline_init_{}.sqlite",
+            crate::types::now_ms()
+        ));
+        let store = KlineStore::new(path.to_string_lossy().to_string());
+        let row = super::KlineBar {
+            exchange: "binance".to_string(),
+            market: "spot".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            interval: "1m".to_string(),
+            open_time_ms: 60_000,
+            close_time_ms: 119_999,
+            open: 1.0,
+            high: 2.0,
+            low: 1.0,
+            close: 2.0,
+            volume: None,
+            source: "test".to_string(),
+            updated_at_ms: crate::types::now_ms(),
+        };
+
+        assert!(store.upsert_many(vec![row.clone()]).await.is_err());
+        store.init().await.expect("init");
+        store
+            .upsert_many(vec![row])
+            .await
+            .expect("upsert after init");
+        let _ = std::fs::remove_file(path);
     }
 }
