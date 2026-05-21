@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use futures_util::future::join_all;
+use futures_util::{StreamExt, stream};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,6 +10,7 @@ use super::polymarket_parser::{GammaMarket, parse_crypto_market};
 const CLOB_BASE_URL: &str = "https://clob.polymarket.com";
 pub const POLYMARKET_BATCH_TOKEN_LIMIT: usize = 500;
 pub const POLYMARKET_HISTORY_BATCH_LIMIT: usize = 20;
+const POLYMARKET_BOOK_FETCH_CONCURRENCY: usize = 16;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PolymarketCryptoMarket {
@@ -167,12 +168,14 @@ pub async fn fetch_polymarket_books(
     client: &reqwest::Client,
     token_ids: &[String],
 ) -> Vec<Result<PolymarketBookSummary>> {
-    join_all(
-        token_ids
-            .iter()
-            .map(|token_id| fetch_polymarket_book(client, token_id)),
-    )
-    .await
+    let mut rows = stream::iter(token_ids.iter().cloned().enumerate().map(
+        |(idx, token_id)| async move { (idx, fetch_polymarket_book(client, &token_id).await) },
+    ))
+    .buffer_unordered(POLYMARKET_BOOK_FETCH_CONCURRENCY)
+    .collect::<Vec<_>>()
+    .await;
+    rows.sort_by_key(|(idx, _)| *idx);
+    rows.into_iter().map(|(_, result)| result).collect()
 }
 
 pub async fn fetch_polymarket_midpoints(
