@@ -344,7 +344,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "Spot and linear swap BBO, order books, trades, funding, and OI are wired from public endpoints; liquidation polling remains planned.",
+        notes: "Spot and linear swap BBO, order books, trades, funding, OI, and liquidation polling are wired from public endpoints.",
     },
     RoadmapSource {
         source: "hyperliquid",

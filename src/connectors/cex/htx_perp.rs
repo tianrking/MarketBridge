@@ -9,8 +9,8 @@ use crate::connectors::cex::common::{parse_array_levels, parse_value_f64, side_f
 use crate::connectors::cex::htx::run_htx;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeTick,
-    now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, MarketTick, OpenInterestTick,
+    OrderBookTick, TradeTick, now_ms,
 };
 
 const HTX_LINEAR_REST_URL: &str = "https://api.hbdm.com";
@@ -143,6 +143,18 @@ async fn poll_htx_perp_rest(client: &reqwest::Client, symbol: &str) -> Result<Ve
         .json::<Value>()
         .await?;
     events.extend(parse_htx_perp_open_interest(symbol, &open_interest));
+
+    let liquidations = client
+        .get(format!(
+            "{HTX_LINEAR_REST_URL}/linear-swap-api/v3/swap_liquidation_orders"
+        ))
+        .query(&[("contract", symbol), ("trade_type", "0")])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    events.extend(parse_htx_perp_liquidations(symbol, &liquidations));
 
     Ok(events)
 }
@@ -302,6 +314,42 @@ fn parse_htx_perp_open_interest(symbol: &str, value: &Value) -> Vec<DataEvent> {
         .collect()
 }
 
+fn parse_htx_perp_liquidations(symbol: &str, value: &Value) -> Vec<DataEvent> {
+    value
+        .get("data")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|row| {
+            Some(DataEvent::Liquidation(LiquidationTick {
+                exchange: "htx",
+                symbol: row
+                    .get("contract_code")
+                    .and_then(Value::as_str)
+                    .unwrap_or(symbol)
+                    .to_ascii_uppercase()
+                    .into_boxed_str(),
+                side: row
+                    .get("direction")
+                    .and_then(Value::as_str)
+                    .map(|side| side_from_labels(side, &["buy"], &["sell"]))
+                    .unwrap_or(crate::types::TradeSide::Unknown),
+                price: row.get("price").and_then(parse_value_f64)?,
+                qty: row
+                    .get("volume")
+                    .or_else(|| row.get("amount"))
+                    .and_then(parse_value_f64)?,
+                ts_ms: row
+                    .get("created_at")
+                    .and_then(parse_value_f64)
+                    .map(|ts| ts as u64)
+                    .unwrap_or_else(now_ms),
+            }))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -359,5 +407,30 @@ mod tests {
         );
         assert!(matches!(funding[0], DataEvent::FundingRate(_)));
         assert!(matches!(oi[0], DataEvent::OpenInterest(_)));
+    }
+
+    #[test]
+    fn parses_htx_perp_liquidations() {
+        let events = parse_htx_perp_liquidations(
+            "BTC-USDT",
+            &json!({
+                "data": [{
+                    "query_id": 452057,
+                    "contract_code": "BTC-USDT",
+                    "direction": "sell",
+                    "volume": 479.0,
+                    "price": 51441.7,
+                    "created_at": 1638593647864_u64
+                }],
+                "ts": 1604312615051_u64
+            }),
+        );
+        match &events[0] {
+            DataEvent::Liquidation(liq) => {
+                assert_eq!(liq.qty, 479.0);
+                assert_eq!(liq.side, crate::types::TradeSide::Sell);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }

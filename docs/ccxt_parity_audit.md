@@ -42,14 +42,14 @@ Recent parity closes:
 | Foxbit | Public recent spot trades added from the Foxbit market trade-history endpoint. | `Trade` |
 | NDAX | Public recent spot trades added from `GetLastTrades` after instrument resolution. | `Trade` |
 | Gate | Public USDT perpetual REST book, trades, contract funding/OI, and liquidation orders added beside the existing book-ticker stream. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest`, `Liquidation` |
-| HTX | Public linear-swap REST book, trades, funding, and open interest added beside the existing BBO stream. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
+| HTX | Public linear-swap REST book, trades, funding, open interest, and liquidation orders added beside the existing BBO stream. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest`, `Liquidation` |
 | Bitfinex | Public derivatives REST book, trades, and liquidation history added beside the existing perp ticker stream. | `OrderBook`, `Trade`, `Liquidation` |
 
 Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
-| P0 | Bitfinex / HTX derivative analytics | Confirm stable public funding/OI/liquidation semantics where they are still marked planned; do not fabricate missing domains. |
+| P0 | Bitfinex derivative analytics | Confirm stable public funding/OI semantics where they are still marked planned; do not fabricate missing domains. |
 | P1 | MEXC / BingX / Bitmart | Confirm and wire public OI/liquidation equivalents where the venue exposes them without credentials. |
 | P1 | Cube / XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
 | P2 | Backpack / Aevo / BloFin / Derive / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
