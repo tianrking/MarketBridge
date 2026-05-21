@@ -98,19 +98,19 @@ Status labels:
 | Source | Quote | Pool/book snapshot | Trades | API key | Notes |
 |---|---:|---:|---:|---:|---|
 | Jupiter | implemented | planned | planned | keyless | Solana aggregator quote API. |
-| Meteora | implemented | partial | planned | keyless | DexScreener-backed Solana pool quote snapshots for Gateway coverage. |
-| Orca | implemented | partial | planned | keyless | DexScreener-backed Solana pool quote snapshots for Gateway coverage. |
+| Meteora | implemented | implemented | partial | keyless | DexScreener-backed Solana pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| Orca | implemented | implemented | partial | keyless | DexScreener-backed Solana pool quote snapshots plus liquidity/volume/swap-count metrics. |
 | Raydium | implemented | partial | planned | keyless | Raydium token price map. |
-| Uniswap V3 | implemented | partial | planned | keyless | Subgraph pool price snapshot. |
+| Uniswap V3 | implemented | implemented | partial | keyless | Subgraph pool price plus liquidity/TVL/volume/txCount snapshots. |
 | ParaSwap | implemented | planned | planned | keyless | EVM aggregator quote API. |
 | 1inch | implemented | planned | planned | keyless | EVM aggregator quote API. |
-| PancakeSwap | implemented | partial | planned | keyless | DexScreener-backed BSC pool quote snapshots for Gateway coverage. |
-| Balancer | implemented | partial | planned | keyless | DexScreener-backed Ethereum pool quote snapshots for Gateway coverage. |
-| Curve | implemented | partial | planned | keyless | DexScreener-backed Ethereum stable-pool quote snapshots for Gateway coverage. |
-| SushiSwap | implemented | partial | planned | keyless | DexScreener-backed Ethereum pool quote snapshots for Gateway coverage. |
-| QuickSwap | implemented | partial | planned | keyless | DexScreener-backed Polygon pool quote snapshots for Gateway coverage. |
-| Trader Joe | implemented | partial | planned | keyless | DexScreener-backed Avalanche pool quote snapshots for Gateway coverage. |
-| ETCSwap | implemented | partial | planned | keyless | DexScreener-backed Ethereum Classic pool quote snapshots for Gateway coverage. |
+| PancakeSwap | implemented | implemented | partial | keyless | DexScreener-backed BSC pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| Balancer | implemented | implemented | partial | keyless | DexScreener-backed Ethereum pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| Curve | implemented | implemented | partial | keyless | DexScreener-backed Ethereum stable-pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| SushiSwap | implemented | implemented | partial | keyless | DexScreener-backed Ethereum pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| QuickSwap | implemented | implemented | partial | keyless | DexScreener-backed Polygon pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| Trader Joe | implemented | implemented | partial | keyless | DexScreener-backed Avalanche pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| ETCSwap | implemented | implemented | partial | keyless | DexScreener-backed Ethereum Classic pool quote snapshots plus liquidity/volume/swap-count metrics. |
 
 ## Remaining Non-Polymarket Data Gaps
 
@@ -122,7 +122,7 @@ public endpoint is later confirmed.
 |---|---|---:|---|
 | Architect | Open interest | planned | Venue is keyed; needs credentialed validation before normalizing OI. |
 | Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
-| DeFi native state | Pool liquidity, route depth, swaps/trades | planned | Current connectors expose quotes or pool price snapshots. Native pool/trade state needs chain-specific RPC/subgraph/indexer work. |
+| DeFi native state | Pool liquidity, route depth, swaps/trades | partial | DexScreener-backed pool sources emit liquidity, volume, and swap-count metrics; Uniswap V3 subgraph emits liquidity/TVL/volume/txCount. Route depth and protocol-native swap streams remain connector-specific extensions. |
 | Options websocket depth/trade parity | Native WS book/trades across Deribit/OKX/Bybit/Binance | partial | REST chain and per-instrument depth are wired; Deribit/OKX/Bybit/Binance WS ticker/summary updates refresh the option cache. Native WS option book/trade streams remain a latency extension, not a missing research input. |
 | Aggregator signal layer | Funding/OI/trade/liquidation analytics | implemented | SpreadAggregator emits funding divergence, OI change, trade imbalance, liquidation burst, and depth-pressure signals from normalized events. |
 

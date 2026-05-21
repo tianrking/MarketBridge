@@ -564,7 +564,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "DexScreener-backed Solana Meteora pool quote snapshots wired; DLMM-native state remains planned.",
+        notes: "DexScreener-backed Solana Meteora pool quote snapshots plus liquidity/volume/swap-count metrics wired; DLMM-native route depth remains planned.",
     },
     RoadmapSource {
         source: "raydium",
@@ -584,7 +584,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "DexScreener-backed Solana Orca pool quote snapshots wired; Whirlpool-native state remains planned.",
+        notes: "DexScreener-backed Solana Orca pool quote snapshots plus liquidity/volume/swap-count metrics wired; Whirlpool-native route depth remains planned.",
     },
     RoadmapSource {
         source: "uniswap",
@@ -594,7 +594,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "MarketBridge has Uniswap V3 pool poller; expand V2, universal router, and pool liquidity curves.",
+        notes: "MarketBridge has Uniswap V3 pool price, liquidity, TVL, volume, and txCount snapshots; expand V2, universal router, and pool liquidity curves.",
     },
     RoadmapSource {
         source: "pancakeswap",
@@ -604,7 +604,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "DexScreener-backed BSC PancakeSwap pool quote snapshots wired; router-native state remains planned.",
+        notes: "DexScreener-backed BSC PancakeSwap pool quote snapshots plus liquidity/volume/swap-count metrics wired; router-native route depth remains planned.",
     },
     RoadmapSource {
         source: "balancer",
@@ -614,7 +614,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "DexScreener-backed Ethereum Balancer pool quote snapshots wired; weighted-pool state remains planned.",
+        notes: "DexScreener-backed Ethereum Balancer pool quote snapshots plus liquidity/volume/swap-count metrics wired; weighted-pool route depth remains planned.",
     },
     RoadmapSource {
         source: "curve",
@@ -624,7 +624,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "DexScreener-backed Ethereum Curve pool quote snapshots wired; stable-swap state remains planned.",
+        notes: "DexScreener-backed Ethereum Curve pool quote snapshots plus liquidity/volume/swap-count metrics wired; stable-swap route depth remains planned.",
     },
     RoadmapSource {
         source: "sushiswap",
@@ -634,7 +634,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "DexScreener-backed Ethereum SushiSwap pool quote snapshots wired; router-native state remains planned.",
+        notes: "DexScreener-backed Ethereum SushiSwap pool quote snapshots plus liquidity/volume/swap-count metrics wired; router-native route depth remains planned.",
     },
     RoadmapSource {
         source: "quickswap",
@@ -644,7 +644,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "DexScreener-backed Polygon QuickSwap pool quote snapshots wired; router-native state remains planned.",
+        notes: "DexScreener-backed Polygon QuickSwap pool quote snapshots plus liquidity/volume/swap-count metrics wired; router-native route depth remains planned.",
     },
     RoadmapSource {
         source: "traderjoe",
@@ -654,7 +654,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "DexScreener-backed Avalanche Trader Joe pool quote snapshots wired; LB/native state remains planned.",
+        notes: "DexScreener-backed Avalanche Trader Joe pool quote snapshots plus liquidity/volume/swap-count metrics wired; LB/native route depth remains planned.",
     },
     RoadmapSource {
         source: "etcswap",
@@ -664,7 +664,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P3",
-        notes: "DexScreener-backed Ethereum Classic ETCSwap pool quote snapshots wired; router-native state remains planned.",
+        notes: "DexScreener-backed Ethereum Classic ETCSwap pool quote snapshots plus liquidity/volume/swap-count metrics wired; router-native route depth remains planned.",
     },
     RoadmapSource {
         source: "candles_feed",

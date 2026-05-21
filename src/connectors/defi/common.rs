@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::source::SourceContext;
-use crate::types::{DataEvent, MarketKind, MarketTick, now_ms};
+use crate::types::{DataEvent, ExternalSignalTick, MarketKind, MarketTick, now_ms};
 
 pub fn quote_to_price(
     in_amount: f64,
@@ -46,6 +46,29 @@ pub async fn emit_defi_quote(
         .await?;
     }
     Ok(())
+}
+
+pub async fn emit_defi_metric(
+    ctx: &SourceContext,
+    source: &'static str,
+    symbol: &str,
+    metric: &str,
+    value: Option<f64>,
+    raw: Option<serde_json::Value>,
+) -> Result<()> {
+    ctx.emit(DataEvent::ExternalSignal(ExternalSignalTick {
+        source,
+        category: "defi_native_state".into(),
+        symbol: Some(symbol.to_ascii_uppercase().into_boxed_str()),
+        metric: metric.into(),
+        value,
+        score: None,
+        title: None,
+        url: None,
+        ts_ms: now_ms(),
+        raw,
+    }))
+    .await
 }
 
 pub fn parse_f64_str(text: &str) -> Option<f64> {

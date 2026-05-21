@@ -323,8 +323,9 @@ explicitly marked unavailable for specific domains in
 [`feature_inventory.md`](feature_inventory.md). The next practical work is:
 
 1. Architect/Decibel OI: validate with credentials before normalizing keyed OI.
-2. DeFi native state: add chain-specific pool liquidity, route depth, and swap
-   feeds where reliable public/indexed data exists.
+2. DeFi native state: extend beyond the implemented DexScreener liquidity /
+   volume / swap-count metrics and Uniswap V3 subgraph pool state only where a
+   reliable chain-specific RPC/subgraph/indexer exists.
 3. Options WS depth/trade parity: add native low-latency option book/trade
    streams only where REST depth plus WS ticker/summary cache updates are not
    enough for a real-time strategy.

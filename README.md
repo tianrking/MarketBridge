@@ -656,7 +656,8 @@ domain empty instead of fabricating a signal.
 The remaining non-Polymarket data gaps are tracked in
 [docs/feature_inventory.md](docs/feature_inventory.md#remaining-non-polymarket-data-gaps).
 At this checkpoint they are: credentialed Architect/Decibel OI validation,
-native DeFi pool/trade state, and native option WS book/trade extensions.
+route-depth/protocol-native DeFi swap-stream extensions, and native option WS
+book/trade extensions.
 Aggregator analytics for funding divergence, OI
 change, trade imbalance, liquidation burst, and depth pressure are emitted by
 the spread aggregator.
