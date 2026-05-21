@@ -294,7 +294,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "Public spot/perp order books and trades plus perp ticker funding are wired; OI/liquidation remain planned.",
+        notes: "Public spot/perp order books and trades plus perp ticker funding and open interest are wired; liquidation remains planned.",
     },
     RoadmapSource {
         source: "dexalot",

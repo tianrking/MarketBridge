@@ -53,13 +53,14 @@ Recent parity closes:
 | Kraken | Futures REST ticker, depth, recent trades, funding, and open-interest metrics added with `PF_` symbol mapping. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest` |
 | BloFin | Public perp open-interest endpoint added beside existing REST ticker, depth, trades, and funding. | `OpenInterest` |
 | Aevo | Public instrument `markets.total_oi` is emitted beside the existing REST funding and instrument quote path. | `OpenInterest` |
+| Derive | Public ticker `open_interest` is emitted beside existing WS book/trade and perp funding paths. | `OpenInterest` |
 
 Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
 | P1 | XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
-| P2 | Backpack / Derive / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
+| P2 | Backpack / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |
 | P2 | Extra CCXT long tail | Add native Rust connectors by liquidity and strategy value, not by blindly wrapping every CCXT file. |
 
 Rule for future work:

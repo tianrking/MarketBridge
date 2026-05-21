@@ -74,7 +74,7 @@ Status labels:
 | Decibel | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. |
 | Deribit | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. |
 | Evedex | partial | implemented | implemented | implemented | planned | planned | keyless | Public perp REST depth, recent trades, and instrument funding metrics. |
-| Derive | partial | implemented | implemented | implemented | planned | planned | keyless | Public spot/perp order books and trades plus perp ticker funding. |
+| Derive | partial | implemented | implemented | implemented | implemented | planned | keyless | Public spot/perp order books and trades plus perp ticker funding and open interest. |
 | Dexalot | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public CLOB DEX spot order books and trades; derivatives domains do not apply. |
 | KuCoin | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Spot/perp ticker plus spot REST book/trades and futures REST book/trades/funding/OI; no stable public liquidation feed in the CCXT reference. |
 | Gate | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot bookTicker plus REST book/trades; perp bookTicker plus REST book/trades/contracts funding/OI/liquidations. |
