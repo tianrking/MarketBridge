@@ -6,7 +6,9 @@ use serde_json::Value;
 use tokio::time::interval;
 use tracing::warn;
 
-use crate::connectors::cex::common::{parse_object_levels, parse_value_f64, side_from_labels};
+use crate::connectors::cex::common::{
+    parse_exchange_datetime_ms, parse_object_levels, parse_value_f64, side_from_labels,
+};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
     DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeTick,
@@ -165,7 +167,11 @@ fn parse_evedex_trades(symbol: &str, value: &Value) -> Vec<DataEvent> {
                     .and_then(Value::as_str)
                     .map(str::to_string)
                     .map(String::into_boxed_str),
-                ts_ms: now_ms(),
+                ts_ms: trade
+                    .get("createdAt")
+                    .and_then(Value::as_str)
+                    .and_then(parse_exchange_datetime_ms)
+                    .unwrap_or_else(now_ms),
             }))
         })
         .collect()
@@ -254,11 +260,15 @@ mod tests {
                 "executionId": "267445437",
                 "side": "BUY",
                 "fillQuantity": 0.025,
-                "fillPrice": 77413.6
+                "fillPrice": 77413.6,
+                "createdAt": "2026-05-21T03:37:46.376Z"
             }]),
         );
         match &events[0] {
-            DataEvent::Trade(trade) => assert_eq!(trade.trade_id.as_deref(), Some("267445437")),
+            DataEvent::Trade(trade) => {
+                assert_eq!(trade.trade_id.as_deref(), Some("267445437"));
+                assert_eq!(trade.ts_ms, 1779334666376);
+            }
             other => panic!("unexpected event: {other:?}"),
         }
     }
