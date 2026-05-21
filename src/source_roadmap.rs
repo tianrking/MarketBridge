@@ -524,7 +524,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_PERP,
         marketbridge_status: "partial",
         priority: "P2",
-        notes: "Public perp REST order books, recent trades, and funding metrics wired.",
+        notes: "Public perp REST order books, recent trades, funding, and open-interest metrics wired.",
     },
     RoadmapSource {
         source: "grvt",

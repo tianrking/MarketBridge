@@ -9,7 +9,8 @@ use tracing::warn;
 use crate::connectors::cex::common::{parse_object_levels, parse_value_f64, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, MarketKind, MarketTick, OrderBookTick, TradeTick, now_ms,
+    DataEvent, FundingRateTick, MarketKind, MarketTick, OpenInterestTick, OrderBookTick, TradeTick,
+    now_ms,
 };
 
 const EVEDEX_REST_URL: &str = "https://exchange-api.evedex.com";
@@ -92,6 +93,7 @@ async fn poll_evedex_market(client: &reqwest::Client, symbol: &str) -> Result<Ve
         .json::<Value>()
         .await?;
     events.extend(parse_evedex_funding(symbol, &instrument));
+    events.extend(parse_evedex_open_interest(symbol, &instrument));
 
     Ok(events)
 }
@@ -191,6 +193,35 @@ fn parse_evedex_funding(symbol: &str, value: &Value) -> Vec<DataEvent> {
     })]
 }
 
+fn parse_evedex_open_interest(symbol: &str, value: &Value) -> Vec<DataEvent> {
+    instrument_rows(value)
+        .into_iter()
+        .filter_map(|row| {
+            let open_interest = row.get("openInterest").and_then(parse_value_f64)?;
+            let mark_price = row.get("markPrice").and_then(parse_value_f64);
+            Some(DataEvent::OpenInterest(OpenInterestTick {
+                exchange: "evedex",
+                symbol: row
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or(symbol)
+                    .to_string()
+                    .into_boxed_str(),
+                open_interest,
+                open_interest_value: mark_price.map(|mark_price| mark_price * open_interest),
+                ts_ms: now_ms(),
+            }))
+        })
+        .collect()
+}
+
+fn instrument_rows(value: &Value) -> Vec<&Value> {
+    value
+        .as_array()
+        .map(|items| items.iter().collect())
+        .unwrap_or_else(|| vec![value])
+}
+
 fn next_hour_ms(ts_ms: u64) -> u64 {
     ((ts_ms / 3_600_000) + 1) * 3_600_000
 }
@@ -234,7 +265,31 @@ mod tests {
 
     #[test]
     fn evedex_parses_funding() {
-        let events = parse_evedex_funding(
+        let payload = json!([{
+            "name": "BTCUSD",
+            "markPrice": 77408.9,
+            "fundingRate": 0.0001,
+            "openInterest": 122.407
+        }]);
+        let funding = parse_evedex_funding("BTCUSD", &payload);
+        let open_interest = parse_evedex_open_interest("BTCUSD", &payload);
+
+        match &funding[0] {
+            DataEvent::FundingRate(funding) => assert_eq!(funding.funding_rate, 0.0001),
+            other => panic!("unexpected event: {other:?}"),
+        }
+        match &open_interest[0] {
+            DataEvent::OpenInterest(oi) => {
+                assert_eq!(oi.symbol.as_ref(), "BTCUSD");
+                assert_eq!(oi.open_interest, 122.407);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn evedex_ignores_missing_open_interest() {
+        let events = parse_evedex_open_interest(
             "BTCUSD",
             &json!([{
                 "name": "BTCUSD",
@@ -242,9 +297,6 @@ mod tests {
                 "fundingRate": 0.0001
             }]),
         );
-        match &events[0] {
-            DataEvent::FundingRate(funding) => assert_eq!(funding.funding_rate, 0.0001),
-            other => panic!("unexpected event: {other:?}"),
-        }
+        assert!(events.is_empty());
     }
 }
