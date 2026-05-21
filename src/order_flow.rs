@@ -27,11 +27,15 @@ pub struct OrderFlowBucket {
     pub buy_notional: f64,
     pub sell_notional: f64,
     pub trade_count: u64,
+    pub buy_trade_count: u64,
+    pub sell_trade_count: u64,
     pub large_trade_count: u64,
     pub delta_qty: f64,
     pub delta_notional: f64,
     pub cumulative_delta_qty: f64,
     pub cumulative_delta_notional: f64,
+    pub aggressive_buy_ratio: Option<f64>,
+    pub aggressive_sell_ratio: Option<f64>,
     pub updated_at_ms: u64,
 }
 
@@ -71,9 +75,16 @@ pub struct FootprintCandle {
     pub scale: f64,
     pub bid_qty: f64,
     pub ask_qty: f64,
+    pub bid_notional: f64,
+    pub ask_notional: f64,
     pub delta_qty: f64,
+    pub delta_notional: f64,
     pub min_delta_qty: f64,
     pub max_delta_qty: f64,
+    pub min_delta_notional: f64,
+    pub max_delta_notional: f64,
+    pub aggressive_buy_ratio: Option<f64>,
+    pub aggressive_sell_ratio: Option<f64>,
     pub total_trades: u64,
     pub stacked_imbalances_bid: Vec<f64>,
     pub stacked_imbalances_ask: Vec<f64>,
@@ -86,10 +97,14 @@ pub struct FootprintLevel {
     pub price: f64,
     pub bid_qty: f64,
     pub ask_qty: f64,
+    pub bid_notional: f64,
+    pub ask_notional: f64,
     pub bid_trades: u64,
     pub ask_trades: u64,
     pub delta_qty: f64,
+    pub delta_notional: f64,
     pub total_qty: f64,
+    pub total_notional: f64,
     pub total_trades: u64,
     pub bid_imbalance: bool,
     pub ask_imbalance: bool,
@@ -194,21 +209,27 @@ impl OrderFlowStore {
                 buy_notional: 0.0,
                 sell_notional: 0.0,
                 trade_count: 0,
+                buy_trade_count: 0,
+                sell_trade_count: 0,
                 large_trade_count: 0,
                 delta_qty: 0.0,
                 delta_notional: 0.0,
                 cumulative_delta_qty,
                 cumulative_delta_notional,
+                aggressive_buy_ratio: None,
+                aggressive_sell_ratio: None,
                 updated_at_ms: crate::types::now_ms(),
             });
             match trade.side {
                 TradeSide::Buy => {
                     bucket.buy_qty += trade.qty;
                     bucket.buy_notional += notional;
+                    bucket.buy_trade_count += 1;
                 }
                 TradeSide::Sell => {
                     bucket.sell_qty += trade.qty;
                     bucket.sell_notional += notional;
+                    bucket.sell_trade_count += 1;
                 }
                 TradeSide::Unknown => {}
             }
@@ -220,6 +241,13 @@ impl OrderFlowStore {
             bucket.delta_notional = bucket.buy_notional - bucket.sell_notional;
             bucket.cumulative_delta_qty = cumulative_delta_qty;
             bucket.cumulative_delta_notional = cumulative_delta_notional;
+            let total_known_trades = bucket.buy_trade_count + bucket.sell_trade_count;
+            if total_known_trades > 0 {
+                bucket.aggressive_buy_ratio =
+                    Some(bucket.buy_trade_count as f64 / total_known_trades as f64);
+                bucket.aggressive_sell_ratio =
+                    Some(bucket.sell_trade_count as f64 / total_known_trades as f64);
+            }
             bucket.updated_at_ms = crate::types::now_ms();
         }
         prune_buckets(&mut guard.buckets);
@@ -314,9 +342,14 @@ struct FootprintBuilder {
     bucket_start_ms: u64,
     bid_qty: f64,
     ask_qty: f64,
+    bid_notional: f64,
+    ask_notional: f64,
     running_delta_qty: f64,
+    running_delta_notional: f64,
     min_delta_qty: f64,
     max_delta_qty: f64,
+    min_delta_notional: f64,
+    max_delta_notional: f64,
     total_trades: u64,
     levels: HashMap<i64, FootprintLevelBuilder>,
     trades: Vec<FootprintTrade>,
@@ -336,6 +369,8 @@ struct FootprintFinishOptions {
 struct FootprintLevelBuilder {
     bid_qty: f64,
     ask_qty: f64,
+    bid_notional: f64,
+    ask_notional: f64,
     bid_trades: u64,
     ask_trades: u64,
 }
@@ -347,9 +382,14 @@ impl FootprintBuilder {
             bucket_start_ms,
             bid_qty: 0.0,
             ask_qty: 0.0,
+            bid_notional: 0.0,
+            ask_notional: 0.0,
             running_delta_qty: 0.0,
+            running_delta_notional: 0.0,
             min_delta_qty: 0.0,
             max_delta_qty: 0.0,
+            min_delta_notional: 0.0,
+            max_delta_notional: 0.0,
             total_trades: 0,
             levels: HashMap::new(),
             trades: Vec::new(),
@@ -362,20 +402,28 @@ impl FootprintBuilder {
         match trade.side {
             TradeSide::Buy => {
                 self.ask_qty += trade.qty;
+                self.ask_notional += trade.notional;
                 level.ask_qty += trade.qty;
+                level.ask_notional += trade.notional;
                 level.ask_trades += 1;
                 self.running_delta_qty += trade.qty;
+                self.running_delta_notional += trade.notional;
             }
             TradeSide::Sell => {
                 self.bid_qty += trade.qty;
+                self.bid_notional += trade.notional;
                 level.bid_qty += trade.qty;
+                level.bid_notional += trade.notional;
                 level.bid_trades += 1;
                 self.running_delta_qty -= trade.qty;
+                self.running_delta_notional -= trade.notional;
             }
             TradeSide::Unknown => {}
         }
         self.min_delta_qty = self.min_delta_qty.min(self.running_delta_qty);
         self.max_delta_qty = self.max_delta_qty.max(self.running_delta_qty);
+        self.min_delta_notional = self.min_delta_notional.min(self.running_delta_notional);
+        self.max_delta_notional = self.max_delta_notional.max(self.running_delta_notional);
         self.total_trades += 1;
         if include_trade {
             self.trades.push(FootprintTrade {
@@ -395,14 +443,19 @@ impl FootprintBuilder {
             .into_iter()
             .map(|(bin, level)| {
                 let total_qty = level.bid_qty + level.ask_qty;
+                let total_notional = level.bid_notional + level.ask_notional;
                 FootprintLevel {
                     price: bin as f64 * options.scale,
                     bid_qty: level.bid_qty,
                     ask_qty: level.ask_qty,
+                    bid_notional: level.bid_notional,
+                    ask_notional: level.ask_notional,
                     bid_trades: level.bid_trades,
                     ask_trades: level.ask_trades,
                     delta_qty: level.ask_qty - level.bid_qty,
+                    delta_notional: level.ask_notional - level.bid_notional,
                     total_qty,
+                    total_notional,
                     total_trades: level.bid_trades + level.ask_trades,
                     bid_imbalance: false,
                     ask_imbalance: false,
@@ -421,6 +474,16 @@ impl FootprintBuilder {
             |level| level.ask_imbalance,
             options.stacked_imbalance_range,
         );
+        let known_trades = rows
+            .iter()
+            .map(|level| level.bid_trades + level.ask_trades)
+            .sum::<u64>();
+        let aggressive_buy_ratio = (known_trades > 0).then_some(
+            rows.iter().map(|level| level.ask_trades).sum::<u64>() as f64 / known_trades as f64,
+        );
+        let aggressive_sell_ratio = (known_trades > 0).then_some(
+            rows.iter().map(|level| level.bid_trades).sum::<u64>() as f64 / known_trades as f64,
+        );
 
         FootprintCandle {
             exchange: options.exchange,
@@ -432,9 +495,16 @@ impl FootprintBuilder {
             scale: options.scale,
             bid_qty: self.bid_qty,
             ask_qty: self.ask_qty,
+            bid_notional: self.bid_notional,
+            ask_notional: self.ask_notional,
             delta_qty: self.ask_qty - self.bid_qty,
+            delta_notional: self.ask_notional - self.bid_notional,
             min_delta_qty: self.min_delta_qty,
             max_delta_qty: self.max_delta_qty,
+            min_delta_notional: self.min_delta_notional,
+            max_delta_notional: self.max_delta_notional,
+            aggressive_buy_ratio,
+            aggressive_sell_ratio,
             total_trades: self.total_trades,
             stacked_imbalances_bid,
             stacked_imbalances_ask,

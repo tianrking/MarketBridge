@@ -55,6 +55,10 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::market::v1_market_order_flow),
         )
         .route(
+            "/v1/market/order-flow/windows",
+            get(routes::market::v1_market_order_flow_windows),
+        )
+        .route(
             "/v1/market/footprint",
             get(routes::market::v1_market_footprint),
         )

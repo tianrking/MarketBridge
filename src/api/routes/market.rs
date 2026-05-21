@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 use crate::api::ApiState;
-use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
+use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper, parse_csv_vec};
 use crate::core::schema::ProductType;
 use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
@@ -45,6 +45,15 @@ pub struct OrderFlowHttpQuery {
     symbol: Option<String>,
     window_ms: Option<u64>,
     limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct OrderFlowWindowsHttpQuery {
+    exchange: Option<String>,
+    market: Option<String>,
+    symbol: Option<String>,
+    windows_ms: Option<String>,
+    limit_per_window: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -258,6 +267,37 @@ pub async fn v1_market_order_flow(
     Json(serde_json::json!({"version":"v1","domain":"market_order_flow","order_flow":rows}))
 }
 
+pub async fn v1_market_order_flow_windows(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<OrderFlowWindowsHttpQuery>,
+) -> impl IntoResponse {
+    let windows = parse_windows_ms(q.windows_ms.as_deref());
+    let mut rows = Vec::new();
+    for window_ms in windows {
+        rows.extend(
+            state
+                .order_flow_store
+                .query(OrderFlowQuery {
+                    exchange: q.exchange.as_ref().map(|x| x.trim().to_ascii_lowercase()),
+                    market: q.market.as_ref().map(|x| x.trim().to_ascii_lowercase()),
+                    symbol: q.symbol.as_ref().map(|x| x.trim().to_ascii_uppercase()),
+                    window_ms: Some(window_ms),
+                    limit: q.limit_per_window.unwrap_or(50),
+                })
+                .await,
+        );
+    }
+    rows.sort_by(|a, b| {
+        a.exchange
+            .cmp(&b.exchange)
+            .then(a.market.cmp(&b.market))
+            .then(a.symbol.cmp(&b.symbol))
+            .then(a.window_ms.cmp(&b.window_ms))
+            .then(b.bucket_start_ms.cmp(&a.bucket_start_ms))
+    });
+    Json(serde_json::json!({"version":"v1","domain":"market_order_flow_windows","order_flow":rows}))
+}
+
 pub async fn v1_market_footprint(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<FootprintHttpQuery>,
@@ -423,4 +463,19 @@ fn market_kind_label(market: crate::types::MarketKind) -> &'static str {
         crate::types::MarketKind::Spot => "spot",
         crate::types::MarketKind::Perp => "perp",
     }
+}
+
+fn parse_windows_ms(raw: Option<&str>) -> Vec<u64> {
+    raw.map(parse_csv_vec)
+        .unwrap_or_else(|| {
+            vec![
+                "60000".to_string(),
+                "300000".to_string(),
+                "900000".to_string(),
+            ]
+        })
+        .into_iter()
+        .filter_map(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .collect()
 }
