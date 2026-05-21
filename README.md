@@ -657,7 +657,9 @@ The remaining non-Polymarket data gaps are tracked in
 [docs/feature_inventory.md](docs/feature_inventory.md#remaining-non-polymarket-data-gaps).
 At this checkpoint they are: Vertex funding/OI, XRPL executed trades,
 credentialed Architect/Decibel OI validation, native DeFi pool/trade state,
-options websocket parity, and extended aggregator analytics.
+and options websocket parity. Aggregator analytics for funding divergence, OI
+change, trade imbalance, liquidation burst, and depth pressure are emitted by
+the spread aggregator.
 
 ## API Details
 

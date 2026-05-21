@@ -126,7 +126,7 @@ public endpoint is later confirmed.
 | Decibel | Open interest | planned | Venue is keyed and market-address discovery is required; needs credentialed validation before normalizing OI. |
 | DeFi native state | Pool liquidity, route depth, swaps/trades | planned | Current connectors expose quotes or pool price snapshots. Native pool/trade state needs chain-specific RPC/subgraph/indexer work. |
 | Options websocket parity | Full WS ticker/book/trades across Deribit/OKX/Bybit/Binance | planned/partial | REST chain and per-instrument depth are wired; full low-latency WS parity is separate from REST cache coverage. |
-| Aggregator signal layer | Funding/OI/trade/liquidation analytics | planned | Raw events and API caches exist; strategy analytics beyond BBO/L2 spread still need explicit signal models. |
+| Aggregator signal layer | Funding/OI/trade/liquidation analytics | implemented | SpreadAggregator emits funding divergence, OI change, trade imbalance, liquidation burst, and depth-pressure signals from normalized events. |
 
 ## Polymarket Coverage
 
@@ -198,6 +198,6 @@ public endpoint is later confirmed.
 | Maker fee modeling | implemented | P2 | `strategy.fee_mode` supports `taker`, `maker`, `maker_buy_taker_sell`, and `taker_buy_maker_sell`. |
 | Conservative fallback fees | implemented | P0 | Missing venue fee config uses `strategy.fallback_maker_fee_bps` / `strategy.fallback_taker_fee_bps` instead of zero-fee assumptions. |
 | Dynamic catalog from runtime config | implemented | P2 | `/v1/catalog/sources` reports startup-cached `enabled`, `available`, or `enabled_missing_api_key` from the active config. |
-| Aggregator extended event analytics | planned | P1 | Funding/OI/book/trade/liquidation are stored by API but ignored by spread engine. |
+| Aggregator extended event analytics | implemented | P1 | Spread engine consumes funding/OI/book/trade/liquidation events and emits derived analytics logs. |
 | Cross-platform release binaries | implemented | P1 | GitHub Actions builds v0.0.2 Linux/macOS/Windows packages with binary, configs, README, and docs. |
 | SQLite kline store | implemented | P1 | `klines.enabled` stores Binance/OKX historical candles and realtime tick bars in `klines.sqlite_path`. |

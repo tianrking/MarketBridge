@@ -1,4 +1,4 @@
-use crate::types::{BookLevel, MarketKind, MarketTick, OrderBookTick};
+use crate::types::{BookLevel, MarketKind, MarketTick, OrderBookTick, TradeSide};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ProfitBreakdown {
@@ -100,6 +100,39 @@ pub fn average_execution_price(levels: &[BookLevel], target_quote_notional: f64)
         Some(filled_quote / filled_base)
     } else {
         None
+    }
+}
+
+pub fn depth_pressure(book: &OrderBookTick, levels: usize) -> Option<f64> {
+    let levels = levels.max(1);
+    let bid_notional = book
+        .bids
+        .iter()
+        .take(levels)
+        .filter(|level| level.price > 0.0 && level.qty > 0.0)
+        .map(|level| level.price * level.qty)
+        .sum::<f64>();
+    let ask_notional = book
+        .asks
+        .iter()
+        .take(levels)
+        .filter(|level| level.price > 0.0 && level.qty > 0.0)
+        .map(|level| level.price * level.qty)
+        .sum::<f64>();
+    let total = bid_notional + ask_notional;
+    if total > 0.0 {
+        Some((bid_notional - ask_notional) / total)
+    } else {
+        None
+    }
+}
+
+pub fn signed_notional(side: TradeSide, price: f64, qty: f64) -> f64 {
+    let notional = price * qty;
+    match side {
+        TradeSide::Buy => notional,
+        TradeSide::Sell => -notional,
+        TradeSide::Unknown => 0.0,
     }
 }
 
@@ -250,5 +283,35 @@ mod tests {
         assert_eq!(sell_ex, "b");
         assert!(buy_avg > 100.0);
         assert!(sell_avg < 120.0);
+    }
+
+    #[test]
+    fn depth_pressure_reports_bid_ask_imbalance() {
+        let book = OrderBookTick {
+            exchange: "a",
+            market: MarketKind::Perp,
+            symbol: "BTCUSDT".into(),
+            bids: vec![BookLevel {
+                price: 100.0,
+                qty: 2.0,
+            }],
+            asks: vec![BookLevel {
+                price: 100.0,
+                qty: 1.0,
+            }],
+            last_update_id: None,
+            ts_ms: 1,
+        };
+
+        let pressure = depth_pressure(&book, 5).expect("pressure");
+
+        assert!((pressure - (1.0 / 3.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn signed_notional_uses_trade_side() {
+        assert_eq!(signed_notional(TradeSide::Buy, 100.0, 2.0), 200.0);
+        assert_eq!(signed_notional(TradeSide::Sell, 100.0, 2.0), -200.0);
+        assert_eq!(signed_notional(TradeSide::Unknown, 100.0, 2.0), 0.0);
     }
 }

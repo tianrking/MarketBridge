@@ -330,8 +330,8 @@ explicitly marked unavailable for specific domains in
    feeds where reliable public/indexed data exists.
 5. Options WS parity: add low-latency WS ticker/book/trades on top of the
    existing REST chain/depth coverage.
-6. Aggregator analytics: turn funding/OI/trade/liquidation events into explicit
-   signal models.
+6. Aggregator analytics: extend the implemented funding/OI/trade/liquidation
+   signal logs into API-visible research features if downstream users need them.
 
 For each new CEX source, implement in this order:
 
