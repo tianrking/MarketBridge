@@ -102,6 +102,7 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::universe::cross_market),
         )
         .route("/v1/universe/market-cap", get(routes::universe::market_cap))
+        .route("/v1/universe/age-filter", get(routes::universe::age_filter))
         .route(
             "/v1/universe/new-listings",
             get(routes::universe::new_listings),

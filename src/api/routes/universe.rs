@@ -11,7 +11,7 @@ use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::core::schema::ProductType;
 use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
-use crate::types::ExternalSignalTick;
+use crate::types::{ExternalSignalTick, now_ms};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct UniverseKlineQuery {
@@ -50,6 +50,29 @@ pub struct UniverseCrossMarketQuery {
 pub struct UniverseExternalQuery {
     symbols: Option<String>,
     sources: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct UniverseAgeQuery {
+    exchange: Option<String>,
+    market: Option<String>,
+    symbols: Option<String>,
+    interval: Option<String>,
+    min_age_days: Option<f64>,
+    max_age_days: Option<f64>,
+    now_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct UniverseDelistRiskQuery {
+    exchange: Option<String>,
+    market: Option<String>,
+    symbols: Option<String>,
+    interval: Option<String>,
+    stale_after_ms: Option<u64>,
+    now_ms: Option<u64>,
     limit: Option<usize>,
 }
 
@@ -126,16 +149,30 @@ struct MarketCapRow {
 }
 
 #[derive(Debug, Serialize)]
-struct ExternalUniverseRow {
-    source: String,
-    category: String,
-    symbol: Option<String>,
-    metric: String,
-    value: Option<f64>,
-    score: Option<f64>,
-    title: Option<String>,
-    url: Option<String>,
-    ts_ms: u64,
+struct ListingAgeRow {
+    exchange: String,
+    market: String,
+    symbol: String,
+    interval: String,
+    first_seen_ms: u64,
+    last_seen_ms: u64,
+    age_days: f64,
+    bars: usize,
+    age_source: String,
+}
+
+#[derive(Debug, Serialize)]
+struct DelistRiskRow {
+    exchange: String,
+    market: String,
+    symbol: String,
+    interval: String,
+    risk: String,
+    reason: String,
+    last_kline_ms: u64,
+    quote_ts_ms: Option<u64>,
+    quote_age_ms: Option<u64>,
+    bars: usize,
 }
 
 #[derive(Default)]
@@ -311,20 +348,140 @@ pub async fn market_cap(
     Json(serde_json::json!({"version":"v1","domain":"universe_market_cap","rows":rows}))
 }
 
+pub async fn age_filter(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<UniverseAgeQuery>,
+) -> impl IntoResponse {
+    let mut rows = listing_age_rows(&state, &q).await;
+    rows.retain(|row| within(row.age_days, q.min_age_days, q.max_age_days));
+    rows.sort_by(|a, b| {
+        a.age_days
+            .total_cmp(&b.age_days)
+            .then(a.symbol.cmp(&b.symbol))
+    });
+    rows.truncate(q.limit.unwrap_or(100).clamp(1, 1000));
+    Json(serde_json::json!({"version":"v1","domain":"universe_age_filter","rows":rows}))
+}
+
 pub async fn new_listings(
     State(state): State<Arc<ApiState>>,
-    Query(q): Query<UniverseExternalQuery>,
+    Query(mut q): Query<UniverseAgeQuery>,
 ) -> impl IntoResponse {
-    let rows = external_universe_rows(&state, &q, "listing").await;
+    if q.max_age_days.is_none() {
+        q.max_age_days = Some(7.0);
+    }
+    let mut rows = listing_age_rows(&state, &q).await;
+    rows.retain(|row| within(row.age_days, q.min_age_days, q.max_age_days));
+    rows.sort_by(|a, b| {
+        a.age_days
+            .total_cmp(&b.age_days)
+            .then(a.symbol.cmp(&b.symbol))
+    });
+    rows.truncate(q.limit.unwrap_or(100).clamp(1, 1000));
     Json(serde_json::json!({"version":"v1","domain":"universe_new_listings","rows":rows}))
 }
 
 pub async fn delist_risk(
     State(state): State<Arc<ApiState>>,
-    Query(q): Query<UniverseExternalQuery>,
+    Query(q): Query<UniverseDelistRiskQuery>,
 ) -> impl IntoResponse {
-    let rows = external_universe_rows(&state, &q, "delist").await;
+    let rows = delist_risk_rows(&state, &q).await;
     Json(serde_json::json!({"version":"v1","domain":"universe_delist_risk","rows":rows}))
+}
+
+async fn listing_age_rows(state: &ApiState, q: &UniverseAgeQuery) -> Vec<ListingAgeRow> {
+    let groups = load_kline_groups(
+        state,
+        &UniverseKlineQuery {
+            exchange: q.exchange.clone(),
+            market: q.market.clone(),
+            symbols: q.symbols.clone(),
+            interval: q.interval.clone().or_else(|| Some("1d".to_string())),
+            start_ms: None,
+            end_ms: q.now_ms,
+            min_value: None,
+            max_value: None,
+            sort: None,
+            limit: Some(5000),
+        },
+    )
+    .await;
+    let now = q.now_ms.unwrap_or_else(now_ms);
+    groups
+        .into_iter()
+        .filter_map(|group| {
+            let first_seen_ms = group.bars.first()?.open_time_ms;
+            let last_seen_ms = group.bars.last()?.open_time_ms;
+            Some(ListingAgeRow {
+                exchange: group.exchange,
+                market: group.market,
+                symbol: group.symbol,
+                interval: group.interval,
+                first_seen_ms,
+                last_seen_ms,
+                age_days: now.saturating_sub(first_seen_ms) as f64 / 86_400_000.0,
+                bars: group.bars.len(),
+                age_source: "first_kline".to_string(),
+            })
+        })
+        .collect()
+}
+
+async fn delist_risk_rows(state: &ApiState, q: &UniverseDelistRiskQuery) -> Vec<DelistRiskRow> {
+    let groups = load_kline_groups(
+        state,
+        &UniverseKlineQuery {
+            exchange: q.exchange.clone(),
+            market: q.market.clone(),
+            symbols: q.symbols.clone(),
+            interval: q.interval.clone().or_else(|| Some("1d".to_string())),
+            start_ms: None,
+            end_ms: q.now_ms,
+            min_value: None,
+            max_value: None,
+            sort: None,
+            limit: Some(5000),
+        },
+    )
+    .await;
+    let quotes = state.bus.quote_snapshot_all().await;
+    let now = q.now_ms.unwrap_or_else(now_ms);
+    let stale_after_ms = q.stale_after_ms.unwrap_or(86_400_000);
+    let mut rows = groups
+        .into_iter()
+        .filter_map(|group| {
+            let last_kline_ms = group.bars.last()?.open_time_ms;
+            let quote = latest_quote(&quotes, &group.exchange, &group.market, &group.symbol);
+            let quote_ts_ms = quote.map(|quote| quote.freshness.ts_received);
+            let quote_age_ms = quote_ts_ms.map(|ts| now.saturating_sub(ts));
+            let (risk, reason) = match quote_age_ms {
+                None => ("high", "missing_current_quote"),
+                Some(age) if age > stale_after_ms => ("medium", "stale_current_quote"),
+                Some(_) => ("low", "history_and_quote_present"),
+            };
+            Some(DelistRiskRow {
+                exchange: group.exchange,
+                market: group.market,
+                symbol: group.symbol,
+                interval: group.interval,
+                risk: risk.to_string(),
+                reason: reason.to_string(),
+                last_kline_ms,
+                quote_ts_ms,
+                quote_age_ms,
+                bars: group.bars.len(),
+            })
+        })
+        .filter(|row| row.risk != "low")
+        .collect::<Vec<_>>();
+    rows.sort_by(|a, b| {
+        risk_rank(&b.risk)
+            .cmp(&risk_rank(&a.risk))
+            .then(b.quote_age_ms.cmp(&a.quote_age_ms))
+            .then(a.symbol.cmp(&b.symbol))
+    });
+    rows.truncate(q.limit.unwrap_or(100).clamp(1, 1000));
+    rows
 }
 
 async fn load_kline_groups(state: &ApiState, q: &UniverseKlineQuery) -> Vec<KlineGroup> {
@@ -495,40 +652,6 @@ fn quote_matches(
         })
 }
 
-async fn external_universe_rows(
-    state: &ApiState,
-    q: &UniverseExternalQuery,
-    needle: &str,
-) -> Vec<ExternalUniverseRow> {
-    let symbols = q.symbols.as_ref().cloned().map(parse_csv_set_upper);
-    let sources = q.sources.as_ref().cloned().map(parse_csv_set_lower);
-    let mut rows = state
-        .bus
-        .external_signal_snapshot_all()
-        .await
-        .into_iter()
-        .filter(|signal| external_matches(signal, &symbols, &sources))
-        .filter(|signal| {
-            signal.category.to_ascii_lowercase().contains(needle)
-                || signal.metric.to_ascii_lowercase().contains(needle)
-        })
-        .map(|signal| ExternalUniverseRow {
-            source: signal.source.to_string(),
-            category: signal.category.to_string(),
-            symbol: signal.symbol.map(|symbol| symbol.to_string()),
-            metric: signal.metric.to_string(),
-            value: signal.value,
-            score: signal.score,
-            title: signal.title.map(|title| title.to_string()),
-            url: signal.url.map(|url| url.to_string()),
-            ts_ms: signal.ts_ms,
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|a, b| b.ts_ms.cmp(&a.ts_ms).then(a.source.cmp(&b.source)));
-    rows.truncate(q.limit.unwrap_or(100).clamp(1, 1000));
-    rows
-}
-
 fn external_matches(
     signal: &ExternalSignalTick,
     symbols: &Option<HashSet<String>>,
@@ -542,6 +665,36 @@ fn external_matches(
     }) && sources
         .as_ref()
         .is_none_or(|set| set.contains(&signal.source.to_ascii_lowercase()))
+}
+
+fn latest_quote<'a>(
+    quotes: &'a [crate::core::schema::DataEnvelope<QuotePayload>],
+    exchange: &str,
+    market: &str,
+    symbol: &str,
+) -> Option<&'a crate::core::schema::DataEnvelope<QuotePayload>> {
+    quotes
+        .iter()
+        .filter(|quote| {
+            quote.source_ref.source.eq_ignore_ascii_case(exchange)
+                && product_type_label(quote.instrument_ref.product_type)
+                    .eq_ignore_ascii_case(market)
+                && quote
+                    .instrument_ref
+                    .symbol
+                    .as_deref()
+                    .is_some_and(|value| value.eq_ignore_ascii_case(symbol))
+        })
+        .max_by_key(|quote| quote.freshness.ts_received)
+}
+
+fn risk_rank(risk: &str) -> u8 {
+    match risk {
+        "high" => 3,
+        "medium" => 2,
+        "low" => 1,
+        _ => 0,
+    }
 }
 
 fn sort_and_limit<T>(
