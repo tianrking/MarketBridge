@@ -37,6 +37,14 @@ struct BybitOptionTicker {
     index_price: Option<String>,
     #[serde(default)]
     open_interest: Option<String>,
+    #[serde(default)]
+    delta: Option<String>,
+    #[serde(default)]
+    gamma: Option<String>,
+    #[serde(default)]
+    theta: Option<String>,
+    #[serde(default)]
+    vega: Option<String>,
 }
 
 pub async fn fetch_bybit_option_summaries_from(
@@ -80,6 +88,10 @@ pub async fn fetch_bybit_option_summaries_from(
                 ask_price: parse_f64_opt(raw.ask1_price.as_deref()),
                 mark_price: parse_f64_opt(raw.mark_price.as_deref()),
                 mark_iv: parse_f64_opt(raw.mark_iv.as_deref()),
+                delta: parse_f64_opt(raw.delta.as_deref()),
+                gamma: parse_f64_opt(raw.gamma.as_deref()),
+                theta: parse_f64_opt(raw.theta.as_deref()),
+                vega: parse_f64_opt(raw.vega.as_deref()),
                 underlying_price: parse_f64_opt(raw.underlying_price.as_deref())
                     .or_else(|| parse_f64_opt(raw.index_price.as_deref())),
                 underlying_index: Some(currency.clone()),

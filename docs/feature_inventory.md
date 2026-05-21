@@ -131,8 +131,8 @@ Status labels:
 |---|---:|---:|---:|---:|---:|---|
 | Deribit | implemented | partial | planned | planned | keyless | Summary currently omits greeks if not returned. |
 | OKX Options | implemented | partial | planned | planned | keyless | REST option summary. |
-| Bybit Options | implemented | implemented | planned | planned | keyless | Ticker contains greeks and IV fields in public payload. |
-| Binance Options | implemented | partial | planned | planned | keyless | Ticker plus mark endpoint. |
+| Bybit Options | implemented | implemented | implemented | planned | keyless | Public ticker emits IV, OI, and delta/gamma/theta/vega. |
+| Binance Options | implemented | partial | implemented | planned | keyless | Public ticker plus mark endpoint emits IV and delta/gamma/theta/vega. |
 
 ## Aggregate, Macro, Sentiment Coverage
 

@@ -72,6 +72,10 @@ pub async fn fetch_okx_option_summaries_from(
                 mark_iv: parse_f64_opt(raw.mark_vol.as_deref())
                     .or_else(|| parse_f64_opt(raw.bid_vol.as_deref()))
                     .or_else(|| parse_f64_opt(raw.ask_vol.as_deref())),
+                delta: None,
+                gamma: None,
+                theta: None,
+                vega: None,
                 underlying_price: parse_f64_opt(raw.idx_px.as_deref())
                     .or_else(|| parse_f64_opt(raw.fwd_px.as_deref())),
                 underlying_index: raw.uly,

@@ -30,6 +30,14 @@ struct BinanceOptionMark {
     mark_price: Option<String>,
     #[serde(default)]
     mark_iv: Option<String>,
+    #[serde(default)]
+    delta: Option<String>,
+    #[serde(default)]
+    gamma: Option<String>,
+    #[serde(default)]
+    theta: Option<String>,
+    #[serde(default)]
+    vega: Option<String>,
 }
 
 pub async fn fetch_binance_option_summaries_from(
@@ -72,6 +80,10 @@ pub async fn fetch_binance_option_summaries_from(
                     .and_then(|row| parse_f64_opt(row.mark_price.as_deref()))
                     .or_else(|| parse_f64_opt(raw.last_price.as_deref())),
                 mark_iv: mark.and_then(|row| parse_f64_opt(row.mark_iv.as_deref())),
+                delta: mark.and_then(|row| parse_f64_opt(row.delta.as_deref())),
+                gamma: mark.and_then(|row| parse_f64_opt(row.gamma.as_deref())),
+                theta: mark.and_then(|row| parse_f64_opt(row.theta.as_deref())),
+                vega: mark.and_then(|row| parse_f64_opt(row.vega.as_deref())),
                 underlying_price: parse_f64_opt(raw.exercise_price.as_deref()),
                 underlying_index: Some(currency.clone()),
                 open_interest: None,
