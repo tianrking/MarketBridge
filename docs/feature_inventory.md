@@ -77,7 +77,7 @@ Status labels:
 | Derive | partial | implemented | implemented | implemented | planned | planned | keyless | Public spot/perp order books and trades plus perp ticker funding. |
 | Dexalot | partial | implemented | implemented | planned | planned | planned | keyless | Public CLOB DEX spot order books and trades. |
 | KuCoin | implemented | implemented | implemented | planned | planned | planned | keyless | Spot/perp ticker plus spot REST order book and recent trades. |
-| Gate | implemented | implemented | implemented | planned | planned | planned | keyless | Spot bookTicker plus native public REST order book and recent trades. |
+| Gate | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot bookTicker plus REST book/trades; perp bookTicker plus REST book/trades/contracts funding/OI/liquidations. |
 | Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
 | Kraken | implemented | implemented | implemented | planned | planned | planned | keyless | Spot V2 ticker plus REST order book and recent trades; separate futures ticker today. |
 | HTX | implemented | implemented | implemented | planned | planned | planned | keyless | Spot BBO plus native public REST order book and recent trades. |

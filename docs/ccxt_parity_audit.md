@@ -41,12 +41,13 @@ Recent parity closes:
 | Bitrue | Public recent spot trades added from the Bitrue REST trade endpoint. | `Trade` |
 | Foxbit | Public recent spot trades added from the Foxbit market trade-history endpoint. | `Trade` |
 | NDAX | Public recent spot trades added from `GetLastTrades` after instrument resolution. | `Trade` |
+| Gate | Public USDT perpetual REST book, trades, contract funding/OI, and liquidation orders added beside the existing book-ticker stream. | `OrderBook`, `Trade`, `FundingRate`, `OpenInterest`, `Liquidation` |
 
 Remaining high-value CCXT parity queue:
 
 | Priority | Source group | Gap |
 |---|---|---|
-| P0 | Gate / HTX / Bitfinex perps | Replace perp BBO-only paths with full book/trade/funding/OI where stable public APIs exist. |
+| P0 | HTX / Bitfinex perps | Replace perp BBO-only paths with full book/trade/funding/OI where stable public APIs exist. |
 | P1 | MEXC / BingX / Bitmart | Confirm and wire public OI/liquidation equivalents where the venue exposes them without credentials. |
 | P1 | Cube / XRPL | Add trade streams only after stable public semantics are confirmed; do not synthesize trades from book snapshots. |
 | P2 | Backpack / Aevo / BloFin / Derive / Evedex | Add OI/liquidation only when a public endpoint is stable enough for production polling. |

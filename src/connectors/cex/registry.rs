@@ -63,7 +63,7 @@ use super::dydx::DydxFeed;
 use super::evedex::EvedexPerpFeed;
 use super::foxbit::FoxbitSpotFeed;
 use super::gate::{GateSpotBookTicker, GateSpotRestFeed};
-use super::gate_perp::GatePerpBookTicker;
+use super::gate_perp::{GatePerpBookTicker, GatePerpRestFeed};
 use super::gemini::GeminiSpotFeed;
 use super::grvt::GrvtPerpFeed;
 use super::htx::{HtxBbo, HtxSpotRestFeed};
@@ -498,9 +498,12 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                     out.push(Arc::new(GateSpotRestFeed::new(gate_spot_symbols)));
                 }
                 if !perp_symbols.is_empty() {
-                    out.push(Arc::new(GatePerpBookTicker::new(
-                        perp_symbols.iter().map(|s| to_underscore(s)).collect(),
-                    )));
+                    let gate_perp_symbols = perp_symbols
+                        .iter()
+                        .map(|s| to_underscore(s))
+                        .collect::<Vec<_>>();
+                    out.push(Arc::new(GatePerpBookTicker::new(gate_perp_symbols.clone())));
+                    out.push(Arc::new(GatePerpRestFeed::new(gate_perp_symbols)));
                 }
             }
             "binance" => {

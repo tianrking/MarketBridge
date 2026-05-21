@@ -312,9 +312,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: SPOT_PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented",
         priority: "P0",
-        notes: "MarketBridge has BBO paths; expand L2/trades/funding/OI/liquidation parity.",
+        notes: "Spot and USDT perp BBO, order books, trades, perp funding, OI, and liquidation polling are wired from public endpoints.",
     },
     RoadmapSource {
         source: "gemini",
