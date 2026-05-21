@@ -43,38 +43,38 @@ Status labels:
 | Binance | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
 | Bybit | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
 | OKX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | REST liquidation poller. |
-| Hyperliquid | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp DEX source; `activeAssetCtx` emits funding and OI from the same update when both fields are present. |
-| dYdX v4 | partial | implemented | implemented | implemented | implemented | planned | keyless | REST market metadata plus WS book/trades. |
-| Backpack | partial | implemented | implemented | implemented | implemented | planned | keyless | Public WS book/trade plus perp mark-price funding and open-interest REST polling. |
+| Hyperliquid | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp DEX source; `activeAssetCtx` emits funding and OI from the same update when both fields are present. CCXT marks public liquidation fetch unavailable. |
+| dYdX v4 | partial | implemented | implemented | implemented | implemented | n/a | keyless | REST market metadata plus WS book/trades; no stable public liquidation endpoint is exposed in the CCXT reference. |
+| Backpack | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public WS book/trade plus perp mark-price funding and open-interest REST polling; no stable public liquidation endpoint is exposed in the CCXT reference. |
 | MEXC | partial | implemented | implemented | implemented | n/a | n/a | keyless | Spot/futures depth/deals plus public contract funding-rate poller; CCXT reference marks public open-interest and public liquidation fetches unavailable. |
 | BingX | partial | implemented | implemented | implemented | implemented | n/a | keyless | Swap ticker/depth/trade plus public premium-index funding and open-interest poller; liquidation/force-order history is private-only in the CCXT reference. |
-| Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
+| Bitget | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. CCXT marks public liquidation fetch unavailable. |
 | Bitmart | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public spot depth/trades and perp depth/trades/funding/ticker plus public perp funding/OI REST poller; public liquidation fetch is unavailable in CCXT. |
 | BitMEX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST instrument/book/trades/liquidations for perpetual markets. |
 | Bitstamp | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order-book diffs and trades; derivatives domains do not apply to spot feed. |
 | Bitrue | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot simple-depth stream plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
 | Bithumb | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Bitvavo | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
-| BloFin | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. |
+| BloFin | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Native public REST perp ticker, order book, trades, funding, and open interest; no stable public liquidation endpoint is exposed in the CCXT reference. |
 | bitFlyer | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | bitbank | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | AscendEX | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint; derivatives domains do not apply. |
-| WOO X | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST spot/perp order books and trades plus perp funding and OI. |
+| WOO X | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Native public REST spot/perp order books and trades plus perp funding and OI; no stable public liquidation endpoint is exposed in the CCXT reference. |
 | BTC Markets | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order book and trades; derivatives domains do not apply. |
-| Bullish | implemented | implemented | implemented | n/a | partial | planned | keyless | Native public REST spot ticker, order book, and recent trades; endpoint may be geofenced. |
-| Aevo | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp order books/trades plus REST funding, instrument BBO, and instrument open interest. |
-| Phemex | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST linear perp ticker/book/trades with funding and OI. |
-| Pacifica | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp order books/trades/prices with funding and OI. |
+| Bullish | implemented | implemented | implemented | n/a | partial | n/a | keyless | Native public REST spot ticker, order book, and recent trades; endpoint may be geofenced. No public liquidation feed is exposed in the CCXT reference. |
+| Aevo | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp order books/trades plus REST funding, instrument BBO, and instrument open interest; no stable public liquidation endpoint is exposed in the CCXT reference. |
+| Phemex | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Native public REST linear perp ticker/book/trades with funding and OI; no stable public liquidation endpoint is exposed in the CCXT reference. |
+| Pacifica | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp order books/trades/prices with funding and OI. CCXT marks public liquidation fetch unavailable. |
 | Upbit | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
-| GRVT | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp book/trade/ticker streams with funding and OI. |
-| Vertex | partial | implemented | implemented | planned | planned | planned | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids. |
-| Injective | partial | implemented | implemented | implemented | implemented | planned | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding and OI pollers. |
-| XRPL | partial | implemented | planned | planned | planned | planned | keyless | Public book_offers snapshots; issuer-aware mapping currently includes XRP/USD. |
-| Architect | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. |
-| Decibel | partial | implemented | implemented | implemented | planned | planned | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. |
-| Deribit | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. |
-| Evedex | partial | implemented | implemented | implemented | implemented | planned | keyless | Public perp REST depth, recent trades, funding, and open-interest metrics. |
-| Derive | partial | implemented | implemented | implemented | implemented | planned | keyless | Public spot/perp order books and trades plus perp ticker funding and open interest. |
+| GRVT | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp book/trade/ticker streams with funding and OI; no stable public liquidation endpoint is exposed in the CCXT reference. |
+| Vertex | partial | implemented | implemented | planned | planned | n/a | keyless | Public CLOB spot/perp book-depth and trade streams for known product ids; liquidation is not exposed as a stable public feed. |
+| Injective | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public LCD/Sentry spot/perp order books and trades plus perp funding and OI pollers; liquidation is not exposed as a stable public feed. |
+| XRPL | partial | implemented | planned | n/a | n/a | n/a | keyless | Public book_offers snapshots; issuer-aware mapping currently includes XRP/USD. Funding/OI/liquidation do not apply to spot XRPL books. |
+| Architect | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only perp WS book/trade and REST funding; requires bearer token. No public liquidation feed is exposed. |
+| Decibel | partial | implemented | implemented | implemented | planned | n/a | keyed | Read-only Aptos Decibel perp depth/trades/market_price streams; requires bearer token and market address discovery. No public liquidation feed is exposed. |
+| Deribit | implemented | implemented | implemented | implemented | implemented | partial | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. Public bankruptcy settlements exist, but they do not carry normal liquidation price/qty semantics for `LiquidationTick`. |
+| Evedex | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp REST depth, recent trades, funding, and open-interest metrics; no stable public liquidation endpoint is exposed. |
+| Derive | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public spot/perp order books and trades plus perp ticker funding and open interest. CCXT marks public liquidation fetch unavailable. |
 | Dexalot | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public CLOB DEX spot order books and trades; derivatives domains do not apply. |
 | KuCoin | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Spot/perp ticker plus spot REST book/trades and futures REST book/trades/funding/OI; no stable public liquidation feed in the CCXT reference. |
 | Gate | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot bookTicker plus REST book/trades; perp bookTicker plus REST book/trades/contracts funding/OI/liquidations. |
@@ -86,7 +86,7 @@ Status labels:
 | Coincheck | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | CoinEx | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding, OI, and liquidation history. |
 | Coinone | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
-| Crypto.com | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
+| Crypto.com | implemented | implemented | implemented | implemented | implemented | n/a | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI; no stable public liquidation endpoint is exposed in the CCXT reference. |
 | Cube | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public REST MBP snapshots plus recent-trade polling with trade-id dedupe for configured spot markets; derivatives domains do not apply to the current spot connector. |
 | Foxbit | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public Brazil spot REST order-book snapshots plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
 | NDAX | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public Canadian spot L2 snapshots and GetLastTrades polling after GetInstruments symbol resolution; derivatives domains do not apply. |
