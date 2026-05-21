@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use std::io::Read;
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::warn;
 
 use crate::connectors::cex::common::{
     emit_tick_ext, first_str, parse_array_levels, side_from_labels,
@@ -18,6 +19,8 @@ use crate::types::{
     now_ms,
 };
 
+const BINGX_SWAP_REST_URL: &str = "https://open-api.bingx.com/openApi/swap/v2";
+
 pub struct BingxSwapFeed {
     symbols: Vec<String>,
 }
@@ -25,6 +28,50 @@ pub struct BingxSwapFeed {
 impl BingxSwapFeed {
     pub fn new(symbols: Vec<String>) -> Self {
         Self { symbols }
+    }
+}
+
+pub struct BingxSwapMetricsPoller {
+    symbols: Vec<String>,
+    client: reqwest::Client,
+}
+
+impl BingxSwapMetricsPoller {
+    pub fn new(symbols: Vec<String>) -> Self {
+        Self {
+            symbols,
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ExchangeSource for BingxSwapMetricsPoller {
+    fn name(&self) -> &'static str {
+        "bingx"
+    }
+
+    async fn run(&self, ctx: SourceContext) -> Result<()> {
+        if self.symbols.is_empty() {
+            bail!("bingx metrics symbols empty");
+        }
+
+        let mut tick = interval(Duration::from_secs(10));
+        loop {
+            tick.tick().await;
+            for symbol in &self.symbols {
+                match poll_bingx_metrics(&self.client, symbol).await {
+                    Ok(events) => {
+                        for event in events {
+                            ctx.emit(event).await?;
+                        }
+                    }
+                    Err(err) => {
+                        warn!(exchange = "bingx", symbol, error = %err, "metrics poll failed")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -37,6 +84,36 @@ impl ExchangeSource for BingxSwapFeed {
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_bingx_swap(&self.symbols, ctx).await
     }
+}
+
+async fn poll_bingx_metrics(client: &reqwest::Client, symbol: &str) -> Result<Vec<DataEvent>> {
+    let mut events = Vec::with_capacity(2);
+
+    let premium = client
+        .get(format!("{BINGX_SWAP_REST_URL}/quote/premiumIndex"))
+        .query(&[("symbol", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    if let Some(event) = parse_bingx_funding(symbol, &premium) {
+        events.push(event);
+    }
+
+    let interest = client
+        .get(format!("{BINGX_SWAP_REST_URL}/quote/openInterest"))
+        .query(&[("symbol", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?;
+    if let Some(event) = parse_bingx_open_interest(symbol, &interest) {
+        events.push(event);
+    }
+
+    Ok(events)
 }
 
 async fn run_bingx_swap(symbols: &[String], ctx: SourceContext) -> Result<()> {
@@ -204,6 +281,59 @@ async fn parse_bingx_events(value: &Value, ctx: &SourceContext) -> Result<Vec<Da
     Ok(Vec::new())
 }
 
+fn bingx_payload(value: &Value) -> &Value {
+    value
+        .get("data")
+        .and_then(|data| {
+            data.as_array()
+                .and_then(|items| items.first())
+                .or(Some(data))
+        })
+        .unwrap_or(value)
+}
+
+fn parse_bingx_funding(symbol: &str, value: &Value) -> Option<DataEvent> {
+    let data = bingx_payload(value);
+    let funding_rate = first_str(data, &["lastFundingRate", "fundingRate"])?
+        .parse()
+        .ok()?;
+    Some(DataEvent::FundingRate(FundingRateTick {
+        exchange: "bingx",
+        symbol: first_str(data, &["symbol"])
+            .unwrap_or(symbol)
+            .to_string()
+            .into_boxed_str(),
+        funding_rate,
+        next_funding_time_ms: data
+            .get("nextFundingTime")
+            .and_then(Value::as_u64)
+            .or_else(|| first_str(data, &["nextFundingTime"]).and_then(|ts| ts.parse().ok())),
+        mark_price: first_str(data, &["markPrice", "mark"]).and_then(parse_f64),
+        index_price: first_str(data, &["indexPrice"]).and_then(parse_f64),
+        ts_ms: now_ms(),
+    }))
+}
+
+fn parse_bingx_open_interest(symbol: &str, value: &Value) -> Option<DataEvent> {
+    let data = bingx_payload(value);
+    let open_interest = first_str(data, &["openInterest"])?.parse().ok()?;
+    Some(DataEvent::OpenInterest(OpenInterestTick {
+        exchange: "bingx",
+        symbol: first_str(data, &["symbol"])
+            .unwrap_or(symbol)
+            .to_string()
+            .into_boxed_str(),
+        open_interest,
+        open_interest_value: Some(open_interest),
+        ts_ms: data
+            .get("time")
+            .and_then(Value::as_u64)
+            .or_else(|| data.get("timestamp").and_then(Value::as_u64))
+            .or_else(|| first_str(data, &["time", "timestamp"]).and_then(|ts| ts.parse().ok()))
+            .unwrap_or_else(now_ms),
+    }))
+}
+
 fn decode_gzip_text(bytes: &[u8]) -> Option<String> {
     let mut decoder = GzDecoder::new(bytes);
     let mut out = String::new();
@@ -221,13 +351,52 @@ fn side_from_str(side: &str) -> TradeSide {
 
 #[cfg(test)]
 mod tests {
-    use super::side_from_str;
+    use super::{parse_bingx_funding, parse_bingx_open_interest, side_from_str};
+    use crate::types::DataEvent;
     use crate::types::TradeSide;
+    use serde_json::json;
 
     #[test]
     fn bingx_side_parser_accepts_common_labels() {
         assert_eq!(side_from_str("false"), TradeSide::Buy);
         assert_eq!(side_from_str("true"), TradeSide::Sell);
         assert_eq!(side_from_str("?"), TradeSide::Unknown);
+    }
+
+    #[test]
+    fn bingx_funding_parser_accepts_premium_index_payload() {
+        let event = parse_bingx_funding(
+            "BTC-USDT",
+            &json!({"code":0,"data":{"symbol":"BTC-USDT","markPrice":"100.5","indexPrice":"100.0","lastFundingRate":"0.0001","nextFundingTime":1672041600000_u64}}),
+        )
+        .expect("funding event");
+        match event {
+            DataEvent::FundingRate(tick) => {
+                assert_eq!(tick.symbol.as_ref(), "BTC-USDT");
+                assert_eq!(tick.funding_rate, 0.0001);
+                assert_eq!(tick.mark_price, Some(100.5));
+                assert_eq!(tick.index_price, Some(100.0));
+                assert_eq!(tick.next_funding_time_ms, Some(1672041600000));
+            }
+            _ => panic!("unexpected event type"),
+        }
+    }
+
+    #[test]
+    fn bingx_open_interest_parser_accepts_linear_payload() {
+        let event = parse_bingx_open_interest(
+            "BTC-USDT",
+            &json!({"code":0,"data":{"openInterest":"3289641547.10","symbol":"BTC-USDT","time":1672026617364_u64}}),
+        )
+        .expect("oi event");
+        match event {
+            DataEvent::OpenInterest(tick) => {
+                assert_eq!(tick.symbol.as_ref(), "BTC-USDT");
+                assert_eq!(tick.open_interest, 3289641547.10);
+                assert_eq!(tick.open_interest_value, Some(3289641547.10));
+                assert_eq!(tick.ts_ms, 1672026617364);
+            }
+            _ => panic!("unexpected event type"),
+        }
     }
 }

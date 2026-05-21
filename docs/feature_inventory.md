@@ -47,7 +47,7 @@ Status labels:
 | dYdX v4 | partial | implemented | implemented | implemented | implemented | planned | keyless | REST market metadata plus WS book/trades. |
 | Backpack | partial | implemented | implemented | planned | planned | planned | keyless | Product dependent public fields. |
 | MEXC | partial | implemented | implemented | partial | planned | planned | keyless | Spot/futures depth/deals; funding when ticker field exists. |
-| BingX | partial | implemented | implemented | partial | partial | planned | keyless | Swap ticker/depth/trade. |
+| BingX | partial | implemented | implemented | implemented | implemented | n/a | keyless | Swap ticker/depth/trade plus public premium-index funding and open-interest poller; liquidation/force-order history is private-only in the CCXT reference. |
 | Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
 | BitMEX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST instrument/book/trades/liquidations for perpetual markets. |

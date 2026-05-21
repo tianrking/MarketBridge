@@ -31,7 +31,7 @@ use super::binance::{
     BinanceOpenInterestPoller, BinanceTradeFeed,
 };
 use super::binance_perp::BinancePerpBookTicker;
-use super::bingx::BingxSwapFeed;
+use super::bingx::{BingxSwapFeed, BingxSwapMetricsPoller};
 use super::bitbank::BitbankSpotFeed;
 use super::bitfinex::{BitfinexSpotRestFeed, BitfinexTicker};
 use super::bitfinex_perp::{BitfinexPerpRestFeed, BitfinexPerpTicker};
@@ -181,9 +181,9 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 }
             }
             "bingx" if !perp_symbols.is_empty() => {
-                out.push(Arc::new(BingxSwapFeed::new(
-                    perp_symbols.iter().map(|s| to_dash(s)).collect(),
-                )));
+                let bingx_symbols = perp_symbols.iter().map(|s| to_dash(s)).collect::<Vec<_>>();
+                out.push(Arc::new(BingxSwapFeed::new(bingx_symbols.clone())));
+                out.push(Arc::new(BingxSwapMetricsPoller::new(bingx_symbols)));
             }
             "blofin" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(BlofinPerpFeed::new(

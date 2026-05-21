@@ -82,9 +82,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: PERP,
         domains: PERP_MARKET,
         upstreams: UP_HB_CCXT,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented_public",
         priority: "P1",
-        notes: "MarketBridge has swap feed; complete funding/OI/liquidation coverage where public endpoints allow.",
+        notes: "Swap depth/trades plus public premium-index funding and open-interest poller are wired; liquidation force-order history is private-only in the CCXT reference.",
     },
     RoadmapSource {
         source: "bitget",
