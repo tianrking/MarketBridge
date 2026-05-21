@@ -51,16 +51,16 @@ Status labels:
 | Bitget | implemented | implemented | implemented | implemented | implemented | planned | keyless | Public WS ticker/books5/trade; perp ticker also emits funding and OI. |
 | Bitmart | partial | implemented | implemented | partial | planned | planned | keyless | Public spot depth/trades and perp depth/trades/funding/ticker. |
 | BitMEX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Native public REST instrument/book/trades/liquidations for perpetual markets. |
-| Bitstamp | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades. |
-| Bitrue | partial | implemented | implemented | planned | planned | planned | keyless | Public spot simple-depth stream plus recent-trade REST polling with trade-id dedupe. |
+| Bitstamp | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order-book diffs and trades; derivatives domains do not apply to spot feed. |
+| Bitrue | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot simple-depth stream plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
 | Bithumb | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Bitvavo | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | BloFin | implemented | implemented | implemented | implemented | planned | planned | keyless | Native public REST perp ticker, order book, trades, and funding. |
 | bitFlyer | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | bitbank | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
-| AscendEX | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint. |
+| AscendEX | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order-book diffs and trades from Hummingbot WS endpoint; derivatives domains do not apply. |
 | WOO X | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST spot/perp order books and trades plus perp funding and OI. |
-| BTC Markets | partial | implemented | implemented | planned | planned | planned | keyless | Public spot order book and trades. |
+| BTC Markets | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public spot order book and trades; derivatives domains do not apply. |
 | Bullish | implemented | implemented | implemented | n/a | partial | planned | keyless | Native public REST spot ticker, order book, and recent trades; endpoint may be geofenced. |
 | Aevo | partial | implemented | implemented | implemented | planned | planned | keyless | Public perp order books/trades plus REST funding and instrument BBO. |
 | Phemex | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST linear perp ticker/book/trades with funding and OI. |
@@ -75,7 +75,7 @@ Status labels:
 | Deribit | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST perp ticker, order book, trades, funding, and open interest. |
 | Evedex | partial | implemented | implemented | implemented | planned | planned | keyless | Public perp REST depth, recent trades, and instrument funding metrics. |
 | Derive | partial | implemented | implemented | implemented | planned | planned | keyless | Public spot/perp order books and trades plus perp ticker funding. |
-| Dexalot | partial | implemented | implemented | planned | planned | planned | keyless | Public CLOB DEX spot order books and trades. |
+| Dexalot | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public CLOB DEX spot order books and trades; derivatives domains do not apply. |
 | KuCoin | implemented | implemented | implemented | planned | planned | planned | keyless | Spot/perp ticker plus spot REST order book and recent trades. |
 | Gate | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot bookTicker plus REST book/trades; perp bookTicker plus REST book/trades/contracts funding/OI/liquidations. |
 | Gemini | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and trades. |
@@ -88,8 +88,8 @@ Status labels:
 | Coinone | implemented | implemented | implemented | n/a | n/a | n/a | keyless | Native public REST spot ticker, order book, and recent trades. |
 | Crypto.com | implemented | implemented | implemented | implemented | implemented | planned | keyless | Native public REST ticker/book/trades for spot/perp plus perp funding and OI. |
 | Cube | partial | implemented | planned | planned | planned | planned | keyless | Public REST MBP snapshots with market metadata scaling; protobuf WS diffs/trades remain planned. |
-| Foxbit | partial | implemented | implemented | planned | planned | planned | keyless | Public Brazil spot REST order-book snapshots plus recent-trade REST polling with trade-id dedupe. |
-| NDAX | partial | implemented | implemented | planned | planned | planned | keyless | Public Canadian spot L2 snapshots and GetLastTrades polling after GetInstruments symbol resolution. |
+| Foxbit | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public Brazil spot REST order-book snapshots plus recent-trade REST polling with trade-id dedupe; derivatives domains do not apply. |
+| NDAX | partial | implemented | implemented | n/a | n/a | n/a | keyless | Public Canadian spot L2 snapshots and GetLastTrades polling after GetInstruments symbol resolution; derivatives domains do not apply. |
 
 ## DeFi Connector Coverage
 
