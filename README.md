@@ -643,10 +643,10 @@ with connector changes.
 | Venue group | BBO | L2 book | Trades | Funding | OI | Liquidations | Notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | Binance / Bybit / OKX | implemented | implemented | implemented | implemented | implemented | implemented | Highest-volume public derivatives venues. |
-| Hyperliquid / dYdX / Backpack / MEXC / BingX / Bitget / Bitmart | implemented or partial | implemented | implemented | partial to implemented | partial to implemented | planned except venue support | Public feeds first; venue-specific gaps stay explicit. |
-| BitMEX / Deribit / Phemex / CoinEx / Crypto.com / WOO X / BloFin / Aevo / Pacifica / GRVT / Injective / Derive / Evedex | implemented or partial | implemented | implemented | implemented where venue provides it | implemented or planned | planned except BitMEX | Native public perp/derivatives data paths. |
-| Coinbase / Kraken / KuCoin / Gemini / Bithumb / Bitvavo / bitFlyer / bitbank / Coincheck / Coinone / Upbit / Bullish | implemented | implemented | implemented | n/a or planned | n/a or planned | n/a or planned | Native spot REST/WS public market data. |
-| Gate / HTX / Bitfinex / Bitstamp / Bitrue / AscendEX / BTC Markets / Dexalot / Vertex / XRPL / Cube / Foxbit / NDAX | implemented or partial | implemented or planned | implemented or planned | planned where applicable | planned where applicable | planned | Long-tail and CLOB/DEX venues are added as public data contracts mature. |
+| Hyperliquid / dYdX / Backpack / MEXC / BingX / Bitget / Bitmart | implemented or partial | implemented | implemented | partial to implemented | partial to implemented | n/a where public feed is unavailable | Public feeds first; venue-specific unavailable domains stay explicit. |
+| BitMEX / Deribit / Phemex / CoinEx / Crypto.com / WOO X / BloFin / Aevo / Pacifica / GRVT / Injective / Derive / Evedex | implemented or partial | implemented | implemented | implemented where venue provides it | implemented where venue provides it | implemented, partial, or n/a by venue | Native public perp/derivatives data paths. |
+| Coinbase / Kraken / KuCoin / Gemini / Bithumb / Bitvavo / bitFlyer / bitbank / Coincheck / Coinone / Upbit / Bullish | implemented | implemented | implemented | n/a where spot-only | n/a or implemented by venue | n/a where spot-only or no public feed | Native spot REST/WS public market data. |
+| Gate / HTX / Bitfinex / Bitstamp / Bitrue / AscendEX / BTC Markets / Dexalot / Vertex / XRPL / Cube / Foxbit / NDAX | implemented or partial | implemented | implemented or explicit research gap | n/a or planned only where product semantics apply | n/a or planned only where product semantics apply | n/a unless a stable public feed exists | Long-tail and CLOB/DEX venues are added as public data contracts mature. |
 
 All exchange connectors are data-only. They do not sign requests, place orders,
 cancel orders, or depend on third-party trading libraries at runtime. Where a

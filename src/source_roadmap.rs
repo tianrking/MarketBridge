@@ -64,7 +64,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "Public spot/perp WS book/trade paths plus perp mark-price funding and open-interest REST polling are wired; liquidation remains planned only if a stable public endpoint is confirmed.",
+        notes: "Public spot/perp WS book/trade paths plus perp mark-price funding and open-interest REST polling are wired; no stable public liquidation feed is exposed in the CCXT reference.",
     },
     RoadmapSource {
         source: "binance",
@@ -94,7 +94,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "Spot/perp ticker paths exist; expand full L2/trades parity and liquidation coverage.",
+        notes: "Spot/perp ticker, L2/trades, funding, and OI paths are wired; CCXT marks public liquidation fetch unavailable.",
     },
     RoadmapSource {
         source: "bitmart",
@@ -294,7 +294,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "Public spot/perp order books and trades plus perp ticker funding and open interest are wired; liquidation remains planned.",
+        notes: "Public spot/perp order books and trades plus perp ticker funding and open interest are wired; CCXT marks public liquidation fetch unavailable.",
     },
     RoadmapSource {
         source: "dexalot",
@@ -354,7 +354,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_CCXT,
         marketbridge_status: "partial",
         priority: "P0",
-        notes: "Perp L2/trades/funding/OI are wired; activeAssetCtx now emits funding and OI together when both are present. Add spot coverage and liquidation if public data is reliable.",
+        notes: "Perp L2/trades/funding/OI are wired; activeAssetCtx now emits funding and OI together when both are present. CCXT marks public liquidation fetch unavailable.",
     },
     RoadmapSource {
         source: "injective_v2",
@@ -414,7 +414,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_CCXT,
         marketbridge_status: "implemented",
         priority: "P2",
-        notes: "Native public REST spot/perp order books and trades plus perp funding and open interest are wired without external runtime dependency.",
+        notes: "Native public REST spot/perp order books and trades plus perp funding and open interest are wired without external runtime dependency; no stable public liquidation feed is exposed in the CCXT reference.",
     },
     RoadmapSource {
         source: "mexc",
