@@ -214,7 +214,7 @@ async fn load_context(
         .collect();
     let order_books = state
         .bus
-        .order_book_snapshot_all()
+        .order_book_snapshots_matching(|_| true)
         .await
         .into_iter()
         .map(|book| (market_key(book.exchange, book.market, &book.symbol), book))
