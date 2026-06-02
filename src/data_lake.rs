@@ -204,6 +204,7 @@ fn persist_klines_blocking(
     init_lake(root_dir, manifest_path)?;
     let partitions = partition_klines(rows, candle_type);
     let mut conn = Connection::open(manifest_path)?;
+    let tx = conn.transaction()?;
     let mut written = 0;
     for partition in partitions {
         let path = partition_path(root_dir, &partition.key, "parquet");
@@ -213,9 +214,10 @@ fn persist_klines_blocking(
         let stats = quality_stats(&partition.rows, &partition.key.interval);
         write_parquet(&path, &partition.rows)?;
         let bytes = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
-        upsert_manifest(&mut conn, &partition.key, &path, "parquet", bytes, &stats)?;
+        upsert_manifest(&tx, &partition.key, &path, "parquet", bytes, &stats)?;
         written += 1;
     }
+    tx.commit()?;
     Ok(written)
 }
 
@@ -419,7 +421,7 @@ fn percentile(values: &[u64], pct: usize) -> Option<u64> {
 }
 
 fn upsert_manifest(
-    conn: &mut Connection,
+    conn: &rusqlite::Transaction<'_>,
     key: &PartitionKey,
     path: &Path,
     format: &str,
