@@ -54,12 +54,14 @@ impl SourceRuntime {
             let source = source.clone();
             let task = tokio::spawn(async move {
                 let mut delay = Duration::from_secs(1);
+                let source_name = source.name();
+                let source_label = source.label();
                 loop {
                     if stop.is_cancelled() {
                         break;
                     }
 
-                    info!(exchange = source.name(), "source start");
+                    info!(exchange = source_name, source = %source_label, "source start");
                     let run_ctx = ctx.clone();
                     let source_run = source.clone();
                     let mut run_task = tokio::spawn(async move { source_run.run(run_ctx).await });
@@ -73,15 +75,15 @@ impl SourceRuntime {
                         join = &mut run_task => {
                             match join {
                                 Ok(Ok(())) => {
-                                    warn!(exchange = source.name(), "source exited normally, reconnecting");
+                                    warn!(exchange = source_name, source = %source_label, "source exited normally, reconnecting");
                                     true
                                 }
                                 Ok(Err(e)) => {
-                                    error!(exchange = source.name(), error = %e, "source error");
+                                    error!(exchange = source_name, source = %source_label, error = %e, "source error");
                                     false
                                 }
                                 Err(e) => {
-                                    error!(exchange = source.name(), error = %e, "source task panicked");
+                                    error!(exchange = source_name, source = %source_label, error = %e, "source task panicked");
                                     false
                                 }
                             }

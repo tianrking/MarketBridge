@@ -571,6 +571,9 @@ impl ExchangeSource for BinanceBookTicker {
     fn name(&self) -> &'static str {
         "binance"
     }
+    fn source_type(&self) -> &'static str {
+        "book_ticker"
+    }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_binance(
             "wss://stream.binance.com:9443/stream?",
@@ -588,6 +591,9 @@ impl ExchangeSource for BinanceFundingTicker {
     fn name(&self) -> &'static str {
         "binance"
     }
+    fn source_type(&self) -> &'static str {
+        "funding"
+    }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_binance_funding(&self.symbols, ctx).await
@@ -598,6 +604,9 @@ impl ExchangeSource for BinanceFundingTicker {
 impl ExchangeSource for BinanceOpenInterestPoller {
     fn name(&self) -> &'static str {
         "binance"
+    }
+    fn source_type(&self) -> &'static str {
+        "open_interest"
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
@@ -610,6 +619,9 @@ impl ExchangeSource for BinanceLiquidationFeed {
     fn name(&self) -> &'static str {
         "binance"
     }
+    fn source_type(&self) -> &'static str {
+        "liquidation"
+    }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_binance_liquidations(&self.symbols, ctx).await
@@ -621,6 +633,9 @@ impl ExchangeSource for BinanceDepthFeed {
     fn name(&self) -> &'static str {
         "binance"
     }
+    fn source_type(&self) -> &'static str {
+        "depth"
+    }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_binance_depth(self.market, &self.symbols, ctx).await
@@ -631,6 +646,9 @@ impl ExchangeSource for BinanceDepthFeed {
 impl ExchangeSource for BinanceTradeFeed {
     fn name(&self) -> &'static str {
         "binance"
+    }
+    fn source_type(&self) -> &'static str {
+        "trade"
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
