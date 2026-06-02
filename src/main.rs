@@ -79,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
 
     let handle = runtime.spawn_sources(sources);
     let shutdown = handle.shutdown.clone();
-    let mut tasks = handle.tasks;
+    let tasks = handle.tasks;
 
     let bus = EventBus::new_sharded(
         cfg.runtime.broadcast_capacity,
@@ -275,6 +275,27 @@ async fn main() -> anyhow::Result<()> {
 
     let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));
 
+    let mut background_tasks = TaskGroup::default();
+    background_tasks.optional("redis_sink", redis_task);
+    background_tasks.optional("clickhouse_sink", clickhouse_task);
+    background_tasks.optional("deribit_options", deribit_task);
+    background_tasks.optional("deribit_options_ws", deribit_ws_task);
+    background_tasks.optional("okx_options", okx_options_task);
+    background_tasks.optional("okx_options_ws", okx_options_ws_task);
+    background_tasks.optional("bybit_options", bybit_options_task);
+    background_tasks.optional("bybit_options_ws", bybit_options_ws_task);
+    background_tasks.optional("binance_options", binance_options_task);
+    background_tasks.optional("binance_options_ws", binance_options_ws_task);
+    background_tasks.optional("polymarket_ws_cache", polymarket_task);
+    background_tasks.optional("kline_service", kline_task);
+    background_tasks.required("order_flow", order_flow_task);
+    background_tasks.required("strategy_state", strategy_state_task);
+    background_tasks.required("snapshot_stream", snapshot_stream_task);
+    background_tasks.extend("onchain_collector", onchain_tasks);
+    background_tasks.extend("source", tasks);
+    background_tasks.required("router", router_task);
+    background_tasks.required("api", api_task);
+
     let mut agg_joined = false;
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
@@ -288,68 +309,45 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    if let Some(redis_task) = redis_task {
-        wait_task("redis_sink", redis_task).await;
-    }
-    if let Some(clickhouse_task) = clickhouse_task {
-        wait_task("clickhouse_sink", clickhouse_task).await;
-    }
-
-    if let Some(deribit_task) = deribit_task {
-        wait_task("deribit_options", deribit_task).await;
-    }
-    if let Some(deribit_ws_task) = deribit_ws_task {
-        wait_task("deribit_options_ws", deribit_ws_task).await;
-    }
-
-    if let Some(okx_options_task) = okx_options_task {
-        wait_task("okx_options", okx_options_task).await;
-    }
-    if let Some(okx_options_ws_task) = okx_options_ws_task {
-        wait_task("okx_options_ws", okx_options_ws_task).await;
-    }
-
-    if let Some(bybit_options_task) = bybit_options_task {
-        wait_task("bybit_options", bybit_options_task).await;
-    }
-    if let Some(bybit_options_ws_task) = bybit_options_ws_task {
-        wait_task("bybit_options_ws", bybit_options_ws_task).await;
-    }
-
-    if let Some(binance_options_task) = binance_options_task {
-        wait_task("binance_options", binance_options_task).await;
-    }
-    if let Some(binance_options_ws_task) = binance_options_ws_task {
-        wait_task("binance_options_ws", binance_options_ws_task).await;
-    }
-
-    if let Some(polymarket_task) = polymarket_task {
-        wait_task("polymarket_ws_cache", polymarket_task).await;
-    }
-
-    if let Some(kline_task) = kline_task {
-        wait_task("kline_service", kline_task).await;
-    }
-
-    wait_task("order_flow", order_flow_task).await;
-    wait_task("strategy_state", strategy_state_task).await;
-    wait_task("snapshot_stream", snapshot_stream_task).await;
-
-    for task in onchain_tasks {
-        wait_task("onchain_collector", task).await;
-    }
-
-    for t in tasks.drain(..) {
-        wait_task("source", t).await;
-    }
-
-    wait_task("router", router_task).await;
     if !agg_joined {
         wait_task("aggregator", agg_task).await;
     }
-    wait_task("api", api_task).await;
+    background_tasks.wait_all().await;
 
     Ok(())
+}
+
+#[derive(Default)]
+struct TaskGroup {
+    tasks: Vec<NamedTask>,
+}
+
+struct NamedTask {
+    name: &'static str,
+    task: JoinHandle<()>,
+}
+
+impl TaskGroup {
+    fn optional(&mut self, name: &'static str, task: Option<JoinHandle<()>>) {
+        if let Some(task) = task {
+            self.required(name, task);
+        }
+    }
+
+    fn required(&mut self, name: &'static str, task: JoinHandle<()>) {
+        self.tasks.push(NamedTask { name, task });
+    }
+
+    fn extend(&mut self, name: &'static str, tasks: impl IntoIterator<Item = JoinHandle<()>>) {
+        self.tasks
+            .extend(tasks.into_iter().map(|task| NamedTask { name, task }));
+    }
+
+    async fn wait_all(self) {
+        for task in self.tasks {
+            wait_task(task.name, task.task).await;
+        }
+    }
 }
 
 async fn wait_task(name: &'static str, task: JoinHandle<()>) {
