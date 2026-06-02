@@ -19,6 +19,7 @@ use crate::types::{
 const TRADE_FLOW_WINDOW_MS: u64 = 60_000;
 const LIQUIDATION_WINDOW_MS: u64 = 60_000;
 const DEPTH_PRESSURE_LEVELS: usize = 5;
+const MAX_FLOW_WINDOW_POINTS: usize = 20_000;
 
 pub struct SpreadAggregator {
     books: HashMap<Box<str>, HashMap<&'static str, MarketTick>>,
@@ -523,6 +524,10 @@ impl FlowWindow {
             ts_ms,
             signed_notional,
         });
+        if self.rows.len() > MAX_FLOW_WINDOW_POINTS {
+            let excess = self.rows.len() - MAX_FLOW_WINDOW_POINTS;
+            self.rows.drain(0..excess);
+        }
     }
 
     fn prune(&mut self, now: u64, window_ms: u64) {
@@ -583,5 +588,16 @@ mod tests {
         assert_eq!(summary.signed_notional, 60.0);
         assert_eq!(summary.absolute_notional, 140.0);
         assert!((summary.imbalance - (60.0 / 140.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn flow_window_caps_retained_points() {
+        let mut window = FlowWindow::default();
+        for i in 0..(MAX_FLOW_WINDOW_POINTS + 10) {
+            window.add(i as u64, 1.0);
+        }
+
+        assert_eq!(window.rows.len(), MAX_FLOW_WINDOW_POINTS);
+        assert_eq!(window.rows.first().expect("first").ts_ms, 10);
     }
 }
