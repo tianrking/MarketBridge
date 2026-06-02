@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 mod binance;
+mod okx;
 mod symbols;
 
 use crate::config::AppConfig;
@@ -73,11 +74,6 @@ use super::kucoin_perp::{KucoinPerpRestFeed, KucoinPerpTicker};
 use super::kucoin_rest::KucoinRestFeed;
 use super::mexc::{MexcFeed, MexcFundingPoller};
 use super::ndax::NdaxSpotFeed;
-use super::okx::{
-    OkxDepthFeed, OkxFundingFeed, OkxLiquidationPoller, OkxOpenInterestFeed, OkxTicker,
-    OkxTradeFeed,
-};
-use super::okx_perp::OkxPerpTicker;
 use super::pacifica::PacificaPerpFeed;
 use super::phemex::PhemexPerpFeed;
 use super::upbit::UpbitSpotFeed;
@@ -86,8 +82,7 @@ use super::woo::WooFeed;
 use super::xrpl::{XrplPair, XrplSpotFeed};
 use symbols::{
     split_quote, to_binance, to_bitfinex, to_bitfinex_perp, to_dash, to_dydx_market, to_htx_perp,
-    to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_okx, to_okx_swap, to_slash,
-    to_underscore,
+    to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_slash, to_underscore,
 };
 
 pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
@@ -98,43 +93,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         let perp_symbols = cfg.perp_symbols_for_exchange(&ex);
 
         match ex.as_str() {
-            "okx" => {
-                if !spot_symbols.is_empty() {
-                    out.push(Arc::new(OkxTicker::new(
-                        spot_symbols.iter().map(|s| to_okx(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxDepthFeed::new(
-                        crate::types::MarketKind::Spot,
-                        spot_symbols.iter().map(|s| to_okx(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxTradeFeed::new(
-                        crate::types::MarketKind::Spot,
-                        spot_symbols.iter().map(|s| to_okx(s)).collect(),
-                    )));
-                }
-                if !perp_symbols.is_empty() {
-                    out.push(Arc::new(OkxPerpTicker::new(
-                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxFundingFeed::new(
-                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxOpenInterestFeed::new(
-                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxLiquidationPoller::new(
-                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxDepthFeed::new(
-                        crate::types::MarketKind::Perp,
-                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
-                    )));
-                    out.push(Arc::new(OkxTradeFeed::new(
-                        crate::types::MarketKind::Perp,
-                        perp_symbols.iter().map(|s| to_okx_swap(s)).collect(),
-                    )));
-                }
-            }
+            "okx" => okx::push_sources(&mut out, &spot_symbols, &perp_symbols),
             "hyperliquid" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(HyperliquidFeed::new(
                     perp_symbols
