@@ -9,6 +9,7 @@ pub mod options;
 pub mod prediction;
 pub mod research;
 pub mod storage;
+pub mod strategy;
 pub mod stream;
 pub mod system;
 pub mod universe;

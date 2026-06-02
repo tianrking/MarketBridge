@@ -14,6 +14,7 @@ use crate::metrics::AppMetrics;
 use crate::onchain::OnchainTransferStore;
 use crate::order_flow::OrderFlowStore;
 use crate::polymarket_ws::PolymarketBookCache;
+use crate::strategy_state::StrategyStateStore;
 
 pub mod error;
 pub mod guard;
@@ -34,6 +35,7 @@ pub struct ApiState {
     pub data_lake_store: DataLakeStore,
     pub order_flow_store: OrderFlowStore,
     pub onchain_store: OnchainTransferStore,
+    pub strategy_state_store: StrategyStateStore,
     pub snapshot_stream_hub: snapshot_stream::SnapshotStreamHub,
     pub api_access_guard: guard::ApiAccessGuard,
 }
@@ -131,6 +133,10 @@ pub fn build_router(state: ApiState) -> Router {
         .route(
             "/v1/research/market-regime",
             get(routes::research::market_regime),
+        )
+        .route(
+            "/v1/research/symbol-state",
+            get(routes::strategy::symbol_state),
         )
         .route("/v1/storage/manifest", get(routes::storage::manifest))
         .route(

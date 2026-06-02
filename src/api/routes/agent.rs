@@ -121,6 +121,7 @@ pub async fn context(
             "data_boundary": "no_order_execution_no_wallet_no_strategy_claims",
             "recommended_next_calls": [
                 "/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark&interval=1m&persist=true",
+                "/v1/research/symbol-state?symbol=BTCUSDT&exchange=binance",
                 "/v1/research/features?symbols=BTCUSDT&benchmark_symbol=ETHUSDT",
                 "/v1/storage/manifest?domain=candles&symbol=BTCUSDT"
             ]
@@ -156,6 +157,11 @@ fn capability_rows() -> Vec<AgentCapability> {
             name: "research_features",
             endpoint: "/v1/research/features",
             purpose: "Read multi-timeframe research features and correlated asset context.",
+        },
+        AgentCapability {
+            name: "strategy_symbol_state",
+            endpoint: "/v1/research/symbol-state",
+            purpose: "Read real-time short-squeeze and exhaustion-short states with CVD, OFI, OI change, depth pressure, liquidations, and read-only risk context.",
         },
     ]
 }

@@ -13,6 +13,15 @@ runtime:
   api_rate_limit_per_minute: 0
   order_flow_large_trade_notional_usdt: 100000.0
   redis_dead_letter_path: "data/redis_dead_letters.jsonl"
+  clickhouse:
+    enabled: false
+    url: "http://127.0.0.1:8123"
+    database: "marketbridge"
+    password_env: CLICKHOUSE_PASSWORD
+    batch_max: 1000
+    flush_ms: 250
+    local_buffer: 100000
+    init_tables: true
 
 strategy:
   # Relaxed thresholds for quick testing (easier to see TRIGGER)

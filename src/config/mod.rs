@@ -25,7 +25,7 @@ pub use onchain::{EtherscanConfig, MempoolSpaceConfig, OnchainConfig, WhaleAlert
 pub use options::{
     BinanceOptionsConfig, BybitOptionsConfig, DeribitConfig, OkxOptionsConfig, PolymarketConfig,
 };
-pub use runtime::RuntimeConfig;
+pub use runtime::{ClickHouseConfig, RuntimeConfig};
 pub use sentiment::{
     CryptoPanicConfig, FearGreedConfig, LunarCrushConfig, SantimentConfig, SantimentMetric,
     SentimentConfig,

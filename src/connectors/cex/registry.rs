@@ -1013,8 +1013,8 @@ fn exchange_api_key(cfg: &AppConfig, exchange: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::config::{
-        AggregatesConfig, AppConfig, BinanceOptionsConfig, BybitOptionsConfig, DefiConfig,
-        DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig,
+        AggregatesConfig, AppConfig, BinanceOptionsConfig, BybitOptionsConfig, ClickHouseConfig,
+        DefiConfig, DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig,
         PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
         fees::FeeModel, runtime::BackpressureConfig,
     };
@@ -1038,6 +1038,7 @@ mod tests {
                 redis_url: None,
                 redis_stream_prefix: "ticks".to_string(),
                 redis_dead_letter_path: "data/test_redis_dead_letters.jsonl".to_string(),
+                clickhouse: ClickHouseConfig::default(),
                 order_flow_large_trade_notional_usdt: 100_000.0,
                 ws_send_timeout_ms: 3_000,
             },

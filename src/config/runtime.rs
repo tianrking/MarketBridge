@@ -28,10 +28,53 @@ pub struct RuntimeConfig {
     pub redis_stream_prefix: String,
     #[serde(default = "default_redis_dead_letter_path")]
     pub redis_dead_letter_path: String,
+    #[serde(default)]
+    pub clickhouse: ClickHouseConfig,
     #[serde(default = "default_order_flow_large_trade_notional_usdt")]
     pub order_flow_large_trade_notional_usdt: f64,
     #[serde(default = "default_ws_send_timeout_ms")]
     pub ws_send_timeout_ms: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ClickHouseConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_clickhouse_url")]
+    pub url: String,
+    #[serde(default = "default_clickhouse_database")]
+    pub database: String,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default)]
+    pub password_env: Option<String>,
+    #[serde(default = "default_clickhouse_batch_max")]
+    pub batch_max: usize,
+    #[serde(default = "default_clickhouse_flush_ms")]
+    pub flush_ms: u64,
+    #[serde(default = "default_clickhouse_local_buffer")]
+    pub local_buffer: usize,
+    #[serde(default = "default_clickhouse_init_tables")]
+    pub init_tables: bool,
+}
+
+impl Default for ClickHouseConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: default_clickhouse_url(),
+            database: default_clickhouse_database(),
+            username: None,
+            password: None,
+            password_env: Some("CLICKHOUSE_PASSWORD".to_string()),
+            batch_max: default_clickhouse_batch_max(),
+            flush_ms: default_clickhouse_flush_ms(),
+            local_buffer: default_clickhouse_local_buffer(),
+            init_tables: default_clickhouse_init_tables(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -90,4 +133,28 @@ fn default_order_flow_large_trade_notional_usdt() -> f64 {
 
 fn default_ws_send_timeout_ms() -> u64 {
     3_000
+}
+
+fn default_clickhouse_url() -> String {
+    "http://127.0.0.1:8123".to_string()
+}
+
+fn default_clickhouse_database() -> String {
+    "marketbridge".to_string()
+}
+
+fn default_clickhouse_batch_max() -> usize {
+    1_000
+}
+
+fn default_clickhouse_flush_ms() -> u64 {
+    250
+}
+
+fn default_clickhouse_local_buffer() -> usize {
+    100_000
+}
+
+fn default_clickhouse_init_tables() -> bool {
+    true
 }

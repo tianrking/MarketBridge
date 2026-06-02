@@ -121,8 +121,71 @@ Short version:
 | Footprint | `/v1/market/footprint` | trade events | derived | Price-bin footprint, imbalance, stacked imbalance, and optional raw trades. |
 | Universe filters | `/v1/universe/*` | klines, quotes, external signals | derived | Volume, percent change, volatility, spread, cross-market, market cap, age/listing, and delist-risk filters. |
 | Research features | `/v1/research/features` | klines, quotes, funding, OI, books | derived | Multi-timeframe features, correlated assets, basis/funding/OI/liquidity regimes. |
+| Strategy state | `/v1/research/symbol-state` | live events | derived | Real-time short-squeeze and exhaustion-short state machines with CVD, OFI, OI change, depth pressure, liquidation windows, and read-only risk context. |
 | Agent context | `/v1/agent/context` | live snapshots + manifest | derived | AI-friendly read-only context bundle. |
 | Local lake manifest | `/v1/storage/manifest` | SQLite manifest | metadata | Local Parquet lake index and data-quality metadata. |
+
+## ClickHouse Tick Store
+
+MarketBridge can optionally persist high-volume live events to ClickHouse over
+the HTTP interface. This is intended for order-book/trade/OI replay,
+millisecond-scale research queries, and feature recalculation outside the
+in-memory latest-state cache.
+
+Minimal local ClickHouse:
+
+```bash
+docker run --rm -p 8123:8123 -p 9000:9000 --name marketbridge-clickhouse clickhouse/clickhouse-server:latest
+```
+
+Enable the sink:
+
+```yaml
+runtime:
+  clickhouse:
+    enabled: true
+    url: "http://127.0.0.1:8123"
+    database: "marketbridge"
+    password_env: CLICKHOUSE_PASSWORD
+    batch_max: 1000
+    flush_ms: 250
+    local_buffer: 100000
+    init_tables: true
+```
+
+Created tables:
+
+| Table | Stored events |
+|---|---|
+| `marketbridge.market_quotes` | spot/perp quote ticks and mark/funding fields when present |
+| `marketbridge.trades` | trade ticks with side, price, quantity, and trade id |
+| `marketbridge.order_books` | latest emitted L2 books with best bid/ask plus bid/ask JSON levels |
+| `marketbridge.funding_rates` | funding-rate ticks |
+| `marketbridge.open_interest` | OI ticks |
+| `marketbridge.liquidations` | liquidation ticks |
+| `marketbridge.external_signals` | CoinGlass, sentiment, DeFi native-state, and custom API signals |
+
+Example queries:
+
+```sql
+SELECT
+  symbol,
+  exchange,
+  count() AS trades,
+  sum(if(side = 'buy', price * qty, -price * qty)) AS cvd_notional
+FROM marketbridge.trades
+WHERE symbol = 'BTCUSDT'
+  AND ts_ms >= toUnixTimestamp64Milli(now64(3) - INTERVAL 5 MINUTE)
+GROUP BY symbol, exchange;
+
+SELECT
+  symbol,
+  exchange,
+  argMax(open_interest, ts_ms) AS latest_oi
+FROM marketbridge.open_interest
+WHERE symbol = 'BTCUSDT'
+GROUP BY symbol, exchange;
+```
 
 ## Klines
 
@@ -366,6 +429,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/universe/delist-risk` | Stale/missing quote risk for historical markets. |
 | GET | `/v1/research/features` | Research feature package. |
 | GET | `/v1/research/market-regime` | Aggregate market regime snapshot. |
+| GET | `/v1/research/symbol-state` | Real-time per-symbol squeeze/exhaustion state machine. |
 | GET | `/v1/agent/context` | Agent-friendly read-only context. |
 | GET | `/v1/agent/capabilities` | Agent-friendly capability inventory. |
 | GET | `/v1/options/chains` | Cached option chains. |
@@ -397,6 +461,9 @@ Base URL: `http://127.0.0.1:8080`
 | WS | `/ws/ticks` | Legacy quote tick stream. |
 
 ## Recommended Research Order
+
+For concrete short-squeeze and exhaustion-short examples, see
+[`squeeze_and_exhaustion_examples.zh-CN.md`](squeeze_and_exhaustion_examples.zh-CN.md).
 
 1. Use `/v1/market/klines` for historical regime and backtest context.
 2. Use `/v1/market/basis` for spot-perp dislocation.

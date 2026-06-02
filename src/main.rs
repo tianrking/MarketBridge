@@ -2,6 +2,7 @@ mod aggregator;
 mod aggregator_signal;
 mod api;
 mod catalog;
+mod clickhouse_sink;
 mod config;
 mod connectors;
 mod core;
@@ -21,12 +22,14 @@ mod router;
 mod runtime;
 mod source;
 mod source_roadmap;
+mod strategy_state;
 mod types;
 
 use aggregator::SpreadAggregator;
 use api::snapshot_stream::SnapshotStreamHub;
 use api::streaming::set_ws_send_timeout_ms;
 use api::{ApiState, build_router};
+use clickhouse_sink::spawn_clickhouse_sink;
 use config::AppConfig;
 use connectors::cex::registry::build_sources;
 use data_lake::DataLakeStore;
@@ -44,6 +47,7 @@ use polymarket_ws::{PolymarketBookCache, spawn_polymarket_ws_cache};
 use redis_sink::spawn_redis_sink;
 use router::EventRouter;
 use runtime::SourceRuntime;
+use strategy_state::{StrategyStateStore, spawn_strategy_state_service};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{error, info};
@@ -96,6 +100,7 @@ async fn main() -> anyhow::Result<()> {
 
     let order_flow_store = OrderFlowStore::new(cfg.runtime.order_flow_large_trade_notional_usdt);
     let onchain_store = OnchainTransferStore::default();
+    let strategy_state_store = StrategyStateStore::new();
     let source_catalog = catalog::source_catalog_for_config(&cfg);
     let http = reqwest::Client::new();
 
@@ -110,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
         data_lake_store: data_lake_store.clone(),
         order_flow_store: order_flow_store.clone(),
         onchain_store: onchain_store.clone(),
+        strategy_state_store: strategy_state_store.clone(),
         snapshot_stream_hub: snapshot_stream_hub.clone(),
         api_access_guard: ApiState::api_access_guard_from_runtime(&cfg.runtime),
     });
@@ -141,6 +147,13 @@ async fn main() -> anyhow::Result<()> {
             cfg.runtime.redis_stream_prefix.clone(),
             cfg.runtime.redis_dead_letter_path.clone(),
             metrics.clone(),
+            shutdown.clone(),
+        )
+    });
+    let clickhouse_task = cfg.runtime.clickhouse.enabled.then(|| {
+        spawn_clickhouse_sink(
+            bus.clone(),
+            cfg.runtime.clickhouse.clone(),
             shutdown.clone(),
         )
     });
@@ -240,6 +253,8 @@ async fn main() -> anyhow::Result<()> {
 
     let order_flow_task =
         spawn_order_flow_service(bus.clone(), order_flow_store.clone(), shutdown.clone());
+    let strategy_state_task =
+        spawn_strategy_state_service(bus.clone(), strategy_state_store.clone(), shutdown.clone());
     log_onchain_start(&cfg.onchain);
     let onchain_tasks = spawn_onchain_collectors(
         cfg.onchain.clone(),
@@ -275,6 +290,9 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(redis_task) = redis_task {
         wait_task("redis_sink", redis_task).await;
+    }
+    if let Some(clickhouse_task) = clickhouse_task {
+        wait_task("clickhouse_sink", clickhouse_task).await;
     }
 
     if let Some(deribit_task) = deribit_task {
@@ -314,6 +332,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     wait_task("order_flow", order_flow_task).await;
+    wait_task("strategy_state", strategy_state_task).await;
     wait_task("snapshot_stream", snapshot_stream_task).await;
 
     for task in onchain_tasks {
