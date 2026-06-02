@@ -7,7 +7,7 @@ use std::{
 
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-use tracing::warn;
+use tracing::error;
 
 use crate::core::schema::DataEnvelope;
 use crate::domains::market::quote::QuotePayload;
@@ -88,7 +88,7 @@ fn serialize_event_json(event: &DataEvent) -> Arc<str> {
 fn serialize_json<T: serde::Serialize>(value: &T) -> Arc<str> {
     serde_json::to_string(value)
         .unwrap_or_else(|error| {
-            warn!(%error, "event json serialization failed");
+            error!(%error, "event json serialization failed");
             serde_json::json!({
                 "type": "serialization_error",
                 "error": error.to_string(),
