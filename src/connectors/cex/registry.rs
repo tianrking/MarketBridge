@@ -3,6 +3,7 @@ use std::sync::Arc;
 mod binance;
 mod bybit;
 mod okx;
+mod sentiment;
 mod symbols;
 
 use crate::config::AppConfig;
@@ -17,10 +18,6 @@ use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
-use crate::connectors::sentiment::cryptopanic::CryptoPanicPoller;
-use crate::connectors::sentiment::fear_greed::FearGreedPoller;
-use crate::connectors::sentiment::lunarcrush::LunarCrushPoller;
-use crate::connectors::sentiment::santiment::SantimentPoller;
 use crate::connectors::tradfi::fred::FredSeriesPoller;
 use crate::connectors::tradfi::yahoo::YahooChartPoller;
 use crate::source::ExchangeSource;
@@ -610,26 +607,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     for custom_api in cfg.aggregates.custom_apis.iter().filter(|api| api.enabled) {
         out.push(Arc::new(CustomApiPoller::new(custom_api.clone())));
     }
-    if cfg.sentiment.fear_greed.enabled {
-        out.push(Arc::new(FearGreedPoller::new(
-            cfg.sentiment.fear_greed.clone(),
-        )));
-    }
-    if cfg.sentiment.cryptopanic.enabled {
-        out.push(Arc::new(CryptoPanicPoller::new(
-            cfg.sentiment.cryptopanic.clone(),
-        )));
-    }
-    if cfg.sentiment.santiment.enabled {
-        out.push(Arc::new(SantimentPoller::new(
-            cfg.sentiment.santiment.clone(),
-        )));
-    }
-    if cfg.sentiment.lunarcrush.enabled {
-        out.push(Arc::new(LunarCrushPoller::new(
-            cfg.sentiment.lunarcrush.clone(),
-        )));
-    }
+    sentiment::push_sources(&mut out, cfg);
 
     out
 }
