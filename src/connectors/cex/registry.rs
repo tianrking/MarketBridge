@@ -5,6 +5,7 @@ mod bybit;
 mod okx;
 mod sentiment;
 mod symbols;
+mod tradfi;
 
 use crate::config::AppConfig;
 use crate::connectors::aggregate::coincap::CoinCapPricePoller;
@@ -18,8 +19,6 @@ use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
-use crate::connectors::tradfi::fred::FredSeriesPoller;
-use crate::connectors::tradfi::yahoo::YahooChartPoller;
 use crate::source::ExchangeSource;
 
 use super::aevo::AevoPerpFeed;
@@ -566,24 +565,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
             cfg.defi.etcswap.clone(),
         )));
     }
-    if cfg.tradfi.dxy.enabled {
-        out.push(Arc::new(YahooChartPoller::new(
-            "dxy",
-            cfg.tradfi.dxy.clone(),
-        )));
-    }
-    if cfg.tradfi.vix.enabled {
-        out.push(Arc::new(YahooChartPoller::new(
-            "vix",
-            cfg.tradfi.vix.clone(),
-        )));
-    }
-    if cfg.tradfi.us10y.enabled {
-        out.push(Arc::new(FredSeriesPoller::new(
-            "us10y",
-            cfg.tradfi.us10y.clone(),
-        )));
-    }
+    tradfi::push_sources(&mut out, cfg);
     if cfg.aggregates.coingecko.enabled {
         out.push(Arc::new(CoinGeckoPricePoller::new(
             cfg.aggregates.coingecko.clone(),
