@@ -6,8 +6,10 @@ use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::warn;
 
 use crate::connectors::cex::common::{emit_tick, emit_tick_ext};
+use crate::connectors::cex::ws::message_text;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
     BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick,
@@ -234,8 +236,11 @@ pub async fn run_binance(
             msg = stream.next() => {
                 let msg = msg.context(format!("binance {} stream ended", market_label(market)))??;
                 match msg {
-                    Message::Text(text) => {
-                        if let Ok(parsed) = serde_json::from_str::<BinanceCombined<'_>>(&text) {
+                    Message::Text(_) | Message::Binary(_) => {
+                        let Some(text) = decode_ws_text("binance bookTicker", &msg)? else {
+                            continue;
+                        };
+                        if let Some(parsed) = parse_ws_json::<BinanceCombined<'_>>("binance bookTicker", &text) {
                             match market {
                                 MarketKind::Spot => {
                                     emit_tick(&ctx, exchange, market, parsed.data.symbol, parsed.data.bid, parsed.data.ask).await?;
@@ -250,7 +255,7 @@ pub async fn run_binance(
                     Message::Pong(_) => last_pong = Instant::now(),
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => anyhow::bail!("binance {} closed", market_label(market)),
-                    Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Frame(_) => {}
                 }
             }
         }
@@ -275,8 +280,11 @@ async fn run_binance_funding(symbols: &[String], ctx: SourceContext) -> Result<(
             msg = stream.next() => {
                 let msg = msg.context("binance funding stream ended")??;
                 match msg {
-                    Message::Text(text) => {
-                        if let Ok(parsed) = serde_json::from_str::<BinanceFundingCombined<'_>>(&text)
+                    Message::Text(_) | Message::Binary(_) => {
+                        let Some(text) = decode_ws_text("binance funding", &msg)? else {
+                            continue;
+                        };
+                        if let Some(parsed) = parse_ws_json::<BinanceFundingCombined<'_>>("binance funding", &text)
                             && let Ok(funding_rate) = parsed.data.funding_rate.parse::<f64>()
                         {
                             ctx.emit(DataEvent::FundingRate(FundingRateTick {
@@ -292,7 +300,7 @@ async fn run_binance_funding(symbols: &[String], ctx: SourceContext) -> Result<(
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => bail!("binance funding closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Frame(_) => {}
                 }
             }
         }
@@ -326,8 +334,11 @@ async fn run_binance_depth(
             msg = stream.next() => {
                 let msg = msg.context("binance depth stream ended")??;
                 match msg {
-                    Message::Text(text) => {
-                        if let Ok(parsed) = serde_json::from_str::<BinanceDepthCombined<'_>>(&text) {
+                    Message::Text(_) | Message::Binary(_) => {
+                        let Some(text) = decode_ws_text("binance depth", &msg)? else {
+                            continue;
+                        };
+                        if let Some(parsed) = parse_ws_json::<BinanceDepthCombined<'_>>("binance depth", &text) {
                             ctx.emit(DataEvent::OrderBook(OrderBookTick {
                                 exchange: "binance",
                                 market,
@@ -341,7 +352,7 @@ async fn run_binance_depth(
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => bail!("binance depth closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Frame(_) => {}
                 }
             }
         }
@@ -374,8 +385,11 @@ async fn run_binance_trades(
             msg = stream.next() => {
                 let msg = msg.context("binance trade stream ended")??;
                 match msg {
-                    Message::Text(text) => {
-                        if let Ok(parsed) = serde_json::from_str::<BinanceAggTradeCombined<'_>>(&text)
+                    Message::Text(_) | Message::Binary(_) => {
+                        let Some(text) = decode_ws_text("binance aggTrade", &msg)? else {
+                            continue;
+                        };
+                        if let Some(parsed) = parse_ws_json::<BinanceAggTradeCombined<'_>>("binance aggTrade", &text)
                             && let (Ok(price), Ok(qty)) = (parsed.data.price.parse::<f64>(), parsed.data.qty.parse::<f64>())
                         {
                             ctx.emit(DataEvent::Trade(TradeTick {
@@ -392,7 +406,7 @@ async fn run_binance_trades(
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => bail!("binance trades closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Frame(_) => {}
                 }
             }
         }
@@ -417,8 +431,11 @@ async fn run_binance_liquidations(symbols: &[String], ctx: SourceContext) -> Res
             msg = stream.next() => {
                 let msg = msg.context("binance liquidation stream ended")??;
                 match msg {
-                    Message::Text(text) => {
-                        if let Ok(parsed) = serde_json::from_str::<BinanceLiquidationCombined<'_>>(&text)
+                    Message::Text(_) | Message::Binary(_) => {
+                        let Some(text) = decode_ws_text("binance liquidation", &msg)? else {
+                            continue;
+                        };
+                        if let Some(parsed) = parse_ws_json::<BinanceLiquidationCombined<'_>>("binance liquidation", &text)
                             && let (Ok(price), Ok(qty)) = (parsed.data.order.price.parse::<f64>(), parsed.data.order.qty.parse::<f64>())
                         {
                             ctx.emit(DataEvent::Liquidation(LiquidationTick {
@@ -433,7 +450,7 @@ async fn run_binance_liquidations(symbols: &[String], ctx: SourceContext) -> Res
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => bail!("binance liquidation closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) | Message::Frame(_) => {}
                 }
             }
         }
@@ -480,6 +497,34 @@ fn combined_streams(symbols: &[String], suffix: &str) -> Result<String> {
         .map(|s| format!("{}@{suffix}", s.to_ascii_lowercase()))
         .collect::<Vec<_>>()
         .join("/"))
+}
+
+fn decode_ws_text(label: &'static str, msg: &Message) -> Result<Option<String>> {
+    match message_text(msg) {
+        Ok(text) => Ok(text),
+        Err(error) => {
+            warn!(label, %error, "websocket message decode failed");
+            Ok(None)
+        }
+    }
+}
+
+fn parse_ws_json<'a, T>(label: &'static str, text: &'a str) -> Option<T>
+where
+    T: Deserialize<'a>,
+{
+    match serde_json::from_str::<T>(text) {
+        Ok(parsed) => Some(parsed),
+        Err(error) => {
+            warn!(
+                label,
+                %error,
+                bytes = text.len(),
+                "websocket json parse failed"
+            );
+            None
+        }
+    }
 }
 
 fn parse_f64(value: &str) -> Option<f64> {
