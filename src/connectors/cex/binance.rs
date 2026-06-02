@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, future::join_all};
 use serde::Deserialize;
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -465,27 +465,53 @@ async fn run_binance_open_interest(symbols: &[String], ctx: SourceContext) -> Re
     let mut tick = interval(Duration::from_secs(5));
     loop {
         tick.tick().await;
-        for symbol in symbols {
-            let response = client
-                .get("https://fapi.binance.com/fapi/v1/openInterest")
-                .query(&[("symbol", symbol)])
-                .send()
-                .await?
-                .error_for_status()?
-                .json::<BinanceOpenInterestResponse>()
-                .await?;
-            if let Ok(open_interest) = response.open_interest.parse::<f64>() {
-                ctx.emit(DataEvent::OpenInterest(OpenInterestTick {
-                    exchange: "binance",
-                    symbol: response.symbol.into_boxed_str(),
-                    open_interest,
-                    open_interest_value: None,
-                    ts_ms: response.time.unwrap_or_else(now_ms),
-                }))
-                .await?;
+        let results = join_all(
+            symbols
+                .iter()
+                .map(|symbol| fetch_binance_open_interest(&client, symbol)),
+        )
+        .await;
+        for result in results {
+            match result {
+                Ok(Some(event)) => ctx.emit(event).await?,
+                Ok(None) => {}
+                Err(error) => warn!(%error, "binance open interest refresh failed"),
             }
         }
     }
+}
+
+async fn fetch_binance_open_interest(
+    client: &reqwest::Client,
+    symbol: &str,
+) -> Result<Option<DataEvent>> {
+    let response = client
+        .get("https://fapi.binance.com/fapi/v1/openInterest")
+        .query(&[("symbol", symbol)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<BinanceOpenInterestResponse>()
+        .await?;
+    Ok(binance_open_interest_event(response))
+}
+
+fn binance_open_interest_event(response: BinanceOpenInterestResponse) -> Option<DataEvent> {
+    let Ok(open_interest) = response.open_interest.parse::<f64>() else {
+        warn!(
+            symbol = response.symbol,
+            value = response.open_interest,
+            "binance open interest parse failed"
+        );
+        return None;
+    };
+    Some(DataEvent::OpenInterest(OpenInterestTick {
+        exchange: "binance",
+        symbol: response.symbol.into_boxed_str(),
+        open_interest,
+        open_interest_value: None,
+        ts_ms: response.time.unwrap_or_else(now_ms),
+    }))
 }
 
 fn combined_streams(symbols: &[String], suffix: &str) -> Result<String> {
@@ -658,8 +684,11 @@ impl ExchangeSource for BinanceTradeFeed {
 
 #[cfg(test)]
 mod tests {
-    use super::{side_from_str, trade_side_from_buyer_maker};
-    use crate::types::TradeSide;
+    use super::{
+        BinanceOpenInterestResponse, binance_open_interest_event, side_from_str,
+        trade_side_from_buyer_maker,
+    };
+    use crate::types::{DataEvent, TradeSide};
 
     #[test]
     fn binance_side_helpers_map_exchange_semantics() {
@@ -668,5 +697,23 @@ mod tests {
         assert_eq!(trade_side_from_buyer_maker(None), TradeSide::Unknown);
         assert_eq!(side_from_str("BUY"), TradeSide::Buy);
         assert_eq!(side_from_str("SELL"), TradeSide::Sell);
+    }
+
+    #[test]
+    fn binance_open_interest_response_maps_to_event() {
+        let event = binance_open_interest_event(BinanceOpenInterestResponse {
+            symbol: "BTCUSDT".to_string(),
+            open_interest: "123.45".to_string(),
+            time: Some(42),
+        })
+        .expect("event");
+
+        let DataEvent::OpenInterest(tick) = event else {
+            panic!("expected open interest");
+        };
+        assert_eq!(tick.exchange, "binance");
+        assert_eq!(tick.symbol.as_ref(), "BTCUSDT");
+        assert_eq!(tick.open_interest, 123.45);
+        assert_eq!(tick.ts_ms, 42);
     }
 }
