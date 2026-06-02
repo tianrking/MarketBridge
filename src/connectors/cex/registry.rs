@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+mod aggregate;
 mod binance;
 mod bybit;
 mod okx;
@@ -8,11 +9,6 @@ mod symbols;
 mod tradfi;
 
 use crate::config::AppConfig;
-use crate::connectors::aggregate::coincap::CoinCapPricePoller;
-use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
-use crate::connectors::aggregate::coinglass::CoinGlassPoller;
-use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
-use crate::connectors::aggregate::custom_api::CustomApiPoller;
 use crate::connectors::defi::dexscreener::DexScreenerPoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
@@ -566,29 +562,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         )));
     }
     tradfi::push_sources(&mut out, cfg);
-    if cfg.aggregates.coingecko.enabled {
-        out.push(Arc::new(CoinGeckoPricePoller::new(
-            cfg.aggregates.coingecko.clone(),
-        )));
-    }
-    if cfg.aggregates.coincap.enabled {
-        out.push(Arc::new(CoinCapPricePoller::new(
-            cfg.aggregates.coincap.clone(),
-        )));
-    }
-    if cfg.aggregates.coinmarketcap.enabled {
-        out.push(Arc::new(CoinMarketCapPricePoller::new(
-            cfg.aggregates.coinmarketcap.clone(),
-        )));
-    }
-    if cfg.aggregates.coinglass.enabled {
-        out.push(Arc::new(CoinGlassPoller::new(
-            cfg.aggregates.coinglass.clone(),
-        )));
-    }
-    for custom_api in cfg.aggregates.custom_apis.iter().filter(|api| api.enabled) {
-        out.push(Arc::new(CustomApiPoller::new(custom_api.clone())));
-    }
+    aggregate::push_sources(&mut out, cfg);
     sentiment::push_sources(&mut out, cfg);
 
     out
