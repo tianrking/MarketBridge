@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 mod binance;
+mod bybit;
 mod okx;
 mod symbols;
 
@@ -44,8 +45,6 @@ use super::bitvavo::BitvavoSpotFeed;
 use super::blofin::BlofinPerpFeed;
 use super::btc_markets::BtcMarketsSpotFeed;
 use super::bullish::BullishSpotFeed;
-use super::bybit::{BybitDepthFeed, BybitLiquidationFeed, BybitSpotTicker, BybitTradeFeed};
-use super::bybit_perp::BybitPerpTicker;
 use super::coinbase::{CoinbaseRestFeed, CoinbaseTicker};
 use super::coincheck::CoincheckSpotFeed;
 use super::coinex::CoinexFeed;
@@ -158,37 +157,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                         .collect(),
                 )));
             }
-            "bybit" => {
-                if !spot_symbols.is_empty() {
-                    out.push(Arc::new(BybitSpotTicker::new(
-                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                    out.push(Arc::new(BybitDepthFeed::new(
-                        crate::types::MarketKind::Spot,
-                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                    out.push(Arc::new(BybitTradeFeed::new(
-                        crate::types::MarketKind::Spot,
-                        spot_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                }
-                if !perp_symbols.is_empty() {
-                    out.push(Arc::new(BybitPerpTicker::new(
-                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                    out.push(Arc::new(BybitLiquidationFeed::new(
-                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                    out.push(Arc::new(BybitDepthFeed::new(
-                        crate::types::MarketKind::Perp,
-                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                    out.push(Arc::new(BybitTradeFeed::new(
-                        crate::types::MarketKind::Perp,
-                        perp_symbols.iter().map(|s| to_binance(s)).collect(),
-                    )));
-                }
-            }
+            "bybit" => bybit::push_sources(&mut out, &spot_symbols, &perp_symbols),
             "bitget" => {
                 if !spot_symbols.is_empty() {
                     out.push(Arc::new(BitgetSpotTicker::new(
