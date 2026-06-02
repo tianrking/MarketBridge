@@ -71,15 +71,26 @@ use symbols::{
     to_hyperliquid_coin, to_kraken_perp, to_kucoin_perp, to_slash, to_underscore,
 };
 
+pub(super) struct RegistryContext<'a> {
+    pub cfg: &'a AppConfig,
+    pub spot_symbols: &'a [String],
+    pub perp_symbols: &'a [String],
+}
+
 pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     let mut out: Vec<Arc<dyn ExchangeSource>> = Vec::new();
 
     for ex in cfg.enabled_exchanges() {
         let spot_symbols = cfg.symbols_for_exchange(&ex);
         let perp_symbols = cfg.perp_symbols_for_exchange(&ex);
+        let ctx = RegistryContext {
+            cfg,
+            spot_symbols: &spot_symbols,
+            perp_symbols: &perp_symbols,
+        };
 
         match ex.as_str() {
-            "okx" => okx::push_sources(&mut out, &spot_symbols, &perp_symbols),
+            "okx" => okx::push_sources(&mut out, &ctx),
             "hyperliquid" if !perp_symbols.is_empty() => {
                 out.push(Arc::new(HyperliquidFeed::new(
                     perp_symbols
@@ -144,7 +155,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                         .collect(),
                 )));
             }
-            "bybit" => bybit::push_sources(&mut out, &spot_symbols, &perp_symbols),
+            "bybit" => bybit::push_sources(&mut out, &ctx),
             "bitget" => {
                 if !spot_symbols.is_empty() {
                     out.push(Arc::new(BitgetSpotTicker::new(
@@ -434,7 +445,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 }
             }
             "binance" => {
-                binance::push_sources(&mut out, &spot_symbols, &perp_symbols);
+                binance::push_sources(&mut out, &ctx);
             }
             "htx" => {
                 if !spot_symbols.is_empty() {
@@ -483,10 +494,15 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
         }
     }
 
-    defi::push_sources(&mut out, cfg);
-    tradfi::push_sources(&mut out, cfg);
-    aggregate::push_sources(&mut out, cfg);
-    sentiment::push_sources(&mut out, cfg);
+    let global_ctx = RegistryContext {
+        cfg,
+        spot_symbols: &[],
+        perp_symbols: &[],
+    };
+    defi::push_sources(&mut out, &global_ctx);
+    tradfi::push_sources(&mut out, &global_ctx);
+    aggregate::push_sources(&mut out, &global_ctx);
+    sentiment::push_sources(&mut out, &global_ctx);
 
     out
 }

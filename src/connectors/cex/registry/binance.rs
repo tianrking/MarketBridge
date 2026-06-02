@@ -7,15 +7,13 @@ use super::super::binance::{
     BinanceOpenInterestPoller, BinanceTradeFeed,
 };
 use super::super::binance_perp::BinancePerpBookTicker;
+use super::RegistryContext;
 use super::symbols::to_binance;
 
-pub(super) fn push_sources(
-    out: &mut Vec<Arc<dyn ExchangeSource>>,
-    spot_symbols: &[String],
-    perp_symbols: &[String],
-) {
-    if !spot_symbols.is_empty() {
-        let spot = spot_symbols
+pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &RegistryContext<'_>) {
+    if !ctx.spot_symbols.is_empty() {
+        let spot = ctx
+            .spot_symbols
             .iter()
             .map(|s| to_binance(s))
             .collect::<Vec<_>>();
@@ -29,8 +27,9 @@ pub(super) fn push_sources(
             spot,
         )));
     }
-    if !perp_symbols.is_empty() {
-        let perp = perp_symbols
+    if !ctx.perp_symbols.is_empty() {
+        let perp = ctx
+            .perp_symbols
             .iter()
             .map(|s| to_binance(s))
             .collect::<Vec<_>>();

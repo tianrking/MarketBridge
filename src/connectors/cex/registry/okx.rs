@@ -7,15 +7,16 @@ use super::super::okx::{
     OkxTradeFeed,
 };
 use super::super::okx_perp::OkxPerpTicker;
+use super::RegistryContext;
 use super::symbols::{to_okx, to_okx_swap};
 
-pub(super) fn push_sources(
-    out: &mut Vec<Arc<dyn ExchangeSource>>,
-    spot_symbols: &[String],
-    perp_symbols: &[String],
-) {
-    if !spot_symbols.is_empty() {
-        let spot = spot_symbols.iter().map(|s| to_okx(s)).collect::<Vec<_>>();
+pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &RegistryContext<'_>) {
+    if !ctx.spot_symbols.is_empty() {
+        let spot = ctx
+            .spot_symbols
+            .iter()
+            .map(|s| to_okx(s))
+            .collect::<Vec<_>>();
         out.push(Arc::new(OkxTicker::new(spot.clone())));
         out.push(Arc::new(OkxDepthFeed::new(
             crate::types::MarketKind::Spot,
@@ -26,8 +27,9 @@ pub(super) fn push_sources(
             spot,
         )));
     }
-    if !perp_symbols.is_empty() {
-        let perp = perp_symbols
+    if !ctx.perp_symbols.is_empty() {
+        let perp = ctx
+            .perp_symbols
             .iter()
             .map(|s| to_okx_swap(s))
             .collect::<Vec<_>>();

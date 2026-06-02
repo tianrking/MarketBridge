@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::config::AppConfig;
 use crate::connectors::aggregate::coincap::CoinCapPricePoller;
 use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
@@ -8,7 +7,10 @@ use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
 use crate::connectors::aggregate::custom_api::CustomApiPoller;
 use crate::source::ExchangeSource;
 
-pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, cfg: &AppConfig) {
+use super::RegistryContext;
+
+pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &RegistryContext<'_>) {
+    let cfg = ctx.cfg;
     if cfg.aggregates.coingecko.enabled {
         out.push(Arc::new(CoinGeckoPricePoller::new(
             cfg.aggregates.coingecko.clone(),

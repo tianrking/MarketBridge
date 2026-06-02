@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::config::AppConfig;
 use crate::connectors::defi::dexscreener::DexScreenerPoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
@@ -9,7 +8,10 @@ use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
 use crate::source::ExchangeSource;
 
-pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, cfg: &AppConfig) {
+use super::RegistryContext;
+
+pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &RegistryContext<'_>) {
+    let cfg = ctx.cfg;
     if cfg.defi.jupiter.enabled {
         out.push(Arc::new(JupiterQuotePoller::new(cfg.defi.jupiter.clone())));
     }
