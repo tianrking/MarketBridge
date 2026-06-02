@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::body::Body;
 use axum::extract::State;
@@ -21,6 +22,7 @@ struct ApiAccessGuardInner {
     api_key: Option<String>,
     rate_limit_per_minute: u64,
     windows: DashMap<String, RateWindow>,
+    last_prune_minute: AtomicU64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +44,7 @@ impl ApiAccessGuard {
                 api_key,
                 rate_limit_per_minute: cfg.api_rate_limit_per_minute,
                 windows: DashMap::new(),
+                last_prune_minute: AtomicU64::new(0),
             }),
         }
     }
@@ -70,6 +73,7 @@ impl ApiAccessGuard {
 
         let client = client_key(req);
         let minute = now_ms() / 60_000;
+        self.prune_rate_windows(minute);
         let mut allowed = true;
         self.inner
             .windows
@@ -85,6 +89,25 @@ impl ApiAccessGuard {
             })
             .or_insert(RateWindow { minute, count: 1 });
         allowed
+    }
+
+    fn prune_rate_windows(&self, current_minute: u64) {
+        let last = self.inner.last_prune_minute.load(Ordering::Relaxed);
+        if current_minute <= last {
+            return;
+        }
+        if self
+            .inner
+            .last_prune_minute
+            .compare_exchange(last, current_minute, Ordering::Relaxed, Ordering::Relaxed)
+            .is_err()
+        {
+            return;
+        }
+        let retain_after = current_minute.saturating_sub(5);
+        self.inner
+            .windows
+            .retain(|_, window| window.minute >= retain_after);
     }
 }
 
@@ -139,6 +162,7 @@ mod tests {
                 api_key: Some("secret".to_string()),
                 rate_limit_per_minute: 0,
                 windows: DashMap::new(),
+                last_prune_minute: AtomicU64::new(0),
             }),
         };
         let req = Request::builder()
@@ -163,6 +187,7 @@ mod tests {
                 api_key: None,
                 rate_limit_per_minute: 1,
                 windows: DashMap::new(),
+                last_prune_minute: AtomicU64::new(0),
             }),
         };
         let req = Request::builder()
@@ -172,5 +197,36 @@ mod tests {
 
         assert!(guard.allow_request(&req));
         assert!(!guard.allow_request(&req));
+    }
+
+    #[test]
+    fn rate_limit_prunes_stale_clients() {
+        let guard = ApiAccessGuard {
+            inner: Arc::new(ApiAccessGuardInner {
+                api_key: None,
+                rate_limit_per_minute: 10,
+                windows: DashMap::new(),
+                last_prune_minute: AtomicU64::new(0),
+            }),
+        };
+        guard.inner.windows.insert(
+            "ip:old".to_string(),
+            RateWindow {
+                minute: 1,
+                count: 1,
+            },
+        );
+        guard.inner.windows.insert(
+            "ip:fresh".to_string(),
+            RateWindow {
+                minute: 10,
+                count: 1,
+            },
+        );
+
+        guard.prune_rate_windows(10);
+
+        assert!(!guard.inner.windows.contains_key("ip:old"));
+        assert!(guard.inner.windows.contains_key("ip:fresh"));
     }
 }

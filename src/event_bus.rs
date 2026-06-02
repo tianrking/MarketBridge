@@ -6,6 +6,8 @@ use std::{
 };
 
 use tokio::sync::{broadcast, mpsc};
+use tokio::task::JoinHandle;
+use tracing::warn;
 
 use crate::core::schema::DataEnvelope;
 use crate::domains::market::quote::QuotePayload;
@@ -86,6 +88,7 @@ fn serialize_event_json(event: &DataEvent) -> Arc<str> {
 fn serialize_json<T: serde::Serialize>(value: &T) -> Arc<str> {
     serde_json::to_string(value)
         .unwrap_or_else(|error| {
+            warn!(%error, "event json serialization failed");
             serde_json::json!({
                 "type": "serialization_error",
                 "error": error.to_string(),
@@ -112,6 +115,15 @@ pub struct EventBus {
 
 pub struct EventSubscription {
     rx: mpsc::Receiver<Result<Arc<SharedEvent>, broadcast::error::RecvError>>,
+    tasks: Vec<JoinHandle<()>>,
+}
+
+impl Drop for EventSubscription {
+    fn drop(&mut self) {
+        for task in &self.tasks {
+            task.abort();
+        }
+    }
 }
 
 impl EventSubscription {
@@ -302,10 +314,11 @@ fn sharded_senders<T: Clone>(capacity: usize, shards: usize) -> Vec<broadcast::S
 
 fn subscribe_sharded(senders: &[broadcast::Sender<Arc<SharedEvent>>]) -> EventSubscription {
     let (tx, rx) = mpsc::channel(senders.len().saturating_mul(1024).max(1024));
+    let mut tasks = Vec::with_capacity(senders.len());
     for sender in senders {
         let mut shard_rx = sender.subscribe();
         let tx = tx.clone();
-        tokio::spawn(async move {
+        tasks.push(tokio::spawn(async move {
             loop {
                 match shard_rx.recv().await {
                     Ok(event) => {
@@ -325,10 +338,10 @@ fn subscribe_sharded(senders: &[broadcast::Sender<Arc<SharedEvent>>]) -> EventSu
                     Err(broadcast::error::RecvError::Closed) => break,
                 }
             }
-        });
+        }));
     }
     drop(tx);
-    EventSubscription { rx }
+    EventSubscription { rx, tasks }
 }
 
 fn shard_for_event(event: &DataEvent, shards: usize) -> usize {
