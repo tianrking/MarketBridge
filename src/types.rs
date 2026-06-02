@@ -171,9 +171,14 @@ pub fn now_ms() -> u64 {
         .map(|d| d.as_millis() as u64)
         .unwrap_or_else(|_| LAST_NOW_MS.load(Ordering::Relaxed))
         .max(1);
-    LAST_NOW_MS
-        .fetch_max(current, Ordering::Relaxed)
-        .max(current)
+    let mut previous = LAST_NOW_MS.load(Ordering::Acquire);
+    loop {
+        let next = current.max(previous.saturating_add(1));
+        match LAST_NOW_MS.compare_exchange(previous, next, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => return next,
+            Err(observed) => previous = observed,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -215,5 +220,32 @@ mod tests {
         });
 
         assert!(event.has_finite_numbers());
+    }
+
+    #[test]
+    fn now_ms_is_strictly_monotonic_for_sequential_calls() {
+        let first = now_ms();
+        let second = now_ms();
+
+        assert!(second > first);
+    }
+
+    #[test]
+    fn now_ms_is_unique_across_threads() {
+        let mut handles = Vec::new();
+        for _ in 0..8 {
+            handles.push(std::thread::spawn(|| {
+                (0..100).map(|_| now_ms()).collect::<Vec<_>>()
+            }));
+        }
+
+        let mut values = handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("thread joins"))
+            .collect::<Vec<_>>();
+        values.sort_unstable();
+        values.dedup();
+
+        assert_eq!(values.len(), 800);
     }
 }
