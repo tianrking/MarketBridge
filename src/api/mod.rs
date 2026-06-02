@@ -23,7 +23,6 @@ pub mod snapshot_stream;
 pub mod streaming;
 pub mod utils;
 
-#[derive(Clone)]
 pub struct ApiState {
     pub source_catalog: Vec<CatalogSource>,
     pub bus: EventBus,
