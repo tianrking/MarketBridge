@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+mod binance;
 mod symbols;
 
 use crate::config::AppConfig;
@@ -26,11 +27,6 @@ use super::aevo::AevoPerpFeed;
 use super::architect::ArchitectPerpFeed;
 use super::ascend_ex::AscendExSpotFeed;
 use super::backpack::BackpackFeed;
-use super::binance::{
-    BinanceBookTicker, BinanceDepthFeed, BinanceFundingTicker, BinanceLiquidationFeed,
-    BinanceOpenInterestPoller, BinanceTradeFeed,
-};
-use super::binance_perp::BinancePerpBookTicker;
 use super::bingx::{BingxSwapFeed, BingxSwapMetricsPoller};
 use super::bitbank::BitbankSpotFeed;
 use super::bitfinex::{BitfinexSpotRestFeed, BitfinexTicker};
@@ -523,7 +519,7 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
                 }
             }
             "binance" => {
-                push_binance_sources(&mut out, &spot_symbols, &perp_symbols);
+                binance::push_sources(&mut out, &spot_symbols, &perp_symbols);
             }
             "htx" => {
                 if !spot_symbols.is_empty() {
@@ -708,46 +704,6 @@ pub fn build_sources(cfg: &AppConfig) -> Vec<Arc<dyn ExchangeSource>> {
     }
 
     out
-}
-
-fn push_binance_sources(
-    out: &mut Vec<Arc<dyn ExchangeSource>>,
-    spot_symbols: &[String],
-    perp_symbols: &[String],
-) {
-    if !spot_symbols.is_empty() {
-        let spot = spot_symbols
-            .iter()
-            .map(|s| to_binance(s))
-            .collect::<Vec<_>>();
-        out.push(Arc::new(BinanceBookTicker::new(spot.clone())));
-        out.push(Arc::new(BinanceDepthFeed::new(
-            crate::types::MarketKind::Spot,
-            spot.clone(),
-        )));
-        out.push(Arc::new(BinanceTradeFeed::new(
-            crate::types::MarketKind::Spot,
-            spot,
-        )));
-    }
-    if !perp_symbols.is_empty() {
-        let perp = perp_symbols
-            .iter()
-            .map(|s| to_binance(s))
-            .collect::<Vec<_>>();
-        out.push(Arc::new(BinancePerpBookTicker::new(perp.clone())));
-        out.push(Arc::new(BinanceFundingTicker::new(perp.clone())));
-        out.push(Arc::new(BinanceOpenInterestPoller::new(perp.clone())));
-        out.push(Arc::new(BinanceLiquidationFeed::new(perp.clone())));
-        out.push(Arc::new(BinanceDepthFeed::new(
-            crate::types::MarketKind::Perp,
-            perp.clone(),
-        )));
-        out.push(Arc::new(BinanceTradeFeed::new(
-            crate::types::MarketKind::Perp,
-            perp,
-        )));
-    }
 }
 
 fn to_derive_perp(symbol: &str) -> String {
