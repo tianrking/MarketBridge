@@ -13,8 +13,8 @@ const SUPPORTED_MARKET_EXCHANGES: &[&str] = &[
 const SUPPORTED_PERPETUAL_FUNDING_EXCHANGES: &[&str] = &[
     "binance", "okx", "bybit", "bitget", "kucoin", "gate", "mexc", "bingx", "bitmart",
 ];
-const DISCOVERY_HTTP_TIMEOUT: Duration = Duration::from_secs(5);
-const DISCOVERY_EXCHANGE_TIMEOUT: Duration = Duration::from_secs(8);
+const DISCOVERY_HTTP_TIMEOUT: Duration = Duration::from_secs(6);
+const DISCOVERY_EXCHANGE_TIMEOUT: Duration = Duration::from_secs(7);
 const DISCOVERY_MAX_CONCURRENCY: usize = 6;
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -115,8 +115,9 @@ pub async fn discover_markets(
     let active_only = query.active_only.unwrap_or(true);
     let mut rows = Vec::new();
     let mut errors = Vec::new();
+    let requested = exchanges.clone();
 
-    let results = stream::iter(exchanges.into_iter().map(|exchange| {
+    let discovery = stream::iter(exchanges.into_iter().map(|exchange| {
         let market_filter = market_filter.clone();
         async move {
             let result = timeout(
@@ -125,10 +126,10 @@ pub async fn discover_markets(
             )
             .await;
             match result {
-                Ok(Ok(exchange_rows)) => Ok(exchange_rows),
+                Ok(Ok(discovered)) => Ok(discovered),
                 Ok(Err(error)) => Err(DiscoveryError {
                     exchange,
-                    error: error.to_string(),
+                    error: format!("{error:#}"),
                 }),
                 Err(_) => Err(DiscoveryError {
                     exchange,
@@ -141,15 +142,30 @@ pub async fn discover_markets(
         }
     }))
     .buffer_unordered(DISCOVERY_MAX_CONCURRENCY)
-    .collect::<Vec<_>>()
-    .await;
+    .collect::<Vec<_>>();
+    let fallback = perpetual_funding_market_fallbacks(http, query, &requested);
+    let (results, (fallback_rows, fallback_errors)) = tokio::join!(discovery, fallback);
 
     for result in results {
         match result {
-            Ok(exchange_rows) => rows.extend(exchange_rows),
+            Ok(discovered) => {
+                rows.extend(discovered.rows);
+                errors.extend(discovered.errors);
+            }
             Err(error) => errors.push(error),
         }
     }
+
+    rows.extend(fallback_rows);
+    errors.extend(fallback_errors);
+    let mut seen = HashSet::new();
+    rows.retain(|row| {
+        seen.insert((
+            row.exchange.clone(),
+            row.market.clone(),
+            row.symbol.to_ascii_uppercase(),
+        ))
+    });
 
     rows.retain(|row| {
         (!active_only || row.active)
@@ -246,7 +262,7 @@ pub async fn fetch_perpetual_funding(
             Ok(Ok(exchange_rows)) => Ok(exchange_rows),
             Ok(Err(error)) => Err(DiscoveryError {
                 exchange,
-                error: error.to_string(),
+                error: format!("{error:#}"),
             }),
             Err(_) => Err(DiscoveryError {
                 exchange,
@@ -288,37 +304,174 @@ async fn discover_exchange_markets(
     http: &reqwest::Client,
     exchange: &str,
     market: Option<&str>,
-) -> Result<Vec<MarketListing>> {
+) -> Result<ExchangeMarketDiscovery> {
     let mut rows = Vec::new();
-    if market.is_none_or(|m| m == "spot") {
-        rows.extend(match exchange {
-            "binance" => binance_markets(http, "spot").await?,
-            "okx" => okx_markets(http, "spot").await?,
-            "bybit" => bybit_markets(http, "spot").await?,
-            "bitget" => bitget_spot_markets(http).await?,
-            "kucoin" => kucoin_spot_markets(http).await?,
-            "gate" => gate_spot_markets(http).await?,
-            "mexc" => mexc_spot_markets(http).await?,
-            "bitmart" => bitmart_spot_markets(http).await?,
-            "bingx" => Vec::new(),
-            other => return Err(anyhow!("unsupported market discovery exchange: {other}")),
-        });
+    let mut errors = Vec::new();
+    let wants_spot = market.is_none_or(|m| m == "spot");
+    let wants_perp = market.is_none_or(|m| m == "perp" || m == "swap");
+
+    let mut results = Vec::new();
+    match (wants_spot, wants_perp) {
+        (true, true) => {
+            let (spot, perp) = tokio::join!(
+                discover_exchange_market_kind(http, exchange, "spot"),
+                discover_exchange_market_kind(http, exchange, "perp")
+            );
+            results.push(("spot", spot));
+            results.push(("perp", perp));
+        }
+        (true, false) => {
+            results.push((
+                "spot",
+                discover_exchange_market_kind(http, exchange, "spot").await,
+            ));
+        }
+        (false, true) => {
+            results.push((
+                "perp",
+                discover_exchange_market_kind(http, exchange, "perp").await,
+            ));
+        }
+        (false, false) => {}
     }
-    if market.is_none_or(|m| m == "perp" || m == "swap") {
-        rows.extend(match exchange {
-            "binance" => binance_markets(http, "perp").await?,
-            "okx" => okx_markets(http, "perp").await?,
-            "bybit" => bybit_markets(http, "perp").await?,
-            "bitget" => bitget_perp_markets(http).await?,
-            "kucoin" => kucoin_perp_contracts(http).await?.0,
-            "gate" => gate_perp_contracts(http).await?.0,
-            "mexc" => mexc_perp_contracts(http).await?.0,
-            "bingx" => bingx_perp_contracts(http).await?.0,
-            "bitmart" => bitmart_perp_details(http).await?.0,
-            other => return Err(anyhow!("unsupported market discovery exchange: {other}")),
-        });
+
+    for (market_kind, result) in results {
+        match result {
+            Ok(market_rows) => rows.extend(market_rows),
+            Err(error) => errors.push(DiscoveryError {
+                exchange: exchange.to_string(),
+                error: format!("{market_kind} discovery failed: {error:#}"),
+            }),
+        }
     }
-    Ok(rows)
+    Ok(ExchangeMarketDiscovery { rows, errors })
+}
+
+struct ExchangeMarketDiscovery {
+    rows: Vec<MarketListing>,
+    errors: Vec<DiscoveryError>,
+}
+
+async fn perpetual_funding_market_fallbacks(
+    http: &reqwest::Client,
+    query: &MarketDiscoveryQuery,
+    exchanges: &[String],
+) -> (Vec<MarketListing>, Vec<DiscoveryError>) {
+    let mut rows = Vec::new();
+    let mut errors = Vec::new();
+    let market_filter = query.market.as_deref().map(normalize_lower);
+    if market_filter.as_deref() == Some("spot") {
+        return (rows, errors);
+    }
+    let Some(base_filter) = query.base.as_deref().map(normalize_base) else {
+        return (rows, errors);
+    };
+    let quote_filter = query.quote.as_deref().map(str::to_ascii_uppercase);
+    let active_only = query.active_only.unwrap_or(true);
+
+    let results = stream::iter(exchanges.iter().cloned().map(|exchange| async move {
+        let result = timeout(
+            DISCOVERY_EXCHANGE_TIMEOUT,
+            fetch_exchange_perpetual_funding(http, &exchange),
+        )
+        .await;
+        match result {
+            Ok(Ok(funding_rows)) => Ok((exchange, funding_rows)),
+            Ok(Err(error)) => Err(DiscoveryError {
+                exchange,
+                error: format!("perp funding fallback failed: {error:#}"),
+            }),
+            Err(_) => Err(DiscoveryError {
+                exchange,
+                error: format!(
+                    "perp funding fallback timed out after {}ms",
+                    DISCOVERY_EXCHANGE_TIMEOUT.as_millis()
+                ),
+            }),
+        }
+    }))
+    .buffer_unordered(DISCOVERY_MAX_CONCURRENCY)
+    .collect::<Vec<_>>()
+    .await;
+
+    for result in results {
+        match result {
+            Ok((exchange, funding_rows)) => {
+                for row in funding_rows {
+                    if active_only && !row.active.unwrap_or(true) {
+                        continue;
+                    }
+                    let (base, quote) = split_symbol(&row.symbol);
+                    let Some(base) = base else {
+                        continue;
+                    };
+                    if normalize_base(base) != base_filter {
+                        continue;
+                    }
+                    if quote_filter
+                        .as_deref()
+                        .is_some_and(|filter| quote != Some(filter))
+                    {
+                        continue;
+                    }
+                    let quote = quote.map(str::to_ascii_uppercase);
+                    let symbol = normalize_pair(Some(base), quote.as_deref(), &row.symbol);
+                    if rows.iter().any(|existing_row| {
+                        existing_row.exchange == exchange
+                            && existing_row.market == "perp"
+                            && existing_row.symbol == symbol
+                    }) {
+                        continue;
+                    }
+                    rows.push(market_listing(
+                        &exchange,
+                        "perp",
+                        symbol,
+                        &row.native_symbol,
+                        Some(normalize_base(base)),
+                        quote.clone(),
+                        row.active.unwrap_or(true),
+                        row.active.unwrap_or(true).then(|| "TRADING".to_string()),
+                        Some("PERPETUAL".to_string()),
+                        quote,
+                        &row.source,
+                    ));
+                }
+            }
+            Err(error) => errors.push(error),
+        }
+    }
+    (rows, errors)
+}
+
+async fn discover_exchange_market_kind(
+    http: &reqwest::Client,
+    exchange: &str,
+    market: &str,
+) -> Result<Vec<MarketListing>> {
+    match (exchange, market) {
+        ("binance", "spot") => binance_markets(http, "spot").await,
+        ("binance", "perp") => binance_markets(http, "perp").await,
+        ("okx", "spot") => okx_markets(http, "spot").await,
+        ("okx", "perp") => okx_markets(http, "perp").await,
+        ("bybit", "spot") => bybit_markets(http, "spot").await,
+        ("bybit", "perp") => bybit_markets(http, "perp").await,
+        ("bitget", "spot") => bitget_spot_markets(http).await,
+        ("bitget", "perp") => bitget_perp_markets(http).await,
+        ("kucoin", "spot") => kucoin_spot_markets(http).await,
+        ("kucoin", "perp") => kucoin_perp_contracts(http)
+            .await
+            .map(|(markets, _)| markets),
+        ("gate", "spot") => gate_spot_markets(http).await,
+        ("gate", "perp") => gate_perp_contracts(http).await.map(|(markets, _)| markets),
+        ("mexc", "spot") => mexc_spot_markets(http).await,
+        ("mexc", "perp") => mexc_perp_contracts(http).await.map(|(markets, _)| markets),
+        ("bingx", "spot") => Ok(Vec::new()),
+        ("bingx", "perp") => bingx_perp_contracts(http).await.map(|(markets, _)| markets),
+        ("bitmart", "spot") => bitmart_spot_markets(http).await,
+        ("bitmart", "perp") => bitmart_perp_details(http).await.map(|(markets, _)| markets),
+        (other, _) => Err(anyhow!("unsupported market discovery exchange: {other}")),
+    }
 }
 
 async fn fetch_exchange_perpetual_funding(
