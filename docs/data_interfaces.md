@@ -446,6 +446,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/health` | Service liveness. |
 | GET | `/v1/system/info` | Version, API version, local UI connection hints, and capability list. |
 | GET | `/v1/catalog/sources` | Source availability and API-key status. |
+| GET | `/v1/catalog/search` | Product search: where an asset/symbol trades and which data domains are available. |
 | GET | `/v1/catalog/markets` | On-demand platform market/symbol discovery. |
 | GET | `/v1/catalog/perpetuals` | Grouped on-demand perpetual contract discovery by exchange. |
 | GET | `/v1/catalog/source-roadmap` | External source expansion inventory with MarketBridge implementation status; reference-only, not a runtime dependency. |
@@ -511,6 +512,18 @@ Base URL: `http://127.0.0.1:8080`
 | WS | `/ws/ticks` | Legacy quote tick stream. |
 
 ## Market Discovery And Raw Perpetual Data
+
+Use `/v1/catalog/search` when a client has a user-facing product input and needs
+one answer for "where does this trade and what data can MarketBridge provide?".
+The endpoint accepts `q`, `product`, `base`, or `symbol`, then returns normalized
+listings plus data domains, derived metrics, and ready-to-call REST/WebSocket
+paths for each market.
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOMEUSDT&market=perp" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?base=HOME&exchanges=binance,okx,bybit,bitget,gate,mexc" | jq
+```
 
 Use `/v1/catalog/markets` when you need the latest public market list from a
 venue instead of only the symbols currently configured for live ingestion.

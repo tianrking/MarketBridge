@@ -23,7 +23,7 @@ impl ExchangeSource for BinancePerpBookTicker {
     }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
         run_binance(
-            "wss://fstream.binance.com/stream?",
+            "wss://fstream.binance.com/public/stream?",
             self.name(),
             MarketKind::Perp,
             &self.symbols,

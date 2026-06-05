@@ -128,11 +128,11 @@ struct BinanceDepthCombined<'a> {
 struct BinanceDepthMsg<'a> {
     #[serde(borrow, rename = "s")]
     symbol: &'a str,
-    #[serde(rename = "lastUpdateId")]
+    #[serde(rename = "lastUpdateId", alias = "u")]
     last_update_id: Option<u64>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, rename = "bids", alias = "b")]
     bids: Vec<[&'a str; 2]>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, rename = "asks", alias = "a")]
     asks: Vec<[&'a str; 2]>,
 }
 
@@ -264,7 +264,7 @@ pub async fn run_binance(
 
 async fn run_binance_funding(symbols: &[String], ctx: SourceContext) -> Result<()> {
     let streams = combined_streams(symbols, "markPrice@1s")?;
-    let ws_url = format!("wss://fstream.binance.com/stream?streams={streams}");
+    let ws_url = format!("wss://fstream.binance.com/market/stream?streams={streams}");
     let (ws, _) = connect_async(&ws_url)
         .await
         .context("binance funding connect failed")?;
@@ -316,7 +316,7 @@ async fn run_binance_depth(
     let streams = combined_streams(symbols, suffix)?;
     let base = match market {
         MarketKind::Spot => "wss://stream.binance.com:9443/stream?",
-        MarketKind::Perp => "wss://fstream.binance.com/stream?",
+        MarketKind::Perp => "wss://fstream.binance.com/public/stream?",
     };
     let ws_url = format!("{base}streams={streams}");
     let (ws, _) = connect_async(&ws_url)
@@ -367,7 +367,7 @@ async fn run_binance_trades(
     let streams = combined_streams(symbols, "aggTrade")?;
     let base = match market {
         MarketKind::Spot => "wss://stream.binance.com:9443/stream?",
-        MarketKind::Perp => "wss://fstream.binance.com/stream?",
+        MarketKind::Perp => "wss://fstream.binance.com/market/stream?",
     };
     let ws_url = format!("{base}streams={streams}");
     let (ws, _) = connect_async(&ws_url)
@@ -415,7 +415,7 @@ async fn run_binance_trades(
 
 async fn run_binance_liquidations(symbols: &[String], ctx: SourceContext) -> Result<()> {
     let streams = combined_streams(symbols, "forceOrder")?;
-    let ws_url = format!("wss://fstream.binance.com/stream?streams={streams}");
+    let ws_url = format!("wss://fstream.binance.com/market/stream?streams={streams}");
     let (ws, _) = connect_async(&ws_url)
         .await
         .context("binance liquidation connect failed")?;
@@ -685,8 +685,8 @@ impl ExchangeSource for BinanceTradeFeed {
 #[cfg(test)]
 mod tests {
     use super::{
-        BinanceOpenInterestResponse, binance_open_interest_event, side_from_str,
-        trade_side_from_buyer_maker,
+        BinanceDepthCombined, BinanceOpenInterestResponse, binance_open_interest_event,
+        side_from_str, trade_side_from_buyer_maker,
     };
     use crate::types::{DataEvent, TradeSide};
 
@@ -715,5 +715,28 @@ mod tests {
         assert_eq!(tick.symbol.as_ref(), "BTCUSDT");
         assert_eq!(tick.open_interest, 123.45);
         assert_eq!(tick.ts_ms, 42);
+    }
+
+    #[test]
+    fn binance_depth_accepts_futures_short_book_fields() {
+        let parsed: BinanceDepthCombined<'_> = serde_json::from_str(
+            r#"{
+                "stream":"homeusdt@depth20@100ms",
+                "data":{
+                    "e":"depthUpdate",
+                    "E":1780642750000,
+                    "s":"HOMEUSDT",
+                    "u":390497878,
+                    "b":[["0.04850","1000"]],
+                    "a":[["0.04860","2000"]]
+                }
+            }"#,
+        )
+        .expect("depth");
+
+        assert_eq!(parsed.data.symbol, "HOMEUSDT");
+        assert_eq!(parsed.data.last_update_id, Some(390497878));
+        assert_eq!(parsed.data.bids[0], ["0.04850", "1000"]);
+        assert_eq!(parsed.data.asks[0], ["0.04860", "2000"]);
     }
 }

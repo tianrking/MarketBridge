@@ -457,6 +457,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/health` | 健康检查。 |
 | GET | `/v1/system/info` | 版本、API 版本、本地 UI 连接提示和能力清单。 |
 | GET | `/v1/catalog/sources` | 数据源启用状态和 API key 状态。 |
+| GET | `/v1/catalog/search` | 产品搜索：输入资产或 symbol，返回在哪里交易以及能获取哪些数据。 |
 | GET | `/v1/catalog/markets` | 按需查询交易所公开 market/symbol 清单。 |
 | GET | `/v1/catalog/perpetuals` | 按交易所分组查询永续合约清单。 |
 | GET | `/v1/catalog/source-roadmap` | 外部数据源清单和 MarketBridge 实现状态。 |
@@ -542,6 +543,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/health" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME&exchanges=binance,okx,bybit,bitget,gate,mexc" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" | jq
 ```
 
@@ -549,6 +551,30 @@ curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=binance&quote=USDT
 
 这组接口是数据面能力，不是策略扫描器。MarketBridge 负责适配不同交易所
 公开 REST 格式并返回统一字段；客户端自己决定 watchlist、阈值、告警和监控逻辑。
+
+#### `GET /v1/catalog/search`
+
+面向 UI 和客户端的产品搜索入口。用户输入 `HOME`、`HOMEUSDT` 这类资产或
+symbol，MarketBridge 返回它在哪些交易所、有哪些 spot/perp 市场、quote
+资产、可用数据域、派生指标，以及可直接调用的 REST/WebSocket endpoint。
+
+参数：
+
+- `q=HOME` 或 `product=HOMEUSDT`：用户输入。
+- `base=HOME`：显式指定 base asset。
+- `symbol=HOMEUSDT`：按具体 symbol 搜索。
+- `exchanges=binance,okx,bybit`：可选交易所过滤。
+- `market=spot|perp`：可选市场类型过滤。
+- `quote=USDT`：可选 quote 过滤。
+- `include_endpoints=true|false`：是否返回可调用 endpoint，默认 `true`。
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOMEUSDT&market=perp" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?base=HOME&exchanges=binance,okx,bybit,bitget,gate,mexc" | jq
+```
 
 #### `GET /v1/catalog/markets`
 

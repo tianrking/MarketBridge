@@ -18,6 +18,7 @@ Health check:
 ```bash
 curl -s http://127.0.0.1:8080/health | jq
 curl -s http://127.0.0.1:8080/v1/system/info | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME" | jq
 ```
 
 Hosted browser UIs can connect directly to this local API when `runtime.cors`
@@ -71,6 +72,13 @@ curl -s "http://127.0.0.1:8080/v1/market/open-interest?symbols=BTCUSDT" | jq
 Use these endpoints when a client needs the latest exchange universe instead of
 only symbols configured in `config.yaml`. MarketBridge returns raw normalized
 data; clients own threshold filters, watchlists, monitoring, and alerting.
+
+Find where a product trades and what data is available:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?base=HOME&exchanges=binance,okx,bybit,bitget,gate,mexc" | jq
+```
 
 List all USDT perpetual contracts for one exchange:
 

@@ -611,6 +611,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/health` | Liveness check |
 | GET | `/v1/system/info` | Version, API version, local UI connection hints, and capability list |
 | GET | `/v1/catalog/sources` | Implemented public data sources |
+| GET | `/v1/catalog/search` | Product search: where an asset/symbol trades and which data domains are available |
 | GET | `/v1/catalog/markets` | On-demand public market/symbol discovery by exchange |
 | GET | `/v1/catalog/perpetuals` | On-demand grouped perpetual contract discovery by exchange |
 | GET | `/v1/catalog/source-roadmap` | External source roadmap inventory and implementation status |
@@ -774,7 +775,33 @@ curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/health" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME&exchanges=binance,okx,bybit,bitget,gate,mexc" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" | jq
+```
+
+### `GET /v1/catalog/search`
+
+Product search for UI and client onboarding. A client can pass an asset such as
+`HOME`, or a symbol such as `HOMEUSDT`, and receive the exchanges, spot/perp
+markets, quotes, supported data domains, derived metrics, and ready-to-call
+REST/WebSocket endpoints for each listing.
+
+Query params:
+
+- `q=HOME` or `product=HOMEUSDT`, user-facing search input
+- `base=HOME`, explicit base asset override
+- `symbol=HOMEUSDT`, exact symbol-oriented search
+- `exchanges=binance,okx,bybit`, optional venue filter
+- `market=spot|perp`, optional product filter
+- `quote=USDT`, optional quote filter
+- `include_endpoints=true|false`, default `true`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOME" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?q=HOMEUSDT&market=perp" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/search?base=HOME&exchanges=binance,okx,bybit,bitget,gate,mexc" | jq
 ```
 
 ### `GET /v1/catalog/markets`
