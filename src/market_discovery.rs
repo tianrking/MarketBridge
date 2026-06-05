@@ -3,6 +3,8 @@ use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
+use std::time::Duration;
+use tokio::time::timeout;
 
 const SUPPORTED_MARKET_EXCHANGES: &[&str] = &[
     "binance", "okx", "bybit", "bitget", "kucoin", "gate", "mexc", "bingx", "bitmart",
@@ -11,6 +13,9 @@ const SUPPORTED_MARKET_EXCHANGES: &[&str] = &[
 const SUPPORTED_PERPETUAL_FUNDING_EXCHANGES: &[&str] = &[
     "binance", "okx", "bybit", "bitget", "kucoin", "gate", "mexc", "bingx", "bitmart",
 ];
+const DISCOVERY_HTTP_TIMEOUT: Duration = Duration::from_secs(5);
+const DISCOVERY_EXCHANGE_TIMEOUT: Duration = Duration::from_secs(8);
+const DISCOVERY_MAX_CONCURRENCY: usize = 6;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct MarketDiscoveryQuery {
@@ -111,13 +116,38 @@ pub async fn discover_markets(
     let mut rows = Vec::new();
     let mut errors = Vec::new();
 
-    for exchange in exchanges {
-        match discover_exchange_markets(http, &exchange, market_filter.as_deref()).await {
+    let results = stream::iter(exchanges.into_iter().map(|exchange| {
+        let market_filter = market_filter.clone();
+        async move {
+            let result = timeout(
+                DISCOVERY_EXCHANGE_TIMEOUT,
+                discover_exchange_markets(http, &exchange, market_filter.as_deref()),
+            )
+            .await;
+            match result {
+                Ok(Ok(exchange_rows)) => Ok(exchange_rows),
+                Ok(Err(error)) => Err(DiscoveryError {
+                    exchange,
+                    error: error.to_string(),
+                }),
+                Err(_) => Err(DiscoveryError {
+                    exchange,
+                    error: format!(
+                        "market discovery timed out after {}ms",
+                        DISCOVERY_EXCHANGE_TIMEOUT.as_millis()
+                    ),
+                }),
+            }
+        }
+    }))
+    .buffer_unordered(DISCOVERY_MAX_CONCURRENCY)
+    .collect::<Vec<_>>()
+    .await;
+
+    for result in results {
+        match result {
             Ok(exchange_rows) => rows.extend(exchange_rows),
-            Err(error) => errors.push(DiscoveryError {
-                exchange,
-                error: error.to_string(),
-            }),
+            Err(error) => errors.push(error),
         }
     }
 
@@ -206,13 +236,35 @@ pub async fn fetch_perpetual_funding(
     let mut rows = Vec::new();
     let mut errors = Vec::new();
 
-    for exchange in exchanges {
-        match fetch_exchange_perpetual_funding(http, &exchange).await {
-            Ok(exchange_rows) => rows.extend(exchange_rows),
-            Err(error) => errors.push(DiscoveryError {
+    let results = stream::iter(exchanges.into_iter().map(|exchange| async move {
+        let result = timeout(
+            DISCOVERY_EXCHANGE_TIMEOUT,
+            fetch_exchange_perpetual_funding(http, &exchange),
+        )
+        .await;
+        match result {
+            Ok(Ok(exchange_rows)) => Ok(exchange_rows),
+            Ok(Err(error)) => Err(DiscoveryError {
                 exchange,
                 error: error.to_string(),
             }),
+            Err(_) => Err(DiscoveryError {
+                exchange,
+                error: format!(
+                    "perpetual funding discovery timed out after {}ms",
+                    DISCOVERY_EXCHANGE_TIMEOUT.as_millis()
+                ),
+            }),
+        }
+    }))
+    .buffer_unordered(DISCOVERY_MAX_CONCURRENCY)
+    .collect::<Vec<_>>()
+    .await;
+
+    for result in results {
+        match result {
+            Ok(exchange_rows) => rows.extend(exchange_rows),
+            Err(error) => errors.push(error),
         }
     }
 
@@ -289,6 +341,7 @@ async fn fetch_exchange_perpetual_funding(
 
 async fn get_json(http: &reqwest::Client, url: &str) -> Result<Value> {
     http.get(url)
+        .timeout(DISCOVERY_HTTP_TIMEOUT)
         .send()
         .await
         .with_context(|| format!("request failed: {url}"))?
