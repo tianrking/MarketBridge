@@ -61,6 +61,7 @@ Smoke check:
 
 ```bash
 curl -s http://127.0.0.1:8080/health | jq
+curl -s http://127.0.0.1:8080/v1/system/info | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" | jq
 ```

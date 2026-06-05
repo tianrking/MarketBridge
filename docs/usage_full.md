@@ -17,7 +17,13 @@ Health check:
 
 ```bash
 curl -s http://127.0.0.1:8080/health | jq
+curl -s http://127.0.0.1:8080/v1/system/info | jq
 ```
+
+Hosted browser UIs can connect directly to this local API when `runtime.cors`
+is enabled. The default config allows `localhost`, `127.0.0.1`,
+`https://*.pages.dev`, and `https://*.vercel.app`, and it responds to Chrome
+Private Network Access preflight requests.
 
 ## Storage Model
 

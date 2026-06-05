@@ -241,6 +241,7 @@ MARKETBRIDGE_CONFIG=./config.yaml ./target/release/market-bridge
 
 ```bash
 curl -s http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8080/v1/system/info | jq
 ```
 
 ### 4) First Data Checks
@@ -397,6 +398,10 @@ Default file: `config.yaml`
   deployments
 - `runtime.api_rate_limit_per_minute`: optional in-process per-client limiter;
   `0` disables it
+- `runtime.cors`: browser UI integration for hosted static frontends that call a
+  local MarketBridge service. Defaults allow `localhost`, `127.0.0.1`,
+  `https://*.pages.dev`, and `https://*.vercel.app`, with Private Network
+  Access preflight support enabled.
 - `runtime.redis_url`: optional Redis sink
 - `runtime.redis_stream_prefix`: Redis Stream prefix when Redis is enabled
 - `runtime.redis_dead_letter_path`: JSONL dead-letter path for Redis batches that still fail after retries
@@ -604,6 +609,7 @@ Base URL: `http://127.0.0.1:8080`
 |---|---|---|
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
+| GET | `/v1/system/info` | Version, API version, local UI connection hints, and capability list |
 | GET | `/v1/catalog/sources` | Implemented public data sources |
 | GET | `/v1/catalog/markets` | On-demand public market/symbol discovery by exchange |
 | GET | `/v1/catalog/perpetuals` | On-demand grouped perpetual contract discovery by exchange |
@@ -639,6 +645,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/universe/delist-risk` | Missing/stale quote risk for historically seen markets |
 | GET | `/v1/research/features` | Multi-timeframe research feature bundle |
 | GET | `/v1/research/market-regime` | Aggregate regime snapshot |
+| GET | `/v1/research/symbol-state` | Real-time per-symbol squeeze/exhaustion state machine |
 | GET | `/v1/storage/manifest` | Local lake manifest, quality, coverage, and file index |
 | DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter |
 | GET | `/v1/agent/context` | AI/agent-friendly compact market context |
@@ -651,6 +658,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/options/okx/book` | OKX per-instrument option book |
 | GET | `/options/bybit/book` | Bybit per-instrument option book |
 | GET | `/options/binance/book` | Binance per-instrument option book |
+| GET | `/polymarket/markets` | General active Polymarket Gamma markets with CLOB ids and outcomes |
 | GET | `/polymarket/crypto-markets` | Parsed Polymarket BTC/ETH binary markets |
 | GET | `/polymarket/book` | Polymarket CLOB book summary for one token |
 | GET | `/polymarket/books` | Polymarket CLOB book summaries for token ids |
@@ -741,6 +749,17 @@ Example:
 
 ```bash
 curl -s http://127.0.0.1:8080/health
+```
+
+### `GET /v1/system/info`
+
+UI-friendly service metadata. Hosted static UIs should probe this endpoint first,
+then fall back to `/health`.
+
+Example:
+
+```bash
+curl -s http://127.0.0.1:8080/v1/system/info | jq
 ```
 
 ### `GET /v1/catalog/*`
@@ -1357,6 +1376,25 @@ Response fields:
 
 - `markets[]`: parsed `base_asset`, `strike`, `direction`, `rule_type`, `expiry_time`, Yes/No token ids
 - `clob_asset_ids[]`: token ids that a Polymarket CLOB collector should subscribe to
+
+### `GET /polymarket/markets`
+
+General active Polymarket Gamma market discovery. Use this when a client needs
+all categories instead of only the BTC/ETH parser from `/polymarket/crypto-markets`.
+
+Query params are the same as `/polymarket/crypto-markets`: `limit`,
+`max_offset`, and optional `gamma_base_url`.
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/polymarket/markets?limit=500&max_offset=500" | jq
+```
+
+Response fields:
+
+- `markets[]`: active Gamma markets with question/title metadata, outcomes, CLOB ids, liquidity/volume/open-interest fields where available
+- `clob_asset_ids[]`: CLOB token ids discovered from those markets
 
 ### `GET /polymarket/book`
 

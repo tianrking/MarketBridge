@@ -33,6 +33,15 @@ runtime:
   api_key_env: MARKETBRIDGE_API_KEY
   # api_key: "replace-me"
   api_rate_limit_per_minute: 0
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:*"
+      - "http://127.0.0.1:*"
+      - "https://*.pages.dev"
+      - "https://*.vercel.app"
+    allow_private_network: true
+    max_age_secs: 600
 
 strategy:
   min_profit_usdt: 1.0

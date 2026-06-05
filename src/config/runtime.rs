@@ -23,6 +23,8 @@ pub struct RuntimeConfig {
     #[serde(default)]
     pub api_rate_limit_per_minute: u64,
     #[serde(default)]
+    pub cors: CorsConfig,
+    #[serde(default)]
     pub redis_url: Option<String>,
     #[serde(default = "default_redis_stream_prefix")]
     pub redis_stream_prefix: String,
@@ -34,6 +36,29 @@ pub struct RuntimeConfig {
     pub order_flow_large_trade_notional_usdt: f64,
     #[serde(default = "default_ws_send_timeout_ms")]
     pub ws_send_timeout_ms: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CorsConfig {
+    #[serde(default = "default_cors_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_cors_allowed_origins")]
+    pub allowed_origins: Vec<String>,
+    #[serde(default = "default_cors_allow_private_network")]
+    pub allow_private_network: bool,
+    #[serde(default = "default_cors_max_age_secs")]
+    pub max_age_secs: u64,
+}
+
+impl Default for CorsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_cors_enabled(),
+            allowed_origins: default_cors_allowed_origins(),
+            allow_private_network: default_cors_allow_private_network(),
+            max_age_secs: default_cors_max_age_secs(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -109,6 +134,27 @@ fn default_api_addr() -> String {
 
 fn default_api_key_env() -> Option<String> {
     Some("MARKETBRIDGE_API_KEY".to_string())
+}
+
+fn default_cors_enabled() -> bool {
+    true
+}
+
+fn default_cors_allowed_origins() -> Vec<String> {
+    vec![
+        "http://localhost:*".to_string(),
+        "http://127.0.0.1:*".to_string(),
+        "https://*.pages.dev".to_string(),
+        "https://*.vercel.app".to_string(),
+    ]
+}
+
+fn default_cors_allow_private_network() -> bool {
+    true
+}
+
+fn default_cors_max_age_secs() -> u64 {
+    600
 }
 
 fn default_broadcast_capacity() -> usize {

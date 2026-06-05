@@ -254,6 +254,16 @@ dimensions.
 
 Current endpoints can remain during migration. New endpoints should use `/v1`.
 
+### System
+
+```text
+GET /health
+GET /v1/system/info
+```
+
+Purpose: support liveness checks and hosted UI probes. `/v1/system/info` returns
+version, API version, local UI connection hints, and capability names.
+
 ### Catalog
 
 ```text
@@ -293,6 +303,8 @@ liquidations.
 
 ```text
 GET /v1/options/chains
+GET /options/deribit/summary
+GET /options/deribit/live-summary
 GET /options/deribit/book
 GET /options/okx/book
 GET /options/bybit/book
@@ -307,14 +319,25 @@ a latency extension tracked in the feature inventory.
 ### Prediction Market Data
 
 ```text
-GET /v1/prediction/markets
 GET /v1/prediction/books
-GET /v1/prediction/trades
-GET /v1/prediction/resolutions
+GET /polymarket/markets
+GET /polymarket/crypto-markets
+GET /polymarket/book
+GET /polymarket/books
+GET /polymarket/midpoints
+GET /polymarket/spreads
+GET /polymarket/last-trade-prices
+GET /polymarket/prices
+GET /polymarket/prices-history
+GET /polymarket/crypto-books
+GET /polymarket/live-books
+GET /polymarket/live-crypto-books
 ```
 
-Purpose: Polymarket, Kalshi-like public data, and future prediction-market
-connectors.
+Purpose: Polymarket Gamma discovery, CLOB books, batch prices, price history,
+and live cached books. `/v1/prediction/books` is the normalized cache surface;
+`/polymarket/*` endpoints expose direct public Polymarket wrappers and
+convenience views.
 
 ### DeFi / On-chain Price Data
 
@@ -356,14 +379,14 @@ read keys from config first and environment variables second.
 ### External Event Data
 
 ```text
-GET /v1/external/weather
-GET /v1/external/news
-GET /v1/external/sports
-GET /v1/external/macro
+GET /v1/external/signals
+GET /v1/onchain/transfers
 ```
 
-Purpose: event data that prediction-market strategies need for settlement and
-nowcast validation.
+Purpose: public/keyed external signal data and on-chain transfer events that
+prediction-market and derivatives research clients can use as contextual
+features. Future event families should extend this surface instead of adding
+ad-hoc strategy endpoints.
 
 ### Unified Stream
 

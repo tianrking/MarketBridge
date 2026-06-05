@@ -11,6 +11,7 @@ These examples assume MarketBridge is already running locally:
 ```bash
 MB="http://127.0.0.1:8080"
 curl -s "$MB/health" | jq
+curl -s "$MB/v1/system/info" | jq
 ```
 
 If API auth is enabled, add the header:
@@ -19,6 +20,7 @@ If API auth is enabled, add the header:
 export MARKETBRIDGE_API_KEY="your-key"
 AUTH=(-H "x-api-key: $MARKETBRIDGE_API_KEY")
 curl "${AUTH[@]}" -s "$MB/health" | jq
+curl "${AUTH[@]}" -s "$MB/v1/system/info" | jq
 ```
 
 Notes:
@@ -547,6 +549,12 @@ wscat -c "ws://127.0.0.1:8080/v1/stream?domains=options_chain&include_stale=fals
 
 ```bash
 curl -s "$MB/polymarket/crypto-markets?limit=500&max_offset=500" | jq
+```
+
+### Q076A. Discover all active Polymarket Gamma markets
+
+```bash
+curl -s "$MB/polymarket/markets?limit=500&max_offset=500" | jq
 ```
 
 ### Q077. Query one Polymarket token book

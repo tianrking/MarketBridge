@@ -40,6 +40,18 @@ runtime:
   # 0 disables the in-process per-client limiter.
   api_rate_limit_per_minute: 0
 
+  # Browser UI integration. This lets a hosted static UI connect to a local
+  # MarketBridge instance at http://127.0.0.1:8080.
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:*"
+      - "http://127.0.0.1:*"
+      - "https://*.pages.dev"
+      - "https://*.vercel.app"
+    allow_private_network: true
+    max_age_secs: 600
+
   # Large trade threshold used by /v1/market/order-flow.
   order_flow_large_trade_notional_usdt: 100000.0
 

@@ -194,6 +194,7 @@ $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 
 ```bash
 curl -s http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8080/v1/system/info | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 ```
@@ -263,6 +264,9 @@ $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 - `runtime.event_bus_shards`：event/domain broadcast 分片数；本地研究保持 `1`，多 symbol / 多订阅者压测确认后再调高。
 - `runtime.backpressure`：`block` 或 `drop_newest`。
 - `runtime.api_addr`：API 监听地址，默认 `0.0.0.0:8080`。
+- `runtime.cors`：浏览器 UI 集成配置。默认允许 `localhost`、
+  `127.0.0.1`、`https://*.pages.dev`、`https://*.vercel.app`，并启用
+  Private Network Access 预检支持，方便托管网页访问本地 MarketBridge。
 - `runtime.redis_url`：可选 Redis sink。
 - `runtime.redis_stream_prefix`：Redis Stream 前缀。
 - `runtime.redis_dead_letter_path`：Redis 多次写入失败后的 JSONL dead-letter 文件路径。
@@ -451,6 +455,7 @@ Base URL：`http://127.0.0.1:8080`
 |---|---|---|
 | GET | `/` | 服务元信息。 |
 | GET | `/health` | 健康检查。 |
+| GET | `/v1/system/info` | 版本、API 版本、本地 UI 连接提示和能力清单。 |
 | GET | `/v1/catalog/sources` | 数据源启用状态和 API key 状态。 |
 | GET | `/v1/catalog/markets` | 按需查询交易所公开 market/symbol 清单。 |
 | GET | `/v1/catalog/perpetuals` | 按交易所分组查询永续合约清单。 |
@@ -467,7 +472,26 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/order-books` | L2 order book snapshots。 |
 | GET | `/v1/market/trades` | recent trade snapshots。 |
 | GET | `/v1/market/order-flow` | 买卖压力、delta、CVD。 |
+| GET | `/v1/market/order-flow/windows` | 多窗口 order-flow 和 CVD。 |
+| GET | `/v1/market/footprint` | footprint / orderflow profile。 |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV。 |
+| GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles。 |
+| GET | `/v1/storage/manifest` | 本地 Parquet lake manifest 和质量元数据。 |
+| DELETE | `/v1/storage/partitions` | 按过滤条件删除本地 lake partitions。 |
+| GET | `/v1/universe/top-volume` | 按成交量筛选 universe。 |
+| GET | `/v1/universe/percent-change` | 按涨跌幅筛选 universe。 |
+| GET | `/v1/universe/volatility` | 按 realized volatility 筛选 universe。 |
+| GET | `/v1/universe/spread-filter` | 按当前 spread 筛选 universe。 |
+| GET | `/v1/universe/cross-market` | 查询跨市场 / 跨交易所可见性。 |
+| GET | `/v1/universe/market-cap` | 按 market cap 排名。 |
+| GET | `/v1/universe/age-filter` | 按 listing age 筛选。 |
+| GET | `/v1/universe/new-listings` | 最近 listing candidates。 |
+| GET | `/v1/universe/delist-risk` | 历史标的缺失 / stale quote risk。 |
+| GET | `/v1/research/features` | 多周期 research feature package。 |
+| GET | `/v1/research/market-regime` | 市场 regime snapshot。 |
+| GET | `/v1/research/symbol-state` | 单标的 squeeze / exhaustion 状态机。 |
+| GET | `/v1/agent/context` | AI / agent 友好的紧凑市场上下文。 |
+| GET | `/v1/agent/capabilities` | AI / agent 能力清单。 |
 | GET | `/v1/options/chains` | 多交易所 option chains。 |
 | GET | `/v1/prediction/books` | cached Polymarket books。 |
 | GET | `/v1/external/signals` | 聚合、新闻、情绪、宏观信号。 |
@@ -476,6 +500,11 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/funding` | legacy funding view。 |
 | GET | `/options/deribit/summary` | Deribit 实时 REST option summary。 |
 | GET | `/options/deribit/live-summary` | Deribit 缓存 option summary。 |
+| GET | `/options/deribit/book` | Deribit 单 instrument option book。 |
+| GET | `/options/okx/book` | OKX 单 instrument option book。 |
+| GET | `/options/bybit/book` | Bybit 单 instrument option book。 |
+| GET | `/options/binance/book` | Binance 单 instrument option book。 |
+| GET | `/polymarket/markets` | Polymarket Gamma 全量 active market discovery。 |
 | GET | `/polymarket/crypto-markets` | Polymarket BTC/ETH crypto market discovery。 |
 | GET | `/polymarket/book` | 单个 Polymarket token order book。 |
 | GET | `/polymarket/books` | 批量 Polymarket token order books。 |
@@ -507,6 +536,7 @@ curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT&product_type=per
 ### Catalog
 
 ```bash
+curl -s "http://127.0.0.1:8080/v1/system/info" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq

@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{Request, StatusCode, header};
+use axum::http::{Method, Request, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use dashmap::DashMap;
@@ -116,6 +116,9 @@ pub async fn api_guard(
     req: Request<Body>,
     next: Next,
 ) -> Response {
+    if req.method() == Method::OPTIONS {
+        return next.run(req).await;
+    }
     if !guard.authorized(&req) {
         return json_error(StatusCode::UNAUTHORIZED, "unauthorized");
     }

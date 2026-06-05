@@ -80,6 +80,43 @@ curl -H "authorization: Bearer $MARKETBRIDGE_API_KEY" \
 Set `runtime.api_rate_limit_per_minute` to a positive value to enable the
 in-process per-client limiter. `0` disables rate limiting for local research.
 
+## Hosted UI To Local Service
+
+MarketBridge is designed to support a hosted static UI that calls a local
+service running on the user's machine:
+
+```text
+Cloudflare Pages / Vercel static UI -> browser -> http://127.0.0.1:8080
+```
+
+The backend exposes browser-friendly CORS and Private Network Access preflight
+handling through `runtime.cors`. Defaults allow local development origins,
+Cloudflare Pages previews, and Vercel previews:
+
+```yaml
+runtime:
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:*"
+      - "http://127.0.0.1:*"
+      - "https://*.pages.dev"
+      - "https://*.vercel.app"
+    allow_private_network: true
+    max_age_secs: 600
+```
+
+Browser preflight `OPTIONS` requests are allowed through API-key protection.
+Real data requests still require `x-api-key` or `authorization: Bearer <key>`
+when API auth is configured.
+
+UI clients should probe:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/system/info" | jq
+curl -s "http://127.0.0.1:8080/health" | jq
+```
+
 Synthetic local load test:
 
 ```bash
@@ -369,6 +406,7 @@ Important boundaries:
 |---|---|---|
 | Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache. |
 | Option books | `/options/deribit/book`, `/options/okx/book`, `/options/bybit/book`, `/options/binance/book` | Keyless per-instrument option depth. |
+| Polymarket Gamma discovery | `/polymarket/markets`, `/polymarket/crypto-markets` | General active Gamma markets plus the BTC/ETH crypto parser. |
 | Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
@@ -406,6 +444,7 @@ Base URL: `http://127.0.0.1:8080`
 |---|---|---|
 | GET | `/` | Service metadata. |
 | GET | `/health` | Service liveness. |
+| GET | `/v1/system/info` | Version, API version, local UI connection hints, and capability list. |
 | GET | `/v1/catalog/sources` | Source availability and API-key status. |
 | GET | `/v1/catalog/markets` | On-demand platform market/symbol discovery. |
 | GET | `/v1/catalog/perpetuals` | Grouped on-demand perpetual contract discovery by exchange. |
@@ -454,6 +493,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/options/okx/book` | OKX per-instrument option book. |
 | GET | `/options/bybit/book` | Bybit per-instrument option book. |
 | GET | `/options/binance/book` | Binance per-instrument option book. |
+| GET | `/polymarket/markets` | General active Polymarket Gamma markets with CLOB ids and outcomes. |
 | GET | `/polymarket/crypto-markets` | Parsed BTC/ETH Polymarket crypto markets. |
 | GET | `/polymarket/book` | Single Polymarket token order book. |
 | GET | `/polymarket/books` | Batch Polymarket token order books. |

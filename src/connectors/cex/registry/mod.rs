@@ -777,9 +777,9 @@ mod tests {
     use super::*;
     use crate::config::{
         AggregatesConfig, AppConfig, BinanceOptionsConfig, BybitOptionsConfig, ClickHouseConfig,
-        DefiConfig, DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig,
-        PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
-        fees::FeeModel, runtime::BackpressureConfig,
+        CorsConfig, DefiConfig, DeribitConfig, ExchangeConfig, KlineConfig, OkxOptionsConfig,
+        OnchainConfig, PolymarketConfig, RuntimeConfig, SentimentConfig, StrategyConfig,
+        TradfiConfig, fees::FeeModel, runtime::BackpressureConfig,
     };
     use std::collections::HashMap;
 
@@ -798,6 +798,7 @@ mod tests {
                 api_key_env: None,
                 api_key: None,
                 api_rate_limit_per_minute: 0,
+                cors: CorsConfig::default(),
                 redis_url: None,
                 redis_stream_prefix: "ticks".to_string(),
                 redis_dead_letter_path: "data/test_redis_dead_letters.jsonl".to_string(),

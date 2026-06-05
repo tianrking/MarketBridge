@@ -16,6 +16,7 @@ use crate::order_flow::OrderFlowStore;
 use crate::polymarket_ws::PolymarketBookCache;
 use crate::strategy_state::StrategyStateStore;
 
+pub mod cors;
 pub mod error;
 pub mod guard;
 pub mod routes;
@@ -25,7 +26,7 @@ pub mod utils;
 
 macro_rules! get_routes {
     ($router:expr, $( $path:literal => $handler:path ),+ $(,)?) => {
-        $router$(.route($path, get($handler)))+
+        $router$(.route($path, get($handler).options(cors::preflight)))+
     };
 }
 
@@ -43,16 +44,22 @@ pub struct ApiState {
     pub strategy_state_store: StrategyStateStore,
     pub snapshot_stream_hub: snapshot_stream::SnapshotStreamHub,
     pub api_access_guard: guard::ApiAccessGuard,
+    pub api_cors: cors::ApiCors,
 }
 
 impl ApiState {
     pub fn api_access_guard_from_runtime(runtime: &RuntimeConfig) -> guard::ApiAccessGuard {
         guard::ApiAccessGuard::from_runtime(runtime)
     }
+
+    pub fn api_cors_from_runtime(runtime: &RuntimeConfig) -> cors::ApiCors {
+        cors::ApiCors::from_runtime(runtime)
+    }
 }
 
 pub fn build_router(state: ApiState) -> Router {
     let api_access_guard = state.api_access_guard.clone();
+    let api_cors = state.api_cors.clone();
     let router = get_routes!(
         Router::new(),
         "/ws/ticks" => routes::stream::ws_ticks,
@@ -96,6 +103,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/storage/manifest" => routes::storage::manifest,
         "/v1/agent/context" => routes::agent::context,
         "/v1/agent/capabilities" => routes::agent::capabilities,
+        "/v1/system/info" => routes::system::info,
         "/health" => routes::system::health,
         "/snapshot" => routes::legacy::snapshot,
         "/funding" => routes::legacy::funding,
@@ -124,11 +132,15 @@ pub fn build_router(state: ApiState) -> Router {
     router
         .route(
             "/v1/storage/partitions",
-            delete(routes::storage::delete_partitions),
+            delete(routes::storage::delete_partitions).options(cors::preflight),
         )
         .layer(middleware::from_fn_with_state(
             api_access_guard,
             guard::api_guard,
+        ))
+        .layer(middleware::from_fn_with_state(
+            api_cors,
+            cors::cors_middleware,
         ))
         .with_state(Arc::new(state))
 }
