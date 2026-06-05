@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,6 +20,9 @@ const TRADE_FLOW_WINDOW_MS: u64 = 60_000;
 const LIQUIDATION_WINDOW_MS: u64 = 60_000;
 const DEPTH_PRESSURE_LEVELS: usize = 5;
 const MAX_FLOW_WINDOW_POINTS: usize = 20_000;
+const AGGREGATOR_MIN_RETENTION_MS: u64 = 60_000;
+const AGGREGATOR_RETENTION_MULTIPLIER: u64 = 10;
+const MAX_AGGREGATOR_SYMBOL_KEYS: usize = 20_000;
 
 pub struct SpreadAggregator {
     books: HashMap<Box<str>, HashMap<&'static str, MarketTick>>,
@@ -178,6 +181,7 @@ impl SpreadAggregator {
         let now = now_ms();
         let secs = self.report_interval.as_secs_f64();
 
+        self.prune_stale_state(now);
         self.report_bbo_spreads(now, secs);
         self.report_book_spreads(now);
         self.report_funding_divergence(now);
@@ -483,6 +487,67 @@ impl SpreadAggregator {
         }
     }
 
+    fn prune_stale_state(&mut self, now: u64) {
+        let retention_ms = aggregator_retention_ms(self.stale_ttl_ms);
+
+        self.books.retain(|_, by_exchange| {
+            by_exchange.retain(|_, tick| now.saturating_sub(tick.ts_ms) <= retention_ms);
+            !by_exchange.is_empty()
+        });
+        self.order_books.retain(|_, by_exchange| {
+            by_exchange.retain(|_, tick| now.saturating_sub(tick.ts_ms) <= retention_ms);
+            !by_exchange.is_empty()
+        });
+        self.funding.retain(|_, by_exchange| {
+            by_exchange.retain(|_, tick| now.saturating_sub(tick.ts_ms) <= retention_ms);
+            !by_exchange.is_empty()
+        });
+        self.open_interest.retain(|_, by_exchange| {
+            by_exchange.retain(|_, state| now.saturating_sub(state.current.ts_ms) <= retention_ms);
+            !by_exchange.is_empty()
+        });
+
+        self.trade_flow.retain(|_, window| {
+            window.prune(now, TRADE_FLOW_WINDOW_MS);
+            !window.is_empty()
+        });
+        self.liquidation_flow.retain(|_, window| {
+            window.prune(now, LIQUIDATION_WINDOW_MS);
+            !window.is_empty()
+        });
+
+        let active_book_keys = self.books.keys().cloned().collect::<HashSet<_>>();
+        self.tick_counts
+            .retain(|key, counts| active_book_keys.contains(key) && !counts.is_empty());
+        self.signal_started_at
+            .retain(|key, _| self.books.contains_key(key));
+        self.book_signal_started_at
+            .retain(|key, _| self.order_books.contains_key(key));
+
+        enforce_symbol_cap(
+            &mut self.books,
+            MAX_AGGREGATOR_SYMBOL_KEYS,
+            latest_market_tick_ts,
+        );
+        enforce_symbol_cap(
+            &mut self.order_books,
+            MAX_AGGREGATOR_SYMBOL_KEYS,
+            latest_order_book_ts,
+        );
+        enforce_symbol_cap(
+            &mut self.funding,
+            MAX_AGGREGATOR_SYMBOL_KEYS,
+            latest_funding_ts,
+        );
+        enforce_symbol_cap(
+            &mut self.open_interest,
+            MAX_AGGREGATOR_SYMBOL_KEYS,
+            latest_open_interest_ts,
+        );
+        enforce_flow_cap(&mut self.trade_flow, MAX_AGGREGATOR_SYMBOL_KEYS);
+        enforce_flow_cap(&mut self.liquidation_flow, MAX_AGGREGATOR_SYMBOL_KEYS);
+    }
+
     fn leg_fee_bps(&self, buy_ex: &str, sell_ex: &str) -> (f64, f64) {
         match self.fee_mode {
             StrategyFeeMode::Taker => (self.taker_bps(buy_ex), self.taker_bps(sell_ex)),
@@ -535,6 +600,14 @@ impl FlowWindow {
             .retain(|row| now.saturating_sub(row.ts_ms) <= window_ms);
     }
 
+    fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
+    fn latest_ts(&self) -> u64 {
+        self.rows.iter().map(|row| row.ts_ms).max().unwrap_or(0)
+    }
+
     fn summary(&self) -> FlowSummary {
         let signed_notional = self.rows.iter().map(|row| row.signed_notional).sum::<f64>();
         let absolute_notional = self
@@ -554,6 +627,63 @@ impl FlowWindow {
             count: self.rows.len(),
         }
     }
+}
+
+fn aggregator_retention_ms(stale_ttl_ms: u64) -> u64 {
+    stale_ttl_ms
+        .saturating_mul(AGGREGATOR_RETENTION_MULTIPLIER)
+        .max(AGGREGATOR_MIN_RETENTION_MS)
+}
+
+fn enforce_symbol_cap<T>(
+    map: &mut HashMap<Box<str>, HashMap<&'static str, T>>,
+    max_keys: usize,
+    latest_ts: fn(&HashMap<&'static str, T>) -> u64,
+) {
+    if max_keys == 0 || map.len() <= max_keys {
+        return;
+    }
+    let mut rows = map
+        .iter()
+        .map(|(key, by_exchange)| (key.clone(), latest_ts(by_exchange)))
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|(_, ts)| *ts);
+    for (key, _) in rows.into_iter().take(map.len() - max_keys) {
+        map.remove(&key);
+    }
+}
+
+fn enforce_flow_cap(map: &mut HashMap<Box<str>, FlowWindow>, max_keys: usize) {
+    if max_keys == 0 || map.len() <= max_keys {
+        return;
+    }
+    let mut rows = map
+        .iter()
+        .map(|(key, window)| (key.clone(), window.latest_ts()))
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|(_, ts)| *ts);
+    for (key, _) in rows.into_iter().take(map.len() - max_keys) {
+        map.remove(&key);
+    }
+}
+
+fn latest_market_tick_ts(map: &HashMap<&'static str, MarketTick>) -> u64 {
+    map.values().map(|tick| tick.ts_ms).max().unwrap_or(0)
+}
+
+fn latest_order_book_ts(map: &HashMap<&'static str, OrderBookTick>) -> u64 {
+    map.values().map(|tick| tick.ts_ms).max().unwrap_or(0)
+}
+
+fn latest_funding_ts(map: &HashMap<&'static str, FundingRateTick>) -> u64 {
+    map.values().map(|tick| tick.ts_ms).max().unwrap_or(0)
+}
+
+fn latest_open_interest_ts(map: &HashMap<&'static str, OpenInterestState>) -> u64 {
+    map.values()
+        .map(|state| state.current.ts_ms)
+        .max()
+        .unwrap_or(0)
 }
 
 #[derive(Debug, Clone)]
@@ -599,5 +729,39 @@ mod tests {
 
         assert_eq!(window.rows.len(), MAX_FLOW_WINDOW_POINTS);
         assert_eq!(window.rows.first().expect("first").ts_ms, 10);
+    }
+
+    #[test]
+    fn aggregator_retention_has_minimum_window() {
+        assert_eq!(aggregator_retention_ms(1_500), AGGREGATOR_MIN_RETENTION_MS);
+        assert_eq!(aggregator_retention_ms(10_000), 100_000);
+    }
+
+    #[test]
+    fn symbol_cap_removes_oldest_keys() {
+        let mut map = HashMap::<Box<str>, HashMap<&'static str, MarketTick>>::new();
+        for (symbol, ts_ms) in [("OLD_PERP", 1), ("NEW_PERP", 2)] {
+            map.insert(
+                symbol.into(),
+                HashMap::from([(
+                    "binance",
+                    MarketTick {
+                        exchange: "binance",
+                        market: crate::types::MarketKind::Perp,
+                        symbol: symbol.into(),
+                        bid: 1.0,
+                        ask: 2.0,
+                        mark: None,
+                        funding_rate: None,
+                        ts_ms,
+                    },
+                )]),
+            );
+        }
+
+        enforce_symbol_cap(&mut map, 1, latest_market_tick_ts);
+
+        assert!(!map.contains_key("OLD_PERP"));
+        assert!(map.contains_key("NEW_PERP"));
     }
 }

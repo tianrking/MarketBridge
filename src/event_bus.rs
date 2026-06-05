@@ -220,27 +220,27 @@ impl EventBus {
             DataEvent::FundingRate(t) => {
                 let shard = shard_for_key(&t.symbol, self.funding_tx.len());
                 let _ = self.funding_tx[shard].send(shared.clone());
-                self.snapshots.upsert_funding(t);
+                self.snapshots.upsert_funding(t, self.stale_ttl_ms);
             }
             DataEvent::OpenInterest(t) => {
                 let shard = shard_for_key(&t.symbol, self.open_interest_tx.len());
                 let _ = self.open_interest_tx[shard].send(shared.clone());
-                self.snapshots.upsert_open_interest(t);
+                self.snapshots.upsert_open_interest(t, self.stale_ttl_ms);
             }
             DataEvent::Trade(t) => {
                 let shard = shard_for_key(&t.symbol, self.trade_tx.len());
                 let _ = self.trade_tx[shard].send(shared.clone());
-                self.snapshots.upsert_trade(t);
+                self.snapshots.upsert_trade(t, self.stale_ttl_ms);
             }
             DataEvent::Liquidation(t) => {
                 let shard = shard_for_key(&t.symbol, self.liquidation_tx.len());
                 let _ = self.liquidation_tx[shard].send(shared.clone());
-                self.snapshots.upsert_liquidation(t);
+                self.snapshots.upsert_liquidation(t, self.stale_ttl_ms);
             }
             DataEvent::OrderBook(t) => {
                 let shard = shard_for_key(&t.symbol, self.order_book_tx.len());
                 let _ = self.order_book_tx[shard].send(shared.clone());
-                self.snapshots.upsert_order_book(t);
+                self.snapshots.upsert_order_book(t, self.stale_ttl_ms);
             }
             DataEvent::ExternalSignal(t) => {
                 let shard = shard_for_key(
@@ -248,7 +248,7 @@ impl EventBus {
                     self.external_signal_tx.len(),
                 );
                 let _ = self.external_signal_tx[shard].send(shared.clone());
-                self.snapshots.upsert_external_signal(t);
+                self.snapshots.upsert_external_signal(t, self.stale_ttl_ms);
             }
             DataEvent::Heartbeat { .. } => {}
         }

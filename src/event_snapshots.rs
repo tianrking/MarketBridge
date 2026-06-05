@@ -11,6 +11,10 @@ use crate::types::{
 };
 
 pub const SCHEMA_VERSION: &str = "v1";
+const SNAPSHOT_MIN_RETENTION_MS: u64 = 300_000;
+const SNAPSHOT_MAX_RETENTION_MS: u64 = 3_600_000;
+const SNAPSHOT_RETENTION_MULTIPLIER: u64 = 120;
+const MAX_SNAPSHOT_KEYS_PER_DOMAIN: usize = 100_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedTick {
@@ -79,44 +83,92 @@ impl EventSnapshotStore {
             snapshot_key(normalized.exchange, normalized.market, &normalized.symbol),
             normalized.clone(),
         );
+        self.snapshots.prune_by_ts(
+            now,
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
         self.quote_snapshots
             .upsert(quote_snapshot_key(&quote_envelope), quote_envelope.clone());
+        self.quote_snapshots.prune_by_ts(
+            now,
+            snapshot_retention_ms(stale_ttl_ms),
+            |envelope| envelope.freshness.ts_source,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
 
         (normalized, quote_envelope)
     }
 
-    pub fn upsert_funding(&self, tick: &FundingRateTick) {
+    pub fn upsert_funding(&self, tick: &FundingRateTick, stale_ttl_ms: u64) {
         self.funding_snapshots
             .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+        self.funding_snapshots.prune_by_ts(
+            now_ms(),
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts_ms,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
     }
 
-    pub fn upsert_open_interest(&self, tick: &OpenInterestTick) {
+    pub fn upsert_open_interest(&self, tick: &OpenInterestTick, stale_ttl_ms: u64) {
         self.open_interest_snapshots
             .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+        self.open_interest_snapshots.prune_by_ts(
+            now_ms(),
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts_ms,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
     }
 
-    pub fn upsert_trade(&self, tick: &TradeTick) {
+    pub fn upsert_trade(&self, tick: &TradeTick, stale_ttl_ms: u64) {
         self.trade_snapshots.upsert(
             market_key(tick.exchange, tick.market, &tick.symbol),
             tick.clone(),
         );
+        self.trade_snapshots.prune_by_ts(
+            now_ms(),
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts_ms,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
     }
 
-    pub fn upsert_liquidation(&self, tick: &LiquidationTick) {
+    pub fn upsert_liquidation(&self, tick: &LiquidationTick, stale_ttl_ms: u64) {
         self.liquidation_snapshots
             .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+        self.liquidation_snapshots.prune_by_ts(
+            now_ms(),
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts_ms,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
     }
 
-    pub fn upsert_order_book(&self, tick: &OrderBookTick) {
+    pub fn upsert_order_book(&self, tick: &OrderBookTick, stale_ttl_ms: u64) {
         self.order_book_snapshots.upsert(
             market_key(tick.exchange, tick.market, &tick.symbol),
             tick.clone(),
         );
+        self.order_book_snapshots.prune_by_ts(
+            now_ms(),
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts_ms,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
     }
 
-    pub fn upsert_external_signal(&self, tick: &ExternalSignalTick) {
+    pub fn upsert_external_signal(&self, tick: &ExternalSignalTick, stale_ttl_ms: u64) {
         self.external_signal_snapshots
             .upsert(external_signal_key(tick), tick.clone());
+        self.external_signal_snapshots.prune_by_ts(
+            now_ms(),
+            snapshot_retention_ms(stale_ttl_ms),
+            |tick| tick.ts_ms,
+            MAX_SNAPSHOT_KEYS_PER_DOMAIN,
+        );
     }
 
     pub async fn snapshot_by_symbol(&self, symbol: &str) -> Vec<NormalizedTick> {
@@ -191,6 +243,36 @@ impl<T: Clone> SnapshotMap<T> {
         self.inner.insert(key, value);
     }
 
+    fn prune_by_ts(
+        &self,
+        now: u64,
+        retention_ms: u64,
+        ts_of: impl Fn(&T) -> u64 + Copy,
+        max_entries: usize,
+    ) {
+        self.inner
+            .retain(|_, value| now.saturating_sub(ts_of(value)) <= retention_ms);
+        self.enforce_max_entries(max_entries, ts_of);
+    }
+
+    fn enforce_max_entries(&self, max_entries: usize, ts_of: impl Fn(&T) -> u64) {
+        if max_entries == 0 || self.inner.len() <= max_entries {
+            return;
+        }
+        let mut rows = self
+            .inner
+            .iter()
+            .map(|entry| (entry.key().clone(), ts_of(entry.value())))
+            .collect::<Vec<_>>();
+        rows.sort_by_key(|(_, ts)| *ts);
+        for (key, _) in rows
+            .into_iter()
+            .take(self.inner.len().saturating_sub(max_entries))
+        {
+            self.inner.remove(&key);
+        }
+    }
+
     fn values(&self) -> Vec<T> {
         self.inner
             .iter()
@@ -243,4 +325,34 @@ fn external_signal_key(tick: &ExternalSignalTick) -> String {
         tick.symbol.as_deref().unwrap_or("*"),
         tick.metric
     )
+}
+
+fn snapshot_retention_ms(stale_ttl_ms: u64) -> u64 {
+    stale_ttl_ms
+        .saturating_mul(SNAPSHOT_RETENTION_MULTIPLIER)
+        .clamp(SNAPSHOT_MIN_RETENTION_MS, SNAPSHOT_MAX_RETENTION_MS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_retention_uses_longer_window_than_stale_ttl() {
+        assert_eq!(snapshot_retention_ms(1_500), SNAPSHOT_MIN_RETENTION_MS);
+        assert_eq!(snapshot_retention_ms(60_000), SNAPSHOT_MAX_RETENTION_MS);
+    }
+
+    #[test]
+    fn snapshot_map_prunes_old_entries_and_caps_newest() {
+        let map = SnapshotMap::new();
+        map.upsert("old".to_string(), 100_u64);
+        map.upsert("new-a".to_string(), 1_000_u64);
+        map.upsert("new-b".to_string(), 1_100_u64);
+
+        map.prune_by_ts(1_100, 500, |ts| *ts, 1);
+        let values = map.values();
+
+        assert_eq!(values, vec![1_100]);
+    }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 
@@ -13,6 +14,10 @@ use crate::types::{DataEvent, TradeSide, TradeTick};
 const DEFAULT_WINDOWS_MS: &[u64] = &[60_000, 300_000, 900_000];
 const MAX_BUCKETS_PER_KEY: usize = 500;
 const MAX_RAW_TRADES_PER_KEY: usize = 20_000;
+const RAW_TRADE_RETENTION_MS: u64 = 30 * 60_000;
+const BUCKET_RETENTION_MS: u64 = 24 * 60 * 60_000;
+const MAX_RAW_TRADE_KEYS: usize = 100_000;
+const MAX_BUCKET_ROWS_TOTAL: usize = 250_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OrderFlowBucket {
@@ -250,7 +255,7 @@ impl OrderFlowStore {
             }
             bucket.updated_at_ms = crate::types::now_ms();
         }
-        prune_buckets(&mut guard.buckets);
+        prune_order_flow_state(&mut guard, trade.ts_ms);
     }
 
     pub async fn query(&self, q: OrderFlowQuery) -> Vec<OrderFlowBucket> {
@@ -630,6 +635,74 @@ fn prune_buckets(buckets: &mut HashMap<String, OrderFlowBucket>) {
     }
 }
 
+fn prune_order_flow_state(state: &mut OrderFlowState, now: u64) {
+    state.raw_trades.retain(|_, trades| {
+        trades.retain(|trade| now.saturating_sub(trade.ts_ms) <= RAW_TRADE_RETENTION_MS);
+        !trades.is_empty()
+    });
+    enforce_raw_trade_key_cap(&mut state.raw_trades);
+
+    state
+        .buckets
+        .retain(|_, row| now.saturating_sub(row.bucket_end_ms) <= BUCKET_RETENTION_MS);
+    prune_buckets(&mut state.buckets);
+    enforce_bucket_row_cap(&mut state.buckets);
+
+    let active_cvd_keys = state
+        .buckets
+        .values()
+        .map(|row| {
+            format!(
+                "{}:{}:{}:{}",
+                row.exchange, row.market, row.symbol, row.window_ms
+            )
+        })
+        .collect::<HashSet<_>>();
+    state
+        .cumulative_qty
+        .retain(|key, _| active_cvd_keys.contains(key));
+    state
+        .cumulative_notional
+        .retain(|key, _| active_cvd_keys.contains(key));
+}
+
+fn enforce_raw_trade_key_cap(raw_trades: &mut HashMap<String, VecDeque<StoredTrade>>) {
+    if raw_trades.len() <= MAX_RAW_TRADE_KEYS {
+        return;
+    }
+    let mut rows = raw_trades
+        .iter()
+        .map(|(key, trades)| {
+            let latest_ts = trades.iter().map(|trade| trade.ts_ms).max().unwrap_or(0);
+            (key.clone(), latest_ts)
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|(_, ts)| *ts);
+    for (key, _) in rows
+        .into_iter()
+        .take(raw_trades.len().saturating_sub(MAX_RAW_TRADE_KEYS))
+    {
+        raw_trades.remove(&key);
+    }
+}
+
+fn enforce_bucket_row_cap(buckets: &mut HashMap<String, OrderFlowBucket>) {
+    if buckets.len() <= MAX_BUCKET_ROWS_TOTAL {
+        return;
+    }
+    let mut rows = buckets
+        .iter()
+        .map(|(key, row)| (key.clone(), row.updated_at_ms, row.bucket_start_ms))
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|(_, updated_at_ms, bucket_start_ms)| (*updated_at_ms, *bucket_start_ms));
+    for (key, _, _) in rows
+        .into_iter()
+        .take(buckets.len().saturating_sub(MAX_BUCKET_ROWS_TOTAL))
+    {
+        buckets.remove(&key);
+    }
+}
+
 fn market_label(market: crate::types::MarketKind) -> &'static str {
     match market {
         crate::types::MarketKind::Spot => "spot",
@@ -647,7 +720,10 @@ fn trade_side_label(side: TradeSide) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{FootprintQuery, MAX_BUCKETS_PER_KEY, OrderFlowQuery, OrderFlowStore};
+    use super::{
+        BUCKET_RETENTION_MS, FootprintQuery, MAX_BUCKETS_PER_KEY, OrderFlowQuery, OrderFlowStore,
+        RAW_TRADE_RETENTION_MS,
+    };
     use crate::types::{MarketKind, TradeSide, TradeTick};
 
     #[tokio::test]
@@ -729,6 +805,88 @@ mod tests {
                 60_000
             );
         }
+    }
+
+    #[tokio::test]
+    async fn order_flow_prunes_stale_raw_trade_keys() {
+        let store = OrderFlowStore::new(100_000.0);
+        store
+            .update_trade(&TradeTick {
+                exchange: "binance",
+                market: MarketKind::Perp,
+                symbol: "OLDUSDT".into(),
+                price: 100.0,
+                qty: 1.0,
+                side: TradeSide::Buy,
+                trade_id: None,
+                ts_ms: 1,
+            })
+            .await;
+        store
+            .update_trade(&TradeTick {
+                exchange: "binance",
+                market: MarketKind::Perp,
+                symbol: "NEWUSDT".into(),
+                price: 100.0,
+                qty: 1.0,
+                side: TradeSide::Buy,
+                trade_id: None,
+                ts_ms: RAW_TRADE_RETENTION_MS + 2,
+            })
+            .await;
+
+        let guard = store.inner.read().await;
+        assert!(!guard.raw_trades.contains_key("binance:perp:OLDUSDT"));
+        assert!(guard.raw_trades.contains_key("binance:perp:NEWUSDT"));
+    }
+
+    #[tokio::test]
+    async fn order_flow_prunes_stale_bucket_keys_and_cvd_state() {
+        let store = OrderFlowStore::new(100_000.0);
+        store
+            .update_trade(&TradeTick {
+                exchange: "binance",
+                market: MarketKind::Perp,
+                symbol: "OLDUSDT".into(),
+                price: 100.0,
+                qty: 1.0,
+                side: TradeSide::Buy,
+                trade_id: None,
+                ts_ms: 60_001,
+            })
+            .await;
+        store
+            .update_trade(&TradeTick {
+                exchange: "binance",
+                market: MarketKind::Perp,
+                symbol: "NEWUSDT".into(),
+                price: 100.0,
+                qty: 1.0,
+                side: TradeSide::Buy,
+                trade_id: None,
+                ts_ms: BUCKET_RETENTION_MS + 1_000_001,
+            })
+            .await;
+
+        let guard = store.inner.read().await;
+        assert!(
+            guard
+                .buckets
+                .values()
+                .all(|bucket| bucket.symbol != "OLDUSDT")
+        );
+        assert!(
+            guard
+                .cumulative_qty
+                .keys()
+                .all(|key| !key.contains("OLDUSDT"))
+        );
+        assert!(
+            guard
+                .cumulative_notional
+                .keys()
+                .all(|key| !key.contains("OLDUSDT"))
+        );
     }
 
     #[tokio::test]
