@@ -108,15 +108,13 @@ impl Snapshot {
         .await
         .ok();
 
-        let mut out = Self::default();
-
-        out.min_funding_rate = rows(&funding, "funding")
+        let min_funding_rate = rows(&funding, "funding")
             .into_iter()
             .filter(|row| matches_exchange(row, &args.exchange))
             .filter_map(|row| number(row, "funding_rate"))
             .min_by(f64::total_cmp);
 
-        out.max_oi_change_pct = rows(&open_interest, "open_interest")
+        let max_oi_change_pct = rows(&open_interest, "open_interest")
             .into_iter()
             .filter(|row| matches_exchange(row, &args.exchange))
             .filter_map(|row| {
@@ -126,18 +124,26 @@ impl Snapshot {
             })
             .max_by(f64::total_cmp);
 
-        out.spot_cvd_delta = latest_flow_delta(&spot_flow, &args.exchange);
-        out.perp_cvd_delta = latest_flow_delta(&perp_flow, &args.exchange);
-        out.latest_price = latest_mid_price(&quotes, &args.exchange);
-        out.upper_liquidation_notional =
-            liquidation_notional_since(&liquidations, &args.exchange, 15 * 60 * 1000);
-        out.coinglass_liquidation_value = external.as_ref().and_then(|value| {
+        let coinglass_liquidation_value = external.as_ref().and_then(|value| {
             rows(value, "signals")
                 .into_iter()
                 .find_map(|row| number(row, "value"))
         });
 
-        Ok(out)
+        Ok(Self {
+            min_funding_rate,
+            max_oi_change_pct,
+            spot_cvd_delta: latest_flow_delta(&spot_flow, &args.exchange),
+            perp_cvd_delta: latest_flow_delta(&perp_flow, &args.exchange),
+            upper_liquidation_notional: liquidation_notional_since(
+                &liquidations,
+                &args.exchange,
+                15 * 60 * 1000,
+            ),
+            coinglass_liquidation_value,
+            latest_price: latest_mid_price(&quotes, &args.exchange),
+            reasons: Vec::new(),
+        })
     }
 
     fn report(mut self) {

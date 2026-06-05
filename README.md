@@ -5,7 +5,7 @@ DeFi, macro, aggregate, and sentiment data. MarketBridge normalizes public data,
 caches fresh state, marks stale records, and exposes one stable API surface for
 downstream research systems.
 
-Current version: `v0.0.3`
+Current version: `v0.0.5`
 
 [中文文档](README.zh-CN.md)
 
@@ -276,11 +276,11 @@ GitHub Actions builds release packages for:
 
 | Package suffix | Download file | Use when |
 |---|---|---|
-| `linux-x86_64` | `market-bridge-v0.0.3-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
-| `linux-i686` | `market-bridge-v0.0.3-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
-| `macos-x86_64` | `market-bridge-v0.0.3-macos-x86_64.tar.gz` | Intel Mac. |
-| `macos-aarch64` | `market-bridge-v0.0.3-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
-| `windows-x86_64` | `market-bridge-v0.0.3-windows-x86_64.zip` | 64-bit Windows. |
+| `linux-x86_64` | `market-bridge-v0.0.5-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
+| `linux-i686` | `market-bridge-v0.0.5-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
+| `macos-x86_64` | `market-bridge-v0.0.5-macos-x86_64.tar.gz` | Intel Mac. |
+| `macos-aarch64` | `market-bridge-v0.0.5-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
+| `windows-x86_64` | `market-bridge-v0.0.5-windows-x86_64.zip` | 64-bit Windows. |
 
 Each package contains:
 
@@ -295,8 +295,8 @@ Each package contains:
 Linux/macOS usage:
 
 ```bash
-tar -xzf market-bridge-v0.0.3-linux-x86_64.tar.gz   # replace suffix for your platform
-cd market-bridge-v0.0.3-linux-x86_64
+tar -xzf market-bridge-v0.0.5-linux-x86_64.tar.gz   # replace suffix for your platform
+cd market-bridge-v0.0.5-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```
@@ -310,8 +310,8 @@ xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
 Windows PowerShell:
 
 ```powershell
-Expand-Archive .\market-bridge-v0.0.3-windows-x86_64.zip
-cd .\market-bridge-v0.0.3-windows-x86_64\market-bridge-v0.0.3-windows-x86_64
+Expand-Archive .\market-bridge-v0.0.5-windows-x86_64.zip
+cd .\market-bridge-v0.0.5-windows-x86_64\market-bridge-v0.0.5-windows-x86_64
 $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 .\market-bridge.exe
 ```
@@ -323,6 +323,12 @@ curl -s http://127.0.0.1:8080/health
 curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 ```
+
+For common perpetual-contract and funding-rate searches after the binary is
+running, see
+[docs/perpetual_funding_cookbook.zh-CN.md](docs/perpetual_funding_cookbook.zh-CN.md).
+The binary only needs to stay running; client scripts and `curl` examples call
+the local HTTP API.
 
 If you use keyed sources, set the relevant environment variables before
 starting the binary:
@@ -370,38 +376,38 @@ CI has two workflows:
 - `.github/workflows/release.yml`: builds cross-platform release packages and uploads artifacts.
 
 Automatic package builds run on pushes to `main` or `master`, tag pushes like
-`v0.0.3`, and manual `workflow_dispatch`.
+`v0.0.5`, and manual `workflow_dispatch`.
 
-To publish `v0.0.3`:
+To publish `v0.0.5`:
 
 ```bash
-git tag -f v0.0.3 HEAD
+git tag -f v0.0.5 HEAD
 git push origin master
-git push --force origin refs/tags/v0.0.3
+git push --force origin refs/tags/v0.0.5
 ```
 
-For a first-time tag where no previous `v0.0.3` exists, this also works:
+For a first-time tag where no previous `v0.0.5` exists, this also works:
 
 ```bash
-git tag v0.0.3
-git push origin v0.0.3
+git tag v0.0.5
+git push origin v0.0.5
 ```
 
 The release workflow builds:
 
 ```text
-market-bridge-v0.0.3-linux-x86_64.tar.gz
-market-bridge-v0.0.3-linux-i686.tar.gz
-market-bridge-v0.0.3-macos-x86_64.tar.gz
-market-bridge-v0.0.3-macos-aarch64.tar.gz
-market-bridge-v0.0.3-windows-x86_64.zip
+market-bridge-v0.0.5-linux-x86_64.tar.gz
+market-bridge-v0.0.5-linux-i686.tar.gz
+market-bridge-v0.0.5-macos-x86_64.tar.gz
+market-bridge-v0.0.5-macos-aarch64.tar.gz
+market-bridge-v0.0.5-windows-x86_64.zip
 ```
 
 For normal branch pushes, download the packages from the workflow run
 artifacts. For tag pushes, the same packages are also attached to the GitHub
 Release.
 
-When re-cutting `v0.0.3`, confirm the GitHub Release assets were produced from
+When re-cutting `v0.0.5`, confirm the GitHub Release assets were produced from
 the latest tag commit, not an older branch artifact.
 
 ## Configuration
@@ -888,6 +894,10 @@ On-demand current funding rows for supported perpetual markets. This endpoint
 pulls public REST data directly and is not limited to the symbols configured in
 the live runtime. MarketBridge returns raw normalized data only; threshold
 filters, watchlists, alerts, and strategy rules belong in the client.
+
+For a larger copy-paste cookbook with common `curl + jq` searches, CSV exports,
+cross-exchange comparisons, and watchlist generation, see
+[docs/perpetual_funding_cookbook.zh-CN.md](docs/perpetual_funding_cookbook.zh-CN.md).
 
 Supported first-pass venues: `binance`, `okx`, `bybit`, `bitget`, `kucoin`,
 `gate`, `mexc`, `bingx`, `bitmart`.

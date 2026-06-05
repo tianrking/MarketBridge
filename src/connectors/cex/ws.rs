@@ -40,12 +40,12 @@ impl ReconnectBackoff {
     }
 }
 
-pub async fn run_reconnecting<F, Fut>(label: &'static str, mut run_once: F) -> Result<()>
+pub async fn run_reconnecting<F, Fut>(label: &'static str, run_once: F) -> Result<()>
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = Result<()>>,
 {
-    run_reconnecting_until(label, CancellationToken::new(), move || run_once()).await
+    run_reconnecting_until(label, CancellationToken::new(), run_once).await
 }
 
 pub async fn run_reconnecting_until<F, Fut>(

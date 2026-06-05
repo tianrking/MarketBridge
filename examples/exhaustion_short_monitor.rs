@@ -89,14 +89,13 @@ impl Snapshot {
         .await
         .ok();
 
-        let mut out = Self::default();
-        out.max_funding_rate = rows(&funding, "funding")
+        let max_funding_rate = rows(&funding, "funding")
             .into_iter()
             .filter(|row| matches_exchange(row, &args.exchange))
             .filter_map(|row| number(row, "funding_rate"))
             .max_by(f64::total_cmp);
 
-        out.max_oi_drop_pct = rows(&open_interest, "open_interest")
+        let max_oi_drop_pct = rows(&open_interest, "open_interest")
             .into_iter()
             .filter(|row| matches_exchange(row, &args.exchange))
             .filter_map(|row| {
@@ -106,19 +105,24 @@ impl Snapshot {
             })
             .min_by(f64::total_cmp);
 
-        if let Some(klines) = klines.as_ref() {
-            let (ret, failed_high) = recent_price_context(klines);
-            out.recent_return_pct = ret;
-            out.recent_high_failure = failed_high;
-        }
-
-        out.perp_cvd_delta = latest_flow_delta(&perp_flow, &args.exchange);
-        out.bid_ask_depth_ratio = weakest_bid_ask_ratio(&books, &args.exchange);
-        out.cex_inflow_notional = transfers
+        let (recent_return_pct, recent_high_failure) = klines
+            .as_ref()
+            .map(recent_price_context)
+            .unwrap_or((None, None));
+        let cex_inflow_notional = transfers
             .as_ref()
             .and_then(|value| cex_inflow_notional(value, &args.symbol));
 
-        Ok(out)
+        Ok(Self {
+            max_funding_rate,
+            max_oi_drop_pct,
+            recent_return_pct,
+            recent_high_failure,
+            perp_cvd_delta: latest_flow_delta(&perp_flow, &args.exchange),
+            bid_ask_depth_ratio: weakest_bid_ask_ratio(&books, &args.exchange),
+            cex_inflow_notional,
+            reasons: Vec::new(),
+        })
     }
 
     fn report(mut self) {

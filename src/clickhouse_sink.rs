@@ -35,11 +35,11 @@ pub fn spawn_clickhouse_sink(
             }
         };
 
-        if cfg.init_tables {
-            if let Err(error) = sink.init().await {
-                error!(%error, "clickhouse table init failed");
-                return;
-            }
+        if cfg.init_tables
+            && let Err(error) = sink.init().await
+        {
+            error!(%error, "clickhouse table init failed");
+            return;
         }
 
         let mut rx = bus.subscribe_events();

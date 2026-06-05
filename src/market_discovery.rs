@@ -1012,6 +1012,7 @@ async fn bitmart_perp_details(
     Ok((markets, funding))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn market_listing(
     exchange: &str,
     market: &str,
