@@ -26,6 +26,12 @@ place orders.
 Version `v0.0.5` is shipped as downloadable binary packages from GitHub Actions
 and GitHub Releases.
 
+Download the latest release from:
+[https://github.com/tianrking/MarketBridge/releases/latest](https://github.com/tianrking/MarketBridge/releases/latest)
+
+All releases are listed at:
+[https://github.com/tianrking/MarketBridge/releases](https://github.com/tianrking/MarketBridge/releases)
+
 | Platform | File |
 |---|---|
 | Linux 64-bit x86 | `market-bridge-v0.0.5-linux-x86_64.tar.gz` |
@@ -618,7 +624,7 @@ perpetual endpoints are for broad data discovery and client-side selection.
 ## Recommended Research Order
 
 For concrete short-squeeze and exhaustion-short examples, see
-[`squeeze_and_exhaustion_examples.zh-CN.md`](squeeze_and_exhaustion_examples.zh-CN.md).
+[`squeeze_and_exhaustion_examples.md`](squeeze_and_exhaustion_examples.md).
 
 1. Use `/v1/market/klines` for historical regime and backtest context.
 2. Use `/v1/market/basis` for spot-perp dislocation.

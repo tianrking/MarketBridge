@@ -1,33 +1,36 @@
-# 永续合约与资金费率常用查询脚本
+# Perpetual Contract And Funding-Rate Cookbook
 
-这些例子都把 MarketBridge 当作统一数据接口使用。MarketBridge 返回原始归一化数据，`jq` 或 Python 脚本负责筛选、排序、导出和告警。
+This cookbook treats MarketBridge as a unified data API. MarketBridge returns
+raw normalized data; `jq`, shell scripts, Python, or downstream services decide
+which symbols to watch, how to filter them, and when to alert.
 
-先启动 MarketBridge：
+Start MarketBridge first:
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/MarketBridge
+cd /path/to/MarketBridge
 MARKETBRIDGE_CONFIG=./config.min.yaml cargo run
 ```
 
-另一个终端设置一个基础变量：
+In another terminal:
 
 ```bash
 MB="http://127.0.0.1:8080"
 curl -s "$MB/health" | jq
 ```
 
-如果启用了 API key：
+If API authentication is enabled:
 
 ```bash
 export MARKETBRIDGE_API_KEY="your-key"
 curl -H "x-api-key: $MARKETBRIDGE_API_KEY" -s "$MB/health" | jq
 ```
 
-下面的例子默认没有启用 API key。`funding_rate_pct` 已经是百分比单位，所以 `-0.2` 表示 `-0.2%`，`1.5` 表示 `1.5%`。
+`funding_rate_pct` is already expressed in percent. For example, `-0.2` means
+`-0.2%`, and `1.5` means `1.5%`.
 
-## 1. 查询某交易所有哪些永续合约
+## 1. Discover Perpetual Contracts On One Exchange
 
-Binance USDT 永续合约，前 20 个：
+List the first 20 Binance USDT perpetual contracts:
 
 ```bash
 curl -s "$MB/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" \
@@ -35,7 +38,7 @@ curl -s "$MB/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" \
   | {exchange, symbol, native_symbol, base, quote, active, status, contract_type}'
 ```
 
-只看合约数量和 base 数量：
+Show only the contract and base-asset counts:
 
 ```bash
 curl -s "$MB/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=50000" \
@@ -43,7 +46,7 @@ curl -s "$MB/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=50000" \
   | {exchange, contracts_total, contracts_returned, base_assets_total}'
 ```
 
-多个交易所各自有多少 USDT 永续：
+List USDT perpetual counts across several exchanges:
 
 ```bash
 curl -s "$MB/v1/catalog/perpetuals?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -51,7 +54,7 @@ curl -s "$MB/v1/catalog/perpetuals?exchanges=binance,okx,bybit,bitget&quote=USDT
   | {exchange, contracts_total, base_assets_total}'
 ```
 
-查某个 base，例如 BTC，在不同交易所的永续合约：
+Find BTC perpetual contracts across exchanges:
 
 ```bash
 curl -s "$MB/v1/catalog/perpetuals?exchanges=binance,okx,bybit,bitget&base=BTC&limit=50000" \
@@ -59,9 +62,9 @@ curl -s "$MB/v1/catalog/perpetuals?exchanges=binance,okx,bybit,bitget&base=BTC&l
   | {exchange, contracts: [.contracts[] | {symbol, native_symbol, quote, settle_asset}]}'
 ```
 
-## 2. 查询某交易所全部当前资金费率
+## 2. Query Current Funding Rows
 
-Binance 当前 USDT 永续资金费率，返回简洁字段：
+Return simplified Binance USDT perpetual funding rows:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -69,14 +72,14 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
   | {exchange, symbol, funding_rate_pct, mark_price, index_price, next_funding_time_ms}'
 ```
 
-查看一批交易所是否有 adapter 错误：
+Check row count and exchange-adapter errors:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
 | jq '{rows:(.funding | length), errors}'
 ```
 
-按交易所统计资金费率行数、最低、最高：
+Summarize row count, minimum funding, and maximum funding per exchange:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -90,9 +93,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
     })'
 ```
 
-## 3. 找 Binance 资金费率在 -2% 到 -0.2% 的永续
+## 3. Find Binance Funding Between -2% And -0.2%
 
-这是常见的极端负费率搜索：
+This is a common extreme negative funding search:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -103,7 +106,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
   | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-只输出 symbol，适合做 watchlist：
+Return only symbols for a watchlist:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -113,21 +116,21 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
   | .[].symbol'
 ```
 
-用 Python 示例脚本做同样的事情：
+Use the Python example script for the same filter:
 
 ```bash
 ./examples/funding_extremes.py --exchange binance --quote USDT --min-pct -2 --max-pct -0.2
 ```
 
-JSON 输出，方便给别的程序消费：
+Machine-readable output:
 
 ```bash
 ./examples/funding_extremes.py --exchange binance --quote USDT --min-pct -2 --max-pct -0.2 --json | jq
 ```
 
-## 4. 找多个交易所的极端负费率
+## 4. Search Extreme Negative Funding Across Exchanges
 
-查 Binance、OKX、Bybit、Bitget，区间 `-2%` 到 `-0.2%`：
+Search Binance, OKX, Bybit, and Bitget for `-2%` to `-0.2%`:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -138,7 +141,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-按交易所分组显示：
+Group the results by exchange:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -153,9 +156,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
     })'
 ```
 
-## 5. 找最极端的负费率 Top 20
+## 5. Find The Most Negative Funding Rates
 
-不限定下限，直接找最低的 20 个：
+Show the 20 lowest funding rates without a lower bound:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -166,7 +169,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-只看小于等于 `-0.1%` 的 Top 20：
+Show the 20 lowest rates at or below `-0.1%`:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -178,9 +181,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | {exchange, symbol, funding_rate_pct, mark_price}'
 ```
 
-## 6. 找极端正费率
+## 6. Find Extreme Positive Funding
 
-正费率过高通常代表多头拥挤。下面找 `0.2%` 到 `2%`：
+High positive funding can indicate crowded longs. Search `0.2%` to `2%`:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -191,7 +194,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-找正费率最高 Top 20：
+Show the top 20 positive funding rows:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -202,9 +205,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | {exchange, symbol, funding_rate_pct, mark_price}'
 ```
 
-## 7. 找接近中性的资金费率
+## 7. Find Near-Neutral Funding
 
-例如 `-0.005%` 到 `0.005%`：
+Search Binance contracts with funding between `-0.005%` and `0.005%`:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -215,9 +218,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
   | {exchange, symbol, funding_rate_pct, mark_price}'
 ```
 
-## 8. 查某个 symbol 在多个交易所的资金费率
+## 8. Compare One Symbol Across Exchanges
 
-BTCUSDT 和 ETHUSDT 跨交易所对比：
+Compare BTCUSDT and ETHUSDT across exchanges:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&symbols=BTCUSDT,ETHUSDT&limit=50000" \
@@ -227,7 +230,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&symb
   | {symbol, exchange, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-某个山寨币，例如 AERGOUSDT，在哪些交易所有资金费率：
+Check where a smaller contract such as AERGOUSDT has funding data:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&symbols=AERGOUSDT&limit=50000" \
@@ -237,9 +240,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&symb
   | {symbol, exchange, funding_rate_pct, mark_price, source}'
 ```
 
-## 9. 计算同一 symbol 的跨交易所资金费率差
+## 9. Compute Cross-Exchange Funding Spreads
 
-例如找多交易所都有的 symbol，并计算最高和最低资金费率差：
+Find symbols listed on at least two exchanges and compute max-minus-min funding:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -257,7 +260,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | .[:30]'
 ```
 
-只看资金费率差大于 `0.2%` 的 symbol：
+Show only symbols whose exchange funding spread is at least `0.2%`:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -275,9 +278,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
   | sort_by(-.spread_pct)'
 ```
 
-## 10. 导出 CSV
+## 10. Export CSV Files
 
-导出 Binance `-2%` 到 `-0.2%` 的结果：
+Export Binance contracts with funding between `-2%` and `-0.2%`:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -292,7 +295,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
 > binance_extreme_negative_funding.csv
 ```
 
-导出多个交易所正负极端资金费率：
+Export both positive and negative extreme funding across several exchanges:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -307,9 +310,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
 > extreme_funding.csv
 ```
 
-## 11. 把时间戳转成人类可读时间
+## 11. Convert Funding Timestamps To UTC
 
-`next_funding_time_ms` 是 Unix 毫秒，可以用 `jq` 转 UTC 时间：
+`next_funding_time_ms` is Unix milliseconds:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -330,9 +333,9 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
     }'
 ```
 
-## 12. 找合约存在但资金费率接口没返回的 symbol
+## 12. Find Contracts Missing Funding Rows
 
-这可以帮助判断某交易所的 funding adapter 是否有覆盖缺口。下面以 Binance 为例：
+This helps check whether discovery and funding coverage align for an exchange:
 
 ```bash
 comm -23 \
@@ -342,11 +345,12 @@ comm -23 \
     | jq -r '.funding[].symbol' | sort)
 ```
 
-如果没有输出，说明 discovery 和 funding 返回的 symbol 基本对齐。
+No output usually means the discovered contract universe and funding rows are
+aligned for that exchange and quote filter.
 
-## 13. 生成监控 watchlist 文件
+## 13. Generate Watchlist Files
 
-把 Binance 极端负费率 symbol 写入文件：
+Write Binance extreme negative funding symbols to a plain text file:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
@@ -357,7 +361,7 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
 > watchlist_binance_negative_funding.txt
 ```
 
-把多交易所结果保存为 JSON：
+Save a multi-exchange JSON watchlist:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
@@ -371,26 +375,28 @@ curl -s "$MB/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quot
 > watchlist_negative_funding.json
 ```
 
-## 14. 常见排错
+## 14. Troubleshooting
 
-确认服务是否启动：
+Check whether the service is running:
 
 ```bash
 curl -s "$MB/health" | jq
 ```
 
-确认接口是否有交易所错误：
+Check exchange-adapter errors:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
 | jq '.errors'
 ```
 
-确认返回行数：
+Check returned row count:
 
 ```bash
 curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
 | jq '.funding | length'
 ```
 
-如果你看到 `errors` 非空，不要把空结果直接理解为“没有符合条件的合约”。先看 `errors[]`，确认是否某个交易所请求失败或限流。
+If `errors[]` is non-empty, treat the response as partial. Do not interpret an
+empty filtered result as "no matching contracts" until you have checked whether
+the exchange adapter failed or was rate-limited.

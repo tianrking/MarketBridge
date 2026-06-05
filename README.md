@@ -272,6 +272,11 @@ PYTHONPATH=profiler .venv/bin/python profiler/profile_wallets.py fetch-marketbri
 
 ## Use Downloaded Binaries
 
+Download the latest published version from
+[GitHub Releases](https://github.com/tianrking/MarketBridge/releases/latest).
+The full release history is available at
+[https://github.com/tianrking/MarketBridge/releases](https://github.com/tianrking/MarketBridge/releases).
+
 GitHub Actions builds release packages for:
 
 | Package suffix | Download file | Use when |
@@ -326,7 +331,7 @@ curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 
 For common perpetual-contract and funding-rate searches after the binary is
 running, see
-[docs/perpetual_funding_cookbook.zh-CN.md](docs/perpetual_funding_cookbook.zh-CN.md).
+[docs/perpetual_funding_cookbook.md](docs/perpetual_funding_cookbook.md).
 The binary only needs to stay running; client scripts and `curl` examples call
 the local HTTP API.
 
@@ -897,7 +902,7 @@ filters, watchlists, alerts, and strategy rules belong in the client.
 
 For a larger copy-paste cookbook with common `curl + jq` searches, CSV exports,
 cross-exchange comparisons, and watchlist generation, see
-[docs/perpetual_funding_cookbook.zh-CN.md](docs/perpetual_funding_cookbook.zh-CN.md).
+[docs/perpetual_funding_cookbook.md](docs/perpetual_funding_cookbook.md).
 
 Supported first-pass venues: `binance`, `okx`, `bybit`, `bitget`, `kucoin`,
 `gate`, `mexc`, `bingx`, `bitmart`.

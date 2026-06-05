@@ -121,6 +121,11 @@ REST 轮询不要盲目压低，先确认对应公共 API 的限速。
 
 ## 下载二进制文件
 
+最新版本请从 GitHub Releases 下载：
+[https://github.com/tianrking/MarketBridge/releases/latest](https://github.com/tianrking/MarketBridge/releases/latest)。
+历史版本列表：
+[https://github.com/tianrking/MarketBridge/releases](https://github.com/tianrking/MarketBridge/releases)。
+
 `v0.0.5` 发布包由 GitHub Actions 构建。不同平台下载对应文件：
 
 | 平台 | 下载文件 | 适用场景 |
@@ -176,7 +181,7 @@ curl -s "http://127.0.0.1:8080/v1/market/quotes?symbols=BTCUSDT" | jq
 
 二进制程序跑起来后保持运行即可；后续用 `curl`、`jq` 或示例脚本调用本地
 HTTP API。永续合约和资金费率的常见查询见：
-[永续合约与资金费率常用查询脚本](docs/perpetual_funding_cookbook.zh-CN.md)。
+[Perpetual Contract And Funding-Rate Cookbook](docs/perpetual_funding_cookbook.md)。
 
 ## 从源码运行
 
@@ -541,7 +546,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,bybit,bit
 里配置的 symbol，适合先发现交易所全量永续标的，再在客户端做监控和筛选。
 
 更多可直接复制的常见查询、`curl + jq`、CSV 导出、跨交易所对比和 watchlist
-生成示例见：[永续合约与资金费率常用查询脚本](docs/perpetual_funding_cookbook.zh-CN.md)。
+生成示例见：[Perpetual Contract And Funding-Rate Cookbook](docs/perpetual_funding_cookbook.md)。
 
 第一批支持：`binance`、`okx`、`bybit`、`bitget`、`kucoin`、`gate`、
 `mexc`、`bingx`、`bitmart`。
