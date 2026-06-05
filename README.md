@@ -464,6 +464,8 @@ tables below are a shorter runtime summary.
 | L2 order books | normalized bid/ask levels, best bid/ask, depth metadata | `GET /v1/market/order-books` | `WS /v1/stream?domains=order_book` | source push where available; Binance depth is `100ms` | No |
 | Public trades | price, size, side, trade id, source timestamp | `GET /v1/market/trades` | `WS /v1/stream?domains=trade` | source push where available | No |
 | Funding rates | funding rate, next funding time, mark/index if present | `GET /v1/market/funding` | `WS /v1/stream?domains=funding` | source push or venue poller | No |
+| Perp market discovery | latest public perpetual contract lists by exchange | `GET /v1/catalog/perpetuals`, `GET /v1/catalog/markets` | No direct stream | on-demand public REST | No |
+| On-demand perp funding | all supported current perp funding rows, not limited to configured symbols | `GET /v1/market/perpetual-funding` | No direct stream | on-demand public REST | No |
 | Open interest | OI quantity/notional where venue exposes it | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | source push or venue poller | No |
 | Liquidations | public liquidation events | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | source push where stable public feed exists | No |
 | Klines | SQLite OHLCV from REST backfill and live ticks | `GET /v1/market/klines` | No direct stream | configured intervals, default `1m/5m/15m/1h` | No |
@@ -520,7 +522,7 @@ credential is absent.
 | Spot and perp BBO | Implemented | `GET /v1/market/quotes`, `GET /snapshot`, `WS /v1/stream`, `WS /ws/ticks` | Normalized `bid`, `ask`, `symbol`, `exchange`, and product type. |
 | L2 order books | Implemented where public venue data exists | `GET /v1/market/order-books`, `WS /v1/stream?domains=order_book` | Latest normalized depth snapshots with venue/source metadata. |
 | Public trades | Implemented where public venue data exists | `GET /v1/market/trades`, `WS /v1/stream?domains=trade` | Latest trade cache per venue/symbol plus rolling order-flow metrics. |
-| Perp funding | Implemented where venue provides it | `GET /v1/market/funding`, `GET /funding`, `WS /v1/stream?domains=funding` | Native public feeds and REST pollers; no trading credentials required. |
+| Perp funding | Implemented where venue provides it | `GET /v1/market/funding`, `GET /v1/market/perpetual-funding`, `GET /funding`, `WS /v1/stream?domains=funding` | Live-cache funding endpoints are fastest for configured symbols; on-demand perpetual funding covers supported public REST venues broadly. |
 | Open interest | Implemented where venue provides it | `GET /v1/market/open-interest`, `WS /v1/stream?domains=open_interest` | Native public perp metadata/ticker feeds. |
 | Liquidations | Implemented where venue exposes a stable public feed | `GET /v1/market/liquidations`, `WS /v1/stream?domains=liquidation` | Empty when a venue has no reliable public all-market signal. |
 | Multi-exchange quality | Implemented | `GET /coverage` | Stale ratio, latency percentiles, funding coverage, alerts. |
@@ -629,6 +631,8 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
 | GET | `/v1/catalog/sources` | Implemented public data sources |
+| GET | `/v1/catalog/markets` | On-demand public market/symbol discovery by exchange |
+| GET | `/v1/catalog/perpetuals` | On-demand grouped perpetual contract discovery by exchange |
 | GET | `/v1/catalog/source-roadmap` | External source roadmap inventory and implementation status |
 | GET | `/v1/catalog/domains` | Implemented normalized data domains |
 | GET | `/v1/catalog/instruments` | Instruments currently visible in live caches |
@@ -636,6 +640,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/quotes` | Envelope-based exchange spot/perp quote snapshots |
 | GET | `/v1/market/basis` | Spot-perp basis derived from quote snapshots |
 | GET | `/v1/market/funding` | Funding-rate snapshots from public perp feeds |
+| GET | `/v1/market/perpetual-funding` | On-demand current funding rows for supported perpetual markets |
 | GET | `/v1/market/open-interest` | Open-interest snapshots from public feeds/REST |
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
 | GET | `/v1/market/order-books` | Latest L2 book snapshots |
@@ -776,6 +781,66 @@ curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/health" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" | jq
+```
+
+### `GET /v1/catalog/markets`
+
+On-demand public market discovery. Use this when a client needs the latest
+exchange symbol list rather than only the instruments currently configured for
+live ingestion.
+
+Query params:
+
+- `exchange=binance`, one exchange
+- `exchanges=binance,okx,bybit`, comma-separated exchanges
+- `market=spot|perp|swap`, optional; omit to include spot and perp where supported
+- `quote=USDT`, optional quote filter
+- `base=BTC`, optional base filter
+- `active_only=true|false`, default `true`
+- `limit`, default `5000`, max `50000`
+
+Response fields:
+
+- top level: `version`, `domain`, `supported_exchanges`, `markets`, `errors`
+- `markets[]`: `exchange`, `market`, `symbol`, `native_symbol`, `base`,
+  `quote`, `active`, `status`, `contract_type`, `settle_asset`, `source`
+- `errors[]`: per-exchange adapter failures; an empty result with non-empty
+  `errors` means data retrieval failed for at least one requested venue
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/markets?exchange=binance&market=perp&quote=USDT&limit=20" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/markets?exchanges=okx,bybit,bitget&market=spot&quote=USDT" | jq
+```
+
+### `GET /v1/catalog/perpetuals`
+
+Direct answer to "which perpetual contracts does this exchange list?" The
+response is grouped by exchange so clients can first discover the full
+perpetual universe, then choose their own watchlist and monitoring logic.
+
+Query params:
+
+- `exchange=bybit` or `exchanges=binance,okx,bybit`
+- `quote=USDT`, optional
+- `base=BTC`, optional
+- `active_only=true|false`, default `true`
+- `limit`, per-exchange result cap, default `50000`
+
+Response fields:
+
+- top level: `version`, `domain`, `supported_exchanges`, `exchanges`, `errors`
+- `exchanges[]`: `exchange`, `contracts_total`, `contracts_returned`,
+  `base_assets_total`, `base_assets`, `contracts`
+- `contracts[]`: same listing fields as `/v1/catalog/markets`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=okx&quote=USDT&limit=50" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,bybit,bitget&quote=USDT&limit=10" | jq
 ```
 
 ### `GET /v1/market/quotes`
@@ -815,6 +880,47 @@ curl -s "http://127.0.0.1:8080/v1/market/open-interest?symbols=BTCUSDT&exchanges
 curl -s "http://127.0.0.1:8080/v1/market/order-books?symbols=BTCUSDT&market=perp&exchanges=binance,okx" | jq
 curl -s "http://127.0.0.1:8080/v1/market/trades?symbols=BTCUSDT&market=perp&exchanges=binance,okx" | jq
 curl -s "http://127.0.0.1:8080/v1/market/liquidations?symbols=BTCUSDT&exchanges=binance,bybit,okx" | jq
+```
+
+### `GET /v1/market/perpetual-funding`
+
+On-demand current funding rows for supported perpetual markets. This endpoint
+pulls public REST data directly and is not limited to the symbols configured in
+the live runtime. MarketBridge returns raw normalized data only; threshold
+filters, watchlists, alerts, and strategy rules belong in the client.
+
+Supported first-pass venues: `binance`, `okx`, `bybit`, `bitget`, `kucoin`,
+`gate`, `mexc`, `bingx`, `bitmart`.
+
+Query params:
+
+- `exchange=bybit` or `exchanges=binance,okx,bybit`
+- `symbols=BTCUSDT,ETHUSDT`, optional normalized symbols
+- `quote=USDT`, optional quote filter
+- `active_only=true|false`, default `true`
+- `limit`, default `5000`, max `50000`
+
+Response fields:
+
+- top level: `version`, `domain`, `supported_exchanges`, `funding`, `errors`
+- `funding[]`: `exchange`, `symbol`, `native_symbol`, `funding_rate`,
+  `funding_rate_pct`, `next_funding_time_ms`, `mark_price`, `index_price`,
+  `active`, `source`, `ts_ms`
+- `funding_rate` is the decimal rate, for example `-0.001`
+- `funding_rate_pct` is already percent, for example `-0.1` means `-0.1%`
+
+Examples:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=USDT&limit=50000" | jq
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bitget&symbols=BTCUSDT,ETHUSDT" | jq
+```
+
+Client-side extreme negative funding example:
+
+```bash
+./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
+./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
 ```
 
 ### `GET /v1/market/klines`

@@ -11,6 +11,9 @@ use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper, parse_csv_vec}
 use crate::core::schema::ProductType;
 use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
+use crate::market_discovery::{
+    PerpetualFundingQuery, fetch_perpetual_funding, supported_perpetual_funding_exchanges,
+};
 use crate::order_flow::{FootprintQuery, OrderFlowQuery};
 #[derive(Debug, Deserialize, Default)]
 pub struct MarketQuotesQuery {
@@ -218,6 +221,20 @@ pub async fn v1_market_funding(
         |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
     );
     Json(serde_json::json!({"version":"v1","domain":"market_funding","funding":rows}))
+}
+
+pub async fn v1_market_perpetual_funding(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PerpetualFundingQuery>,
+) -> impl IntoResponse {
+    let (rows, errors) = fetch_perpetual_funding(&state.http, &q).await;
+    Json(serde_json::json!({
+        "version":"v1",
+        "domain":"market_perpetual_funding",
+        "supported_exchanges": supported_perpetual_funding_exchanges(),
+        "funding": rows,
+        "errors": errors
+    }))
 }
 
 pub async fn v1_market_open_interest(

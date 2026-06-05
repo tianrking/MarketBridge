@@ -258,11 +258,15 @@ Current endpoints can remain during migration. New endpoints should use `/v1`.
 
 ```text
 GET /v1/catalog/sources
+GET /v1/catalog/markets
+GET /v1/catalog/perpetuals
 GET /v1/catalog/instruments
 GET /v1/catalog/domains
 ```
 
-Purpose: discover what MarketBridge can provide right now.
+Purpose: discover what MarketBridge can provide right now. The `markets` and
+`perpetuals` endpoints perform on-demand public REST discovery for clients that
+need the current exchange universe rather than only live-cache instruments.
 
 ### Market Data
 
@@ -271,12 +275,14 @@ GET /v1/market/quotes
 GET /v1/market/order-books
 GET /v1/market/trades
 GET /v1/market/funding
+GET /v1/market/perpetual-funding
 GET /v1/market/open-interest
 GET /v1/market/liquidations
 ```
 
 Purpose: CEX and DEX market data by source, venue, asset, product, symbol, and
-instrument.
+instrument. `/v1/market/perpetual-funding` is an on-demand raw data endpoint;
+client-side scripts apply funding-rate thresholds, watchlists, and alerts.
 
 Current public connector coverage is tracked in
 [`feature_inventory.md`](feature_inventory.md). That matrix is the source of

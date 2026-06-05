@@ -316,6 +316,8 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | L2 订单簿 | bids/asks levels、best bid/ask、深度元数据 | `GET /v1/market/order-books` | `WS /v1/stream?domains=order_book` | 有 WS 就按源推送；Binance depth 为 `100ms` | 否 |
 | 公共成交 trades | price、size、side、trade id、source timestamp | `GET /v1/market/trades` | `WS /v1/stream?domains=trade` | 有 WS 就按源推送 | 否 |
 | Funding 资金费率 | funding rate、next funding、mark/index | `GET /v1/market/funding` | `WS /v1/stream?domains=funding` | WS 或交易所 poller | 否 |
+| 永续合约发现 | 某交易所当前公开列出的永续合约清单 | `GET /v1/catalog/perpetuals`、`GET /v1/catalog/markets` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
+| 按需永续资金费率 | 支持交易所的当前永续资金费率全量行，不限于配置 symbol | `GET /v1/market/perpetual-funding` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | Open interest | OI 数量/名义金额 | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | WS 或交易所 poller | 否 |
 | Liquidations 爆仓 | 公共强平事件 | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | 有稳定公共 feed 才推送 | 否 |
 | Klines K 线 | SQLite OHLCV，REST 回补 + live ticks 聚合 | `GET /v1/market/klines` | 暂无直接流 | 默认 `1m/5m/15m/1h` | 否 |
@@ -409,6 +411,8 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/` | 服务元信息。 |
 | GET | `/health` | 健康检查。 |
 | GET | `/v1/catalog/sources` | 数据源启用状态和 API key 状态。 |
+| GET | `/v1/catalog/markets` | 按需查询交易所公开 market/symbol 清单。 |
+| GET | `/v1/catalog/perpetuals` | 按交易所分组查询永续合约清单。 |
 | GET | `/v1/catalog/source-roadmap` | 外部数据源清单和 MarketBridge 实现状态。 |
 | GET | `/v1/catalog/domains` | 标准化 domain 清单。 |
 | GET | `/v1/catalog/instruments` | 当前缓存中可见的 instruments。 |
@@ -416,6 +420,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/quotes` | spot/perp/DeFi/TradFi/aggregate quote snapshots。 |
 | GET | `/v1/market/basis` | spot-perp basis。 |
 | GET | `/v1/market/funding` | funding rate。 |
+| GET | `/v1/market/perpetual-funding` | 按需查询支持交易所的当前永续资金费率。 |
 | GET | `/v1/market/open-interest` | open interest。 |
 | GET | `/v1/market/liquidations` | liquidation events。 |
 | GET | `/v1/market/order-books` | L2 order book snapshots。 |
@@ -462,6 +467,107 @@ curl -s "http://127.0.0.1:8080/v1/catalog/source-roadmap" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/domains" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/instruments" | jq
 curl -s "http://127.0.0.1:8080/v1/catalog/health" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=binance&quote=USDT&limit=20" | jq
+```
+
+### 永续合约发现与按需资金费率
+
+这组接口是数据面能力，不是策略扫描器。MarketBridge 负责适配不同交易所
+公开 REST 格式并返回统一字段；客户端自己决定 watchlist、阈值、告警和监控逻辑。
+
+#### `GET /v1/catalog/markets`
+
+查询某个或多个交易所的公开 market/symbol 清单。
+
+参数：
+
+- `exchange=binance`：单个交易所。
+- `exchanges=binance,okx,bybit`：多个交易所。
+- `market=spot|perp|swap`：可选，不传时包含支持的 spot/perp。
+- `quote=USDT`：可选 quote 过滤。
+- `base=BTC`：可选 base 过滤。
+- `active_only=true|false`：默认 `true`。
+- `limit`：默认 `5000`，最大 `50000`。
+
+返回：
+
+- 顶层字段：`version`、`domain`、`supported_exchanges`、`markets`、`errors`。
+- `markets[]`：`exchange`、`market`、`symbol`、`native_symbol`、`base`、
+  `quote`、`active`、`status`、`contract_type`、`settle_asset`、`source`。
+- `errors[]`：按交易所返回适配器错误；如果结果为空但 `errors` 不为空，
+  表示至少有一个交易所请求失败，不应误判为“没有标的”。
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/markets?exchange=binance&market=perp&quote=USDT&limit=20" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/markets?exchanges=okx,bybit,bitget&market=spot&quote=USDT" | jq
+```
+
+#### `GET /v1/catalog/perpetuals`
+
+直接回答“某个平台现在有哪些永续合约”。返回结果按交易所分组，适合客户端
+先拿全量 universe，再选择自己要监控的 symbol。
+
+参数：
+
+- `exchange=bybit` 或 `exchanges=binance,okx,bybit`。
+- `quote=USDT`：可选。
+- `base=BTC`：可选。
+- `active_only=true|false`：默认 `true`。
+- `limit`：每个交易所的返回上限，默认 `50000`。
+
+返回：
+
+- 顶层字段：`version`、`domain`、`supported_exchanges`、`exchanges`、`errors`。
+- `exchanges[]`：`exchange`、`contracts_total`、`contracts_returned`、
+  `base_assets_total`、`base_assets`、`contracts`。
+- `contracts[]`：字段同 `/v1/catalog/markets` 的 `markets[]`。
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=okx&quote=USDT&limit=50" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,bybit,bitget&quote=USDT&limit=10" | jq
+```
+
+#### `GET /v1/market/perpetual-funding`
+
+按需查询支持交易所的当前永续资金费率。这个接口不局限于 `config.yaml`
+里配置的 symbol，适合先发现交易所全量永续标的，再在客户端做监控和筛选。
+
+第一批支持：`binance`、`okx`、`bybit`、`bitget`、`kucoin`、`gate`、
+`mexc`、`bingx`、`bitmart`。
+
+参数：
+
+- `exchange=bybit` 或 `exchanges=binance,okx,bybit`。
+- `symbols=BTCUSDT,ETHUSDT`：可选，只看指定标准化 symbol。
+- `quote=USDT`：可选。
+- `active_only=true|false`：默认 `true`。
+- `limit`：默认 `5000`，最大 `50000`。
+
+返回：
+
+- 顶层字段：`version`、`domain`、`supported_exchanges`、`funding`、`errors`。
+- `funding[]`：`exchange`、`symbol`、`native_symbol`、`funding_rate`、
+  `funding_rate_pct`、`next_funding_time_ms`、`mark_price`、`index_price`、
+  `active`、`source`、`ts_ms`。
+- `funding_rate` 是小数，例如 `-0.001`。
+- `funding_rate_pct` 已经是百分比，例如 `-0.1` 表示 `-0.1%`。
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=USDT&limit=50000" | jq
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bitget&symbols=BTCUSDT,ETHUSDT" | jq
+```
+
+客户端筛选资金费率在 `-2%` 到 `-0.1%` 的永续合约：
+
+```bash
+./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
+./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
 ```
 
 ### Spot-perp basis

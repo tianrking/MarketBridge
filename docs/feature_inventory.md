@@ -28,8 +28,11 @@ Status labels:
 |---|---|---:|---:|---|
 | Market quotes | `/v1/market/quotes` | implemented | mixed | CEX, DeFi, TradFi, CoinGecko, CoinMarketCap. |
 | Source roadmap | `/v1/catalog/source-roadmap` | implemented | keyless | External source expansion inventory; not runtime data coverage. |
+| Market discovery | `/v1/catalog/markets` | implemented | keyless | On-demand public market/symbol discovery for supported venues. |
+| Perpetual discovery | `/v1/catalog/perpetuals` | implemented | keyless | Grouped perpetual contract discovery by exchange for client-side universe selection. |
 | Spot-perp basis | `/v1/market/basis` | implemented | keyless | Derived from current spot/perp quote snapshots per exchange/symbol. |
 | Funding rates | `/v1/market/funding` | implemented | mixed | Native CEX feeds plus future aggregate feeds. |
+| On-demand perpetual funding | `/v1/market/perpetual-funding` | implemented | keyless | Current public REST funding rows for supported perpetual venues; not limited to configured symbols. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |

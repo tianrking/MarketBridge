@@ -60,6 +60,53 @@ curl -s "http://127.0.0.1:8080/v1/market/funding?symbols=BTCUSDT" | jq
 curl -s "http://127.0.0.1:8080/v1/market/open-interest?symbols=BTCUSDT" | jq
 ```
 
+## Discover Perpetual Contracts And Funding
+
+Use these endpoints when a client needs the latest exchange universe instead of
+only symbols configured in `config.yaml`. MarketBridge returns raw normalized
+data; clients own threshold filters, watchlists, monitoring, and alerting.
+
+List all USDT perpetual contracts for one exchange:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=bybit&quote=USDT&limit=50" | jq
+```
+
+List grouped perpetual contracts across several exchanges:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=10" | jq
+```
+
+Query current on-demand funding rows:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=USDT&limit=50000" | jq
+```
+
+Filter extreme negative funding in the client, for example `-2%` to `-0.1%`:
+
+```bash
+./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
+```
+
+Machine-readable output:
+
+```bash
+./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
+```
+
+Important response fields:
+
+- `/v1/catalog/perpetuals`: `exchanges[].contracts_total`,
+  `exchanges[].base_assets`, `exchanges[].contracts[]`.
+- `/v1/market/perpetual-funding`: `funding[].funding_rate`,
+  `funding[].funding_rate_pct`, `funding[].mark_price`,
+  `funding[].next_funding_time_ms`.
+- `funding_rate_pct` is already percent; `-0.1` means `-0.1%`.
+- Non-empty `errors[]` means one or more exchange adapters failed and the
+  result should be treated as partial.
+
 Books and trades:
 
 ```bash

@@ -65,6 +65,8 @@ Primary endpoints:
 | L2 order books | `/v1/market/order-books` | `order_book` | Mixed by source, mostly keyless |
 | Trades | `/v1/market/trades` | `trade` | Mixed by source, mostly keyless |
 | Funding rates | `/v1/market/funding` | `funding` | Mixed by source, mostly keyless |
+| Perp contract discovery | `/v1/catalog/perpetuals`, `/v1/catalog/markets` | none | Keyless where public REST exists |
+| On-demand perp funding | `/v1/market/perpetual-funding` | none | Keyless where public REST exists |
 | Open interest | `/v1/market/open-interest` | `open_interest` | Mixed by source, mostly keyless |
 | Liquidations | `/v1/market/liquidations` | `liquidation` | Keyless where public feeds exist |
 
@@ -76,6 +78,12 @@ Implemented keyless CEX/perp sources include:
 | Hyperliquid / dYdX / Backpack / MEXC / BingX / Bitget / Bitmart | Public perp/spot feeds; liquidation support only where stable public data exists. | keyless |
 | BitMEX / Deribit / Phemex / CoinEx / Crypto.com / WOO X / BloFin / Aevo / Pacifica / GRVT / Injective / Derive / Evedex | Public derivatives data paths: books/trades/funding/OI by venue capability. | keyless |
 | Coinbase / Kraken / KuCoin / Gemini / Bithumb / Bitvavo / bitFlyer / bitbank / Coincheck / Coinone / Upbit / Bullish | Public spot or spot+futures market data by venue. | keyless |
+
+For broad client-side discovery, use `/v1/catalog/perpetuals` to retrieve the
+latest public perpetual contract universe by exchange, then use
+`/v1/market/perpetual-funding` to retrieve current funding rows. These endpoints
+are on-demand REST adapters and are intentionally separate from strategy
+thresholds or alerting logic.
 | Gate / HTX / Bitfinex / Bitstamp / Bitrue / AscendEX / BTC Markets / Dexalot / Vertex / XRPL / Cube / Foxbit / NDAX | Long-tail CEX/CLOB/DEX data where public contracts are stable. | keyless |
 
 Keyed CEX/perp sources:

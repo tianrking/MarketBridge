@@ -109,6 +109,7 @@ Short version:
 |---|---|---|---|---|
 | Quotes | `/v1/market/quotes` | CEX/DeFi/TradFi/aggregates | raw normalized | Current latest quote snapshots. |
 | Funding | `/v1/market/funding` | CEX perp feeds | raw normalized | Latest funding-rate rows. |
+| Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; not limited to configured symbols. |
 | Open interest | `/v1/market/open-interest` | CEX perp feeds | raw normalized | Latest OI rows. |
 | Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
@@ -400,6 +401,8 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/` | Service metadata. |
 | GET | `/health` | Service liveness. |
 | GET | `/v1/catalog/sources` | Source availability and API-key status. |
+| GET | `/v1/catalog/markets` | On-demand platform market/symbol discovery. |
+| GET | `/v1/catalog/perpetuals` | Grouped on-demand perpetual contract discovery by exchange. |
 | GET | `/v1/catalog/source-roadmap` | External source expansion inventory with MarketBridge implementation status; reference-only, not a runtime dependency. |
 | GET | `/v1/catalog/domains` | Normalized domain inventory. |
 | GET | `/v1/catalog/instruments` | Instruments visible in live caches. |
@@ -407,6 +410,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/quotes` | Spot/perp/DeFi/TradFi/aggregate quote snapshots. |
 | GET | `/v1/market/basis` | Spot-perp basis derived from quote snapshots. |
 | GET | `/v1/market/funding` | Funding rates. |
+| GET | `/v1/market/perpetual-funding` | On-demand current funding rows for perpetual markets. |
 | GET | `/v1/market/open-interest` | Open interest. |
 | GET | `/v1/market/liquidations` | Liquidation events. |
 | GET | `/v1/market/order-books` | L2 order books. |
@@ -459,6 +463,157 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/metrics` | Prometheus metrics. |
 | WS | `/v1/stream` | Domain-filtered live stream. |
 | WS | `/ws/ticks` | Legacy quote tick stream. |
+
+## Market Discovery And Raw Perpetual Data
+
+Use `/v1/catalog/markets` when you need the latest public market list from a
+venue instead of only the symbols currently configured for live ingestion.
+
+Query params:
+
+| Param | Required | Description |
+|---|---:|---|
+| `exchange` | no | Single exchange id, for example `binance`. Use exactly one of `exchange` or `exchanges` for targeted discovery. |
+| `exchanges` | no | Comma-separated exchange ids, for example `binance,okx,bybit`. |
+| `market` | no | `spot`, `perp`, or `swap`; omit to include all supported market types for the venue. |
+| `quote` | no | Quote filter such as `USDT`. |
+| `base` | no | Base asset filter such as `BTC`. |
+| `active_only` | no | `true` by default. Set `false` to include inactive/non-trading listings when the venue exposes them. |
+| `limit` | no | Default `5000`, max `50000`. |
+
+Response fields:
+
+| Field | Meaning |
+|---|---|
+| `version` | API version, currently `v1`. |
+| `domain` | `catalog_markets`. |
+| `supported_exchanges` | Exchanges implemented by this on-demand adapter layer. |
+| `markets[]` | Normalized listing rows. |
+| `errors[]` | Per-exchange request or parsing failures. Non-empty errors mean the client should treat the response as partial. |
+
+`markets[]` rows include:
+
+| Field | Meaning |
+|---|---|
+| `exchange` | Normalized exchange id. |
+| `market` | `spot` or `perp`. |
+| `symbol` | Normalized symbol, usually `BASEQUOTE` such as `BTCUSDT`. |
+| `native_symbol` | Venue-native symbol/id. |
+| `base`, `quote` | Parsed assets when available. |
+| `active` | Whether the venue reports the market as active/trading. |
+| `status` | Venue status string when available. |
+| `contract_type` | Contract type such as `PERPETUAL` when available. |
+| `settle_asset` | Settlement or margin asset when available. |
+| `source` | Public REST URL used by the adapter. |
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/markets?exchange=binance&market=perp&quote=USDT&limit=20" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/markets?exchanges=okx,bybit,bitget&market=spot&quote=USDT" | jq
+```
+
+Use `/v1/catalog/perpetuals` for the direct "which perpetual contracts does this
+exchange list?" question. Each exchange adapter handles its own native REST
+format; the response is grouped by exchange and includes normalized symbols,
+native symbols, and unique base assets.
+
+Query params:
+
+| Param | Required | Description |
+|---|---:|---|
+| `exchange` | no | Single exchange id. |
+| `exchanges` | no | Comma-separated exchange ids. |
+| `quote` | no | Quote filter such as `USDT`. |
+| `base` | no | Base filter such as `BTC`. |
+| `active_only` | no | `true` by default. |
+| `limit` | no | Per-exchange returned contract cap, default `50000`. |
+
+Response fields:
+
+| Field | Meaning |
+|---|---|
+| `version` | API version, currently `v1`. |
+| `domain` | `catalog_perpetuals`. |
+| `supported_exchanges` | Exchanges implemented by this on-demand adapter layer. |
+| `exchanges[]` | One grouped result per exchange. |
+| `errors[]` | Per-exchange failures; non-empty errors indicate partial data. |
+
+`exchanges[]` rows include:
+
+| Field | Meaning |
+|---|---|
+| `exchange` | Normalized exchange id. |
+| `contracts_total` | Total matching contracts before the per-exchange `limit` is applied. |
+| `contracts_returned` | Number of rows returned in `contracts`. |
+| `base_assets_total` | Unique base asset count. |
+| `base_assets` | Sorted unique base assets. |
+| `contracts` | Listing rows with the same fields as `/v1/catalog/markets`. |
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchange=okx&quote=USDT" | jq
+curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,bybit,bitget&quote=USDT" | jq
+```
+
+Use `/v1/market/perpetual-funding` to retrieve current funding rows for those
+perpetual markets. MarketBridge returns the raw normalized data; clients should
+apply their own thresholds, watchlists, alerting, and monitoring logic.
+
+Query params:
+
+| Param | Required | Description |
+|---|---:|---|
+| `exchange` | no | Single exchange id. |
+| `exchanges` | no | Comma-separated exchange ids. |
+| `symbols` | no | Comma-separated normalized symbols, e.g. `BTCUSDT,ETHUSDT`. |
+| `quote` | no | Quote filter such as `USDT`. |
+| `active_only` | no | `true` by default. |
+| `limit` | no | Default `5000`, max `50000`. |
+
+Response fields:
+
+| Field | Meaning |
+|---|---|
+| `version` | API version, currently `v1`. |
+| `domain` | `market_perpetual_funding`. |
+| `supported_exchanges` | Exchanges implemented by this on-demand funding adapter layer. |
+| `funding[]` | Current funding rows. |
+| `errors[]` | Per-exchange failures; non-empty errors indicate partial data. |
+
+`funding[]` rows include:
+
+| Field | Meaning |
+|---|---|
+| `exchange` | Normalized exchange id. |
+| `symbol` | Normalized symbol, usually `BASEQUOTE`. |
+| `native_symbol` | Venue-native symbol/id. |
+| `funding_rate` | Decimal funding rate, e.g. `-0.001`. |
+| `funding_rate_pct` | Percent funding rate, e.g. `-0.1` means `-0.1%`. |
+| `next_funding_time_ms` | Next funding timestamp in Unix milliseconds when available. |
+| `mark_price`, `index_price` | Venue mark/index price when available. |
+| `active` | Whether the venue reports the contract as active/trading when available. |
+| `source` | Public REST URL used by the adapter. |
+| `ts_ms` | MarketBridge fetch/normalization timestamp in Unix milliseconds. |
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=USDT&limit=5000" | jq
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bitget&symbols=BTCUSDT,ETHUSDT" | jq
+```
+
+For a client-side example that filters a specified exchange for extreme negative
+funding, use:
+
+```bash
+./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
+./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
+```
+
+The example script checks `/health`, retries transient HTTP/network failures,
+honors `MARKETBRIDGE_API_KEY`, reports exchange-level adapter errors, and can
+fail hard on partial venue errors with `--fail-on-exchange-errors`.
+
+Supported first-pass discovery/funding venues are Binance, OKX, Bybit, Bitget,
+KuCoin, Gate, MEXC, BingX, and Bitmart. Existing live-cache endpoints such as
+`/v1/market/funding` remain faster for configured symbols; the on-demand
+perpetual endpoints are for broad data discovery and client-side selection.
 
 ## Recommended Research Order
 

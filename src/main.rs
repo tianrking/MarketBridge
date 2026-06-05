@@ -13,6 +13,7 @@ mod event_bus;
 mod event_snapshots;
 mod klines;
 mod load_test;
+mod market_discovery;
 mod metrics;
 mod onchain;
 mod order_flow;

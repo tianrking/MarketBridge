@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use serde::Serialize;
 
@@ -11,6 +11,10 @@ use crate::catalog::{domain_catalog, health_status};
 use crate::deribit_cache::DeribitOptionFilter;
 use crate::domains::options::chain::envelope_from_deribit_summary;
 use crate::domains::prediction::book::envelope_from_polymarket_book;
+use crate::market_discovery::{
+    MarketDiscoveryQuery, PerpetualDiscoveryQuery, discover_markets, discover_perpetuals,
+    supported_market_exchanges,
+};
 use crate::source_roadmap;
 
 #[derive(Debug, Serialize)]
@@ -27,6 +31,34 @@ pub async fn sources(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
         "sources": state.source_catalog.clone()
+    }))
+}
+
+pub async fn markets(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<MarketDiscoveryQuery>,
+) -> impl IntoResponse {
+    let (markets, errors) = discover_markets(&state.http, &q).await;
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "catalog_markets",
+        "supported_exchanges": supported_market_exchanges(),
+        "markets": markets,
+        "errors": errors
+    }))
+}
+
+pub async fn perpetuals(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PerpetualDiscoveryQuery>,
+) -> impl IntoResponse {
+    let (exchanges, errors) = discover_perpetuals(&state.http, &q).await;
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "catalog_perpetuals",
+        "supported_exchanges": supported_market_exchanges(),
+        "exchanges": exchanges,
+        "errors": errors
     }))
 }
 
