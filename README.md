@@ -88,6 +88,9 @@ The consumer-facing endpoint map is maintained in
 The full documentation index is maintained in
 [docs/README.md](docs/README.md).
 
+The large copy-paste query cookbook is maintained in
+[docs/query_examples.md](docs/query_examples.md).
+
 The current performance review and next optimization roadmap are maintained in
 [docs/performance_review.md](docs/performance_review.md).
 
@@ -863,6 +866,9 @@ filters, watchlists, alerts, and strategy rules belong in the client.
 For a larger copy-paste cookbook with common `curl + jq` searches, CSV exports,
 cross-exchange comparisons, and watchlist generation, see
 [docs/perpetual_funding_cookbook.md](docs/perpetual_funding_cookbook.md).
+For a broader 100+ example reference across symbols, exchanges, price change,
+basis, order flow, liquidations, exports, and operations, see
+[docs/query_examples.md](docs/query_examples.md).
 
 Supported first-pass venues: `binance`, `okx`, `bybit`, `bitget`, `kucoin`,
 `gate`, `mexc`, `bingx`, `bitmart`.

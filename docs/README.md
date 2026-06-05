@@ -19,6 +19,7 @@ All releases:
 |---|---|
 | [`data_interfaces.md`](data_interfaces.md) | Main API contract, binary quick start, endpoint list, query parameters, and response-field notes. Start here when integrating a client. |
 | [`usage_full.md`](usage_full.md) | End-to-end usage guide for running MarketBridge, querying current snapshots, discovering perpetual contracts, persisting selected data, and using websocket streams. |
+| [`query_examples.md`](query_examples.md) | Large copy-paste query cookbook with 100+ examples for symbols, exchanges, funding, price change, basis, order flow, liquidations, exports, and operations. |
 | [`data_sources.md`](data_sources.md) | Operator guide for source families, API-key requirements, CEX/perp coverage, DeFi, macro, sentiment, on-chain, and websocket source notes. |
 | [`architecture.md`](architecture.md) | System architecture, event model, runtime boundaries, catalog endpoints, API surface, and extension guidelines. |
 
@@ -26,6 +27,7 @@ All releases:
 
 | Document | Purpose |
 |---|---|
+| [`query_examples.md`](query_examples.md) | Broad scenario cookbook covering common searches across funding, price change, exchange coverage, symbol discovery, exports, and monitoring setup. |
 | [`perpetual_funding_cookbook.md`](perpetual_funding_cookbook.md) | Copy-paste `curl + jq` cookbook for perpetual contract discovery, funding-rate range searches, cross-exchange comparisons, CSV exports, and watchlist generation. |
 | [`squeeze_and_exhaustion_examples.md`](squeeze_and_exhaustion_examples.md) | Read-only symbol-level squeeze and exhaustion-short monitoring examples, including current data dimensions and known gaps. |
 

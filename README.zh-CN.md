@@ -53,6 +53,7 @@ MarketBridge 不负责：
 
 深入阅读：
 [`docs/README.md`](docs/README.md)、
+[`docs/query_examples.md`](docs/query_examples.md)、
 [`docs/architecture.md`](docs/architecture.md)、
 [`docs/data_interfaces.md`](docs/data_interfaces.md)。
 
@@ -493,6 +494,10 @@ Base URL：`http://127.0.0.1:8080`
 
 ## 常用接口示例
 
+更多“找币、找交易所、找资金费率、找涨跌幅、跨交易所对比、导出 CSV、
+生成 watchlist”的复制即用命令见
+[`docs/query_examples.md`](docs/query_examples.md)。
+
 ### Quote
 
 ```bash
@@ -578,6 +583,8 @@ curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,bybit,bit
 
 更多可直接复制的常见查询、`curl + jq`、CSV 导出、跨交易所对比和 watchlist
 生成示例见：[Perpetual Contract And Funding-Rate Cookbook](docs/perpetual_funding_cookbook.md)。
+更完整的 100+ 条场景化查询见
+[`docs/query_examples.md`](docs/query_examples.md)。
 
 第一批支持：`binance`、`okx`、`bybit`、`bitget`、`kucoin`、`gate`、
 `mexc`、`bingx`、`bitmart`。
