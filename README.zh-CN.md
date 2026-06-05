@@ -51,7 +51,15 @@ MarketBridge 不负责：
 
 下游项目，例如 `PolyAlpha`，应该调用 MarketBridge 获取数据，然后在自己的策略层做因子验证、paper decision、PnL 统计和实盘执行。
 
+深入阅读：
+[`docs/README.md`](docs/README.md)、
+[`docs/architecture.md`](docs/architecture.md)、
+[`docs/data_interfaces.md`](docs/data_interfaces.md)。
+
 ## 系统架构
+
+更完整的架构、事件模型、API 边界和扩展方式见
+[`docs/architecture.md`](docs/architecture.md)。
 
 ```mermaid
 flowchart LR
@@ -234,6 +242,10 @@ $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 
 ## 配置说明
 
+完整的运行配置、接口契约和二进制使用流程见
+[`docs/data_interfaces.md`](docs/data_interfaces.md) 与
+[`docs/usage_full.md`](docs/usage_full.md)。
+
 默认配置文件：`config.yaml`
 
 发布包中有三个配置：
@@ -322,6 +334,11 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 - 交易所没有稳定公共端点的数据，不会被伪造；会在文档中标成 `n/a` 或 `partial`。
 
 ## 已实现的数据源
+
+覆盖矩阵、数据源说明和缺口审计分别见
+[`docs/feature_inventory.md`](docs/feature_inventory.md)、
+[`docs/data_sources.md`](docs/data_sources.md)、
+[`docs/ccxt_parity_audit.md`](docs/ccxt_parity_audit.md)。
 
 完整运行矩阵以 [`docs/feature_inventory.md`](docs/feature_inventory.md) 为准。
 面向使用者的资料源说明以 [`docs/data_sources.md`](docs/data_sources.md) 为准。
@@ -422,6 +439,10 @@ curl -s "http://127.0.0.1:8080/polymarket/midpoints?token_ids=YES_TOKEN,NO_TOKEN
 - Etherscan
 
 ## API 总览
+
+完整 API 合约、参数和返回字段见
+[`docs/data_interfaces.md`](docs/data_interfaces.md)；完整使用路径见
+[`docs/usage_full.md`](docs/usage_full.md)。
 
 Base URL：`http://127.0.0.1:8080`
 
@@ -685,6 +706,10 @@ curl -s "http://127.0.0.1:8080/coverage?market=perp&symbols=BTCUSDT" | jq
 
 ## WebSocket
 
+WebSocket domain、snapshot streaming 和连接模型的细节见
+[`docs/data_interfaces.md`](docs/data_interfaces.md) 与
+[`docs/architecture.md`](docs/architecture.md)。
+
 推荐使用 `/v1/stream`。
 
 支持 domain：
@@ -708,6 +733,9 @@ wscat -c "ws://127.0.0.1:8080/v1/stream?domains=order_book,trade&symbols=BTCUSDT
 ```
 
 ## 性能与本地压测
+
+性能复盘、事件广播、序列化和缓存扫描优化细节见
+[`docs/performance_review.md`](docs/performance_review.md)。
 
 当前高频路径已经做了几件关键优化：
 

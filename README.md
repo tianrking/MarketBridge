@@ -85,6 +85,9 @@ domain model.
 The consumer-facing endpoint map is maintained in
 [docs/data_interfaces.md](docs/data_interfaces.md).
 
+The full documentation index is maintained in
+[docs/README.md](docs/README.md).
+
 The current performance review and next optimization roadmap are maintained in
 [docs/performance_review.md](docs/performance_review.md).
 
