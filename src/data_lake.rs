@@ -5,10 +5,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use arrow_array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
+use arrow_ipc::writer::FileWriter;
 use arrow_schema::{DataType, Field, Schema};
-use parquet::arrow::ArrowWriter;
-use parquet::basic::Compression;
-use parquet::file::properties::WriterProperties;
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 
@@ -207,14 +205,14 @@ fn persist_klines_blocking(
     let tx = conn.transaction()?;
     let mut written = 0;
     for partition in partitions {
-        let path = partition_path(root_dir, &partition.key, "parquet");
+        let path = partition_path(root_dir, &partition.key, "arrow");
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let stats = quality_stats(&partition.rows, &partition.key.interval);
-        write_parquet(&path, &partition.rows)?;
+        write_arrow_ipc(&path, &partition.rows)?;
         let bytes = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
-        upsert_manifest(&tx, &partition.key, &path, "parquet", bytes, &stats)?;
+        upsert_manifest(&tx, &partition.key, &path, "arrow-ipc", bytes, &stats)?;
         written += 1;
     }
     tx.commit()?;
@@ -255,7 +253,7 @@ fn partition_klines(rows: Vec<KlineBar>, candle_type: String) -> Vec<PartitionWr
     grouped.into_values().collect()
 }
 
-fn write_parquet(path: &Path, rows: &[KlineBar]) -> Result<()> {
+fn write_arrow_ipc(path: &Path, rows: &[KlineBar]) -> Result<()> {
     let schema = Arc::new(Schema::new(vec![
         Field::new("exchange", DataType::Utf8, false),
         Field::new("market", DataType::Utf8, false),
@@ -332,12 +330,9 @@ fn write_parquet(path: &Path, rows: &[KlineBar]) -> Result<()> {
         ],
     )?;
     let file = File::create(path)?;
-    let props = WriterProperties::builder()
-        .set_compression(Compression::SNAPPY)
-        .build();
-    let mut writer = ArrowWriter::try_new(file, schema, Some(props))?;
+    let mut writer = FileWriter::try_new(file, &schema)?;
     writer.write(&batch)?;
-    writer.close()?;
+    writer.finish()?;
     Ok(())
 }
 
@@ -720,6 +715,36 @@ mod tests {
         assert_eq!(stats.duplicate_count, 1);
         assert_eq!(stats.gap_count, 1);
         assert_eq!(stats.coverage_ratio, Some(0.75));
+    }
+
+    #[test]
+    fn persist_klines_writes_arrow_ipc_manifest() -> Result<()> {
+        let root = std::env::temp_dir().join(format!("marketbridge-lake-test-{}", now_ms()));
+        let manifest = root.join("manifest.sqlite");
+        let rows = vec![bar(0, 59_999), bar(60_000, 119_999)];
+
+        let written = persist_klines_blocking(
+            root.to_string_lossy().as_ref(),
+            manifest.to_string_lossy().as_ref(),
+            rows,
+            "spot".to_string(),
+        )?;
+        let partitions = manifest_blocking(
+            manifest.to_string_lossy().as_ref(),
+            LakeManifestQuery {
+                symbol: Some("BTCUSDT".to_string()),
+                ..Default::default()
+            },
+        )?;
+
+        assert_eq!(written, 1);
+        assert_eq!(partitions.len(), 1);
+        assert_eq!(partitions[0].format, "arrow-ipc");
+        assert!(partitions[0].file_path.ends_with(".arrow"));
+        assert!(Path::new(&partitions[0].file_path).exists());
+
+        std::fs::remove_dir_all(root)?;
+        Ok(())
     }
 
     fn bar(open_time_ms: u64, close_time_ms: u64) -> KlineBar {

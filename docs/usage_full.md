@@ -31,7 +31,7 @@ Private Network Access preflight requests.
 MarketBridge has two local storage roles:
 
 - SQLite: kline working store plus lake manifest/index.
-- Parquet lake: optional local persisted partitions for data you request with
+- Arrow IPC lake: optional local persisted partitions for data you request with
   `persist=true`.
 
 Nothing is written to the local lake unless a request opts in.
@@ -148,7 +148,7 @@ curl -s "http://127.0.0.1:8080/v1/market/basis?symbols=BTCUSDT" | jq
 ## Historical Candles
 
 Use `/v1/history/candles` for on-demand historical candle retrieval. Add
-`persist=true` only when you want the result written to the local Parquet lake.
+`persist=true` only when you want the result written to the local Arrow IPC lake.
 
 Supported candle types:
 

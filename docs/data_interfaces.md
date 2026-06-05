@@ -157,7 +157,7 @@ Short version:
 | Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
 | Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |
-| Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to local Parquet lake. |
+| Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to the local Arrow IPC lake. |
 | History candles | `/v1/history/candles` | Binance/OKX public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles. |
 | Basis | `/v1/market/basis` | quote snapshots | derived | Spot-perp basis per exchange/symbol. |
 | Order flow | `/v1/market/order-flow` | trade events | derived | Buy/sell pressure buckets and CVD. |
@@ -167,7 +167,7 @@ Short version:
 | Research features | `/v1/research/features` | klines, quotes, funding, OI, books | derived | Multi-timeframe features, correlated assets, basis/funding/OI/liquidity regimes. |
 | Strategy state | `/v1/research/symbol-state` | live events | derived | Real-time short-squeeze and exhaustion-short state machines with CVD, OFI, OI change, depth pressure, liquidation windows, and read-only risk context. |
 | Agent context | `/v1/agent/context` | live snapshots + manifest | derived | AI-friendly read-only context bundle. |
-| Local lake manifest | `/v1/storage/manifest` | SQLite manifest | metadata | Local Parquet lake index and data-quality metadata. |
+| Local lake manifest | `/v1/storage/manifest` | SQLite manifest | metadata | Local Arrow IPC lake index and data-quality metadata. |
 
 ## ClickHouse Tick Store
 
@@ -260,7 +260,7 @@ Query:
 curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
 ```
 
-Persist only selected rows to the local Parquet lake:
+Persist only selected rows to the local Arrow IPC lake:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=1000&persist=true" | jq
@@ -464,9 +464,9 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow` | Buy/sell pressure and CVD windows. |
 | GET | `/v1/market/order-flow/windows` | Multi-window order-flow and CVD. |
 | GET | `/v1/market/footprint` | Footprint/orderflow profile. |
-| GET | `/v1/market/klines` | SQLite-backed OHLCV bars with optional Parquet persistence. |
+| GET | `/v1/market/klines` | SQLite-backed OHLCV bars with optional Arrow IPC persistence. |
 | GET | `/v1/history/candles` | On-demand special candle history. |
-| GET | `/v1/storage/manifest` | Local Parquet lake manifest and quality metadata. |
+| GET | `/v1/storage/manifest` | Local Arrow IPC lake manifest and quality metadata. |
 | DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter. |
 | GET | `/v1/universe/top-volume` | Universe by volume. |
 | GET | `/v1/universe/percent-change` | Universe by percent change. |

@@ -629,7 +629,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow` | Buy/sell pressure metrics derived from live trades |
 | GET | `/v1/market/order-flow/windows` | Multi-window order-flow and CVD buckets |
 | GET | `/v1/market/footprint` | Price-bin footprint/orderflow profile |
-| GET | `/v1/market/klines` | SQLite-backed OHLCV bars; can persist selected rows to local Parquet lake |
+| GET | `/v1/market/klines` | SQLite-backed OHLCV bars; can persist selected rows to the local Arrow IPC lake |
 | GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
@@ -971,7 +971,7 @@ curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx
 SQLite-backed OHLCV bars. Historical REST backfill supports Binance and OKX;
 realtime bars are aggregated from live quote ticks and written once per update
 batch. Add `persist=true` only when you want the returned rows written to the
-local Parquet lake. Enable it in config:
+local Arrow IPC lake. Enable it in config:
 
 ```yaml
 klines:
@@ -1006,7 +1006,7 @@ curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&sym
 
 On-demand public historical candles. This is the preferred endpoint for
 research candles beyond ordinary OHLCV. It can write only the requested result
-to the local Parquet lake with `persist=true`.
+to the local Arrow IPC lake with `persist=true`.
 
 Supported candle types:
 
@@ -1032,10 +1032,10 @@ curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSD
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
 ```
 
-### Local Parquet Lake
+### Local Arrow IPC Lake
 
-MarketBridge uses SQLite as the manifest/index and Parquet as the local columnar
-lake. The lake is opt-in: no request is persisted unless it sets
+MarketBridge uses SQLite as the manifest/index and Arrow IPC files as the local
+columnar lake. The lake is opt-in: no request is persisted unless it sets
 `persist=true`.
 
 Manifest:
@@ -1051,8 +1051,8 @@ curl -X DELETE "http://127.0.0.1:8080/v1/storage/partitions?domain=candles&excha
 ```
 
 Manifest fields include rows, bytes, first/last timestamps, latest watermark,
-gap count, duplicate count, coverage ratio, latency p50/p95, stale count, and
-file path.
+gap count, duplicate count, coverage ratio, latency p50/p95, stale count, file
+format, and file path.
 
 ### `GET /v1/market/order-flow`
 

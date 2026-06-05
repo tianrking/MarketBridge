@@ -477,7 +477,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/footprint` | footprint / orderflow profile。 |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV。 |
 | GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles。 |
-| GET | `/v1/storage/manifest` | 本地 Parquet lake manifest 和质量元数据。 |
+| GET | `/v1/storage/manifest` | 本地 Arrow IPC lake manifest 和质量元数据。 |
 | DELETE | `/v1/storage/partitions` | 按过滤条件删除本地 lake partitions。 |
 | GET | `/v1/universe/top-volume` | 按成交量筛选 universe。 |
 | GET | `/v1/universe/percent-change` | 按涨跌幅筛选 universe。 |
