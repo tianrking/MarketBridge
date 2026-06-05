@@ -369,27 +369,12 @@ async fn perpetual_funding_market_fallbacks(
     let quote_filter = query.quote.as_deref().map(str::to_ascii_uppercase);
     let active_only = query.active_only.unwrap_or(true);
 
-    let results = stream::iter(exchanges.iter().cloned().map(|exchange| async move {
-        let result = timeout(
-            DISCOVERY_EXCHANGE_TIMEOUT,
-            fetch_exchange_perpetual_funding(http, &exchange),
-        )
-        .await;
-        match result {
-            Ok(Ok(funding_rows)) => Ok((exchange, funding_rows)),
-            Ok(Err(error)) => Err(DiscoveryError {
-                exchange,
-                error: format!("perp funding fallback failed: {error:#}"),
-            }),
-            Err(_) => Err(DiscoveryError {
-                exchange,
-                error: format!(
-                    "perp funding fallback timed out after {}ms",
-                    DISCOVERY_EXCHANGE_TIMEOUT.as_millis()
-                ),
-            }),
-        }
-    }))
+    let results = stream::iter(
+        exchanges
+            .iter()
+            .cloned()
+            .map(|exchange| fetch_perpetual_funding_fallback(http, exchange)),
+    )
     .buffer_unordered(DISCOVERY_MAX_CONCURRENCY)
     .collect::<Vec<_>>()
     .await;
@@ -471,6 +456,31 @@ async fn discover_exchange_market_kind(
         ("bitmart", "spot") => bitmart_spot_markets(http).await,
         ("bitmart", "perp") => bitmart_perp_details(http).await.map(|(markets, _)| markets),
         (other, _) => Err(anyhow!("unsupported market discovery exchange: {other}")),
+    }
+}
+
+async fn fetch_perpetual_funding_fallback(
+    http: &reqwest::Client,
+    exchange: String,
+) -> Result<(String, Vec<PerpetualFundingRow>), DiscoveryError> {
+    let result = timeout(
+        DISCOVERY_EXCHANGE_TIMEOUT,
+        fetch_exchange_perpetual_funding(http, &exchange),
+    )
+    .await;
+    match result {
+        Ok(Ok(funding_rows)) => Ok((exchange, funding_rows)),
+        Ok(Err(error)) => Err(DiscoveryError {
+            exchange,
+            error: format!("perp funding fallback failed: {error:#}"),
+        }),
+        Err(_) => Err(DiscoveryError {
+            exchange,
+            error: format!(
+                "perp funding fallback timed out after {}ms",
+                DISCOVERY_EXCHANGE_TIMEOUT.as_millis()
+            ),
+        }),
     }
 }
 

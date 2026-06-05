@@ -388,31 +388,6 @@ fn catalog_search_summary(rows: &[CatalogSearchMarket]) -> CatalogSearchSummary 
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{data_domains_for_market, parse_product_input};
-
-    #[test]
-    fn product_input_parses_asset_and_symbol() {
-        let parsed = parse_product_input("HOMEUSDT");
-        assert_eq!(parsed.base.as_deref(), Some("HOME"));
-        assert_eq!(parsed.symbol.as_deref(), Some("HOMEUSDT"));
-        assert_eq!(parsed.quote.as_deref(), Some("USDT"));
-
-        let parsed = parse_product_input("home");
-        assert_eq!(parsed.base.as_deref(), Some("HOME"));
-        assert_eq!(parsed.symbol, None);
-    }
-
-    #[test]
-    fn perp_capabilities_include_funding_and_oi() {
-        let domains = data_domains_for_market("perp");
-        assert!(domains.contains(&"market_funding"));
-        assert!(domains.contains(&"market_open_interest"));
-        assert!(domains.contains(&"market_liquidation"));
-    }
-}
-
 pub async fn perpetuals(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<PerpetualDiscoveryQuery>,
@@ -558,4 +533,29 @@ pub async fn instruments(State(state): State<Arc<ApiState>>) -> impl IntoRespons
         "version": "v1",
         "instruments": instruments
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{data_domains_for_market, parse_product_input};
+
+    #[test]
+    fn product_input_parses_asset_and_symbol() {
+        let parsed = parse_product_input("HOMEUSDT");
+        assert_eq!(parsed.base.as_deref(), Some("HOME"));
+        assert_eq!(parsed.symbol.as_deref(), Some("HOMEUSDT"));
+        assert_eq!(parsed.quote.as_deref(), Some("USDT"));
+
+        let parsed = parse_product_input("home");
+        assert_eq!(parsed.base.as_deref(), Some("HOME"));
+        assert_eq!(parsed.symbol, None);
+    }
+
+    #[test]
+    fn perp_capabilities_include_funding_and_oi() {
+        let domains = data_domains_for_market("perp");
+        assert!(domains.contains(&"market_funding"));
+        assert!(domains.contains(&"market_open_interest"));
+        assert!(domains.contains(&"market_liquidation"));
+    }
 }
