@@ -604,17 +604,21 @@ curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=
 curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bitget&symbols=BTCUSDT,ETHUSDT" | jq
 ```
 
-For a client-side example that filters a specified exchange for extreme negative
-funding, use:
+For a client-side `curl + jq` filter, such as Binance contracts between `-2%`
+and `-0.2%`, use:
 
 ```bash
-./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
-./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
+| jq '.funding
+  | map(select(.funding_rate_pct >= -2 and .funding_rate_pct <= -0.2))
+  | sort_by(.funding_rate_pct)
+  | .[]
+  | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-The example script checks `/health`, retries transient HTTP/network failures,
-honors `MARKETBRIDGE_API_KEY`, reports exchange-level adapter errors, and can
-fail hard on partial venue errors with `--fail-on-exchange-errors`.
+For more copy-paste searches, CSV exports, cross-exchange comparisons, and
+watchlist generation, see
+[`perpetual_funding_cookbook.md`](perpetual_funding_cookbook.md).
 
 Supported first-pass discovery/funding venues are Binance, OKX, Bybit, Bitget,
 KuCoin, Gate, MEXC, BingX, and Bitmart. Existing live-cache endpoints such as

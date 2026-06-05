@@ -28,7 +28,6 @@ Current version: `v0.0.5`
 - [Runtime Pipeline](#runtime-pipeline)
 - [Quick Start](#quick-start)
 - [Use Downloaded Binaries](#use-downloaded-binaries)
-- [Release Builds](#release-builds)
 - [Configuration](#configuration)
 - [Implemented Data Plane](#implemented-data-plane)
 - [Data Sources and API Keys](#data-sources-and-api-keys)
@@ -372,48 +371,6 @@ events through the same `EventBus`/serialization path and prints JSON metrics
 for publish throughput, subscriber deliveries, and lagged broadcast events.
 Raise `--event-bus-shards` when measuring the sharded event/domain broadcast
 path.
-
-## Release Builds
-
-CI has two workflows:
-
-- `.github/workflows/ci.yml`: runs `cargo fmt`, `cargo clippy`, and tests on pull requests and pushes.
-- `.github/workflows/release.yml`: builds cross-platform release packages and uploads artifacts.
-
-Automatic package builds run on pushes to `main` or `master`, tag pushes like
-`v0.0.5`, and manual `workflow_dispatch`.
-
-To publish `v0.0.5`:
-
-```bash
-git tag -f v0.0.5 HEAD
-git push origin master
-git push --force origin refs/tags/v0.0.5
-```
-
-For a first-time tag where no previous `v0.0.5` exists, this also works:
-
-```bash
-git tag v0.0.5
-git push origin v0.0.5
-```
-
-The release workflow builds:
-
-```text
-market-bridge-v0.0.5-linux-x86_64.tar.gz
-market-bridge-v0.0.5-linux-i686.tar.gz
-market-bridge-v0.0.5-macos-x86_64.tar.gz
-market-bridge-v0.0.5-macos-aarch64.tar.gz
-market-bridge-v0.0.5-windows-x86_64.zip
-```
-
-For normal branch pushes, download the packages from the workflow run
-artifacts. For tag pushes, the same packages are also attached to the GitHub
-Release.
-
-When re-cutting `v0.0.5`, confirm the GitHub Release assets were produced from
-the latest tag commit, not an older branch artifact.
 
 ## Configuration
 
@@ -931,11 +888,27 @@ curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=
 curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bitget&symbols=BTCUSDT,ETHUSDT" | jq
 ```
 
-Client-side extreme negative funding example:
+Client-side extreme negative funding filter, for example Binance contracts
+between `-2%` and `-0.2%`:
 
 ```bash
-./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
-./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
+| jq '.funding
+  | map(select(.funding_rate_pct >= -2 and .funding_rate_pct <= -0.2))
+  | sort_by(.funding_rate_pct)
+  | .[]
+  | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
+```
+
+Multi-exchange version:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
+| jq '.funding
+  | map(select(.funding_rate_pct >= -2 and .funding_rate_pct <= -0.2))
+  | sort_by(.funding_rate_pct)
+  | .[]
+  | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
 ### `GET /v1/market/klines`

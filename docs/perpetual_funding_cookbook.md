@@ -116,18 +116,6 @@ curl -s "$MB/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000
   | .[].symbol'
 ```
 
-Use the Python example script for the same filter:
-
-```bash
-./examples/funding_extremes.py --exchange binance --quote USDT --min-pct -2 --max-pct -0.2
-```
-
-Machine-readable output:
-
-```bash
-./examples/funding_extremes.py --exchange binance --quote USDT --min-pct -2 --max-pct -0.2 --json | jq
-```
-
 ## 4. Search Extreme Negative Funding Across Exchanges
 
 Search Binance, OKX, Bybit, and Bitget for `-2%` to `-0.2%`:

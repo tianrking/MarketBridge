@@ -84,16 +84,27 @@ Query current on-demand funding rows:
 curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=bybit&quote=USDT&limit=50000" | jq
 ```
 
-Filter extreme negative funding in the client, for example `-2%` to `-0.1%`:
+Filter extreme negative funding in the client, for example Binance contracts
+between `-2%` and `-0.2%`:
 
 ```bash
-./examples/funding_extremes.py --exchange bybit --quote USDT --min-pct -2 --max-pct -0.1
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchange=binance&quote=USDT&limit=50000" \
+| jq '.funding
+  | map(select(.funding_rate_pct >= -2 and .funding_rate_pct <= -0.2))
+  | sort_by(.funding_rate_pct)
+  | .[]
+  | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
-Machine-readable output:
+For a multi-exchange version:
 
 ```bash
-./examples/funding_extremes.py --exchanges binance,okx,bybit,bitget --quote USDT --min-pct -2 --max-pct -0.1 --json | jq
+curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx,bybit,bitget&quote=USDT&limit=50000" \
+| jq '.funding
+  | map(select(.funding_rate_pct >= -2 and .funding_rate_pct <= -0.2))
+  | sort_by(.funding_rate_pct)
+  | .[]
+  | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
 ```
 
 Important response fields:
