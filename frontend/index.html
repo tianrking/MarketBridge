@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MarketBridge Funding Monitor</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">MarketBridge</p>
+          <h1>Funding Monitor</h1>
+        </div>
+        <div class="status" id="status">Idle</div>
+      </header>
+
+      <section class="toolbar" aria-label="Funding filters">
+        <label>
+          <span>API</span>
+          <input id="apiBase" type="url" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>
+          <span>Exchange</span>
+          <select id="exchange">
+            <option value="binance" selected>Binance</option>
+            <option value="okx">OKX</option>
+            <option value="bybit">Bybit</option>
+            <option value="bitget">Bitget</option>
+          </select>
+        </label>
+        <label>
+          <span>Quote</span>
+          <input id="quote" value="USDT" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>
+          <span>Below %</span>
+          <input id="threshold" type="number" value="-0.2" step="0.01" />
+        </label>
+        <label>
+          <span>Limit</span>
+          <input id="limit" type="number" value="50000" min="1" step="100" />
+        </label>
+        <div class="actions">
+          <button id="refreshBtn" type="button" title="Refresh funding rows">Refresh</button>
+          <button id="exportBtn" type="button" title="Export current rows as CSV">CSV</button>
+        </div>
+      </section>
+
+      <section class="summary" aria-label="Summary">
+        <div>
+          <span class="metric-label">Matches</span>
+          <strong id="matchCount">0</strong>
+        </div>
+        <div>
+          <span class="metric-label">Lowest</span>
+          <strong id="lowestRate">-</strong>
+        </div>
+        <div>
+          <span class="metric-label">Updated</span>
+          <strong id="updatedAt">-</strong>
+        </div>
+      </section>
+
+      <section class="table-wrap" aria-label="Funding table">
+        <table>
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Exchange</th>
+              <th class="num">Funding %</th>
+              <th class="num">Mark</th>
+              <th>Next Funding</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr>
+              <td colspan="5" class="empty">No data loaded</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

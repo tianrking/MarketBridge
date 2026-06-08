@@ -1,0 +1,17 @@
+[Unit]
+Description=MarketBridge market data API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/marketbridge
+Environment=MARKETBRIDGE_CONFIG=/opt/marketbridge/config.min.yaml
+Environment=RUST_LOG=info
+ExecStart=/opt/marketbridge/target/release/market-bridge
+Restart=always
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
