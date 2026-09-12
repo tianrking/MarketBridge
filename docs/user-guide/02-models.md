@@ -8,9 +8,20 @@
 | `candidate-screen/v1` | 候选路径批量筛选 | 排名不是组合资金分配 |
 | `scenario-replay/v1` | 给定场景时间顺序回放 | 不是自动生成历史数据 |
 | `prefunded-taker-scenario/v1` | 双边库存与显式成交比例模拟 | 不含借贷、保证金和自动退出 |
+| `allocated-spot-portfolio/v1` | 分配子账户、多标的步骤与反向退出 | 预充值现货；[组合说明](06-portfolio.md) |
 | `spot-derivative-basis/v1` | 同底层资产现货—衍生品价差 | 参考值，不是无风险套利利润 |
 | `unit-premium/v1` | 相同报价单位下的包装/发行方溢折价 | 不承诺转换、赎回或收敛 |
 | `funding-rate-comparison/v1` | 统一周期后的资金费率差 | 不预测未来实际资金费 |
+| `announcement-window/v1` | 公告可知时刻前后的价格窗口 | 描述性关联；[事件说明](07-events.md) |
+
+全部模型的可运行合成输入可离线生成：
+
+```powershell
+python scripts/Test-ResearchModels.py --export examples/out/model-inputs-001
+```
+
+目标目录必须不存在，避免覆盖研究输入。生成后可导入工作台相应模型运行。
+不带 `--export` 时脚本会对运行中的本地 API 依次运行、归档并检查全部模型；它不是市场回测。
 
 ## 期现基差与溢折价输入
 

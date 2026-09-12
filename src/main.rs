@@ -13,6 +13,7 @@ mod domains;
 mod event_bus;
 mod event_snapshots;
 mod journal;
+mod journal_replay;
 mod klines;
 mod load_test;
 mod market_discovery;
@@ -24,8 +25,11 @@ mod paper;
 mod polymarket_ws;
 mod redis_sink;
 mod relative_value;
+mod research_control;
 mod research_engine;
+mod research_events;
 mod research_lab;
+mod research_portfolio;
 mod research_store;
 mod router;
 mod runtime;
@@ -33,6 +37,11 @@ mod source;
 mod source_roadmap;
 mod strategy_state;
 mod types;
+
+pub const BUILD_REVISION: &str = match option_env!("MARKETBRIDGE_BUILD_REVISION") {
+    Some(revision) => revision,
+    None => "unattested-build",
+};
 
 use aggregator::SpreadAggregator;
 use api::snapshot_stream::SnapshotStreamHub;
@@ -68,6 +77,23 @@ async fn main() -> anyhow::Result<()> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--replay-journal") {
+        let path = args.get(2).ok_or_else(|| {
+            anyhow::anyhow!("--replay-journal requires a sealed journal and route JSON path")
+        })?;
+        let route_path = args
+            .get(3)
+            .ok_or_else(|| anyhow::anyhow!("route JSON path required"))?;
+        let file = std::fs::File::open(route_path)?;
+        anyhow::ensure!(
+            file.metadata()?.len() <= 2 * 1024 * 1024,
+            "route exceeds 2 MiB"
+        );
+        let report =
+            journal_replay::replay(std::path::Path::new(path), serde_json::from_reader(file)?)?;
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(());
+    }
     if matches!(
         args.get(1).map(String::as_str),
         Some("--evaluate" | "--replay" | "--paper" | "--scan")
@@ -162,11 +188,21 @@ async fn main() -> anyhow::Result<()> {
     let source_catalog = catalog::source_catalog_for_config(&cfg);
     let http = reqwest::Client::new();
 
+    let research_store = research_store::ResearchStore::open(std::path::Path::new(
+        &std::env::var("MARKETBRIDGE_RESEARCH_DB")
+            .unwrap_or_else(|_| "data/research-workspace.sqlite".into()),
+    ))?;
+    let research_control = research_control::ResearchControl::new(research_store.clone())?;
+    let research_control_task = research_control.spawn(bus.clone(), shutdown.clone());
+    let announcement_task = research_events::spawn_ingestion(
+        bus.clone(),
+        research_control.clone(),
+        research_store.clone(),
+        shutdown.clone(),
+    );
     let api_router = build_router(ApiState {
-        research_store: research_store::ResearchStore::open(std::path::Path::new(
-            &std::env::var("MARKETBRIDGE_RESEARCH_DB")
-                .unwrap_or_else(|_| "data/research-workspace.sqlite".into()),
-        ))?,
+        research_store,
+        research_control,
         source_catalog,
         bus: bus.clone(),
         metrics: metrics.clone(),
@@ -341,6 +377,8 @@ async fn main() -> anyhow::Result<()> {
     let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));
 
     let mut background_tasks = TaskGroup::default();
+    background_tasks.required("research_control", research_control_task);
+    background_tasks.required("research_announcements", announcement_task);
     background_tasks.optional("redis_sink", redis_task);
     background_tasks.optional("clickhouse_sink", clickhouse_task);
     background_tasks.optional("deribit_options", deribit_task);

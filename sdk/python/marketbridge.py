@@ -1,7 +1,7 @@
 """Dependency-free synchronous research client. No trading methods.
 
 Run with Python 3.10+. These endpoints accept evidence, not order instructions.
-The full WS/cursor client and generated typed instrument models are roadmap work.
+Async/cursor access is available separately in marketbridge_async.
 """
 from __future__ import annotations
 
@@ -56,3 +56,15 @@ class MarketBridge:
 
     def scan_live(self, candidates: list[dict[str, Any]], *, min_net_bps: float = 0.0) -> dict[str, Any]:
         return self._post("/v1/research/scan-live", {"min_net_bps": min_net_bps, "candidates": candidates})
+
+    def workspace(self, action: str, request: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = {"action": action}
+        if request is not None:
+            payload["request"] = request
+        return self._post("/v1/research/workspace", payload)
+
+    def run(self, run_id: str, model: str, inputs: dict[str, Any]) -> dict[str, Any]:
+        return self.workspace("run", {"id": run_id, "model": model, "input": inputs})
+
+    def configure(self, config: dict[str, Any]) -> dict[str, Any]:
+        return self._post("/v1/research/control", config)

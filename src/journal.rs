@@ -27,12 +27,12 @@ pub struct JournalMessage {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Record {
+pub(crate) struct Record {
     version: String,
-    sequence: u64,
-    received_at_ms: u64,
+    pub(crate) sequence: u64,
+    pub(crate) received_at_ms: u64,
     dropped_total: u64,
-    payload: serde_json::Value,
+    pub(crate) payload: serde_json::Value,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -159,6 +159,13 @@ pub struct Verification {
 }
 
 pub fn verify(path: &Path) -> Result<Verification> {
+    visit(path, |_| Ok(()))
+}
+
+pub(crate) fn visit(
+    path: &Path,
+    mut on_record: impl FnMut(&Record) -> Result<()>,
+) -> Result<Verification> {
     let file = File::open(path)?;
     ensure!(
         file.metadata()?.len() <= MAX_BYTES,
@@ -201,6 +208,7 @@ pub fn verify(path: &Path) -> Result<Verification> {
         result.records += 1;
         result.source_dropped_total = record.dropped_total;
         result.sealed = record.payload.get("type").and_then(|v| v.as_str()) == Some("session_end");
+        on_record(&record)?;
     }
     result.sealed &= path.extension().is_some_and(|ext| ext == "jsonl");
     Ok(result)
@@ -235,5 +243,40 @@ mod tests {
         std::fs::write(&path, text).unwrap();
         assert!(verify(&path).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn entire_journal_replay_uses_record_order_and_rejects_drops() {
+        let dir = std::env::temp_dir().join(format!(
+            "mb-replay-{}-{}",
+            std::process::id(),
+            SESSION_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        let mut e = crate::research_engine::tests::fixture();
+        e.buy.instrument.venue = "binance".into();
+        e.sell.instrument.venue = "okx".into();
+        let route = crate::api::routes::opportunities::LiveScanRequest {
+            buy: e.buy.instrument.clone(),
+            sell: e.sell.instrument.clone(),
+            relationship: e.relationship.clone(),
+            quantities: e.quantities.clone(),
+            costs: e.costs.clone(),
+            max_age_ms: 1000,
+            max_skew_ms: 100,
+        };
+        for drops in [0, 1] {
+            let mut journal = Journal::create(&dir).unwrap();
+            for book in [&e.buy, &e.sell] {
+                journal.append(10020,drops,serde_json::json!({"type":"order_book","market":"spot","exchange":book.instrument.venue,"symbol":book.instrument.symbol,"ts_ms":10000,"bids":book.bids,"asks":book.asks})).unwrap();
+            }
+            let path = journal.seal(drops).unwrap();
+            let result = crate::journal_replay::replay(&path, route.clone());
+            if drops == 0 {
+                assert_eq!(result.unwrap()["decision_count"], 1);
+            } else {
+                assert!(result.is_err());
+            }
+        }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

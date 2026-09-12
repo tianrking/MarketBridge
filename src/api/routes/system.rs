@@ -10,6 +10,37 @@ pub async fn root() -> impl IntoResponse {
     Json(serde_json::json!({"service":"MarketBridge"}))
 }
 
+pub async fn workbench() -> impl IntoResponse {
+    (
+        [(
+            axum::http::header::CONTENT_SECURITY_POLICY,
+            "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+        )],
+        axum::response::Html(include_str!("../../../frontend/research.html")),
+    )
+}
+pub async fn workbench_script() -> impl IntoResponse {
+    (
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/javascript; charset=utf-8",
+        )],
+        include_str!("../../../frontend/research.js"),
+    )
+}
+pub async fn workbench_style() -> impl IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")],
+        include_str!("../../../frontend/research.css"),
+    )
+}
+pub async fn workbench_example() -> impl IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        include_str!("../../../examples/research/same-asset.json"),
+    )
+}
+
 pub async fn health() -> impl IntoResponse {
     Json(serde_json::json!({"ok": true}))
 }
@@ -18,9 +49,11 @@ pub async fn info() -> impl IntoResponse {
     Json(serde_json::json!({
         "service": "MarketBridge",
         "version": env!("CARGO_PKG_VERSION"),
+        "build_revision": crate::BUILD_REVISION,
         "api_version": "v1",
         "orders_supported": false,
-        "research_models": ["same-asset-spot/v1", "prefunded-taker-scenario/v1", "candidate-screen/v1"],
+        "research_models": ["same-asset-spot/v1", "prefunded-taker-scenario/v1", "candidate-screen/v1", "scenario-replay/v1", "allocated-spot-portfolio/v1", "spot-derivative-basis/v1", "unit-premium/v1", "funding-rate-comparison/v1", "announcement-window/v1"],
+        "research_workspace": {"version":"research-workspace/v1","storage":"SQLite immutable documents with CRC","config_hot_reload":"research scanner only; collector/server config remains startup-only","workbench":"/workbench","full_journal_replay":"CLI --replay-journal; normalized sealed files, no recorded drops"},
         "research_limits": {"body_bytes":2097152,"book_levels":200,"sizes":32,"replay_frames":512,"scan_candidates":64},
         "status": "ok",
         "local_ui": {

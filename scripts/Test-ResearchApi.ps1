@@ -1,4 +1,4 @@
-param([string]$Binary = (Join-Path $PSScriptRoot '..\target\debug\market-bridge.exe'))
+param([string]$Binary = (Join-Path $PSScriptRoot '..\target\debug\market-bridge.exe'), [string]$Python = '')
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $binaryPath = (Resolve-Path $Binary).Path
@@ -13,6 +13,7 @@ $oldAddr = $env:MARKETBRIDGE_API_ADDR
 $oldKey = $env:MARKETBRIDGE_API_KEY
 $oldRecording = $env:MARKETBRIDGE_RECORD_DIR
 $oldResearchDb = $env:MARKETBRIDGE_RESEARCH_DB
+$oldControlFile = $env:MARKETBRIDGE_CONTROL_FILE
 $process = $null
 try {
     $env:MARKETBRIDGE_CONFIG = Join-Path $repo 'config.research.yaml'
@@ -23,6 +24,8 @@ try {
     $base = "http://127.0.0.1:$port"
     $runId = [Guid]::NewGuid().ToString('N')
     $env:MARKETBRIDGE_RESEARCH_DB = Join-Path $out "workspace-$runId.sqlite"
+    $env:MARKETBRIDGE_CONTROL_FILE=Join-Path $out "control-$runId.json"
+    @{revision='file-initial';enabled=$false;interval_ms=1000;min_net_bps=0;min_hold_ms=0;record_scans=$false;routes=@()} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $env:MARKETBRIDGE_CONTROL_FILE -Encoding utf8NoBOM
     $process = Start-Process -FilePath $binaryPath -WorkingDirectory $repo -PassThru -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $out "api-$runId.stdout.log") `
         -RedirectStandardError (Join-Path $out "api-$runId.stderr.log")
@@ -104,7 +107,45 @@ try {
     $inputObject.buy.bids[0].price = 99999
     $crossed = Invoke-WebRequest "$base/v1/research/evaluate" -Headers $headers -Method Post -ContentType application/json -Body ($inputObject | ConvertTo-Json -Depth 30) -SkipHttpErrorCheck
     if ($crossed.StatusCode -ne 422) { throw 'Crossed book was accepted' }
-    Write-Output 'PASS: HTTP auth, costs/capacity, replay/paper/batch, CLI parity, missing live books, future/crossed-book rejection'
+    $control=@{revision='http-one';enabled=$false;interval_ms=1000;min_net_bps=0;min_hold_ms=0;record_scans=$false;routes=@()}
+    $fileControl=@{revision='file-updated';enabled=$false;interval_ms=2000;min_net_bps=0;min_hold_ms=0;record_scans=$false;routes=@()}
+    $fileControl | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $env:MARKETBRIDGE_CONTROL_FILE -Encoding utf8NoBOM
+    $loaded=$false
+    for ($i=0;$i -lt 15;$i++) {Start-Sleep -Milliseconds 300;$fileStatus=Invoke-RestMethod "$base/v1/research/control" -Headers $headers;if($fileStatus.config.revision -eq 'file-updated'){$loaded=$true;break}}
+    if(-not $loaded){throw 'Scanner file hot reload did not apply'}
+    '{invalid' | Set-Content -LiteralPath $env:MARKETBRIDGE_CONTROL_FILE -Encoding utf8NoBOM
+    $rejected=$false
+    for ($i=0;$i -lt 15;$i++) {Start-Sleep -Milliseconds 300;$fileStatus=Invoke-RestMethod "$base/v1/research/control" -Headers $headers;if($fileStatus.reload_error){$rejected=$true;break}}
+    if(-not $rejected -or $fileStatus.config.revision -ne 'file-updated'){throw 'Invalid file did not retain previous config'}
+    $null=Invoke-RestMethod "$base/v1/research/control" -Headers $headers -Method Post -ContentType application/json -Body ($control|ConvertTo-Json -Depth 20)
+    $control.interval_ms=0
+    $invalid=Invoke-WebRequest "$base/v1/research/control" -Headers $headers -Method Post -ContentType application/json -Body ($control|ConvertTo-Json -Depth 20) -SkipHttpErrorCheck
+    if ($invalid.StatusCode -ne 422) {throw 'Invalid control accepted'}
+    $status=Invoke-RestMethod "$base/v1/research/control" -Headers $headers
+    if ($status.config.interval_ms -ne 1000) {throw 'Invalid control replaced last good config'}
+    $event=@{id='fixture-event';source='fixture';source_url='https://example.test/event';title='Synthetic event';category='listing';instrument_ids=@();known_at_ms=10000}
+    $null=Workspace @{action='announcement_put';request=$event}
+    $again=Workspace @{action='announcement_put';request=$event}
+    if ($again.id -ne 'fixture-event') {throw 'Announcement idempotence failed'}
+    $workbench=Invoke-WebRequest "$base/workbench"
+    if ($workbench.Content -notmatch '研究工作台' -or -not $workbench.Headers['Content-Security-Policy']) {throw 'Workbench assets/CSP unavailable'}
+    Stop-Process -Id $process.Id
+    $process.WaitForExit()
+    $process=Start-Process -FilePath $binaryPath -WorkingDirectory $repo -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $out "api-$runId.restart.stdout.log") `
+        -RedirectStandardError (Join-Path $out "api-$runId.restart.stderr.log")
+    $recovered=$false
+    for ($i=0;$i -lt 40;$i++) {try {$status=Invoke-RestMethod "$base/v1/research/control" -Headers $headers -TimeoutSec 2;$recovered=$true;break} catch {Start-Sleep -Milliseconds 250}}
+    if (-not $recovered -or $status.config.revision -ne 'http-one') {throw 'Persisted control did not recover after process restart'}
+    $restored=Workspace @{action='get';request=@{namespace='runs';id='dataset-run'}}
+    if ($restored.document.id -ne 'dataset-run') {throw 'Archived run lost after restart'}
+    if ($Python) {
+        & $Python (Join-Path $repo 'scripts/Test-ResearchModels.py') --base-url $base
+        if ($LASTEXITCODE -ne 0) {throw 'Archived model integration suite failed'}
+        & $Python (Join-Path $repo 'scripts/Test-AsyncResearch.py') --base-url $base
+        if ($LASTEXITCODE -ne 0) {throw 'Async HTTP integration suite failed'}
+    }
+    Write-Output 'PASS: auth, cost/replay/paper/batch, CLI parity, registry/datasets/archives, scanner validation, events, workbench assets, forced-process restart recovery'
 } finally {
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id }
     $env:MARKETBRIDGE_CONFIG = $oldConfig
@@ -112,4 +153,5 @@ try {
     $env:MARKETBRIDGE_API_KEY = $oldKey
     $env:MARKETBRIDGE_RECORD_DIR = $oldRecording
     $env:MARKETBRIDGE_RESEARCH_DB = $oldResearchDb
+    $env:MARKETBRIDGE_CONTROL_FILE = $oldControlFile
 }

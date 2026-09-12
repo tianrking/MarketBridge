@@ -12,6 +12,9 @@ Mark a gate complete only with evidence from the exact candidate commit.
 - [ ] Publish request/response compatibility changes and migration examples,
   particularly evidence identity, time, quote kind and rejection semantics.
 - [ ] Confirm no order, signing or wallet feature was introduced.
+- [ ] Resolve repository license text: the README has an MIT badge, but this
+  checkout has no LICENSE file. Do not infer legal completeness from a badge;
+  repository owner must confirm the intended license before formal distribution.
 
 ## Reproducible software evidence
 

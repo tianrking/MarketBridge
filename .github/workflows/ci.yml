@@ -5,6 +5,16 @@ on:
     branches: ["**"]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MARKETBRIDGE_BUILD_REVISION: ${{ github.sha }}
+
 jobs:
   rust:
     name: fmt + clippy + test
@@ -39,9 +49,12 @@ jobs:
         run: cargo build --locked
 
       - name: Python research client contract tests
+        run: python -m pip install -r sdk/python/requirements.txt
+
+      - name: Test synchronous and asynchronous research clients
         run: python -B -m unittest discover -s sdk/python -p "test_*.py"
 
       - name: Local HTTP research smoke test
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/Test-ResearchApi.ps1
+        run: ./scripts/Test-ResearchApi.ps1 -Python python

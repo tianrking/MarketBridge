@@ -97,6 +97,30 @@ pub async fn evaluate_live(
 type ValidationError = (StatusCode, Json<Value>);
 static RESEARCH_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+pub async fn control_status(State(state): State<Arc<ApiState>>) -> Json<Value> {
+    Json(state.research_control.status())
+}
+
+pub async fn control_apply(
+    State(state): State<Arc<ApiState>>,
+    Json(config): Json<crate::research_control::ControlConfig>,
+) -> Result<Json<Value>, ValidationError> {
+    let permit = RESEARCH_WORKERS.try_acquire().map_err(|_| {
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({"error":"research workers busy"})),
+        )
+    })?;
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        state.research_control.apply(config)
+    })
+    .await
+    .map_err(|_| invalid("control worker failed".into()))?
+    .map(Json)
+    .map_err(|e| invalid(e.to_string()))
+}
+
 pub async fn workspace(
     State(state): State<Arc<ApiState>>,
     Json(action): Json<crate::research_lab::LabAction>,

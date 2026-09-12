@@ -31,6 +31,7 @@ macro_rules! get_routes {
 }
 
 pub struct ApiState {
+    pub research_control: crate::research_control::ResearchControl,
     pub research_store: crate::research_store::ResearchStore,
     pub source_catalog: Vec<CatalogSource>,
     pub bus: EventBus,
@@ -133,6 +134,12 @@ pub fn build_router(state: ApiState) -> Router {
     );
     router
         .route(
+            "/v1/research/control",
+            get(routes::opportunities::control_status)
+                .post(routes::opportunities::control_apply)
+                .options(cors::preflight),
+        )
+        .route(
             "/v1/research/workspace",
             post(routes::opportunities::workspace).options(cors::preflight),
         )
@@ -173,4 +180,15 @@ pub fn build_router(state: ApiState) -> Router {
             cors::cors_middleware,
         ))
         .with_state(Arc::new(state))
+        // Public immutable assets only; all data/mutations remain behind API guard.
+        .route("/workbench", get(routes::system::workbench))
+        .route("/workbench/app.js", get(routes::system::workbench_script))
+        .route(
+            "/workbench/styles.css",
+            get(routes::system::workbench_style),
+        )
+        .route(
+            "/workbench/example.json",
+            get(routes::system::workbench_example),
+        )
 }

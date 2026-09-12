@@ -182,6 +182,36 @@ mod tests {
         assert_eq!(db.integrity().unwrap()["sqlite"], "ok");
     }
     #[test]
+    fn floating_point_research_results_survive_exact_json_roundtrip() {
+        let db = ResearchStore::memory();
+        let value = serde_json::json!({"buy_quote":48002.200000000004_f64,"tiny":f64::MIN_POSITIVE,"large":f64::MAX});
+        let inserted = db.insert("runs", "float", 1, &value).unwrap();
+        let restored = db.get("runs", "float").unwrap().unwrap();
+        assert_eq!(inserted.payload, restored.payload);
+    }
+    #[test]
+    fn closed_database_reopens_with_identical_document() {
+        let path = std::env::temp_dir().join(format!(
+            "marketbridge-reopen-{}-{}.sqlite",
+            std::process::id(),
+            crate::types::now_ms()
+        ));
+        {
+            let db = ResearchStore::open(&path).unwrap();
+            db.insert("runs", "restart", 1, &serde_json::json!({"result":42}))
+                .unwrap();
+        }
+        {
+            let db = ResearchStore::open(&path).unwrap();
+            assert_eq!(
+                db.get("runs", "restart").unwrap().unwrap().payload["result"],
+                42
+            );
+            assert_eq!(db.integrity().unwrap()["sqlite"], "ok");
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
     fn corruption_is_not_silently_returned() {
         let db = ResearchStore::memory();
         db.insert("runs", "a", 1, &serde_json::json!({})).unwrap();

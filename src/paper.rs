@@ -81,9 +81,9 @@ pub struct PaperResult {
 }
 
 #[derive(Default)]
-struct LiquidityUse {
+pub(crate) struct LiquidityUse {
     fingerprint: String,
-    consumed_base: f64,
+    pub(crate) consumed_base: f64,
 }
 
 fn evidence_key(book: &BookEvidence, side: &str) -> String {
@@ -91,7 +91,7 @@ fn evidence_key(book: &BookEvidence, side: &str) -> String {
         .expect("string tuple")
 }
 
-fn register_evidence(
+pub(crate) fn register_evidence(
     used: &mut HashMap<String, LiquidityUse>,
     book: &BookEvidence,
     side: &str,
@@ -108,7 +108,11 @@ fn register_evidence(
     Ok(key)
 }
 
-fn remaining_quote(levels: &[BookLevel], already_used: f64, quantity: f64) -> Option<f64> {
+pub(crate) fn remaining_quote(
+    levels: &[BookLevel],
+    already_used: f64,
+    quantity: f64,
+) -> Option<f64> {
     if quantity == 0.0 {
         return Some(0.0);
     }

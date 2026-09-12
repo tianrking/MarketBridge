@@ -10,6 +10,8 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 
 未发布的研究 API / CLI 增量见[使用与限制](docs/research-api.md)。
 `config.research.yaml` 提供仅监听本机、不启动采集源的研究服务配置。
+完整操作教程见 [docs/user-guide](docs/user-guide/README.md)。当前源码自带 `/workbench`
+研究工作台，无需额外 Node.js 服务；包括实验归档、扫描配置、事件与数据查询。
 
 [English README](README.md)
 

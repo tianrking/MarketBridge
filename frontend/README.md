@@ -1,19 +1,20 @@
 # MarketBridge Frontend
 
-Static funding monitor for a running MarketBridge API.
+The research console is embedded in the Rust binary at `/workbench`; no Node.js
+service or frontend build step is needed. See [the complete usage series](../docs/user-guide/README.md).
+The older static funding monitor remains available separately as described below.
 
 Run the API:
 
 ```bash
-cd /Users/w0x7ce/Downloads/AACC/MarketBridge
+# From the repository root
 MARKETBRIDGE_CONFIG=./config.min.yaml cargo run
 ```
 
 Serve the frontend:
 
 ```bash
-cd /Users/w0x7ce/Downloads/AACC/MarketBridge/frontend
-python3 -m http.server 8090
+python3 -m http.server 8090 --bind 127.0.0.1 --directory frontend
 ```
 
 Open:

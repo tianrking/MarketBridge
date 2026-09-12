@@ -4,6 +4,13 @@
 
 ### Added
 
+- Opt-in background research scanning, durable state-change events, immutable
+  configuration revisions and validated scanner JSON hot reload.
+- Allocated spot portfolios and exit gates, complete normalized journal-file
+  streaming replay, announcement ingestion and descriptive event-window studies.
+- Built-in `/workbench` console, async Python client with durable cursor polling,
+  model fixture exporter, restart/HTTP tests and bounded soak observation harness.
+- Complete Chinese research usage series under `docs/user-guide/`.
 - Durable research workspace API: versioned asset relationships, ordered dataset
   chunks, cursor replay, immutable experiment input/output/error archives and CRC.
 - Explicit reference-only basis, unit-premium and funding-interval models. Chinese
@@ -41,6 +48,6 @@
 ### Not yet release-complete
 
 Independent asset attestation, provider-wide weighted quotas, all-venue book reconstruction,
-raw-event replay, general portfolio/margin/exit models, event studies, configuration hot reload,
-full workbench and async/generated SDKs remain on the roadmap. No release tag or
+exchange-raw replay, margin/FX/cross-request portfolio models, collector YAML hot reload,
+generated SDK types and resumable raw WS histories remain outside this increment. No release tag or
 claim of production readiness follows from unit tests alone.

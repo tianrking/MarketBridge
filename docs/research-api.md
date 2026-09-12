@@ -247,3 +247,21 @@ account/IP/provider-weight quota model. It does not rotate proxies or promise
 zero throttling. Different origins can still share upstream quotas; operators
 must respect those provider constraints. Configuration remains startup-only;
 hot reload and general event/pagination mappings are not implemented yet.
+# Continuous research workspace (unreleased extension)
+
+In addition to the original endpoints below, the current source exposes:
+
+- `POST /v1/research/workspace`: typed action/request API for immutable registries,
+  dataset chunks, replay archives, versioned model experiments, announcements,
+  cursor reads and integrity checks. See [workspace contract](user-guide/01-workspace.md).
+- `GET/POST /v1/research/control`: persisted scanner configuration and status.
+  Validation precedes replacement; file reload only covers the research scanner,
+  not collector YAML. See [scanner operations](user-guide/04-scanner.md).
+- `/workbench`: embedded same-origin research console. Static assets are public;
+  data and mutation endpoints remain behind API authentication/rate controls.
+- `--replay-journal FILE ROUTE.json`: whole sealed normalized-book file replay;
+  strict corruption/drop checks, not raw-exchange replay or simulated execution.
+
+The [complete Chinese manual](user-guide/README.md) covers all nine archived
+models, data-source boundaries, historical datasets, allocated portfolios/exits,
+announcements, sync/async SDK usage and operational acceptance.

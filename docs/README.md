@@ -2,8 +2,9 @@
 
 This directory contains the English documentation set for MarketBridge. The
 root-level `README.md` and `README.zh-CN.md` are the bilingual entry points; all
-documents under `docs/` are maintained in English so release packages are easy
-to browse and search consistently.
+the reference manuals remain in English. The Chinese step-by-step research
+manual is at [user-guide/README.md](user-guide/README.md), including setup,
+models, live scanning, archives, SDKs, the workbench and operational boundaries.
 
 Current documented release: `v0.0.5`
 

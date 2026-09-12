@@ -16,6 +16,8 @@ $oldConfig = $env:MARKETBRIDGE_CONFIG
 $oldAddr = $env:MARKETBRIDGE_API_ADDR
 $oldKey = $env:MARKETBRIDGE_API_KEY
 $oldRecording = $env:MARKETBRIDGE_RECORD_DIR
+$oldResearchDb = $env:MARKETBRIDGE_RESEARCH_DB
+$oldControlFile = $env:MARKETBRIDGE_CONTROL_FILE
 $process = $null
 try {
     $env:MARKETBRIDGE_CONFIG = Join-Path $repo 'config.research-live.yaml'
@@ -25,6 +27,8 @@ try {
     $headers = @{ 'x-api-key' = $env:MARKETBRIDGE_API_KEY }
     $base = "http://127.0.0.1:$port"
     $runId = [Guid]::NewGuid().ToString('N')
+    $env:MARKETBRIDGE_RESEARCH_DB=Join-Path $out "public-$runId.sqlite"
+    Remove-Item Env:MARKETBRIDGE_CONTROL_FILE -ErrorAction SilentlyContinue
     $process = Start-Process -FilePath $binaryPath -WorkingDirectory $repo -PassThru -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $out "public-$runId.stdout.log") `
         -RedirectStandardError (Join-Path $out "public-$runId.stderr.log")
@@ -78,4 +82,6 @@ try {
     $env:MARKETBRIDGE_API_ADDR=$oldAddr
     $env:MARKETBRIDGE_API_KEY=$oldKey
     $env:MARKETBRIDGE_RECORD_DIR=$oldRecording
+    $env:MARKETBRIDGE_RESEARCH_DB=$oldResearchDb
+    $env:MARKETBRIDGE_CONTROL_FILE=$oldControlFile
 }

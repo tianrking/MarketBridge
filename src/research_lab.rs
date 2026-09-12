@@ -12,6 +12,7 @@ use serde_json::{Value, json};
     deny_unknown_fields
 )]
 pub enum LabAction {
+    AnnouncementPut(crate::research_events::Announcement),
     RegistryPut(RegistryRevision),
     RegistryPair {
         revision_id: String,
@@ -54,13 +55,32 @@ fn dataset_namespace(id: &str) -> Result<String> {
     Ok(format!("dataset.{id}"))
 }
 fn readable(namespace: &str) -> bool {
-    matches!(namespace, "registry" | "runs" | "events" | "control")
-        || namespace.starts_with("dataset.")
+    matches!(
+        namespace,
+        "registry" | "runs" | "events" | "control" | "captures" | "announcements"
+    ) || namespace.starts_with("dataset.")
 }
 
 pub fn execute(store: &ResearchStore, action: LabAction) -> Result<Value> {
     let _operation = store.operation_lock()?;
     match action {
+        LabAction::AnnouncementPut(event) => {
+            event.validate(now_ms())?;
+            let payload = serde_json::to_value(&event)?;
+            if let Some(existing) = store.get("announcements", &event.id)? {
+                ensure!(
+                    existing.payload == payload,
+                    "event ID exists with different content; corrections require new IDs"
+                );
+                return Ok(serde_json::to_value(existing)?);
+            }
+            Ok(serde_json::to_value(store.insert(
+                "announcements",
+                &event.id,
+                now_ms(),
+                &payload,
+            )?)?)
+        }
         LabAction::RegistryPut(revision) => {
             revision.validate().map_err(anyhow::Error::msg)?;
             ensure!(
@@ -164,7 +184,7 @@ pub fn execute(store: &ResearchStore, action: LabAction) -> Result<Value> {
                 Ok(output) => json!({"status":"completed","result":output}),
                 Err(error) => json!({"status":"failed","error":error.to_string()}),
             };
-            let payload = json!({"model":model,"input":input,"output":output,"started_at_ms":started,"finished_at_ms":now_ms(),"package_version":env!("CARGO_PKG_VERSION"),"orders_supported":false});
+            let payload = json!({"model":model,"input":input,"output":output,"started_at_ms":started,"finished_at_ms":now_ms(),"package_version":env!("CARGO_PKG_VERSION"),"build_revision":crate::BUILD_REVISION,"orders_supported":false});
             Ok(serde_json::to_value(store.insert(
                 "runs",
                 &id,
@@ -193,6 +213,10 @@ pub fn execute(store: &ResearchStore, action: LabAction) -> Result<Value> {
 
 pub fn evaluate(model: &str, input: Value) -> Result<Value> {
     Ok(match model {
+        "allocated-spot-portfolio/v1" => {
+            crate::research_portfolio::simulate(&serde_json::from_value(input)?)?
+        }
+        "announcement-window/v1" => crate::research_events::study(&serde_json::from_value(input)?)?,
         "spot-derivative-basis/v1" | "unit-premium/v1" => {
             let request: crate::relative_value::RelativeRequest = serde_json::from_value(input)?;
             ensure!(request.model == model, "model discriminator mismatch");

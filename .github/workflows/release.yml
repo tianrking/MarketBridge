@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  MARKETBRIDGE_BUILD_REVISION: ${{ github.sha }}
+
 jobs:
   build:
     name: build ${{ matrix.name }}
@@ -75,6 +78,10 @@ jobs:
         run: |
           set -euo pipefail
           version="$(awk -F '"' '/^version = / {print $2; exit}' Cargo.toml)"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v${version}" ]]; then
+            echo "Tag and Cargo version disagree" >&2
+            exit 1
+          fi
           echo "version=v${version}" >> "$GITHUB_OUTPUT"
 
       - name: Stage package
@@ -85,9 +92,15 @@ jobs:
           pkg="market-bridge-${release_version}-${{ matrix.name }}"
           mkdir -p "dist/${pkg}"
           cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${pkg}/"
-          cp README.md README.zh-CN.md config.yaml config.min.yaml config.all-exchanges.example.yaml "dist/${pkg}/"
+          cp README.md README.zh-CN.md CHANGELOG.md config.yaml config.min.yaml config.all-exchanges.example.yaml config.research.yaml config.research-live.yaml "dist/${pkg}/"
+          if [ -f LICENSE ]; then cp LICENSE "dist/${pkg}/"; fi
           cp -R docs "dist/${pkg}/docs"
+          cp -R sdk "dist/${pkg}/sdk"
+          cp -R scripts "dist/${pkg}/scripts"
+          mkdir -p "dist/${pkg}/examples"
+          cp -R examples/research "dist/${pkg}/examples/research"
           printf '%s\n' "market-bridge ${release_version} ${{ matrix.name }}" > "dist/${pkg}/VERSION"
+          printf '%s\n' "$GITHUB_SHA" > "dist/${pkg}/REVISION"
 
       - name: Archive package
         shell: bash
@@ -101,15 +114,31 @@ jobs:
             tar -czf "${pkg}.tar.gz" -C dist "${pkg}"
           fi
 
+      - name: Hash release archive
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, pathlib
+          for archive in pathlib.Path('.').glob('market-bridge-v*.*'):
+              if archive.name.endswith(('.zip', '.tar.gz')):
+                  with archive.open('rb') as stream:
+                      digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+                  archive.with_name(archive.name + '.sha256').write_text(digest + '  ' + archive.name + '\n')
+          PY
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
           name: market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}
-          path: market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}
+          path: |
+            market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}
+            market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}.sha256
           if-no-files-found: error
 
       - name: Attach package to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}
+          files: |
+            market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}
+            market-bridge-${{ steps.package_version.outputs.version }}-${{ matrix.name }}.${{ matrix.archive }}.sha256

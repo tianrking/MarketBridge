@@ -18,14 +18,19 @@ truth for what is implemented and wired into the runtime/API.
 | Historical scenario replay | implemented | Ordered supplied frames; rejects future-known inputs; not full raw-tick replay |
 | Live cached-book evaluation | partial | Binance spot depth20 / OKX spot books5 snapshot windows; other adapters reference-only |
 | Journal and verification CLI | implemented | Opt-in normalized events; capped session, CRC, dropped counters, partial/sealed files |
+| Whole-file journal replay | implemented | Streaming sealed normalized books for an explicit route; rejects recorded drops/corruption, not raw WS or portfolio execution |
 | Independent custom sources | implemented | Instance IDs, optional source time, bounded HTTP and shared-origin Retry-After pacing |
 | Full weighted provider quotas | planned | Shared-origin pacing is not account/IP/group weight accounting |
-| Prefunded paper fill ledger | partial | Fixed pair, explicit partial-fill scenarios, balances and depth reuse; no general portfolio/margin/exit model |
+| Prefunded paper fill ledger | implemented | Fixed-pair explicit fills and depth reuse; no borrowing |
+| Allocated spot portfolio / exits | implemented | Multiple allocated accounts, reversible steps and time/net-bps gates; no margin, FX or cross-request position carry |
 | Versioned asset registry | implemented | Immutable caller-attested instruments and directed relationships; knowledge-time checks, not independent certification |
 | Historical dataset and experiment workspace | implemented | SQLite/CRC, bounded chunks/cursors, immutable successful and failed runs; not raw-tick or cross-chunk portfolio replay |
 | Additional research models | implemented | Spot/derivative basis, unit premium and interval-normalized funding comparison; reference-only |
-| Python client | partial | Synchronous evaluate/replay/paper/scan/scan_live; generated types and async WS recovery planned |
-| Full workbench / config reload / event studies | planned | Existing funding UI remains separate; no hot-reload claim |
+| Python client | implemented | Sync research calls; async pooling, bounded concurrency/response/time, cancellation, durable cursor polling; no generated typed/WS history recovery claim |
+| Research workbench | implemented | Embedded static console for data, experiments, archives and control; no Node service |
+| Scanner / alerts / reload | implemented | Opt-in cached-book scans, state-change events, immutable configuration revisions and file reload; primary collector YAML still startup-only |
+| Announcements / event studies | implemented | External title+URL ingestion and manual import, first-observed dedupe; descriptive window study, not automatic attribution or global news coverage |
+| Operational soak harness | implemented | Bounded own-process observer with logs, resources, book IDs and binary SHA; script availability is not completed 72h acceptance |
 
 See [research API and usage](research-api.md), [development evidence](development-log.md)
 and [roadmap](platform-roadmap.md). `implemented` describes wiring, not live-provider

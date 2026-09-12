@@ -1,5 +1,44 @@
 # Development log
 
+## 2026-09-12 — continuous research workflows and usage manual
+
+- Added background cached-book scanner, persisted transition alerts, validated
+  immutable control revisions, file hot reload and visible last-good/error state.
+- Added announcement ingestion/import and descriptive windows; allocated spot
+  portfolios with reversible routes/exit gates; streaming whole-journal replay.
+- Added embedded `/workbench`, asynchronous HTTP SDK with bounded concurrency,
+  cancellation and durable cursor polling, and a complete Chinese usage series.
+- End-to-end archive equality caught default JSON float parsing changing the last
+  bits of `48002.200000000004`; enabled `float_roundtrip` and retained exact
+  equality in regression/integration tests rather than loosening tolerances.
+- Local Windows/MSVC: 306 Rust tests passed; all-target/all-feature strict Clippy,
+  build, 13 Python contract tests and authenticated HTTP smoke passed. The HTTP
+  suite verifies all nine archived models, exact archive retrieval, async real
+  HTTP, valid/invalid file reload, and forced-process-restart persistence.
+- Browser validation: real local page loaded, connected, ran/archived a synthetic
+  experiment, loaded/stopped scanner configuration; screenshot rendered and
+  captured browser warning/error log was empty. This used the in-app browser
+  because the agent-browser command was unavailable, not a mocked page.
+- Public-source observation ending 2026-09-12 06:46:19 UTC: 60.16 seconds,
+  12 samples, 11 with both Binance/OKX books and 11 changing pairs, zero HTTP errors,
+  peak sampled working set 30,355,456 bytes. This was a dirty development build,
+  binary SHA256 `2743215E5001A83195FB9EA5A5FE51579ABCC56C0329FCA60643B11ECC63BEB6`;
+  retained local prefix `examples/out/soak-3b95807ade6540588f15da9f37d7c9b2`.
+- No order, wallet, signing or private trading API added. No 72-hour, universal
+  live-venue, final remote-CI, release-package or production acceptance claimed.
+- Release packaging now includes research configs, SDK, scripts, examples,
+  revision and archive checksums. License text is a separate owner decision:
+  current README badge says MIT but this checkout contains no LICENSE file.
+
+## 2026-09-12 — durable workspace and market-specific reference models
+
+Added immutable SQLite research documents with CRC, versioned asset relationships,
+ordered bounded dataset chunks, cursor replay and archived successful/failed runs.
+Basis, unit-premium and interval-normalized funding models remain reference-only.
+Validation: strict all-target/all-feature Clippy; 299 Rust tests; build;
+`scripts/Test-ResearchApi.ps1` including registry, dataset, failed-run archive and
+integrity assertions passed. Commit: `7d6bb98`. Local validation, not remote CI.
+
 ## 2026-09-12 — Batch screening and real-source depth repair
 
 - Added bounded offline/cached-live candidate screening (64 routes), common
@@ -75,11 +114,3 @@
 - Validation: the working-tree suite including these regressions passed
   `cargo +stable test --locked`: 270 passed, 0 failed. `cargo fmt` and
   `git diff --check` passed. No remote CI or live-provider certification claimed.
-# 2026-09-12 — durable workspace and market-specific reference models
-
-Added immutable SQLite research documents with CRC, versioned asset relationships,
-ordered bounded dataset chunks, cursor replay and archived successful/failed runs.
-Basis, unit-premium and interval-normalized funding models remain reference-only.
-Validation: strict all-target/all-feature Clippy; 299 Rust tests; build;
-`scripts/Test-ResearchApi.ps1` including registry, dataset, failed-run archive and
-integrity assertions passed. This is local validation, not remote CI or soak evidence.

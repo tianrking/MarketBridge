@@ -11,6 +11,8 @@ Current version: `v0.0.5`
 
 Unreleased research API/CLI: [usage and limitations](docs/research-api.md).
 Start with `config.research.yaml` for a localhost-only, zero-collector service.
+Open `/workbench` on the running service for the built-in research console (no
+Node.js service required). [Complete Chinese usage series](docs/user-guide/README.md).
 
 [中文文档](README.zh-CN.md)
 

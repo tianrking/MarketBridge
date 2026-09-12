@@ -3,3 +3,4 @@
 .DS_Store
 examples/out/
 __pycache__/
+.venv/
