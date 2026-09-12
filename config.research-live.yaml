@@ -1,0 +1,32 @@
+# Opt-in public BTC spot feeds. Uses network; never supplies account/order access.
+# Research fees/identity are supplied explicitly to the research API, NOT inferred
+# from the legacy fee defaults below. Respect venue availability and local rules.
+runtime:
+  api_addr: "127.0.0.1:8080"
+  queue_capacity: 4096
+  broadcast_capacity: 4096
+  backpressure: block
+  report_interval_ms: 1000
+  stale_ttl_ms: 1500
+  api_key_env: MARKETBRIDGE_API_KEY
+  api_rate_limit_per_minute: 120
+strategy:
+  min_profit_usdt: 0
+  min_profit_bps: 0
+  min_signal_hold_ms: 1000
+  slippage_bps: 0
+  book_signal_notional_usdt: 1000
+symbols: [BTCUSDT]
+perp_symbols: []
+exchanges:
+  binance:
+    enabled: true
+    # Hypothetical legacy logging parameters, NOT verified account fees.
+    fee: {mode: fixed, maker_bps: 10, taker_bps: 10}
+  okx:
+    enabled: true
+    fee: {mode: fixed, maker_bps: 10, taker_bps: 10}
+klines:
+  enabled: false
+  sqlite_path: "data/research-live.sqlite"
+  lake_root: "data/research-live-lake"

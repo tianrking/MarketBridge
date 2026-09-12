@@ -14,6 +14,7 @@ truth for what is implemented and wired into the runtime/API.
 | Capability | Code status | Evidence/limits |
 |---|---|---|
 | Same-asset spot cost curves | implemented | Explicit caller identity/fees; bounded snapshots; conditional estimates only |
+| Batch candidate screening | implemented | Up to 64 explicit routes, stable net-bps ranking, errors retained; offline and cached-live POST/CLI/Python |
 | Historical scenario replay | implemented | Ordered supplied frames; rejects future-known inputs; not full raw-tick replay |
 | Live cached-book evaluation | partial | Binance spot depth20 / OKX spot books5 snapshot windows; other adapters reference-only |
 | Journal and verification CLI | implemented | Opt-in normalized events; capped session, CRC, dropped counters, partial/sealed files |
@@ -21,7 +22,7 @@ truth for what is implemented and wired into the runtime/API.
 | Full weighted provider quotas | planned | Shared-origin pacing is not account/IP/group weight accounting |
 | Prefunded paper fill ledger | partial | Fixed pair, explicit partial-fill scenarios, balances and depth reuse; no general portfolio/margin/exit model |
 | Generic asset registry / other strategy models | partial | Explicit identity/relationship input exists; automated attestation and other models remain planned |
-| Python client | partial | Synchronous standard-library evaluate/replay/paper; generated types and async WS recovery planned |
+| Python client | partial | Synchronous evaluate/replay/paper/scan/scan_live; generated types and async WS recovery planned |
 | Full workbench / config reload / event studies | planned | Existing funding UI remains separate; no hot-reload claim |
 
 See [research API and usage](research-api.md), [development evidence](development-log.md)
@@ -67,7 +68,7 @@ Status labels:
 
 | Venue | BBO | L2 book | Trades | Funding | OI | Liquidations | API key | Notes |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| Binance | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
+| Binance | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Partial spot depth uses combined-stream identity, not absent payload s; fixture/runtime evidence in development log. |
 | Bybit | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Snapshot/delta depth reconstruction and restart reset fixture-tested; research live promotion still withheld pending continuity validation. |
 | OKX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | REST liquidation poller. |
 | Hyperliquid | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp DEX source; `activeAssetCtx` emits funding and OI from the same update when both fields are present. CCXT marks public liquidation fetch unavailable. |

@@ -39,3 +39,4 @@ unfinished work as complete. No order/signing/wallet/private trading integration
 
 See [development log](development-log.md). Current package version remains the
 last published version until a release candidate passes its documented gates.
+Use the [release checklist](release-checklist.md) for candidate-specific evidence.

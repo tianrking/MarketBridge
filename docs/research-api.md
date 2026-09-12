@@ -24,6 +24,7 @@ cargo run --locked -- --evaluate examples/research/same-asset.json
 # Replay accepts the same {"frames":[...]} document as the HTTP endpoint:
 cargo run --locked -- --replay path/to/replay.json
 cargo run --locked -- --paper path/to/paper.json
+cargo run --locked -- --scan path/to/candidates.json
 ```
 
 After `cargo build --locked`, run `pwsh -File scripts/Test-ResearchApi.ps1` for
@@ -62,7 +63,7 @@ The example is synthetic; its 5 bps fees are assumptions, not current venue fees
 
 Bodies are limited by Axum's JSON body limit (2 MiB); model bounds are 200 levels
 per side, 32 sizes per frame and 512 replay frames. Cost work is pure and bounded.
-Replay and paper share at most two concurrent workers; additional work receives
+Replay, paper and batch scans share at most two concurrent workers; additional work receives
 HTTP 429.
 
 The common base identity, quote identity, units, product, chain, issuer and
@@ -101,6 +102,56 @@ replayed = client.replay([evidence])
 The current client uses Python's standard library. Typed models, async streaming,
 cursor recovery and Arrow/Polars conversion remain planned, not advertised as
 already available.
+
+## Batch candidate screening
+
+`POST /v1/research/scan` accepts:
+
+```powershell
+$evidence = Get-Content examples/research/same-asset.json -Raw | ConvertFrom-Json
+$batch = @{ as_of_ms=$evidence.as_of_ms; min_net_bps=0; candidates=@(@{id="route-a"; evidence=$evidence}) }
+Invoke-RestMethod http://127.0.0.1:8080/v1/research/scan -Method Post -ContentType application/json -Body ($batch | ConvertTo-Json -Depth 30)
+```
+
+Supply 1..64 uniquely named candidates with a common decision time. Each is evaluated independently;
+invalid or reference-only rows remain visible. `ranking` includes only positive
+conditional net results satisfying `min_net_bps`, sorted by net bps with stable
+ID/size tie-breaking. Thresholds cannot turn unknown costs into valid estimates.
+All candidate curves are retained, including rejected and negative results.
+
+`POST /v1/research/scan-live` accepts `min_net_bps` plus `candidates` containing
+`id` and `route`; each route has the same fields as `evaluate-live`. One cached
+observation per venue/native symbol is used within a request. This is not an
+atomic cross-venue snapshot. Missing books become per-candidate errors, not
+invented quotes. Scanning is request-driven, not a background alert subscription.
+
+Python: `client.scan(candidates, as_of_ms=10020)` or
+`client.scan_live(live_candidates)`. Ranking is not a capital allocation model:
+sizes/routes may share liquidity and cannot be added into total profit. Quote
+currency identities remain attached; no implicit FX conversion occurs.
+
+Optional public-source observation (starts network collectors):
+
+```powershell
+$env:MARKETBRIDGE_CONFIG = "config.research-live.yaml"
+cargo run --locked
+# In another terminal, after books arrive:
+$body = Get-Content examples/research/scan-live.json -Raw
+Invoke-RestMethod http://127.0.0.1:8080/v1/research/scan-live -Method Post -ContentType application/json -Body $body
+```
+
+The example enables only BTC spot on Binance and OKX; it does not limit platform
+asset coverage. It deliberately leaves costs null and relationship `known_at_ms`
+zero, so results are reference-only until these assumptions are independently
+documented and supplied. Add the API-key header when authentication is enabled.
+Provider/network availability is separate from local HTTP test success. Do not
+substitute another origin or rotate proxies to bypass provider restrictions.
+
+For a bounded diagnostic run, `pwsh -File scripts/Test-PublicResearchSources.ps1`
+starts its own authenticated server, observes for 20 seconds and stops that
+process. It reports sampled availability and distinct observation IDs, not a
+profitability verdict. Logs remain in `examples/out/`. It is deliberately not
+part of deterministic CI and is not a substitute for a long-running soak.
 
 ## Prefunded paper scenarios
 
@@ -159,6 +210,11 @@ sequence continuity or complete market history.
 
 ## Compatibility corrections
 
+- Binance partial spot depth derives its symbol from the combined-stream name;
+  the payload does not require `s`. Conflicting payload identity, unexpected stream
+  type and malformed levels are rejected. Spot depth still uses receipt time when
+  no exchange event timestamp exists. See the
+  [official partial-depth specification](https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams).
 - `now_ms()` is wall-clock time, not globally unique; timestamps may repeat.
 - Quote payloads now include `quote_kind`. Only three explicitly migrated legacy
   adapters (Binance/OKX/Bybit) are classified as observed BBO; others remain

@@ -24,18 +24,16 @@ pub struct LiveScanRequest {
     pub max_skew_ms: u64,
 }
 
-fn live_evidence(
-    state: &ApiState,
-    instrument: Instrument,
-) -> Result<BookEvidence, ValidationError> {
+fn live_evidence(state: &ApiState, instrument: Instrument) -> Result<BookEvidence, String> {
+    instrument.validate()?;
     let observed = state
         .bus
         .order_book_observation(&instrument.venue, &instrument.symbol)
         .ok_or_else(|| {
-            invalid(format!(
+            format!(
                 "no cached spot book for {}:{}",
                 instrument.venue, instrument.symbol
-            ))
+            )
         })?;
     // These existing spot adapters subscribe to full top-N snapshots (Binance
     // depth20 / OKX books5). Other adapters may emit deltas; never promote them.
@@ -68,8 +66,8 @@ pub async fn evaluate_live(
 ) -> Result<Json<ScanResult>, ValidationError> {
     request.buy.validate().map_err(invalid)?;
     request.sell.validate().map_err(invalid)?;
-    let buy = live_evidence(&state, request.buy)?;
-    let sell = live_evidence(&state, request.sell)?;
+    let buy = live_evidence(&state, request.buy).map_err(invalid)?;
+    let sell = live_evidence(&state, request.sell).map_err(invalid)?;
     let request = ScanRequest {
         as_of_ms: now_ms(),
         max_age_ms: request.max_age_ms,
@@ -92,6 +90,108 @@ pub async fn evaluate_live(
 
 type ValidationError = (StatusCode, Json<Value>);
 static RESEARCH_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+
+pub async fn scan_batch(
+    Json(request): Json<crate::opportunity_scan::BatchRequest>,
+) -> Result<Json<crate::opportunity_scan::BatchResult>, ValidationError> {
+    let permit = RESEARCH_WORKERS.try_acquire().map_err(|_| {
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({"error":"research workers busy"})),
+        )
+    })?;
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        crate::opportunity_scan::evaluate(&request)
+    })
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"research worker failed"})),
+        )
+    })?
+    .map(Json)
+    .map_err(invalid)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LiveCandidate {
+    id: String,
+    route: LiveScanRequest,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LiveBatchRequest {
+    min_net_bps: f64,
+    candidates: Vec<LiveCandidate>,
+}
+
+pub async fn scan_live_batch(
+    State(state): State<Arc<ApiState>>,
+    Json(request): Json<LiveBatchRequest>,
+) -> Result<Json<crate::opportunity_scan::BatchResult>, ValidationError> {
+    use crate::opportunity_scan::{candidate_result, rank, validate_header};
+    validate_header(
+        now_ms(),
+        request.min_net_bps,
+        request.candidates.iter().map(|c| c.id.as_str()),
+    )
+    .map_err(invalid)?;
+    let permit = RESEARCH_WORKERS.try_acquire().map_err(|_| {
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({"error":"research workers busy"})),
+        )
+    })?;
+    // One cached observation per venue/native symbol in this request. The cache
+    // is not a cross-venue atomic snapshot; source skew is checked by the model.
+    let mut cache = std::collections::HashMap::new();
+    let mut prepared = Vec::new();
+    for candidate in request.candidates {
+        let route = candidate.route;
+        let mut load = |instrument: Instrument| {
+            instrument.validate()?;
+            let key = (instrument.venue.clone(), instrument.symbol.clone());
+            let cached = cache
+                .entry(key)
+                .or_insert_with(|| live_evidence(&state, instrument.clone()));
+            cached.clone().map(|mut evidence| {
+                evidence.instrument = instrument;
+                evidence
+            })
+        };
+        let buy = load(route.buy);
+        let sell = load(route.sell);
+        prepared.push((
+            candidate.id,
+            buy.and_then(|buy| sell.map(|sell| (buy, sell)))
+                .map(|(buy, sell)| ScanRequest {
+                    as_of_ms: 0,
+                    max_age_ms: route.max_age_ms,
+                    max_skew_ms: route.max_skew_ms,
+                    relationship: route.relationship,
+                    quantities: route.quantities,
+                    costs: route.costs,
+                    buy,
+                    sell,
+                }),
+        ));
+    }
+    let as_of_ms = now_ms();
+    tokio::task::spawn_blocking(move || {
+        let _permit=permit;
+        let rows=prepared.into_iter().map(|(id,evidence)| {
+            let result=evidence.and_then(|mut evidence| {evidence.as_of_ms=as_of_ms;research_engine::scan(&evidence)});
+            candidate_result(id,result)
+        }).collect();
+        let mut result=rank(as_of_ms,request.min_net_bps,rows);
+        result.limitations.push("cached observations are not atomic across venues; legacy source time may be receipt time");
+        result
+    }).await.map(Json).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR,Json(json!({"error":"research worker failed"}))))
+}
 
 pub async fn paper(
     Json(request): Json<crate::paper::PaperRequest>,

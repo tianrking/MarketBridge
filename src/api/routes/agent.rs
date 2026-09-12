@@ -33,7 +33,7 @@ pub async fn capabilities() -> impl IntoResponse {
         "notes": [
             "Use /v1/agent/context for a compact one-call market context.",
             "Use persist=true on history/klines requests only for data you want to retain locally.",
-            "MarketBridge remains data-only: no orders, balances, or trading authority."
+            "MarketBridge provides data and research scenarios: no orders, live balances, or trading authority."
         ]
     }))
 }
@@ -157,6 +157,21 @@ fn capability_rows() -> Vec<AgentCapability> {
             name: "research_features",
             endpoint: "/v1/research/features",
             purpose: "Read multi-timeframe research features and correlated asset context.",
+        },
+        AgentCapability {
+            name: "candidate_screening",
+            endpoint: "/v1/research/scan",
+            purpose: "POST explicit evidence candidates for conditional cost ranking; errors and reference-only rows remain visible.",
+        },
+        AgentCapability {
+            name: "live_candidate_screening",
+            endpoint: "/v1/research/scan-live",
+            purpose: "POST configured instrument routes to screen cached books with explicit identity and costs; no automatic asset equivalence.",
+        },
+        AgentCapability {
+            name: "paper_fill_scenarios",
+            endpoint: "/v1/research/paper",
+            purpose: "POST prefunded fill scenarios; inspect balances and unmatched exposure without order execution.",
         },
         AgentCapability {
             name: "strategy_symbol_state",

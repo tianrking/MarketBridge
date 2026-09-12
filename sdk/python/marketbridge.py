@@ -48,3 +48,11 @@ class MarketBridge:
 
     def paper(self, initial: dict[str, float], frames: list[dict[str, Any]]) -> dict[str, Any]:
         return self._post("/v1/research/paper", {"initial": initial, "frames": frames})
+
+    def scan(self, candidates: list[dict[str, Any]], *, as_of_ms: int,
+             min_net_bps: float = 0.0) -> dict[str, Any]:
+        return self._post("/v1/research/scan", {"as_of_ms": as_of_ms,
+                         "min_net_bps": min_net_bps, "candidates": candidates})
+
+    def scan_live(self, candidates: list[dict[str, Any]], *, min_net_bps: float = 0.0) -> dict[str, Any]:
+        return self._post("/v1/research/scan-live", {"min_net_bps": min_net_bps, "candidates": candidates})

@@ -39,6 +39,22 @@ class ClientTests(unittest.TestCase):
             self.assertTrue(request.full_url.endswith("/v1/research/paper"))
             self.assertEqual(json.loads(request.data), {"initial": {"buy_venue_quote": 100}, "frames": [{"size_index": 0}]})
 
+    def test_batch_payload(self):
+        with patch("marketbridge.build_opener") as opener:
+            opener.return_value.open.return_value = io.BytesIO(b'{}')
+            MarketBridge().scan([{"id": "a"}], as_of_ms=100, min_net_bps=2)
+            request = opener.return_value.open.call_args.args[0]
+            self.assertTrue(request.full_url.endswith("/v1/research/scan"))
+            self.assertEqual(json.loads(request.data), {"as_of_ms": 100, "min_net_bps": 2, "candidates": [{"id": "a"}]})
+
+    def test_live_batch_payload(self):
+        with patch("marketbridge.build_opener") as opener:
+            opener.return_value.open.return_value = io.BytesIO(b'{}')
+            MarketBridge().scan_live([{"id": "a", "route": {}}])
+            request = opener.return_value.open.call_args.args[0]
+            self.assertTrue(request.full_url.endswith("/v1/research/scan-live"))
+            self.assertEqual(json.loads(request.data), {"min_net_bps": 0, "candidates": [{"id": "a", "route": {}}]})
+
 
 if __name__ == "__main__":
     unittest.main()

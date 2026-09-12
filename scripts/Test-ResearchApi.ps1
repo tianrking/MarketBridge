@@ -59,6 +59,26 @@ try {
     $paperInput.frames[0].sell_fill_fraction = 0
     $partial = Invoke-RestMethod "$base/v1/research/paper" -Headers $headers -Method Post -ContentType application/json -Body ($paperInput | ConvertTo-Json -Depth 30)
     if ($partial.residual_base_change -ne 0.5 -or $null -ne $partial.closed_base_cash_pnl_quote) { throw 'Unmatched leg incorrectly reported closed PnL' }
+    $positive = $body | ConvertFrom-Json
+    $positive.costs.buy_fee_bps = 0
+    $positive.costs.sell_fee_bps = 0
+    $batchInput = @{as_of_ms=$positive.as_of_ms; min_net_bps=0; candidates=@(
+        @{id='positive-fixture'; evidence=$positive}, @{id='negative-fixture'; evidence=($body | ConvertFrom-Json)}
+    )}
+    $batch = Invoke-RestMethod "$base/v1/research/scan" -Headers $headers -Method Post -ContentType application/json -Body ($batchInput | ConvertTo-Json -Depth 30)
+    if ($batch.candidates.Count -ne 2 -or $batch.ranking.Count -ne 3 -or $batch.ranking[0].candidate_id -ne 'positive-fixture') { throw 'Incorrect batch screening' }
+    # Generated, uniquely named test inputs stay with the ignored test outputs.
+    $batchPath=Join-Path $out "batch-$runId.json"
+    $paperPath=Join-Path $out "paper-$runId.json"
+    $batchInput | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $batchPath -Encoding utf8NoBOM
+    $paperInput | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $paperPath -Encoding utf8NoBOM
+    $cliBatch = & $binaryPath --scan $batchPath | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $cliBatch.ranking.Count -ne $batch.ranking.Count -or $cliBatch.ranking[0].conditional_net_quote -ne $batch.ranking[0].conditional_net_quote) { throw 'CLI/API batch disagreement' }
+    $cliPaper = & $binaryPath --paper $paperPath | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $cliPaper.residual_base_change -ne $partial.residual_base_change -or $null -ne $cliPaper.closed_base_cash_pnl_quote) { throw 'CLI/API paper disagreement' }
+    $route = @{buy=$positive.buy.instrument; sell=$positive.sell.instrument; relationship=$positive.relationship; quantities=$positive.quantities; costs=$positive.costs; max_age_ms=1000; max_skew_ms=100}
+    $live = Invoke-RestMethod "$base/v1/research/scan-live" -Headers $headers -Method Post -ContentType application/json -Body (@{min_net_bps=0; candidates=@(@{id='absent'; route=$route})} | ConvertTo-Json -Depth 30)
+    if ($live.ranking.Count -ne 0 -or $null -eq $live.candidates[0].error) { throw 'Missing cached books became a live opportunity' }
     $inputObject.sell.received_at_ms = 20000
     $futureBody = @{frames=@($inputObject)} | ConvertTo-Json -Depth 30
     $future = Invoke-WebRequest "$base/v1/research/replay" -Headers $headers -Method Post -ContentType application/json -Body $futureBody -SkipHttpErrorCheck
@@ -67,7 +87,7 @@ try {
     $inputObject.buy.bids[0].price = 99999
     $crossed = Invoke-WebRequest "$base/v1/research/evaluate" -Headers $headers -Method Post -ContentType application/json -Body ($inputObject | ConvertTo-Json -Depth 30) -SkipHttpErrorCheck
     if ($crossed.StatusCode -ne 422) { throw 'Crossed book was accepted' }
-    Write-Output 'PASS: local HTTP auth, cost curve, unknown fees, capacity, replay, paired/partial paper ledger, future rejection, crossed-book rejection'
+    Write-Output 'PASS: HTTP auth, costs/capacity, replay/paper/batch, CLI parity, missing live books, future/crossed-book rejection'
 } finally {
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id }
     $env:MARKETBRIDGE_CONFIG = $oldConfig

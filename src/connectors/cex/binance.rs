@@ -121,13 +121,17 @@ struct BinanceFundingMsg<'a> {
 #[derive(Debug, Deserialize)]
 struct BinanceDepthCombined<'a> {
     #[serde(borrow)]
+    stream: &'a str,
+    #[serde(borrow)]
     data: BinanceDepthMsg<'a>,
 }
 
 #[derive(Debug, Deserialize)]
 struct BinanceDepthMsg<'a> {
-    #[serde(borrow, rename = "s")]
-    symbol: &'a str,
+    #[serde(borrow, default, rename = "s")]
+    symbol: Option<&'a str>,
+    #[serde(default, rename = "E")]
+    event_time_ms: Option<u64>,
     #[serde(rename = "lastUpdateId", alias = "u")]
     last_update_id: Option<u64>,
     #[serde(borrow, default, rename = "bids", alias = "b")]
@@ -313,6 +317,10 @@ async fn run_binance_depth(
     ctx: SourceContext,
 ) -> Result<()> {
     let suffix = "depth20@100ms";
+    let allowed = symbols
+        .iter()
+        .map(|s| s.to_ascii_uppercase())
+        .collect::<std::collections::HashSet<_>>();
     let streams = combined_streams(symbols, suffix)?;
     let base = match market {
         MarketKind::Spot => "wss://stream.binance.com:9443/stream?",
@@ -338,16 +346,10 @@ async fn run_binance_depth(
                         let Some(text) = decode_ws_text("binance depth", &msg)? else {
                             continue;
                         };
-                        if let Some(parsed) = parse_ws_json::<BinanceDepthCombined<'_>>("binance depth", &text) {
-                            ctx.emit(DataEvent::OrderBook(OrderBookTick {
-                                exchange: "binance",
-                                market,
-                                symbol: parsed.data.symbol.to_string().into_boxed_str(),
-                                bids: parse_levels(&parsed.data.bids),
-                                asks: parse_levels(&parsed.data.asks),
-                                last_update_id: parsed.data.last_update_id,
-                                ts_ms: now_ms(),
-                            })).await?;
+                        if let Some(book) = parse_ws_json::<BinanceDepthCombined<'_>>("binance depth", &text)
+                            .and_then(|parsed| depth_book(parsed, market, now_ms()))
+                            .filter(|book| allowed.contains(book.symbol.as_ref())) {
+                            ctx.emit(DataEvent::OrderBook(book)).await?;
                         }
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
@@ -557,16 +559,56 @@ fn parse_f64(value: &str) -> Option<f64> {
     value.parse::<f64>().ok()
 }
 
-fn parse_levels(levels: &[[&str; 2]]) -> Vec<BookLevel> {
+fn parse_levels(levels: &[[&str; 2]]) -> Option<Vec<BookLevel>> {
+    if levels.is_empty() || levels.len() > 20 {
+        return None;
+    }
     levels
         .iter()
-        .filter_map(|[price, qty]| {
-            Some(BookLevel {
-                price: price.parse::<f64>().ok()?,
-                qty: qty.parse::<f64>().ok()?,
-            })
+        .map(|[price, qty]| {
+            let price = price.parse::<f64>().ok()?;
+            let qty = qty.parse::<f64>().ok()?;
+            (price.is_finite() && price > 0.0 && qty.is_finite() && qty > 0.0)
+                .then_some(BookLevel { price, qty })
         })
         .collect()
+}
+
+fn depth_book(
+    parsed: BinanceDepthCombined<'_>,
+    market: MarketKind,
+    received_at_ms: u64,
+) -> Option<OrderBookTick> {
+    // Spot partial-depth payloads omit `s`; identity is in the combined stream.
+    let symbol = parsed
+        .stream
+        .strip_suffix("@depth20@100ms")?
+        .to_ascii_uppercase();
+    if symbol.is_empty()
+        || parsed
+            .data
+            .symbol
+            .is_some_and(|s| !s.eq_ignore_ascii_case(&symbol))
+    {
+        return None;
+    }
+    let bids = parse_levels(&parsed.data.bids)?;
+    let asks = parse_levels(&parsed.data.asks)?;
+    if bids[0].price > asks[0].price
+        || !bids.windows(2).all(|w| w[0].price > w[1].price)
+        || !asks.windows(2).all(|w| w[0].price < w[1].price)
+    {
+        return None;
+    }
+    Some(OrderBookTick {
+        exchange: "binance",
+        market,
+        symbol: symbol.into(),
+        bids,
+        asks,
+        last_update_id: Some(parsed.data.last_update_id?),
+        ts_ms: parsed.data.event_time_ms.unwrap_or(received_at_ms),
+    })
 }
 
 fn trade_side_from_buyer_maker(buyer_is_maker: Option<bool>) -> TradeSide {
@@ -685,10 +727,10 @@ impl ExchangeSource for BinanceTradeFeed {
 #[cfg(test)]
 mod tests {
     use super::{
-        BinanceDepthCombined, BinanceOpenInterestResponse, binance_open_interest_event,
+        BinanceDepthCombined, BinanceOpenInterestResponse, binance_open_interest_event, depth_book,
         side_from_str, trade_side_from_buyer_maker,
     };
-    use crate::types::{DataEvent, TradeSide};
+    use crate::types::{DataEvent, MarketKind, TradeSide};
 
     #[test]
     fn binance_side_helpers_map_exchange_semantics() {
@@ -734,9 +776,33 @@ mod tests {
         )
         .expect("depth");
 
-        assert_eq!(parsed.data.symbol, "HOMEUSDT");
+        assert_eq!(parsed.data.symbol, Some("HOMEUSDT"));
         assert_eq!(parsed.data.last_update_id, Some(390497878));
         assert_eq!(parsed.data.bids[0], ["0.04850", "1000"]);
         assert_eq!(parsed.data.asks[0], ["0.04860", "2000"]);
+        let book = depth_book(parsed, MarketKind::Perp, 99).unwrap();
+        assert_eq!(book.ts_ms, 1780642750000);
+    }
+
+    #[test]
+    fn spot_partial_depth_uses_stream_identity_without_payload_symbol() {
+        let parsed=serde_json::from_str(r#"{"stream":"btcusdt@depth20@100ms","data":{"lastUpdateId":123,"bids":[["99","1"]],"asks":[["100","2"]]}}"#).unwrap();
+        let book = depth_book(parsed, MarketKind::Spot, 42).unwrap();
+        assert_eq!(book.symbol.as_ref(), "BTCUSDT");
+        assert_eq!(book.ts_ms, 42);
+        assert_eq!(book.last_update_id, Some(123));
+    }
+
+    #[test]
+    fn depth_identity_conflict_or_invalid_levels_cannot_create_complete_book() {
+        for data in [
+            r#"{"stream":"btcusdt@depth20@100ms","data":{"s":"ETHUSDT","u":1,"bids":[["99","1"]],"asks":[["100","2"]]}}"#,
+            r#"{"stream":"btcusdt@depth20@100ms","data":{"u":1,"bids":[["NaN","1"]],"asks":[["100","2"]]}}"#,
+            r#"{"stream":"btcusdt@depth@100ms","data":{"u":1,"bids":[["99","1"]],"asks":[["100","2"]]}}"#,
+        ] {
+            assert!(
+                depth_book(serde_json::from_str(data).unwrap(), MarketKind::Spot, 42).is_none()
+            );
+        }
     }
 }

@@ -1,5 +1,29 @@
 # Development log
 
+## 2026-09-12 — Batch screening and real-source depth repair
+
+- Added bounded offline/cached-live candidate screening (64 routes), common
+  decision cutoffs, after-cost ranking and visible per-candidate errors. Alternative
+  sizes/shared liquidity are not added into a fabricated total profit.
+- Added HTTP/CLI/Python interfaces, opt-in public-source config/example, bounded
+  observation script and explicit candidate release checklist.
+- First public observation (05:49–05:50 UTC) found no Binance book: the old
+  spot-depth parser incorrectly required payload `s`. Fixed combined-stream
+  identity, conflicting symbols, malformed levels and event-time preservation.
+- Final local Windows/MSVC evidence: **293 Rust tests passed**; strict all-target/
+  all-feature clippy, build, format/diff checks passed; **7 Python tests passed**.
+- Authenticated HTTP smoke passed, including batch ranking, missing-live-book
+  rejection and CLI/API agreement for batch/paper inputs.
+- Post-fix public observation ending **2026-09-12 05:55:32 UTC**: 20 samples over
+  20.42 seconds; 19 samples contained both books, with 19 distinct observations
+  per venue. Last result had only the intentionally unverified relationship and
+  unknown-cost reasons. No ranked opportunity or order was produced.
+- Post-fix logs contained zero JSON parse warnings. Local diagnostic logs are
+  ignored under `examples/out/public-c45820f0f9d74a21b40200af79d679b0.*.log`.
+- This proves a short two-source data path on this machine, not long-term uptime,
+  lossless history, profitability, all-venue coverage or release readiness.
+- No push, remote CI, release tag or background daemon was started for delivery.
+
 ## 2026-09-12 — Prefunded paper scenarios and Bybit depth correctness
 
 - Added fixed-pair paper ledger with explicit partial fill scenarios, inventory

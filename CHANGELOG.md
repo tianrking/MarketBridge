@@ -4,6 +4,8 @@
 
 ### Added
 
+- Bounded batch candidate screening, stable after-cost ranking, per-route errors
+  and cached-live scanning. Added opt-in public spot observation config/example.
 - Prefunded taker paper scenarios with explicit fill fractions, per-venue balances,
   remaining depth accounting and visible unmatched exposure; HTTP/CLI/Python access.
 - Explicit instrument identity and relationship evidence for a bounded same-asset
@@ -16,6 +18,9 @@
 
 ### Corrected
 
+- Live observation exposed Binance spot depth parsing incorrectly requiring payload
+  `s`. Partial-depth now uses combined-stream identity, validates conflicting
+  identity/levels and preserves exchange event time when available.
 - Bybit depth now reconstructs snapshot/delta state, resets on restart and retains
   root message timestamps; fixture coverage does not imply live certification.
 - Observation time no longer advances with call count; idle quotes expire at read.

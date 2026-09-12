@@ -1,0 +1,32 @@
+{
+  "min_net_bps": 0,
+  "candidates": [{
+    "id": "btc-binance-to-okx",
+    "route": {
+      "buy": {
+        "id": "binance:BTCUSDT:spot", "venue": "binance", "symbol": "BTCUSDT",
+        "asset_class": "crypto", "product_type": "spot",
+        "base_asset_id": "bitcoin:native", "quote_asset_id": "tether:USDT",
+        "quantity_unit": "BTC", "price_unit": "USDT/BTC", "contract_multiplier": 1,
+        "expiry_ms": null, "chain": null, "contract_address": null,
+        "issuer": null, "settlement": null
+      },
+      "sell": {
+        "id": "okx:BTC-USDT:spot", "venue": "okx", "symbol": "BTC-USDT",
+        "asset_class": "crypto", "product_type": "spot",
+        "base_asset_id": "bitcoin:native", "quote_asset_id": "tether:USDT",
+        "quantity_unit": "BTC", "price_unit": "USDT/BTC", "contract_multiplier": 1,
+        "expiry_ms": null, "chain": null, "contract_address": null,
+        "issuer": null, "settlement": null
+      },
+      "relationship": {
+        "left_instrument": "binance:BTCUSDT:spot", "right_instrument": "okx:BTC-USDT:spot",
+        "kind": "same_asset", "evidence": "Example research assumption only; verify custody, product identity and conversion terms independently",
+        "known_at_ms": 0, "valid_until_ms": null
+      },
+      "quantities": [0.001, 0.01, 0.1],
+      "costs": {"version": "UNVERIFIED-replace-with-dated-cost-evidence", "buy_fee_bps": null, "sell_fee_bps": null, "other_cost_quote": null},
+      "max_age_ms": 1500, "max_skew_ms": 1000
+    }
+  }]
+}
