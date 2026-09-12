@@ -20,7 +20,7 @@ pub async fn info() -> impl IntoResponse {
         "version": env!("CARGO_PKG_VERSION"),
         "api_version": "v1",
         "orders_supported": false,
-        "research_models": ["same-asset-spot/v1"],
+        "research_models": ["same-asset-spot/v1", "prefunded-taker-scenario/v1"],
         "research_limits": {"body_bytes":2097152,"book_levels":200,"sizes":32,"replay_frames":512},
         "status": "ok",
         "local_ui": {
@@ -53,6 +53,7 @@ pub async fn info() -> impl IntoResponse {
             "research",
             "conditional_cost_curves",
             "scenario_replay",
+            "paper_fill_scenarios",
             "agent_context",
             "websocket_stream"
         ],

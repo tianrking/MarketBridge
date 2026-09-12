@@ -50,6 +50,15 @@ try {
     $replayBody = @{frames=@($inputObject)} | ConvertTo-Json -Depth 30
     $replay = Invoke-RestMethod "$base/v1/research/replay" -Headers $headers -Method Post -ContentType application/json -Body $replayBody
     if ($replay.decisions.Count -ne 1) { throw 'Replay failed' }
+    $paperInput = @{
+        initial = @{ buy_venue_quote=1000000; buy_venue_base=0; sell_venue_quote=0; sell_venue_base=10 }
+        frames = @(@{ evidence=$inputObject; size_index=0; buy_fill_fraction=1; sell_fill_fraction=1 })
+    }
+    $paper = Invoke-RestMethod "$base/v1/research/paper" -Headers $headers -Method Post -ContentType application/json -Body ($paperInput | ConvertTo-Json -Depth 30)
+    if ($paper.residual_base_change -ne 0 -or [Math]::Abs($paper.closed_base_cash_pnl_quote - $result.points[0].conditional_net_quote) -gt 0.0000001) { throw 'Paired paper ledger disagrees with cost curve' }
+    $paperInput.frames[0].sell_fill_fraction = 0
+    $partial = Invoke-RestMethod "$base/v1/research/paper" -Headers $headers -Method Post -ContentType application/json -Body ($paperInput | ConvertTo-Json -Depth 30)
+    if ($partial.residual_base_change -ne 0.5 -or $null -ne $partial.closed_base_cash_pnl_quote) { throw 'Unmatched leg incorrectly reported closed PnL' }
     $inputObject.sell.received_at_ms = 20000
     $futureBody = @{frames=@($inputObject)} | ConvertTo-Json -Depth 30
     $future = Invoke-WebRequest "$base/v1/research/replay" -Headers $headers -Method Post -ContentType application/json -Body $futureBody -SkipHttpErrorCheck
@@ -58,7 +67,7 @@ try {
     $inputObject.buy.bids[0].price = 99999
     $crossed = Invoke-WebRequest "$base/v1/research/evaluate" -Headers $headers -Method Post -ContentType application/json -Body ($inputObject | ConvertTo-Json -Depth 30) -SkipHttpErrorCheck
     if ($crossed.StatusCode -ne 422) { throw 'Crossed book was accepted' }
-    Write-Output 'PASS: local HTTP auth, cost curve, unknown fees, capacity, replay, future rejection, crossed-book rejection'
+    Write-Output 'PASS: local HTTP auth, cost curve, unknown fees, capacity, replay, paired/partial paper ledger, future rejection, crossed-book rejection'
 } finally {
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id }
     $env:MARKETBRIDGE_CONFIG = $oldConfig

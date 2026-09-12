@@ -45,3 +45,6 @@ class MarketBridge:
 
     def replay(self, frames: list[dict[str, Any]]) -> dict[str, Any]:
         return self._post("/v1/research/replay", {"frames": frames})
+
+    def paper(self, initial: dict[str, float], frames: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._post("/v1/research/paper", {"initial": initial, "frames": frames})

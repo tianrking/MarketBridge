@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-09-12 — Prefunded paper scenarios and Bybit depth correctness
+
+- Added fixed-pair paper ledger with explicit partial fill scenarios, inventory
+  checks, remaining-depth reuse, fees and unmatched exposure. Wired HTTP, CLI
+  and Python access; no inferred borrowing, maker fills or mark-to-market.
+- Corrected Bybit snapshot/delta merge, zero-size deletion, restart reset and
+  root source timestamps. Invalid state resets the builder; live research
+  promotion remains withheld pending continuity validation.
+- Aligned English/Chinese positioning and interface/architecture documentation
+  with the research platform, while preserving the no-order boundary.
+- Local Windows/MSVC: **288 Rust tests passed**; strict all-target/all-feature
+  clippy, build, formatting and diff checks passed. **5 Python tests passed**.
+- Authenticated localhost HTTP smoke passed, now including paired cash-cost
+  reconciliation and unmatched-leg exposure with null closed-position PnL.
+- No live-provider soak, remote CI, push, release tag or general portfolio claim.
+
 ## 2026-09-12 — Evidence-backed research API and recording foundation
 
 - Added explicit instrument/relationship evidence, same-base cost curves,

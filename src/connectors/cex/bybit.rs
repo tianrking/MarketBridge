@@ -8,7 +8,7 @@ use serde_json::json;
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::{emit_tick_ext, parse_array_levels, side_from_labels};
+use crate::connectors::cex::common::{emit_tick_ext, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
     DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, OrderBookTick,
@@ -17,6 +17,10 @@ use crate::types::{
 
 #[derive(Deserialize)]
 struct BybitMsg {
+    #[serde(default, rename = "type")]
+    message_type: Option<String>,
+    #[serde(default)]
+    ts: Option<serde_json::Value>,
     #[serde(default)]
     op: Option<String>,
     #[serde(default)]
@@ -116,7 +120,7 @@ pub async fn run_bybit(
                                 let symbol = d.get("symbol").and_then(|x| x.as_str()).unwrap_or("UNKNOWN");
                                 let bid = d.get("bid1Price").and_then(|x| x.as_str()).unwrap_or("0");
                                 let ask = d.get("ask1Price").and_then(|x| x.as_str()).unwrap_or("0");
-                                let ts = d.get("ts").and_then(|x| x.as_u64());
+                                let ts = m.ts.as_ref().and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok())));
                                 if bid != "0" && ask != "0" {
                                     let mark = (market == MarketKind::Perp)
                                         .then(|| d.get("markPrice").and_then(|x| x.as_str()))
@@ -195,35 +199,123 @@ async fn emit_perp_metrics(
     Ok(())
 }
 
+#[derive(Default)]
+struct BybitBook {
+    bids: Vec<crate::types::BookLevel>,
+    asks: Vec<crate::types::BookLevel>,
+    update_id: Option<u64>,
+}
+
+impl BybitBook {
+    fn apply(
+        &mut self,
+        data: &serde_json::Value,
+        kind: Option<&str>,
+        ts: Option<u64>,
+        market: MarketKind,
+    ) -> Option<OrderBookTick> {
+        let id = data.get("u")?.as_u64()?;
+        let snapshot = kind == Some("snapshot") || id == 1;
+        if !snapshot && (kind != Some("delta") || self.update_id.is_none()) {
+            return None;
+        }
+        if !snapshot && self.update_id.is_some_and(|last| id <= last) {
+            return None;
+        }
+        let changes = parse_book_changes(data);
+        let Some((bids, asks)) = changes else {
+            *self = Self::default();
+            return None;
+        };
+        if snapshot {
+            self.bids.clear();
+            self.asks.clear();
+        }
+        apply_book_changes(&mut self.bids, bids, false);
+        apply_book_changes(&mut self.asks, asks, true);
+        if self.bids.is_empty() || self.asks.is_empty() || self.bids[0].price > self.asks[0].price {
+            *self = Self::default();
+            return None;
+        }
+        self.update_id = Some(id);
+        Some(OrderBookTick {
+            exchange: "bybit",
+            market,
+            symbol: data.get("s")?.as_str()?.into(),
+            bids: self.bids.clone(),
+            asks: self.asks.clone(),
+            last_update_id: Some(id),
+            ts_ms: ts.unwrap_or_else(now_ms),
+        })
+    }
+}
+
+fn parse_book_changes(
+    data: &serde_json::Value,
+) -> Option<(Vec<crate::types::BookLevel>, Vec<crate::types::BookLevel>)> {
+    fn side(data: &serde_json::Value) -> Option<Vec<crate::types::BookLevel>> {
+        let rows = data.as_array()?;
+        if rows.len() > 1000 {
+            return None;
+        }
+        rows.iter()
+            .map(|row| {
+                let row = row.as_array()?;
+                let number = |v: &serde_json::Value| {
+                    v.as_f64()
+                        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                };
+                let price = number(row.first()?)?;
+                let qty = number(row.get(1)?)?;
+                (price.is_finite() && price > 0.0 && qty.is_finite() && qty >= 0.0)
+                    .then_some(crate::types::BookLevel { price, qty })
+            })
+            .collect()
+    }
+    Some((side(data.get("b")?)?, side(data.get("a")?)?))
+}
+
+fn apply_book_changes(
+    levels: &mut Vec<crate::types::BookLevel>,
+    changes: Vec<crate::types::BookLevel>,
+    ascending: bool,
+) {
+    for change in changes {
+        levels.retain(|l| l.price != change.price);
+        if change.qty > 0.0 {
+            levels.push(change);
+        }
+    }
+    levels.sort_by(|a, b| {
+        if ascending {
+            a.price.total_cmp(&b.price)
+        } else {
+            b.price.total_cmp(&a.price)
+        }
+    });
+    levels.truncate(50);
+}
+
 async fn run_bybit_depth(market: MarketKind, symbols: &[String], ctx: SourceContext) -> Result<()> {
     let topics = symbols
         .iter()
         .map(|s| format!("orderbook.50.{s}"))
         .collect::<Vec<_>>();
-    run_bybit_topic_loop(bybit_url(market), topics, ctx, move |data| {
+    let allowed = symbols
+        .iter()
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
+    let mut books = std::collections::HashMap::<String, BybitBook>::new();
+    run_bybit_topic_loop(bybit_url(market), topics, ctx, move |data, kind, ts| {
         let symbol = data.get("s").and_then(|x| x.as_str())?;
-        let bids = data
-            .get("b")
-            .and_then(|x| x.as_array())
-            .map(|x| parse_array_levels(x))
-            .unwrap_or_default();
-        let asks = data
-            .get("a")
-            .and_then(|x| x.as_array())
-            .map(|x| parse_array_levels(x))
-            .unwrap_or_default();
-        Some(DataEvent::OrderBook(OrderBookTick {
-            exchange: "bybit",
-            market,
-            symbol: symbol.to_string().into_boxed_str(),
-            bids,
-            asks,
-            last_update_id: data.get("u").and_then(|x| x.as_u64()),
-            ts_ms: data
-                .get("ts")
-                .and_then(|x| x.as_u64())
-                .unwrap_or_else(now_ms),
-        }))
+        if !allowed.contains(symbol) {
+            return None;
+        }
+        books
+            .entry(symbol.into())
+            .or_default()
+            .apply(data, kind, ts, market)
+            .map(DataEvent::OrderBook)
     })
     .await
 }
@@ -237,7 +329,7 @@ async fn run_bybit_trades(
         .iter()
         .map(|s| format!("publicTrade.{s}"))
         .collect::<Vec<_>>();
-    run_bybit_topic_loop(bybit_url(market), topics, ctx, move |data| {
+    run_bybit_topic_loop(bybit_url(market), topics, ctx, move |data, _, _| {
         let symbol = data.get("s").and_then(|x| x.as_str())?;
         Some(DataEvent::Trade(TradeTick {
             exchange: "bybit",
@@ -268,7 +360,7 @@ async fn run_bybit_liquidations(symbols: &[String], ctx: SourceContext) -> Resul
         "wss://stream.bybit.com/v5/public/linear",
         topics,
         ctx,
-        |data| {
+        |data, _, _| {
             let symbol = data.get("s").and_then(|x| x.as_str())?;
             Some(DataEvent::Liquidation(LiquidationTick {
                 exchange: "bybit",
@@ -293,7 +385,7 @@ async fn run_bybit_topic_loop<F>(
     mut build_event: F,
 ) -> Result<()>
 where
-    F: FnMut(&serde_json::Value) -> Option<DataEvent>,
+    F: FnMut(&serde_json::Value, Option<&str>, Option<u64>) -> Option<DataEvent>,
 {
     if topics.is_empty() {
         bail!("bybit topic list empty");
@@ -306,9 +398,11 @@ where
     .await?;
     let mut ping_tick = interval(Duration::from_secs(20));
 
+    let mut last_pong = Instant::now();
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
+                if last_pong.elapsed() > Duration::from_secs(60) { bail!("bybit topic pong timeout"); }
                 sink.send(Message::Text(json!({"op":"ping"}).to_string())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "bybit", ts_ms: now_ms() }).await?;
             }
@@ -316,19 +410,22 @@ where
                 let msg = msg.context("bybit topic stream ended")??;
                 match msg {
                     Message::Text(text) => {
-                        if let Ok(m) = serde_json::from_str::<BybitMsg>(&text)
-                            && let Some(data) = m.data
-                        {
+                        if let Ok(m) = serde_json::from_str::<BybitMsg>(&text) {
+                            if m.op.as_deref() == Some("pong") || m.ret_msg.as_deref() == Some("pong") {
+                                last_pong = Instant::now(); continue;
+                            }
+                            let ts=m.ts.as_ref().and_then(|v|v.as_u64().or_else(||v.as_str().and_then(|s|s.parse().ok())));
+                            let Some(data)=m.data else {continue;};
                             match data {
                                 serde_json::Value::Array(items) => {
                                     for item in items {
-                                        if let Some(event) = build_event(&item) {
+                                        if let Some(event) = build_event(&item,m.message_type.as_deref(),ts) {
                                             ctx.emit(event).await?;
                                         }
                                     }
                                 }
                                 item => {
-                                    if let Some(event) = build_event(&item) {
+                                    if let Some(event) = build_event(&item,m.message_type.as_deref(),ts) {
                                         ctx.emit(event).await?;
                                     }
                                 }
@@ -337,7 +434,8 @@ where
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => bail!("bybit topic stream closed"),
-                    Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                    Message::Pong(_) => last_pong=Instant::now(),
+                    Message::Binary(_) | Message::Frame(_) => {}
                 }
             }
         }
@@ -419,7 +517,7 @@ impl ExchangeSource for BybitLiquidationFeed {
 
 #[cfg(test)]
 mod tests {
-    use super::side_from_str;
+    use super::*;
     use crate::types::TradeSide;
 
     #[test]
@@ -427,5 +525,81 @@ mod tests {
         assert_eq!(side_from_str("Buy"), TradeSide::Buy);
         assert_eq!(side_from_str("Sell"), TradeSide::Sell);
         assert_eq!(side_from_str("other"), TradeSide::Unknown);
+    }
+
+    fn snapshot() -> serde_json::Value {
+        json!({"s":"BTCUSDT","u":10,"b":[["99","2"],["98","3"]],"a":[["101","2"],["102","3"]]})
+    }
+
+    #[test]
+    fn depth_deltas_preserve_unchanged_levels_and_remove_zero_size() {
+        let mut book = BybitBook::default();
+        book.apply(&snapshot(), Some("snapshot"), Some(1000), MarketKind::Spot)
+            .unwrap();
+        let delta = json!({"s":"BTCUSDT","u":12,"b":[["99","0"],["98.5","1"]],"a":[["101","4"]]});
+        let tick = book
+            .apply(&delta, Some("delta"), Some(1020), MarketKind::Spot)
+            .unwrap();
+        assert_eq!(
+            tick.bids
+                .iter()
+                .map(|l| (l.price, l.qty))
+                .collect::<Vec<_>>(),
+            vec![(98.5, 1.0), (98.0, 3.0)]
+        );
+        assert_eq!(
+            tick.asks
+                .iter()
+                .map(|l| (l.price, l.qty))
+                .collect::<Vec<_>>(),
+            vec![(101.0, 4.0), (102.0, 3.0)]
+        );
+        assert_eq!(tick.ts_ms, 1020);
+        assert_eq!(tick.last_update_id, Some(12));
+        // Update IDs need not be consecutive; duplicates/older deltas do not mutate state.
+        assert!(
+            book.apply(&delta, Some("delta"), Some(1030), MarketKind::Spot)
+                .is_none()
+        );
+        assert_eq!(book.bids[0].price, 98.5);
+    }
+
+    #[test]
+    fn depth_requires_snapshot_and_restart_resets_all_levels() {
+        let mut book = BybitBook::default();
+        assert!(
+            book.apply(&snapshot(), Some("delta"), None, MarketKind::Spot)
+                .is_none()
+        );
+        book.apply(&snapshot(), Some("snapshot"), None, MarketKind::Spot)
+            .unwrap();
+        let reset = json!({"s":"BTCUSDT","u":1,"b":[["95","1"]],"a":[["105","1"]]});
+        let tick = book
+            .apply(&reset, Some("delta"), Some(2000), MarketKind::Spot)
+            .unwrap();
+        assert_eq!(tick.bids.len(), 1);
+        assert_eq!(tick.asks.len(), 1);
+        assert_eq!(tick.bids[0].price, 95.0);
+    }
+
+    #[test]
+    fn invalid_depth_invalidates_builder_until_next_snapshot() {
+        let mut book = BybitBook::default();
+        book.apply(&snapshot(), Some("snapshot"), None, MarketKind::Spot)
+            .unwrap();
+        let crossed = json!({"s":"BTCUSDT","u":11,"b":[["110","1"]],"a":[]});
+        assert!(
+            book.apply(&crossed, Some("delta"), None, MarketKind::Spot)
+                .is_none()
+        );
+        assert!(book.update_id.is_none());
+        assert!(
+            book.apply(&snapshot(), Some("delta"), None, MarketKind::Spot)
+                .is_none()
+        );
+        assert!(
+            book.apply(&snapshot(), Some("snapshot"), None, MarketKind::Spot)
+                .is_some()
+        );
     }
 }

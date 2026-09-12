@@ -132,6 +132,10 @@ pub fn build_router(state: ApiState) -> Router {
     );
     router
         .route(
+            "/v1/research/paper",
+            post(routes::opportunities::paper).options(cors::preflight),
+        )
+        .route(
             "/v1/research/evaluate-live",
             post(routes::opportunities::evaluate_live).options(cors::preflight),
         )

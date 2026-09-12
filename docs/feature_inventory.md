@@ -19,9 +19,9 @@ truth for what is implemented and wired into the runtime/API.
 | Journal and verification CLI | implemented | Opt-in normalized events; capped session, CRC, dropped counters, partial/sealed files |
 | Independent custom sources | implemented | Instance IDs, optional source time, bounded HTTP and shared-origin Retry-After pacing |
 | Full weighted provider quotas | planned | Shared-origin pacing is not account/IP/group weight accounting |
-| Paper portfolio ledger | planned | Cost curves and replay decisions are not inventory or fill accounting |
+| Prefunded paper fill ledger | partial | Fixed pair, explicit partial-fill scenarios, balances and depth reuse; no general portfolio/margin/exit model |
 | Generic asset registry / other strategy models | partial | Explicit identity/relationship input exists; automated attestation and other models remain planned |
-| Python client | partial | Synchronous standard-library evaluate/replay; generated types and async WS recovery planned |
+| Python client | partial | Synchronous standard-library evaluate/replay/paper; generated types and async WS recovery planned |
 | Full workbench / config reload / event studies | planned | Existing funding UI remains separate; no hot-reload claim |
 
 See [research API and usage](research-api.md), [development evidence](development-log.md)
@@ -68,7 +68,7 @@ Status labels:
 | Venue | BBO | L2 book | Trades | Funding | OI | Liquidations | API key | Notes |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | Binance | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
-| Bybit | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Spot/perp public feeds. |
+| Bybit | implemented | implemented | implemented | implemented | implemented | implemented | keyless | Snapshot/delta depth reconstruction and restart reset fixture-tested; research live promotion still withheld pending continuity validation. |
 | OKX | implemented | implemented | implemented | implemented | implemented | implemented | keyless | REST liquidation poller. |
 | Hyperliquid | partial | implemented | implemented | implemented | implemented | n/a | keyless | Public perp DEX source; `activeAssetCtx` emits funding and OI from the same update when both fields are present. CCXT marks public liquidation fetch unavailable. |
 | dYdX v4 | partial | implemented | implemented | implemented | implemented | n/a | keyless | REST market metadata plus WS book/trades; no stable public liquidation endpoint is exposed in the CCXT reference. |

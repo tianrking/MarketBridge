@@ -4,6 +4,8 @@
 
 ### Added
 
+- Prefunded taker paper scenarios with explicit fill fractions, per-venue balances,
+  remaining depth accounting and visible unmatched exposure; HTTP/CLI/Python access.
 - Explicit instrument identity and relationship evidence for a bounded same-asset
   spot model, cost curves, deterministic scenario replay, CLI and research APIs.
 - Live cached-book evaluation with conservative adapter promotion and limitations.
@@ -14,6 +16,8 @@
 
 ### Corrected
 
+- Bybit depth now reconstructs snapshot/delta state, resets on restart and retains
+  root message timestamps; fixture coverage does not imply live certification.
 - Observation time no longer advances with call count; idle quotes expire at read.
 - Legacy depth legs match the same base quantity and rank after costs; symbol-level
   hold timers reset on route changes and use monotonic elapsed time.
@@ -28,6 +32,6 @@
 ### Not yet release-complete
 
 Full asset registry, provider-wide weighted quotas, all-venue book reconstruction,
-raw-event replay, portfolio paper ledger, event studies, configuration hot reload,
+raw-event replay, general portfolio/margin/exit models, event studies, configuration hot reload,
 full workbench and async/generated SDKs remain on the roadmap. No release tag or
 claim of production readiness follows from unit tests alone.

@@ -23,6 +23,7 @@ No HTTP server is required for deterministic local evaluation:
 cargo run --locked -- --evaluate examples/research/same-asset.json
 # Replay accepts the same {"frames":[...]} document as the HTTP endpoint:
 cargo run --locked -- --replay path/to/replay.json
+cargo run --locked -- --paper path/to/paper.json
 ```
 
 After `cargo build --locked`, run `pwsh -File scripts/Test-ResearchApi.ps1` for
@@ -54,11 +55,15 @@ The example is synthetic; its 5 bps fees are assumptions, not current venue fees
 - `POST /v1/research/replay`: submit `{"frames":[<ScanRequest>, ...]}` sorted by
   `as_of_ms`. Future-received observations or future-known relationships fail
   validation. This is deterministic scenario replay, not yet a full tick dataset
-  replay engine or a paper portfolio ledger.
+  replay engine.
+- `POST /v1/research/paper`: submit the prefunded fill scenario described below.
+  Uses the same evidence validation as replay, then records inventory, cash costs,
+  matched/partial fills and remaining base exposure. Invalid requests return 422.
 
 Bodies are limited by Axum's JSON body limit (2 MiB); model bounds are 200 levels
 per side, 32 sizes per frame and 512 replay frames. Cost work is pure and bounded.
-At most two replay workers run concurrently; additional work receives HTTP 429.
+Replay and paper share at most two concurrent workers; additional work receives
+HTTP 429.
 
 The common base identity, quote identity, units, product, chain, issuer and
 settlement must agree for the same-asset spot model. Display tickers alone do not
@@ -72,7 +77,7 @@ book must contain finite positive sorted levels and cannot be locally crossed.
 `other_cost_quote` is a total cost applied separately to every requested size.
 It is not multiplied by quantity. Explicit zero means that this scenario omits
 other costs; document that choice under your cost version. Fees use taker
-assumptions. No maker queue simulation, inventory checks, borrow eligibility,
+assumptions. The cost-curve endpoint implies no maker queue simulation, inventory checks, borrow eligibility,
 currency conversion or simultaneous fill guarantee is implied. Price impact
 already included by integrating book levels must not be subtracted twice.
 
@@ -96,6 +101,37 @@ replayed = client.replay([evidence])
 The current client uses Python's standard library. Typed models, async streaming,
 cursor recovery and Arrow/Polars conversion remain planned, not advertised as
 already available.
+
+## Prefunded paper scenarios
+
+Build a request from the shipped synthetic evidence fixture:
+
+```powershell
+$evidence = Get-Content examples/research/same-asset.json -Raw | ConvertFrom-Json
+$paper = @{
+  initial = @{ buy_venue_quote=1000000; buy_venue_base=0; sell_venue_quote=0; sell_venue_base=10 }
+  frames = @(@{ evidence=$evidence; size_index=0; buy_fill_fraction=1; sell_fill_fraction=0 })
+}
+Invoke-RestMethod http://127.0.0.1:8080/v1/research/paper -Method Post -ContentType application/json -Body ($paper | ConvertTo-Json -Depth 30)
+```
+
+Python: `client.paper(initial_dict, frames_list)`. CLI `--paper` accepts the same JSON.
+This example buys 0.5 base units and sells none: residual exposure is 0.5 and
+`closed_base_cash_pnl_quote` is null, not a misleading profit number.
+
+Each run uses a fixed instrument pair and explicit initial balances. Fill fractions
+are caller-selected scenarios in [0,1], not a prediction of execution. Frames
+without a supported cost estimate create no fills. Insufficient inventory or
+remaining observed depth skips the whole frame. No implicit borrowing occurs.
+Fees apply to the simulated filled notional. `other_cost_quote` is charged once
+per frame with any fill, to the buy-venue quote balance; document this allocation.
+
+Reusing the same observation ID consumes its remaining depth instead of resetting
+it; reusing an ID with different content fails. A new ID resets available depth,
+so this is not counterfactual market-impact simulation. Cash change alone is not
+PnL while base exposure is open. Even with zero residual base, cash PnL excludes
+unmodeled custody, transfer, opportunity and counterparty risks. This is not yet
+a general multi-asset portfolio, mark-to-market, margin or automatic exit engine.
 
 ## Optional normalized-event recording
 
@@ -133,6 +169,12 @@ sequence continuity or complete market history.
 - Historical feature queries with `end_ms` do not receive current funding/OI/book
   context. Correlations align both ends of return intervals within venue/market.
   The existing candle database is not claimed to be a point-in-time revision store.
+- Bybit depth now merges snapshot/delta messages, deletes zero-size levels and
+  resets on service restart (`u=1`), following the
+  [official orderbook protocol](https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook).
+  Root source timestamps are retained. Invalid books reset the local builder;
+  reconnect starts a new builder. These fixture-tested changes do not certify
+  lossless live continuity; Bybit remains reference-only in `evaluate-live`.
 
 ## Declarative numeric sources
 

@@ -47,16 +47,17 @@ MarketBridge 负责：
 - 维护最新快照、数据新鲜度、source health、stale 标记。
 - 输出可复用的数据特征，例如 basis、order flow、klines。
 - 可选写入 Redis Stream，失败批次会落到本地 JSONL dead-letter 文件。
+- 按证据计算同资产成本曲线、回放给定场景，并记录预置库存的模拟成交账本。
 
 MarketBridge 不负责：
 
 - 因子是否有效。
-- 策略回测、paper PnL、实盘 PnL 归因。
+- 保证因子有效、保证成交，或核对真实账户的实盘 PnL。
 - 钱包签名。
 - Polymarket 下单、撤单、改单。
 - 任何实盘交易执行。
 
-下游项目，例如 `PolyAlpha`，应该调用 MarketBridge 获取数据，然后在自己的策略层做因子验证、paper decision、PnL 统计和实盘执行。
+下游项目，例如 `PolyAlpha`，可以调用 MarketBridge 的数据与研究模型，在自己的策略层做决策、独立验证及实盘执行。基座内的模拟账本不是实盘下单能力；完整多资产组合、保证金及自动退出模型仍待实现。
 
 深入阅读：
 [`docs/README.md`](docs/README.md)、

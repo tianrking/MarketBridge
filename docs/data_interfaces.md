@@ -10,16 +10,18 @@ is source/operator-oriented.
 
 ## Service Role
 
-MarketBridge is the public data plane:
+MarketBridge is a market-data and strategy-research foundation:
 
 - collect public exchange, options, prediction-market, DeFi, macro, sentiment,
   and on-chain data;
 - normalize data into stable REST/WebSocket surfaces;
 - expose freshness and source health;
 - compute reusable market microstructure features that are pure data transforms.
+- provide bounded [cost curves, replay and paper fill scenarios](research-api.md).
 
-MarketBridge does not approve factors, run paper/live PnL, sign wallets, or
-place orders.
+MarketBridge does not approve factors, reconcile live-account PnL, sign wallets,
+or place orders. The research increment is unreleased and is distinct from the
+downloadable version described below.
 
 ## Release Binary Quick Start
 

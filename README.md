@@ -54,7 +54,7 @@ Start with `config.research.yaml` for a localhost-only, zero-collector service.
 
 ## Tool Positioning
 
-MarketBridge is a data-plane tool, not a trading bot.
+MarketBridge is a market-data and strategy-research foundation, not a trading bot.
 
 It owns:
 
@@ -62,17 +62,18 @@ It owns:
 - normalization into source-agnostic REST/WebSocket APIs
 - latest-state caches, freshness flags, source health, and optional Redis Stream persistence
 - operational spread signals used as data sanity checks
+- evidence-backed cost curves, bounded scenario replay and prefunded paper fill ledgers
 
 It does not own:
 
 - factor approval or alpha research decisions
-- paper/live PnL attribution
+- claims of proven alpha, guaranteed fills, or live-account PnL reconciliation
 - wallet signing or authenticated order placement
 - Polymarket order submit/cancel/replace
 
-Downstream systems such as `PolyAlpha` should call MarketBridge for data, then
-run strategy logic, factor validation, paper execution, and live execution in
-their own layer.
+Downstream systems such as `PolyAlpha` can use MarketBridge data and research
+primitives. They retain strategy decisions, independent validation and any live
+execution in their own layer. Built-in paper scenarios are not live orders.
 
 ## Architecture Contract
 
@@ -432,8 +433,8 @@ Default file: `config.yaml`
 ## Implemented Data Plane
 
 This service is the unified data plane for downstream strategy engines such as
-`PolyAlpha`. Strategy logic, factor validation, paper execution, and live order
-management should stay outside this repo.
+`PolyAlpha`, and now includes explicit research models and paper scenarios.
+Strategy approval and live order management stay outside this repo.
 
 The complete source-by-source inventory, API-key requirements, and usage
 examples are maintained in [docs/data_sources.md](docs/data_sources.md). The

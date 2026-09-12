@@ -31,6 +31,14 @@ class ClientTests(unittest.TestCase):
     def test_redirects_never_forward_api_keys(self):
         self.assertIsNone(_NoRedirect().redirect_request(None, None, 302, "", {}, "https://other.test"))
 
+    def test_paper_payload(self):
+        with patch("marketbridge.build_opener") as opener:
+            opener.return_value.open.return_value = io.BytesIO(b'{}')
+            MarketBridge().paper({"buy_venue_quote": 100}, [{"size_index": 0}])
+            request = opener.return_value.open.call_args.args[0]
+            self.assertTrue(request.full_url.endswith("/v1/research/paper"))
+            self.assertEqual(json.loads(request.data), {"initial": {"buy_venue_quote": 100}, "frames": [{"size_index": 0}]})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,9 +1,9 @@
 # MarketBridge Architecture
 
-MarketBridge is an independent public data-source bridge. It does not decide
-alpha, place orders, or run strategy logic. Its job is to connect public data
-sources, normalize them, cache fresh state, and expose one stable API surface to
-research systems such as PolyAlpha.
+MarketBridge is an independent market-data and strategy-research foundation.
+It connects data sources, normalizes evidence, caches fresh state and exposes
+APIs to systems such as PolyAlpha. Research models and explicit paper scenarios
+are in scope; deciding that alpha is valid and placing orders are not.
 
 ## Product Boundary
 
@@ -15,12 +15,13 @@ MarketBridge owns:
 - On-chain data: blocks, transfers, wallet flows, DEX pools, oracle feeds.
 - External event data: weather, news, sports, macro, official settlement data.
 - Freshness, latency, stale flags, coverage, source health, and stream delivery.
+- Versioned cost curves, evidence validation, bounded replay and paper fill scenarios.
 
 MarketBridge does not own:
 
 - Factor approval.
 - Strategy decisions.
-- Paper/live PnL attribution.
+- Live-account PnL reconciliation or claims of guaranteed research profitability.
 - Wallet signing, authenticated trading, order placement, or execution routing.
 
 ## Documentation Map

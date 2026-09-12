@@ -93,6 +93,30 @@ pub async fn evaluate_live(
 type ValidationError = (StatusCode, Json<Value>);
 static RESEARCH_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+pub async fn paper(
+    Json(request): Json<crate::paper::PaperRequest>,
+) -> Result<Json<crate::paper::PaperResult>, ValidationError> {
+    let permit = RESEARCH_WORKERS.try_acquire().map_err(|_| {
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({"error":"research workers busy"})),
+        )
+    })?;
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        crate::paper::simulate(&request)
+    })
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"research worker failed"})),
+        )
+    })?
+    .map(Json)
+    .map_err(invalid)
+}
+
 fn invalid(error: String) -> ValidationError {
     (
         StatusCode::UNPROCESSABLE_ENTITY,

@@ -18,6 +18,7 @@ mod market_discovery;
 mod metrics;
 mod onchain;
 mod order_flow;
+mod paper;
 mod polymarket_ws;
 mod redis_sink;
 mod research_engine;
@@ -64,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if matches!(
         args.get(1).map(String::as_str),
-        Some("--evaluate" | "--replay")
+        Some("--evaluate" | "--replay" | "--paper")
     ) {
         let path = args
             .get(2)
@@ -77,6 +78,9 @@ async fn main() -> anyhow::Result<()> {
         let output = if args[1] == "--evaluate" {
             let request = serde_json::from_reader(file)?;
             serde_json::to_value(research_engine::scan(&request).map_err(anyhow::Error::msg)?)?
+        } else if args[1] == "--paper" {
+            let request = serde_json::from_reader(file)?;
+            serde_json::to_value(paper::simulate(&request).map_err(anyhow::Error::msg)?)?
         } else {
             let request = serde_json::from_reader(file)?;
             serde_json::to_value(research_engine::replay(&request).map_err(anyhow::Error::msg)?)?
