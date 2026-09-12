@@ -49,6 +49,8 @@ pwsh -NoProfile -File scripts/Test-ResearchSoak.ps1 -DurationSeconds 60 -PublicS
 
 Python 测试先安装 SDK requirements。HTTP 脚本使用独立端口/Key/数据库，最后只停止自己
 启动的进程。公共源测试会联网，但不会下单。测试生成文件在忽略的 examples/out 下。
+在将来的解压发布包中，脚本通过 `-Binary .\market-bridge.exe` 指定实际程序，而不是使用
+源码构建默认的 target/debug 路径。全模型测试加 `-Python python`，先装好 SDK requirements。
 
 Soak 脚本可指定 `-DurationSeconds 259200 -IntervalSeconds 5 -PublicSources` 做 72 小时观察。
 它保存逐样本 JSONL、进程内存/CPU、HTTP 时延、盘口更新身份、错误、二进制哈希和 Git SHA，

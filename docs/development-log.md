@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-12 — lockfile advisory maintenance
+
+The feature push exposed default-branch Dependabot alert 9 for
+[GHSA-4w2j-m93h-cj5j](https://github.com/advisories/GHSA-4w2j-m93h-cj5j).
+Updated only `quinn-proto` 0.11.14 to the advisory's patched 0.11.15 in Cargo.lock.
+The default and `--target all` dependency trees did not activate quinn-proto in
+this build; this is lockfile hygiene, not a claim that the current HTTP runtime
+had a demonstrated remotely reachable exploit. The default-branch alert will not
+necessarily close while the fix remains only on a research feature branch.
+
 ## 2026-09-12 — publication identity audit
 
 GitHub rejected the first feature-branch push with GH007 (private commit email).

@@ -29,6 +29,9 @@
 
 ### Corrected
 
+- Updated locked optional quinn-proto to 0.11.15 for GHSA-4w2j-m93h-cj5j;
+  the currently selected dependency tree does not activate QUIC.
+- Preserve exact floating-point JSON round trips for archived experiment results.
 - Live observation exposed Binance spot depth parsing incorrectly requiring payload
   `s`. Partial-depth now uses combined-stream identity, validates conflicting
   identity/levels and preserves exchange event time when available.
