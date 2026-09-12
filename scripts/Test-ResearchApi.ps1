@@ -39,6 +39,14 @@ try {
         } catch { Start-Sleep -Milliseconds 250 }
     }
     if (-not $ready) { throw 'Server did not become ready' }
+    $quotas = Invoke-RestMethod "$base/v1/system/provider-quotas" -Headers $headers
+    if ($quotas.domain -ne 'provider_quota_status' -or $null -eq $quotas.quotas -or $quotas.quotas.Count -ne 0) {
+        throw 'Default research config did not expose an empty provider quota status'
+    }
+    $integration = Invoke-RestMethod "$base/v1/integration/context?symbols=BTCUSDT&include_storage=true" -Headers $headers
+    if ($integration.domain -ne 'integration_context' -or $null -eq $integration.capabilities) {
+        throw 'Integration context contract unavailable'
+    }
     $unauthorized = Invoke-WebRequest "$base/v1/system/info" -SkipHttpErrorCheck
     if ($unauthorized.StatusCode -ne 401) { throw 'Expected unauthorized request to fail' }
     $body = Get-Content (Join-Path $repo 'examples\research\same-asset.json') -Raw
@@ -145,7 +153,7 @@ try {
         & $Python (Join-Path $repo 'scripts/Test-AsyncResearch.py') --base-url $base
         if ($LASTEXITCODE -ne 0) {throw 'Async HTTP integration suite failed'}
     }
-    Write-Output 'PASS: auth, cost/replay/paper/batch, CLI parity, registry/datasets/archives, scanner validation, events, workbench assets, forced-process restart recovery'
+    Write-Output 'PASS: auth, integration/quota status, cost/replay/paper/batch, CLI parity, registry/datasets/archives, scanner validation, events, workbench assets, forced-process restart recovery'
 } finally {
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id }
     $env:MARKETBRIDGE_CONFIG = $oldConfig

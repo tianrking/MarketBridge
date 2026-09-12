@@ -11,8 +11,10 @@ origin pacing and Retry-After cooldowns. This is local protective pacing, not a
 claim about provider account/IP policy or a bypass of service limits.
 Added `/v1/system/provider-quotas` for read-only local window, consumed and
 remaining-weight inspection; it deliberately does not claim upstream account
-limits. Validation: strict all-target/all-feature Clippy and 310 Rust tests
-passed locally.
+limits. Validation: strict all-target/all-feature Clippy and 311 Rust tests
+passed locally. The isolated authenticated HTTP acceptance script now also
+checks the default empty quota response and the integration-context contract,
+then completed its existing replay, storage, reload and restart recovery checks.
 
 ## 2026-09-12 — scanner reset event semantics
 
