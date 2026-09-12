@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-12 — scanner reset event semantics
+
+Configuration changes and scanner restarts now persist a `scanner_reset` event
+with an empty qualified set, so disabling scans does not leave cursor consumers
+with a stale positive state. Added fresh-book/complete-cost qualification coverage;
+unknown fees must not qualify. Existing missing-data coverage distinguishes
+administrative reset events from false opportunity alerts.
+Validation: strict all-target/all-feature Clippy and 307 Rust tests passed locally.
+
 ## 2026-09-12 — lockfile advisory maintenance
 
 The feature push exposed default-branch Dependabot alert 9 for

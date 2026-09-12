@@ -231,6 +231,18 @@ impl ResearchControl {
                     active.clear();
                     next = Instant::now();
                     *this.status.write().unwrap() = json!({"state":if config.enabled {"ready"} else {"disabled"},"revision":revision});
+                    // A disabled/reconfigured scanner cannot leave consumers with
+                    // the last nonempty qualified set forever.
+                    let recorder = this.clone();
+                    let reset = json!({"kind":"scanner_reset","revision":revision,"enabled":config.enabled,"qualified_after_hold":[],"not_an_execution_signal":true});
+                    let persisted =
+                        tokio::task::spawn_blocking(move || recorder.record("events", reset)).await;
+                    if let Err(error) = persisted.unwrap_or_else(|e| Err(e.into())) {
+                        this.config.write().unwrap().enabled = false;
+                        *this.status.write().unwrap() =
+                            json!({"state":"paused_storage_error","error":error.to_string()});
+                        continue;
+                    }
                 }
                 if !config.enabled || Instant::now() < next {
                     continue;
@@ -402,7 +414,52 @@ mod tests {
         .unwrap();
         stop.cancel();
         task.await.unwrap();
-        assert_eq!(db.tail_and_count("events").unwrap().1, 0);
+        let events = db.list("events", 0, 100).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].payload["kind"], "scanner_reset");
         assert!(control.status()["latest"]["scan"]["routes"][0]["error"].is_string());
+    }
+
+    #[test]
+    fn live_scan_only_qualifies_cost_complete_fresh_books() {
+        let mut e = crate::research_engine::tests::fixture();
+        e.buy.instrument.venue = "binance".into();
+        e.sell.instrument.venue = "okx".into();
+        let bus = EventBus::new_sharded(16, 10000, 1);
+        for (venue, book) in [("binance", &e.buy), ("okx", &e.sell)] {
+            bus.publish_from_event(&crate::types::DataEvent::OrderBook(
+                crate::types::OrderBookTick {
+                    exchange: venue,
+                    market: crate::types::MarketKind::Spot,
+                    symbol: book.instrument.symbol.clone().into(),
+                    bids: book.bids.clone(),
+                    asks: book.asks.clone(),
+                    last_update_id: Some(1),
+                    ts_ms: now_ms(),
+                },
+            ));
+        }
+        e.costs.buy_fee_bps = Some(0.0);
+        e.costs.sell_fee_bps = Some(0.0);
+        let mut config = ControlConfig {
+            revision: "positive".into(),
+            enabled: true,
+            routes: vec![ScanRoute {
+                id: "fixture".into(),
+                route: LiveScanRequest {
+                    buy: e.buy.instrument,
+                    sell: e.sell.instrument,
+                    relationship: e.relationship,
+                    quantities: e.quantities,
+                    costs: e.costs,
+                    max_age_ms: 10000,
+                    max_skew_ms: 10000,
+                },
+            }],
+            ..Default::default()
+        };
+        assert!(scan(&bus, &config).unwrap().1.contains("fixture"));
+        config.routes[0].route.costs.buy_fee_bps = None;
+        assert!(scan(&bus, &config).unwrap().1.is_empty());
     }
 }
