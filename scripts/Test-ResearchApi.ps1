@@ -12,6 +12,7 @@ $oldConfig = $env:MARKETBRIDGE_CONFIG
 $oldAddr = $env:MARKETBRIDGE_API_ADDR
 $oldKey = $env:MARKETBRIDGE_API_KEY
 $oldRecording = $env:MARKETBRIDGE_RECORD_DIR
+$oldResearchDb = $env:MARKETBRIDGE_RESEARCH_DB
 $process = $null
 try {
     $env:MARKETBRIDGE_CONFIG = Join-Path $repo 'config.research.yaml'
@@ -21,6 +22,7 @@ try {
     $headers = @{ 'x-api-key' = $env:MARKETBRIDGE_API_KEY }
     $base = "http://127.0.0.1:$port"
     $runId = [Guid]::NewGuid().ToString('N')
+    $env:MARKETBRIDGE_RESEARCH_DB = Join-Path $out "workspace-$runId.sqlite"
     $process = Start-Process -FilePath $binaryPath -WorkingDirectory $repo -PassThru -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $out "api-$runId.stdout.log") `
         -RedirectStandardError (Join-Path $out "api-$runId.stderr.log")
@@ -43,6 +45,21 @@ try {
     }
     if ($null -ne $result.points[3].conditional_net_quote) { throw 'Insufficient depth produced a net estimate' }
     $inputObject = $body | ConvertFrom-Json
+    function Workspace($action) {
+        Invoke-RestMethod "$base/v1/research/workspace" -Headers $headers -Method Post -ContentType application/json -Body ($action | ConvertTo-Json -Depth 50)
+    }
+    $registry = @{id='registry-one'; known_at_ms=9000; evidence='synthetic test'; instruments=@($inputObject.buy.instrument,$inputObject.sell.instrument); relationships=@($inputObject.relationship)}
+    $saved=Workspace @{action='registry_put';request=$registry}
+    if ($saved.id -ne 'registry-one') { throw 'Registry persistence failed' }
+    $pair=Workspace @{action='registry_pair';request=@{revision_id='registry-one';left=$inputObject.buy.instrument.id;right=$inputObject.sell.instrument.id;as_of_ms=10020}}
+    if ($pair.buy.id -ne $inputObject.buy.instrument.id) { throw 'Registry relationship resolution failed' }
+    $null=Workspace @{action='dataset_append';request=@{dataset_id='fixture';chunk_id='one';frames=@($inputObject)}}
+    $archived=Workspace @{action='dataset_replay';request=@{dataset_id='fixture';run_id='dataset-run';after_sequence=0;limit_chunks=1}}
+    if ($archived.payload.chunks.Count -ne 1) { throw 'Archived dataset replay failed' }
+    $failedRun=Workspace @{action='run';request=@{id='failed-run';model='not-a-model';input=@{}}}
+    if ($failedRun.payload.output.status -ne 'failed') { throw 'Failed experiment not retained' }
+    $checked=Workspace @{action='integrity'}
+    if ($checked.sqlite -ne 'ok') { throw 'Research store integrity failed' }
     $inputObject.costs.buy_fee_bps = $null
     $missing = Invoke-RestMethod "$base/v1/research/evaluate" -Headers $headers -Method Post -ContentType application/json -Body ($inputObject | ConvertTo-Json -Depth 30)
     if ($null -ne $missing.points[0].conditional_net_quote) { throw 'Unknown fee became zero' }
@@ -94,4 +111,5 @@ try {
     $env:MARKETBRIDGE_API_ADDR = $oldAddr
     $env:MARKETBRIDGE_API_KEY = $oldKey
     $env:MARKETBRIDGE_RECORD_DIR = $oldRecording
+    $env:MARKETBRIDGE_RESEARCH_DB = $oldResearchDb
 }

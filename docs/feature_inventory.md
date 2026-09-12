@@ -21,7 +21,9 @@ truth for what is implemented and wired into the runtime/API.
 | Independent custom sources | implemented | Instance IDs, optional source time, bounded HTTP and shared-origin Retry-After pacing |
 | Full weighted provider quotas | planned | Shared-origin pacing is not account/IP/group weight accounting |
 | Prefunded paper fill ledger | partial | Fixed pair, explicit partial-fill scenarios, balances and depth reuse; no general portfolio/margin/exit model |
-| Generic asset registry / other strategy models | partial | Explicit identity/relationship input exists; automated attestation and other models remain planned |
+| Versioned asset registry | implemented | Immutable caller-attested instruments and directed relationships; knowledge-time checks, not independent certification |
+| Historical dataset and experiment workspace | implemented | SQLite/CRC, bounded chunks/cursors, immutable successful and failed runs; not raw-tick or cross-chunk portfolio replay |
+| Additional research models | implemented | Spot/derivative basis, unit premium and interval-normalized funding comparison; reference-only |
 | Python client | partial | Synchronous evaluate/replay/paper/scan/scan_live; generated types and async WS recovery planned |
 | Full workbench / config reload / event studies | planned | Existing funding UI remains separate; no hot-reload claim |
 

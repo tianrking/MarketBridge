@@ -4,6 +4,10 @@
 
 ### Added
 
+- Durable research workspace API: versioned asset relationships, ordered dataset
+  chunks, cursor replay, immutable experiment input/output/error archives and CRC.
+- Explicit reference-only basis, unit-premium and funding-interval models. Chinese
+  usage series starts at `docs/user-guide/README.md`.
 - Bounded batch candidate screening, stable after-cost ranking, per-route errors
   and cached-live scanning. Added opt-in public spot observation config/example.
 - Prefunded taker paper scenarios with explicit fill fractions, per-venue balances,
@@ -36,7 +40,7 @@
 
 ### Not yet release-complete
 
-Full asset registry, provider-wide weighted quotas, all-venue book reconstruction,
+Independent asset attestation, provider-wide weighted quotas, all-venue book reconstruction,
 raw-event replay, general portfolio/margin/exit models, event studies, configuration hot reload,
 full workbench and async/generated SDKs remain on the roadmap. No release tag or
 claim of production readiness follows from unit tests alone.

@@ -75,3 +75,11 @@
 - Validation: the working-tree suite including these regressions passed
   `cargo +stable test --locked`: 270 passed, 0 failed. `cargo fmt` and
   `git diff --check` passed. No remote CI or live-provider certification claimed.
+# 2026-09-12 — durable workspace and market-specific reference models
+
+Added immutable SQLite research documents with CRC, versioned asset relationships,
+ordered bounded dataset chunks, cursor replay and archived successful/failed runs.
+Basis, unit-premium and interval-normalized funding models remain reference-only.
+Validation: strict all-target/all-feature Clippy; 299 Rust tests; build;
+`scripts/Test-ResearchApi.ps1` including registry, dataset, failed-run archive and
+integrity assertions passed. This is local validation, not remote CI or soak evidence.

@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LiveScanRequest {
     pub buy: Instrument,
@@ -25,9 +25,15 @@ pub struct LiveScanRequest {
 }
 
 fn live_evidence(state: &ApiState, instrument: Instrument) -> Result<BookEvidence, String> {
+    cached_evidence(&state.bus, instrument)
+}
+
+pub(crate) fn cached_evidence(
+    bus: &crate::event_bus::EventBus,
+    instrument: Instrument,
+) -> Result<BookEvidence, String> {
     instrument.validate()?;
-    let observed = state
-        .bus
+    let observed = bus
         .order_book_observation(&instrument.venue, &instrument.symbol)
         .ok_or_else(|| {
             format!(
@@ -90,6 +96,26 @@ pub async fn evaluate_live(
 
 type ValidationError = (StatusCode, Json<Value>);
 static RESEARCH_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+
+pub async fn workspace(
+    State(state): State<Arc<ApiState>>,
+    Json(action): Json<crate::research_lab::LabAction>,
+) -> Result<Json<Value>, ValidationError> {
+    let permit = RESEARCH_WORKERS.try_acquire().map_err(|_| {
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({"error":"research workers busy"})),
+        )
+    })?;
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        crate::research_lab::execute(&state.research_store, action)
+    })
+    .await
+    .map_err(|_| invalid("research worker failed".into()))?
+    .map(Json)
+    .map_err(|e| invalid(e.to_string()))
+}
 
 pub async fn scan_batch(
     Json(request): Json<crate::opportunity_scan::BatchRequest>,

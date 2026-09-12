@@ -1,6 +1,7 @@
 mod aggregator;
 mod aggregator_signal;
 mod api;
+mod asset_registry;
 mod catalog;
 mod clickhouse_sink;
 mod config;
@@ -22,7 +23,10 @@ mod order_flow;
 mod paper;
 mod polymarket_ws;
 mod redis_sink;
+mod relative_value;
 mod research_engine;
+mod research_lab;
+mod research_store;
 mod router;
 mod runtime;
 mod source;
@@ -159,6 +163,10 @@ async fn main() -> anyhow::Result<()> {
     let http = reqwest::Client::new();
 
     let api_router = build_router(ApiState {
+        research_store: research_store::ResearchStore::open(std::path::Path::new(
+            &std::env::var("MARKETBRIDGE_RESEARCH_DB")
+                .unwrap_or_else(|_| "data/research-workspace.sqlite".into()),
+        ))?,
         source_catalog,
         bus: bus.clone(),
         metrics: metrics.clone(),

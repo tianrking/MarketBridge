@@ -31,6 +31,7 @@ macro_rules! get_routes {
 }
 
 pub struct ApiState {
+    pub research_store: crate::research_store::ResearchStore,
     pub source_catalog: Vec<CatalogSource>,
     pub bus: EventBus,
     pub metrics: Arc<AppMetrics>,
@@ -131,6 +132,10 @@ pub fn build_router(state: ApiState) -> Router {
         "/" => routes::system::root,
     );
     router
+        .route(
+            "/v1/research/workspace",
+            post(routes::opportunities::workspace).options(cors::preflight),
+        )
         .route(
             "/v1/research/scan",
             post(routes::opportunities::scan_batch).options(cors::preflight),
