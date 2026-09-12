@@ -168,7 +168,7 @@ impl EventBus {
             liquidation_tx: sharded_senders(capacity, event_shards),
             order_book_tx: sharded_senders(capacity, event_shards),
             external_signal_tx: sharded_senders(capacity, event_shards),
-            snapshots: EventSnapshotStore::new(),
+            snapshots: EventSnapshotStore::new(stale_ttl_ms),
             stale_ttl_ms,
         }
     }

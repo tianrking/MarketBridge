@@ -7,7 +7,7 @@ use crate::core::schema::DataEnvelope;
 use crate::domains::market::quote::{QuotePayload, envelope_from_tick};
 use crate::types::{
     ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, MarketTick, OpenInterestTick,
-    OrderBookTick, TradeTick, now_ms,
+    OrderBookTick, TradeTick, now_ms, timestamp_is_fresh,
 };
 
 pub const SCHEMA_VERSION: &str = "v1";
@@ -33,6 +33,8 @@ pub struct NormalizedTick {
 
 #[derive(Clone)]
 pub struct EventSnapshotStore {
+    stale_ttl_ms: u64,
+    clock: Arc<dyn Fn() -> u64 + Send + Sync>,
     snapshots: SnapshotMap<NormalizedTick>,
     quote_snapshots: SnapshotMap<DataEnvelope<QuotePayload>>,
     funding_snapshots: SnapshotMap<FundingRateTick>,
@@ -44,8 +46,10 @@ pub struct EventSnapshotStore {
 }
 
 impl EventSnapshotStore {
-    pub fn new() -> Self {
+    pub fn new(stale_ttl_ms: u64) -> Self {
         Self {
+            stale_ttl_ms,
+            clock: Arc::new(now_ms),
             snapshots: SnapshotMap::new(),
             quote_snapshots: SnapshotMap::new(),
             funding_snapshots: SnapshotMap::new(),
@@ -62,7 +66,7 @@ impl EventSnapshotStore {
         tick: &MarketTick,
         stale_ttl_ms: u64,
     ) -> (NormalizedTick, DataEnvelope<QuotePayload>) {
-        let now = now_ms();
+        let now = (self.clock)();
         let latency = now.saturating_sub(tick.ts_ms);
         let normalized = NormalizedTick {
             version: SCHEMA_VERSION,
@@ -75,9 +79,10 @@ impl EventSnapshotStore {
             funding: tick.funding_rate,
             ts: tick.ts_ms,
             source_latency_ms: latency,
-            stale: latency > stale_ttl_ms,
+            stale: !timestamp_is_fresh(tick.ts_ms, now, stale_ttl_ms),
         };
-        let quote_envelope = envelope_from_tick(normalized.clone());
+        let mut quote_envelope = envelope_from_tick(normalized.clone());
+        quote_envelope.freshness.ts_received = now;
 
         self.snapshots.upsert(
             snapshot_key(normalized.exchange, normalized.market, &normalized.symbol),
@@ -173,23 +178,47 @@ impl EventSnapshotStore {
 
     pub async fn snapshot_by_symbol(&self, symbol: &str) -> Vec<NormalizedTick> {
         let needle = symbol.to_ascii_uppercase();
-        self.snapshots
-            .values_matching(|tick| tick.symbol.eq_ignore_ascii_case(&needle))
+        self.snapshot_all()
+            .await
+            .into_iter()
+            .filter(|tick| tick.symbol.eq_ignore_ascii_case(&needle))
+            .collect()
     }
 
     pub async fn snapshot_all(&self) -> Vec<NormalizedTick> {
-        self.snapshots.values()
+        let now = (self.clock)();
+        self.snapshots
+            .values()
+            .into_iter()
+            .map(|mut tick| {
+                tick.stale = !timestamp_is_fresh(tick.ts, now, self.stale_ttl_ms);
+                tick
+            })
+            .collect()
     }
 
     pub async fn quote_snapshot_all(&self) -> Vec<DataEnvelope<QuotePayload>> {
-        self.quote_snapshots.values()
+        let now = (self.clock)();
+        self.quote_snapshots
+            .values()
+            .into_iter()
+            .map(|mut quote| {
+                quote.freshness.stale =
+                    !timestamp_is_fresh(quote.freshness.ts_source, now, self.stale_ttl_ms);
+                quote
+            })
+            .collect()
     }
 
     pub async fn quote_snapshots_matching(
         &self,
         predicate: impl Fn(&DataEnvelope<QuotePayload>) -> bool,
     ) -> Vec<DataEnvelope<QuotePayload>> {
-        self.quote_snapshots.values_matching(predicate)
+        self.quote_snapshot_all()
+            .await
+            .into_iter()
+            .filter(predicate)
+            .collect()
     }
 
     pub async fn funding_snapshot_all(&self) -> Vec<FundingRateTick> {
@@ -336,6 +365,35 @@ fn snapshot_retention_ms(stale_ttl_ms: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn silent_snapshot_expires_at_read_without_rewriting_receipt_time() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        let clock = Arc::new(AtomicU64::new(10_010));
+        let mut store = EventSnapshotStore::new(1_000);
+        let clock_ref = clock.clone();
+        store.clock = Arc::new(move || clock_ref.load(Ordering::Relaxed));
+        store.upsert_tick(
+            &MarketTick {
+                exchange: "test",
+                market: MarketKind::Spot,
+                symbol: "BTCUSDT".into(),
+                bid: 99.0,
+                ask: 100.0,
+                mark: None,
+                funding_rate: None,
+                ts_ms: 10_000,
+            },
+            1_000,
+        );
+        assert!(!store.snapshot_all().await[0].stale);
+        clock.store(11_001, Ordering::Relaxed);
+        assert!(store.snapshot_by_symbol("btcusdt").await[0].stale);
+        let quotes = store.quote_snapshots_matching(|q| q.freshness.stale).await;
+        assert_eq!(quotes.len(), 1);
+        assert_eq!(quotes[0].freshness.ts_received, 10_010);
+        assert_eq!(quotes[0].freshness.latency_ms, 10);
+    }
 
     #[test]
     fn snapshot_retention_uses_longer_window_than_stale_ttl() {

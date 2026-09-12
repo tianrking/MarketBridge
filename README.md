@@ -1,9 +1,11 @@
 # MarketBridge
 
-Independent Rust data-source bridge for exchange, options, prediction-market,
-DeFi, macro, aggregate, and sentiment data. MarketBridge normalizes public data,
-caches fresh state, marks stale records, and exposes one stable API surface for
-downstream research systems.
+Multi-market, multi-venue market-data and strategy-research foundation in Rust.
+The target platform unifies live and historical ingestion, opportunity scanning,
+cost analysis, replay and paper validation through APIs. It does not place orders.
+Infrastructure is shared; each market retains its own asset, contract and model
+semantics. See the [roadmap and acceptance gates](docs/platform-roadmap.md) and
+[development evidence](docs/development-log.md) for implemented versus planned work.
 
 Current version: `v0.0.5`
 

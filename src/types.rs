@@ -1,7 +1,6 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -72,7 +71,7 @@ pub struct LiquidationTick {
     pub ts_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BookLevel {
     pub price: f64,
     pub qty: f64,
@@ -163,22 +162,21 @@ pub enum BackpressureMode {
     DropNewest,
 }
 
-static LAST_NOW_MS: AtomicU64 = AtomicU64::new(1);
-
+/// Wall-clock observation time, NOT a unique ID or a duration clock.
+/// Use an independent sequence for ordering and Instant for elapsed time.
 pub fn now_ms() -> u64 {
-    let current = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or_else(|_| LAST_NOW_MS.load(Ordering::Relaxed))
-        .max(1);
-    let mut previous = LAST_NOW_MS.load(Ordering::Acquire);
-    loop {
-        let next = current.max(previous.saturating_add(1));
-        match LAST_NOW_MS.compare_exchange(previous, next, Ordering::AcqRel, Ordering::Acquire) {
-            Ok(_) => return next,
-            Err(observed) => previous = observed,
-        }
-    }
+    unix_ms(SystemTime::now())
+}
+
+fn unix_ms(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH)
+        .map(|d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or(0)
+}
+
+/// Unknown and substantially future-dated source times are not fresh.
+pub fn timestamp_is_fresh(ts: u64, now: u64, ttl_ms: u64) -> bool {
+    ts != 0 && ts <= now.saturating_add(1_000) && now.saturating_sub(ts) <= ttl_ms
 }
 
 #[cfg(test)]
@@ -223,29 +221,19 @@ mod tests {
     }
 
     #[test]
-    fn now_ms_is_strictly_monotonic_for_sequential_calls() {
-        let first = now_ms();
-        let second = now_ms();
-
-        assert!(second > first);
+    fn observation_time_does_not_advance_with_call_count() {
+        let fixed = UNIX_EPOCH + std::time::Duration::from_millis(123_456);
+        for _ in 0..100_000 {
+            assert_eq!(unix_ms(fixed), 123_456);
+        }
     }
 
     #[test]
-    fn now_ms_is_unique_across_threads() {
-        let mut handles = Vec::new();
-        for _ in 0..8 {
-            handles.push(std::thread::spawn(|| {
-                (0..100).map(|_| now_ms()).collect::<Vec<_>>()
-            }));
-        }
-
-        let mut values = handles
-            .into_iter()
-            .flat_map(|handle| handle.join().expect("thread joins"))
-            .collect::<Vec<_>>();
-        values.sort_unstable();
-        values.dedup();
-
-        assert_eq!(values.len(), 800);
+    fn freshness_rejects_unknown_future_and_expired_timestamps() {
+        assert!(!timestamp_is_fresh(0, 10_000, 1_000));
+        assert!(!timestamp_is_fresh(11_001, 10_000, 1_000));
+        assert!(!timestamp_is_fresh(8_999, 10_000, 1_000));
+        assert!(timestamp_is_fresh(9_000, 10_000, 1_000));
+        assert!(timestamp_is_fresh(10_001, 10_000, 1_000));
     }
 }
