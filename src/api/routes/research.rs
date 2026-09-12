@@ -81,14 +81,14 @@ struct MarketContext {
     funding: HashMap<String, FundingRateTick>,
     open_interest: HashMap<String, OpenInterestTick>,
     order_books: HashMap<String, OrderBookTick>,
-    benchmark_returns: HashMap<String, Vec<f64>>,
+    benchmark_returns: HashMap<String, BTreeMap<(u64, u64), f64>>,
     correlated_returns: HashMap<String, Vec<CorrelatedAssetReturns>>,
 }
 
 #[derive(Clone)]
 struct CorrelatedAssetReturns {
     symbol: String,
-    returns: Vec<f64>,
+    returns: BTreeMap<(u64, u64), f64>,
     rolling_return_pct: Option<f64>,
 }
 
@@ -120,7 +120,11 @@ pub async fn features(
             .then(a.interval.cmp(&b.interval))
     });
     rows.truncate(q.limit.unwrap_or(200).clamp(1, 1000));
-    Json(serde_json::json!({"version":"v1","domain":"research_features","rows":rows}))
+    Json(
+        serde_json::json!({"version":"v1","domain":"research_features","rows":rows,
+        "snapshot_context": if q.end_ms.is_some() { "unavailable_for_historical_cutoff" } else { "current_only_not_point_in_time" },
+        "point_in_time_dataset": false}),
+    )
 }
 
 pub async fn market_regime(
@@ -162,6 +166,10 @@ async fn load_groups(state: &ApiState, q: &ResearchFeatureQuery) -> Vec<KlineGro
             continue;
         };
         for row in rows {
+            let cutoff = q.end_ms.unwrap_or_else(crate::types::now_ms);
+            if row.close_time_ms > cutoff || row.updated_at_ms > cutoff {
+                continue;
+            }
             if symbols
                 .as_ref()
                 .is_some_and(|set| !set.contains(&row.symbol.to_ascii_uppercase()))
@@ -197,12 +205,20 @@ async fn load_context(
     q: &ResearchFeatureQuery,
     groups: &[KlineGroup],
 ) -> MarketContext {
-    let quotes = state.bus.quote_snapshot_all().await;
+    let historical = q.end_ms.is_some();
+    let quotes = state
+        .bus
+        .quote_snapshot_all()
+        .await
+        .into_iter()
+        .filter(|q| !historical && !q.freshness.stale)
+        .collect();
     let funding = state
         .bus
         .funding_snapshot_all()
         .await
         .into_iter()
+        .filter(|_| !historical)
         .map(|tick| (perp_key(tick.exchange, &tick.symbol), tick))
         .collect();
     let open_interest = state
@@ -210,6 +226,7 @@ async fn load_context(
         .open_interest_snapshot_all()
         .await
         .into_iter()
+        .filter(|_| !historical)
         .map(|tick| (perp_key(tick.exchange, &tick.symbol), tick))
         .collect();
     let order_books = state
@@ -217,6 +234,7 @@ async fn load_context(
         .order_book_snapshots_matching(|_| true)
         .await
         .into_iter()
+        .filter(|_| !historical)
         .map(|book| (market_key(book.exchange, book.market, &book.symbol), book))
         .collect();
     let benchmark_returns = q
@@ -245,6 +263,8 @@ fn feature_row(
     let first = group.bars.first()?;
     let last = group.bars.last()?;
     let returns = log_returns(&group.bars);
+    let timed = timed_returns(&group.bars);
+    let context_key = format!("{}:{}:{}", group.exchange, group.market, group.interval);
     let rolling_return_pct = (first.close > 0.0)
         .then_some((last.close - first.close) / first.close * 100.0)
         .filter(|value| value.is_finite());
@@ -258,11 +278,11 @@ fn feature_row(
         .filter(|symbol| !symbol.is_empty());
     let benchmark_correlation = benchmark_symbol
         .as_ref()
-        .and_then(|_| context.benchmark_returns.get(&group.interval))
-        .and_then(|benchmark| correlation(&returns, benchmark));
+        .and_then(|_| context.benchmark_returns.get(&context_key))
+        .and_then(|benchmark| aligned_correlation(&timed, benchmark));
     let correlated_assets = context
         .correlated_returns
-        .get(&group.interval)
+        .get(&context_key)
         .map(|items| {
             items
                 .iter()
@@ -270,7 +290,7 @@ fn feature_row(
                 .map(|item| CorrelatedAssetFeature {
                     symbol: item.symbol.clone(),
                     rolling_return_pct: item.rolling_return_pct,
-                    correlation: correlation(&returns, &item.returns),
+                    correlation: aligned_correlation(&timed, &item.returns),
                 })
                 .collect::<Vec<_>>()
         })
@@ -356,11 +376,17 @@ fn is_target_group(group: &KlineGroup, q: &ResearchFeatureQuery) -> bool {
         .is_none_or(|symbols| symbols.contains(&group.symbol.to_ascii_uppercase()))
 }
 
-fn benchmark_return_map(groups: &[KlineGroup], benchmark: &str) -> HashMap<String, Vec<f64>> {
+fn benchmark_return_map(
+    groups: &[KlineGroup],
+    benchmark: &str,
+) -> HashMap<String, BTreeMap<(u64, u64), f64>> {
     let mut out = HashMap::new();
     for group in groups {
         if group.symbol.eq_ignore_ascii_case(benchmark) {
-            out.insert(group.interval.clone(), log_returns(&group.bars));
+            out.insert(
+                format!("{}:{}:{}", group.exchange, group.market, group.interval),
+                timed_returns(&group.bars),
+            );
         }
     }
     out
@@ -383,13 +409,16 @@ fn correlated_return_map(
         if !symbols.contains(&group.symbol.to_ascii_uppercase()) {
             continue;
         }
-        out.entry(group.interval.clone())
-            .or_default()
-            .push(CorrelatedAssetReturns {
-                symbol: group.symbol.clone(),
-                returns: log_returns(&group.bars),
-                rolling_return_pct: rolling_return_pct(&group.bars),
-            });
+        out.entry(format!(
+            "{}:{}:{}",
+            group.exchange, group.market, group.interval
+        ))
+        .or_default()
+        .push(CorrelatedAssetReturns {
+            symbol: group.symbol.clone(),
+            returns: timed_returns(&group.bars),
+            rolling_return_pct: rolling_return_pct(&group.bars),
+        });
     }
     out
 }
@@ -411,6 +440,30 @@ fn log_returns(bars: &[KlineBar]) -> Vec<f64> {
         })
         .filter(|value| value.is_finite())
         .collect()
+}
+
+fn timed_returns(bars: &[KlineBar]) -> BTreeMap<(u64, u64), f64> {
+    bars.windows(2)
+        .filter_map(|w| {
+            let value = (w[1].close / w[0].close).ln();
+            (w[0].close > 0.0
+                && w[1].close > 0.0
+                && value.is_finite()
+                && w[0].open_time_ms < w[1].open_time_ms)
+                .then_some(((w[0].open_time_ms, w[1].open_time_ms), value))
+        })
+        .collect()
+}
+
+fn aligned_correlation(
+    left: &BTreeMap<(u64, u64), f64>,
+    right: &BTreeMap<(u64, u64), f64>,
+) -> Option<f64> {
+    let (l, r): (Vec<_>, Vec<_>) = left
+        .iter()
+        .filter_map(|(time, value)| right.get(time).map(|other| (*value, *other)))
+        .unzip();
+    correlation(&l, &r)
 }
 
 fn sum_volume(bars: &[KlineBar]) -> Option<f64> {
@@ -723,6 +776,13 @@ fn quote_product_label(product_type: ProductType) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn correlation_does_not_pair_different_return_intervals() {
+        let left = BTreeMap::from([((1, 2), 0.1), ((2, 3), 0.2)]);
+        let right = BTreeMap::from([((2, 3), 0.1), ((3, 4), 0.2)]);
+        assert_eq!(aligned_correlation(&left, &right), None);
+    }
 
     fn bar(open_time_ms: u64, close: f64, volume: f64) -> KlineBar {
         KlineBar {

@@ -9,6 +9,9 @@ semantics. See the [roadmap and acceptance gates](docs/platform-roadmap.md) and
 
 Current version: `v0.0.5`
 
+Unreleased research API/CLI: [usage and limitations](docs/research-api.md).
+Start with `config.research.yaml` for a localhost-only, zero-collector service.
+
 [中文文档](README.zh-CN.md)
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)

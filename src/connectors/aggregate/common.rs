@@ -62,6 +62,8 @@ pub async fn emit_external_signal(
 ) -> Result<()> {
     ctx.emit(DataEvent::ExternalSignal(ExternalSignalTick {
         source,
+        source_instance: None,
+        source_time_ms: None,
         category: category.to_string().into_boxed_str(),
         symbol: symbol.map(|x| x.to_ascii_uppercase().into_boxed_str()),
         metric: metric.to_string().into_boxed_str(),

@@ -64,6 +64,8 @@ impl ExchangeSource for CryptoPanicPoller {
                         });
                         let mut signal = crate::types::ExternalSignalTick {
                             source: self.name(),
+                            source_instance: None,
+                            source_time_ms: None,
                             category: "news".into(),
                             symbol: None,
                             metric: "news_item".into(),

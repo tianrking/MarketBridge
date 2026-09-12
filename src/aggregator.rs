@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 use tokio::time::interval;
@@ -11,9 +11,10 @@ use crate::aggregator_signal::{
     signed_notional,
 };
 use crate::config::{AppConfig, StrategyFeeMode};
+use crate::domains::market::quote::{QuoteKind, legacy_quote_kind};
 use crate::types::{
     DataEvent, FundingRateTick, LiquidationTick, MarketTick, OpenInterestTick, OrderBookTick,
-    TradeTick, now_ms,
+    TradeTick, now_ms, timestamp_is_fresh,
 };
 
 const TRADE_FLOW_WINDOW_MS: u64 = 60_000;
@@ -24,6 +25,40 @@ const AGGREGATOR_MIN_RETENTION_MS: u64 = 60_000;
 const AGGREGATOR_RETENTION_MULTIPLIER: u64 = 10;
 const MAX_AGGREGATOR_SYMBOL_KEYS: usize = 20_000;
 
+struct SignalHold {
+    route: (&'static str, &'static str),
+    started: Instant,
+}
+
+fn held_signal_state(
+    holds: &mut HashMap<Box<str>, SignalHold>,
+    key: Box<str>,
+    route: (&'static str, &'static str),
+    eligible: bool,
+    now: Instant,
+    hold_ms: u64,
+) -> &'static str {
+    if !eligible {
+        holds.remove(&key);
+        return "FILTERED";
+    }
+    let hold = holds.entry(key).or_insert(SignalHold {
+        route,
+        started: now,
+    });
+    if hold.route != route {
+        *hold = SignalHold {
+            route,
+            started: now,
+        };
+    }
+    if now.saturating_duration_since(hold.started) >= Duration::from_millis(hold_ms) {
+        "CONDITIONAL_ESTIMATE"
+    } else {
+        "HOLDING"
+    }
+}
+
 pub struct SpreadAggregator {
     books: HashMap<Box<str>, HashMap<&'static str, MarketTick>>,
     order_books: HashMap<Box<str>, HashMap<&'static str, OrderBookTick>>,
@@ -32,8 +67,8 @@ pub struct SpreadAggregator {
     trade_flow: HashMap<Box<str>, FlowWindow>,
     liquidation_flow: HashMap<Box<str>, FlowWindow>,
     tick_counts: HashMap<Box<str>, HashMap<&'static str, u64>>,
-    signal_started_at: HashMap<Box<str>, u64>,
-    book_signal_started_at: HashMap<Box<str>, u64>,
+    signal_started_at: HashMap<Box<str>, SignalHold>,
+    book_signal_started_at: HashMap<Box<str>, SignalHold>,
     report_interval: Duration,
     stale_ttl_ms: u64,
     min_profit_usdt: f64,
@@ -199,7 +234,10 @@ impl SpreadAggregator {
 
             let mut active: Vec<(&'static str, &MarketTick)> = by_exchange
                 .iter()
-                .filter(|(_, t)| now.saturating_sub(t.ts_ms) <= self.stale_ttl_ms)
+                .filter(|(_, t)| {
+                    timestamp_is_fresh(t.ts_ms, now, self.stale_ttl_ms)
+                        && legacy_quote_kind(t.exchange) == QuoteKind::ObservedBbo
+                })
                 .map(|(ex, t)| (*ex, t))
                 .collect();
 
@@ -210,7 +248,8 @@ impl SpreadAggregator {
             active.sort_by_key(|(ex, _)| *ex);
 
             // Find best cross-exchange pair only (buy_ex != sell_ex).
-            let best_pair = best_cross_pair(&active);
+            let best_pair =
+                best_cross_pair(&active, |b, s| self.leg_fee_bps(b, s), self.slippage_bps);
 
             let Some((buy_ex, ask, sell_ex, bid)) = best_pair else {
                 continue;
@@ -242,18 +281,9 @@ impl SpreadAggregator {
             let (buy_fee_bps, sell_fee_bps) = self.leg_fee_bps(buy_ex, sell_ex);
             let p = compute_profit(ask, bid, buy_fee_bps, sell_fee_bps, self.slippage_bps);
 
-            let eligible = p.net >= self.min_profit_usdt && p.net_bps >= self.min_profit_bps;
-            let state = if eligible {
-                let started = self.signal_started_at.entry(key.clone()).or_insert(now);
-                if now.saturating_sub(*started) >= self.min_signal_hold_ms {
-                    "TRIGGER"
-                } else {
-                    "HOLDING"
-                }
-            } else {
-                self.signal_started_at.remove(&key);
-                "FILTERED"
-            };
+            // Legacy BBO has no size or verified cross-venue identity. Unit edge
+            // remains useful research data, never an executable-profit trigger.
+            let state = "REFERENCE_ONLY";
 
             let mark = active.iter().find_map(|(_, t)| t.mark);
             let funding = active.iter().find_map(|(_, t)| t.funding_rate);
@@ -299,7 +329,7 @@ impl SpreadAggregator {
 
             let mut active: Vec<(&'static str, &OrderBookTick)> = by_exchange
                 .iter()
-                .filter(|(_, book)| now.saturating_sub(book.ts_ms) <= self.stale_ttl_ms)
+                .filter(|(_, book)| timestamp_is_fresh(book.ts_ms, now, self.stale_ttl_ms))
                 .map(|(ex, book)| (*ex, book))
                 .collect();
 
@@ -309,8 +339,13 @@ impl SpreadAggregator {
             }
             active.sort_by_key(|(ex, _)| *ex);
 
-            let Some((buy_ex, buy_avg_ask, sell_ex, sell_avg_bid)) =
-                best_book_cross_pair(&active, self.book_signal_notional_usdt)
+            let Some((buy_ex, buy_avg_ask, sell_ex, sell_avg_bid, base_quantity)) =
+                best_book_cross_pair(
+                    &active,
+                    self.book_signal_notional_usdt,
+                    |b, s| self.leg_fee_bps(b, s),
+                    self.slippage_bps,
+                )
             else {
                 self.book_signal_started_at.remove(&key);
                 continue;
@@ -325,20 +360,20 @@ impl SpreadAggregator {
                 self.slippage_bps,
             );
 
-            let eligible = p.net >= self.min_profit_usdt && p.net_bps >= self.min_profit_bps;
-            let state = if eligible {
-                let started = self
-                    .book_signal_started_at
-                    .entry(key.clone())
-                    .or_insert(now);
-                if now.saturating_sub(*started) >= self.min_signal_hold_ms {
-                    "TRIGGER"
-                } else {
-                    "HOLDING"
-                }
-            } else {
+            let net_quote = p.net * base_quantity;
+            let eligible = net_quote >= self.min_profit_usdt && p.net_bps >= self.min_profit_bps;
+            let state = if self.fee_mode != StrategyFeeMode::Taker {
                 self.book_signal_started_at.remove(&key);
-                "FILTERED"
+                "UNMODELED_MAKER_FILL"
+            } else {
+                held_signal_state(
+                    &mut self.book_signal_started_at,
+                    key.clone(),
+                    (buy_ex, sell_ex),
+                    eligible,
+                    Instant::now(),
+                    self.min_signal_hold_ms,
+                )
             };
 
             let levels = active
@@ -352,7 +387,10 @@ impl SpreadAggregator {
             info!(
                 symbol = key.as_ref(),
                 market = ?active[0].1.market,
-                notional_usdt = self.book_signal_notional_usdt,
+                buy_notional_quote = self.book_signal_notional_usdt,
+                base_quantity,
+                net_quote,
+                evidence = "legacy_unverified_identity_and_book_continuity",
                 buy_ex,
                 buy_avg_ask,
                 sell_ex,
@@ -703,6 +741,50 @@ struct FlowSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hold_uses_monotonic_time_and_resets_when_route_changes() {
+        let mut holds = HashMap::new();
+        let start = Instant::now();
+        assert_eq!(
+            held_signal_state(&mut holds, "BTC".into(), ("a", "b"), true, start, 100),
+            "HOLDING"
+        );
+        assert_eq!(
+            held_signal_state(
+                &mut holds,
+                "BTC".into(),
+                ("a", "b"),
+                true,
+                start + Duration::from_millis(100),
+                100
+            ),
+            "CONDITIONAL_ESTIMATE"
+        );
+        assert_eq!(
+            held_signal_state(
+                &mut holds,
+                "BTC".into(),
+                ("a", "c"),
+                true,
+                start + Duration::from_millis(200),
+                100
+            ),
+            "HOLDING"
+        );
+        assert_eq!(
+            held_signal_state(
+                &mut holds,
+                "BTC".into(),
+                ("a", "c"),
+                false,
+                start + Duration::from_millis(300),
+                100
+            ),
+            "FILTERED"
+        );
+        assert!(holds.is_empty());
+    }
 
     #[test]
     fn flow_window_prunes_and_summarizes_signed_notional() {

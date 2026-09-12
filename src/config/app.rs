@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 
 use crate::types::BackpressureMode;
@@ -54,6 +54,9 @@ impl AppConfig {
 
         cfg.symbols = normalize_symbols(&cfg.symbols);
         cfg.perp_symbols = cfg.perp_symbols.take().map(|v| normalize_symbols(&v));
+        if let Ok(addr) = std::env::var("MARKETBRIDGE_API_ADDR") {
+            cfg.runtime.api_addr = addr;
+        }
 
         for ex in cfg.exchanges.values_mut() {
             if let Some(symbols) = &mut ex.symbols {
@@ -64,7 +67,80 @@ impl AppConfig {
             }
         }
 
+        cfg.validate()?;
         Ok(cfg)
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        self.runtime
+            .api_addr
+            .parse::<std::net::SocketAddr>()
+            .context("runtime.api_addr must be a socket address")?;
+        ensure!(
+            self.runtime.queue_capacity > 0,
+            "runtime.queue_capacity must be positive"
+        );
+        ensure!(
+            self.runtime.broadcast_capacity > 0,
+            "runtime.broadcast_capacity must be positive"
+        );
+        ensure!(
+            self.runtime.stale_ttl_ms > 0,
+            "runtime.stale_ttl_ms must be positive"
+        );
+        ensure!(
+            self.runtime.report_interval_ms > 0,
+            "runtime.report_interval_ms must be positive"
+        );
+        ensure!(
+            self.strategy.book_signal_notional_usdt.is_finite()
+                && self.strategy.book_signal_notional_usdt > 0.0,
+            "book signal notional must be finite and positive"
+        );
+        ensure!(
+            self.strategy.slippage_bps.is_finite() && self.strategy.slippage_bps >= 0.0,
+            "slippage_bps must be finite and nonnegative"
+        );
+        for value in [
+            self.strategy.min_profit_usdt,
+            self.strategy.min_profit_bps,
+            self.strategy.fallback_maker_fee_bps,
+            self.strategy.fallback_taker_fee_bps,
+        ] {
+            ensure!(
+                value.is_finite(),
+                "strategy thresholds and fees must be finite"
+            );
+        }
+        for (name, exchange) in &self.exchanges {
+            if exchange.enabled {
+                exchange
+                    .fee
+                    .validate()
+                    .with_context(|| format!("invalid fees for {name}"))?;
+            }
+        }
+        let mut names = std::collections::HashSet::new();
+        for source in self.aggregates.custom_apis.iter().filter(|s| s.enabled) {
+            ensure!(
+                !source.name.trim().is_empty() && names.insert(&source.name),
+                "enabled custom API names must be nonempty and unique"
+            );
+            ensure!(
+                (1..=86400).contains(&source.poll_secs),
+                "custom API poll_secs must be within 1..86400"
+            );
+            let url = url::Url::parse(&source.url).context("invalid custom API URL")?;
+            ensure!(
+                matches!(url.scheme(), "http" | "https"),
+                "custom APIs require HTTP(S)"
+            );
+            ensure!(
+                url.username().is_empty() && url.password().is_none(),
+                "custom API credentials must not appear in URLs"
+            );
+        }
+        Ok(())
     }
 
     pub fn backpressure_mode(&self) -> BackpressureMode {

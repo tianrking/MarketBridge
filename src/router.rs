@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::event_bus::EventBus;
+use crate::journal::JournalMessage;
 use crate::metrics::AppMetrics;
 use crate::types::DataEvent;
 
@@ -12,6 +13,7 @@ pub struct EventRouter {
     bus: EventBus,
     metrics: std::sync::Arc<AppMetrics>,
     bus_queue_capacity: usize,
+    journal_tx: Option<mpsc::Sender<JournalMessage>>,
 }
 
 impl EventRouter {
@@ -28,7 +30,13 @@ impl EventRouter {
             bus,
             metrics,
             bus_queue_capacity,
+            journal_tx: None,
         }
+    }
+
+    pub fn with_journal(mut self, sender: Option<mpsc::Sender<JournalMessage>>) -> Self {
+        self.journal_tx = sender;
+        self
     }
 
     pub async fn run(mut self) {
@@ -57,6 +65,17 @@ impl EventRouter {
                 self.metrics.ticks_ingested_total.inc();
             }
             let event = Arc::new(event);
+            if let Some(tx) = &self.journal_tx
+                && tx
+                    .send(JournalMessage {
+                        event: event.clone(),
+                        received_at_ms: crate::types::now_ms(),
+                    })
+                    .await
+                    .is_err()
+            {
+                break;
+            }
             if bus_tx.send(event.clone()).await.is_err() {
                 break;
             }

@@ -301,6 +301,14 @@ impl EventBus {
     pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {
         self.snapshots.external_signal_snapshot_all().await
     }
+
+    pub fn order_book_observation(
+        &self,
+        exchange: &str,
+        symbol: &str,
+    ) -> Option<crate::event_snapshots::OrderBookObservation> {
+        self.snapshots.order_book_observation(exchange, symbol)
+    }
 }
 
 fn sharded_senders<T: Clone>(capacity: usize, shards: usize) -> Vec<broadcast::Sender<T>> {
@@ -479,6 +487,8 @@ mod tests {
         assert_eq!(bus.order_book_snapshots_matching(|_| true).await.len(), 1);
         bus.publish_from_event(&DataEvent::ExternalSignal(ExternalSignalTick {
             source: "fear_greed",
+            source_instance: None,
+            source_time_ms: None,
             category: "sentiment".into(),
             symbol: Some("BTC".into()),
             metric: "fear_greed_index".into(),

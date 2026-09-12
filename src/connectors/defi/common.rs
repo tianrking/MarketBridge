@@ -58,6 +58,8 @@ pub async fn emit_defi_metric(
 ) -> Result<()> {
     ctx.emit(DataEvent::ExternalSignal(ExternalSignalTick {
         source,
+        source_instance: None,
+        source_time_ms: None,
         category: "defi_native_state".into(),
         symbol: Some(symbol.to_ascii_uppercase().into_boxed_str()),
         metric: metric.into(),

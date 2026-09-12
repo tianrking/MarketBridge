@@ -28,15 +28,27 @@ pub fn normalize_symbol(symbol: &str, market: MarketKind) -> Box<str> {
 
 pub fn best_cross_pair(
     active: &[(&'static str, &MarketTick)],
+    fees: impl Fn(&str, &str) -> (f64, f64),
+    slippage_bps: f64,
 ) -> Option<(&'static str, f64, &'static str, f64)> {
     let mut best_pair: Option<(&'static str, f64, &'static str, f64)> = None;
+    let mut best_net = f64::NEG_INFINITY;
     for (buy_ex, buy_t) in active {
         for (sell_ex, sell_t) in active {
-            if buy_ex == sell_ex {
+            if buy_ex == sell_ex
+                || buy_t.market != sell_t.market
+                || normalize_symbol(&buy_t.symbol, buy_t.market)
+                    != normalize_symbol(&sell_t.symbol, sell_t.market)
+                || !valid_bbo(buy_t.bid, buy_t.ask)
+                || !valid_bbo(sell_t.bid, sell_t.ask)
+            {
                 continue;
             }
-            let spread = sell_t.bid - buy_t.ask;
-            if best_pair.is_none_or(|(_, best_ask, _, best_bid)| spread > (best_bid - best_ask)) {
+            let (buy_fee, sell_fee) = fees(buy_ex, sell_ex);
+            let net =
+                compute_profit(buy_t.ask, sell_t.bid, buy_fee, sell_fee, slippage_bps).net_bps;
+            if net.is_finite() && net > best_net {
+                best_net = net;
                 best_pair = Some((*buy_ex, buy_t.ask, *sell_ex, sell_t.bid));
             }
         }
@@ -47,24 +59,42 @@ pub fn best_cross_pair(
 pub fn best_book_cross_pair(
     active: &[(&'static str, &OrderBookTick)],
     notional: f64,
-) -> Option<(&'static str, f64, &'static str, f64)> {
-    let mut best_pair: Option<(&'static str, f64, &'static str, f64)> = None;
+    fees: impl Fn(&str, &str) -> (f64, f64),
+    slippage_bps: f64,
+) -> Option<(&'static str, f64, &'static str, f64, f64)> {
+    let mut best_pair = None;
+    let mut best_net = f64::NEG_INFINITY;
     for (buy_ex, buy_book) in active {
+        if !valid_book(buy_book) {
+            continue;
+        }
         let Some(buy_avg_ask) = average_execution_price(&buy_book.asks, notional) else {
             continue;
         };
+        let base_quantity = notional / buy_avg_ask;
 
         for (sell_ex, sell_book) in active {
-            if buy_ex == sell_ex {
+            if buy_ex == sell_ex
+                || !valid_book(sell_book)
+                || buy_book.market != sell_book.market
+                || normalize_symbol(&buy_book.symbol, buy_book.market)
+                    != normalize_symbol(&sell_book.symbol, sell_book.market)
+            {
                 continue;
             }
-            let Some(sell_avg_bid) = average_execution_price(&sell_book.bids, notional) else {
+            let Some(sell_quote) =
+                crate::research_engine::quote_for_base(&sell_book.bids, base_quantity)
+            else {
                 continue;
             };
-
-            let spread = sell_avg_bid - buy_avg_ask;
-            if best_pair.is_none_or(|(_, best_ask, _, best_bid)| spread > (best_bid - best_ask)) {
-                best_pair = Some((*buy_ex, buy_avg_ask, *sell_ex, sell_avg_bid));
+            let sell_avg_bid = sell_quote / base_quantity;
+            let (buy_fee, sell_fee) = fees(buy_ex, sell_ex);
+            let net = compute_profit(buy_avg_ask, sell_avg_bid, buy_fee, sell_fee, slippage_bps)
+                .net
+                * base_quantity;
+            if net.is_finite() && net > best_net {
+                best_net = net;
+                best_pair = Some((*buy_ex, buy_avg_ask, *sell_ex, sell_avg_bid, base_quantity));
             }
         }
     }
@@ -72,7 +102,7 @@ pub fn best_book_cross_pair(
 }
 
 pub fn average_execution_price(levels: &[BookLevel], target_quote_notional: f64) -> Option<f64> {
-    if target_quote_notional <= 0.0 {
+    if !target_quote_notional.is_finite() || target_quote_notional <= 0.0 {
         return None;
     }
 
@@ -81,8 +111,12 @@ pub fn average_execution_price(levels: &[BookLevel], target_quote_notional: f64)
     let mut filled_base = 0.0;
 
     for level in levels {
-        if level.price <= 0.0 || level.qty <= 0.0 {
-            continue;
+        if !level.price.is_finite()
+            || !level.qty.is_finite()
+            || level.price <= 0.0
+            || level.qty <= 0.0
+        {
+            return None;
         }
 
         let level_quote = level.price * level.qty;
@@ -91,16 +125,32 @@ pub fn average_execution_price(levels: &[BookLevel], target_quote_notional: f64)
         filled_base += take_quote / level.price;
         remaining_quote -= take_quote;
 
-        if remaining_quote <= f64::EPSILON {
+        if remaining_quote <= target_quote_notional * 1e-12 {
             break;
         }
     }
 
-    if remaining_quote <= f64::EPSILON && filled_base > 0.0 {
+    if remaining_quote <= target_quote_notional * 1e-12
+        && filled_base > 0.0
+        && filled_quote.is_finite()
+    {
         Some(filled_quote / filled_base)
     } else {
         None
     }
+}
+
+fn valid_bbo(bid: f64, ask: f64) -> bool {
+    bid.is_finite() && ask.is_finite() && bid > 0.0 && ask >= bid
+}
+
+fn valid_book(book: &OrderBookTick) -> bool {
+    book.bids
+        .first()
+        .zip(book.asks.first())
+        .is_some_and(|(b, a)| valid_bbo(b.price, a.price))
+        && book.bids.windows(2).all(|w| w[0].price > w[1].price)
+        && book.asks.windows(2).all(|w| w[0].price < w[1].price)
 }
 
 pub fn depth_pressure(book: &OrderBookTick, levels: usize) -> Option<f64> {
@@ -178,6 +228,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ranks_net_edges_instead_of_largest_raw_spread() {
+        let a = MarketTick {
+            exchange: "a",
+            market: MarketKind::Spot,
+            symbol: "BTCUSD".into(),
+            bid: 99.0,
+            ask: 100.0,
+            mark: None,
+            funding_rate: None,
+            ts_ms: 1,
+        };
+        let mut b = a.clone();
+        b.exchange = "b";
+        b.bid = 110.0;
+        b.ask = 111.0;
+        let mut c = a.clone();
+        c.exchange = "c";
+        c.bid = 105.0;
+        c.ask = 106.0;
+        let pair = best_cross_pair(
+            &[("a", &a), ("b", &b), ("c", &c)],
+            |_, sell| (0.0, if sell == "b" { 1000.0 } else { 0.0 }),
+            0.0,
+        )
+        .unwrap();
+        assert_eq!((pair.0, pair.2), ("a", "c"));
+    }
+
+    #[test]
     fn best_cross_pair_excludes_same_exchange() {
         let t1 = MarketTick {
             exchange: "a",
@@ -200,7 +279,8 @@ mod tests {
             ts_ms: 1,
         };
         let active = vec![("a", &t1), ("b", &t2)];
-        let (buy_ex, _, sell_ex, _) = best_cross_pair(&active).expect("pair");
+        let (buy_ex, _, sell_ex, _) =
+            best_cross_pair(&active, |_, _| (0.0, 0.0), 0.0).expect("pair");
         assert_ne!(buy_ex, sell_ex);
     }
 
@@ -276,13 +356,15 @@ mod tests {
         };
         let active = vec![("a", &buy_book), ("b", &sell_book)];
 
-        let (buy_ex, buy_avg, sell_ex, sell_avg) =
-            best_book_cross_pair(&active, 1_000.0).expect("book pair");
+        let (buy_ex, buy_avg, sell_ex, sell_avg, quantity) =
+            best_book_cross_pair(&active, 1_000.0, |_, _| (0.0, 0.0), 0.0).expect("book pair");
 
         assert_eq!(buy_ex, "a");
         assert_eq!(sell_ex, "b");
         assert!(buy_avg > 100.0);
         assert!(sell_avg < 120.0);
+        assert!((quantity - (1.0 + 900.0 / 110.0)).abs() < 1e-9);
+        assert!((sell_avg * quantity - (120.0 + 900.0 / 110.0 * 115.0)).abs() < 1e-9);
     }
 
     #[test]

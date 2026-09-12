@@ -24,11 +24,13 @@ impl SourceContext {
             BackpressureMode::Block => {
                 self.tx.send(ev).await?;
             }
-            BackpressureMode::DropNewest => {
-                if self.tx.try_send(ev).is_err() {
-                    self.metrics.ticks_dropped_total.inc();
+            BackpressureMode::DropNewest => match self.tx.try_send(ev) {
+                Ok(()) => {}
+                Err(mpsc::error::TrySendError::Full(_)) => self.metrics.ticks_dropped_total.inc(),
+                Err(mpsc::error::TrySendError::Closed(_)) => {
+                    anyhow::bail!("source pipeline closed")
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -55,6 +57,27 @@ pub trait ExchangeSource: Send + Sync {
 mod tests {
     use super::*;
     use async_trait::async_trait;
+
+    #[tokio::test]
+    async fn closed_pipeline_is_not_silently_counted_as_congestion() {
+        let (tx, rx) = mpsc::channel(1);
+        drop(rx);
+        let metrics = AppMetrics::new();
+        let ctx = SourceContext {
+            tx,
+            metrics: metrics.clone(),
+            backpressure: BackpressureMode::DropNewest,
+        };
+        assert!(
+            ctx.emit(DataEvent::Heartbeat {
+                exchange: "test",
+                ts_ms: 1
+            })
+            .await
+            .is_err()
+        );
+        assert_eq!(metrics.ticks_dropped_total.get(), 0);
+    }
 
     struct TypedSource;
 

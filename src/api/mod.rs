@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::middleware;
-use axum::routing::{delete, get};
+use axum::routing::{delete, get, post};
 
 use crate::catalog::CatalogSource;
 use crate::config::RuntimeConfig;
@@ -131,6 +131,18 @@ pub fn build_router(state: ApiState) -> Router {
         "/" => routes::system::root,
     );
     router
+        .route(
+            "/v1/research/evaluate-live",
+            post(routes::opportunities::evaluate_live).options(cors::preflight),
+        )
+        .route(
+            "/v1/research/evaluate",
+            post(routes::opportunities::evaluate).options(cors::preflight),
+        )
+        .route(
+            "/v1/research/replay",
+            post(routes::opportunities::replay).options(cors::preflight),
+        )
         .route(
             "/v1/storage/partitions",
             delete(routes::storage::delete_partitions).options(cors::preflight),

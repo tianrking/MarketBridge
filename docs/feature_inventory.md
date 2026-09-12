@@ -9,6 +9,25 @@ CCXT and Hummingbot only as reference inventories. MarketBridge does not call,
 embed, bridge, or depend on them at runtime. This document remains the source of
 truth for what is implemented and wired into the runtime/API.
 
+## Unreleased research-platform increment
+
+| Capability | Code status | Evidence/limits |
+|---|---|---|
+| Same-asset spot cost curves | implemented | Explicit caller identity/fees; bounded snapshots; conditional estimates only |
+| Historical scenario replay | implemented | Ordered supplied frames; rejects future-known inputs; not full raw-tick replay |
+| Live cached-book evaluation | partial | Binance spot depth20 / OKX spot books5 snapshot windows; other adapters reference-only |
+| Journal and verification CLI | implemented | Opt-in normalized events; capped session, CRC, dropped counters, partial/sealed files |
+| Independent custom sources | implemented | Instance IDs, optional source time, bounded HTTP and shared-origin Retry-After pacing |
+| Full weighted provider quotas | planned | Shared-origin pacing is not account/IP/group weight accounting |
+| Paper portfolio ledger | planned | Cost curves and replay decisions are not inventory or fill accounting |
+| Generic asset registry / other strategy models | partial | Explicit identity/relationship input exists; automated attestation and other models remain planned |
+| Python client | partial | Synchronous standard-library evaluate/replay; generated types and async WS recovery planned |
+| Full workbench / config reload / event studies | planned | Existing funding UI remains separate; no hot-reload claim |
+
+See [research API and usage](research-api.md), [development evidence](development-log.md)
+and [roadmap](platform-roadmap.md). `implemented` describes wiring, not live-provider
+coverage certification, profitability, or production readiness.
+
 For an operator-facing source list with API-key requirements and usage examples,
 see [`data_sources.md`](data_sources.md).
 

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use dashmap::DashMap;
 use serde::Serialize;
@@ -33,6 +34,7 @@ pub struct NormalizedTick {
 
 #[derive(Clone)]
 pub struct EventSnapshotStore {
+    book_sequence: Arc<AtomicU64>,
     stale_ttl_ms: u64,
     clock: Arc<dyn Fn() -> u64 + Send + Sync>,
     snapshots: SnapshotMap<NormalizedTick>,
@@ -41,13 +43,14 @@ pub struct EventSnapshotStore {
     open_interest_snapshots: SnapshotMap<OpenInterestTick>,
     trade_snapshots: SnapshotMap<TradeTick>,
     liquidation_snapshots: SnapshotMap<LiquidationTick>,
-    order_book_snapshots: SnapshotMap<OrderBookTick>,
+    order_book_snapshots: SnapshotMap<OrderBookObservation>,
     external_signal_snapshots: SnapshotMap<ExternalSignalTick>,
 }
 
 impl EventSnapshotStore {
     pub fn new(stale_ttl_ms: u64) -> Self {
         Self {
+            book_sequence: Arc::new(AtomicU64::new(0)),
             stale_ttl_ms,
             clock: Arc::new(now_ms),
             snapshots: SnapshotMap::new(),
@@ -155,12 +158,16 @@ impl EventSnapshotStore {
     pub fn upsert_order_book(&self, tick: &OrderBookTick, stale_ttl_ms: u64) {
         self.order_book_snapshots.upsert(
             market_key(tick.exchange, tick.market, &tick.symbol),
-            tick.clone(),
+            OrderBookObservation {
+                book: tick.clone(),
+                received_at_ms: (self.clock)(),
+                sequence: self.book_sequence.fetch_add(1, Ordering::Relaxed) + 1,
+            },
         );
         self.order_book_snapshots.prune_by_ts(
-            now_ms(),
+            (self.clock)(),
             snapshot_retention_ms(stale_ttl_ms),
-            |tick| tick.ts_ms,
+            |observation| observation.received_at_ms,
             MAX_SNAPSHOT_KEYS_PER_DOMAIN,
         );
     }
@@ -241,12 +248,38 @@ impl EventSnapshotStore {
         &self,
         predicate: impl Fn(&OrderBookTick) -> bool,
     ) -> Vec<OrderBookTick> {
-        self.order_book_snapshots.values_matching(predicate)
+        self.order_book_snapshots
+            .values_matching(|o| predicate(&o.book))
+            .into_iter()
+            .map(|o| o.book)
+            .collect()
+    }
+
+    pub fn order_book_observation(
+        &self,
+        exchange: &str,
+        symbol: &str,
+    ) -> Option<OrderBookObservation> {
+        self.order_book_snapshots
+            .values_matching(|o| {
+                o.book.market == MarketKind::Spot
+                    && o.book.exchange == exchange
+                    && o.book.symbol.as_ref() == symbol
+            })
+            .into_iter()
+            .max_by_key(|o| o.sequence)
     }
 
     pub async fn external_signal_snapshot_all(&self) -> Vec<ExternalSignalTick> {
         self.external_signal_snapshots.values()
     }
+}
+
+#[derive(Clone)]
+pub struct OrderBookObservation {
+    pub book: OrderBookTick,
+    pub received_at_ms: u64,
+    pub sequence: u64,
 }
 
 struct SnapshotMap<T> {
@@ -347,13 +380,14 @@ fn quote_snapshot_key(envelope: &DataEnvelope<QuotePayload>) -> String {
 }
 
 fn external_signal_key(tick: &ExternalSignalTick) -> String {
-    format!(
-        "{}:{}:{}:{}",
+    serde_json::to_string(&(
         tick.source,
-        tick.category,
-        tick.symbol.as_deref().unwrap_or("*"),
-        tick.metric
-    )
+        &tick.source_instance,
+        &tick.category,
+        &tick.symbol,
+        &tick.metric,
+    ))
+    .expect("string tuple serialization")
 }
 
 fn snapshot_retention_ms(stale_ttl_ms: u64) -> u64 {
@@ -365,6 +399,51 @@ fn snapshot_retention_ms(stale_ttl_ms: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn custom_source_instances_do_not_overwrite_each_other() {
+        let store = EventSnapshotStore::new(1_000);
+        let mut signal = ExternalSignalTick {
+            source: "custom_api",
+            source_instance: Some("gold-a".into()),
+            source_time_ms: None,
+            category: "commodity".into(),
+            symbol: Some("XAU".into()),
+            metric: "price".into(),
+            value: Some(1.0),
+            score: None,
+            title: None,
+            url: None,
+            ts_ms: now_ms(),
+            raw: None,
+        };
+        store.upsert_external_signal(&signal, 1_000);
+        signal.source_instance = Some("gold-b".into());
+        signal.value = Some(2.0);
+        store.upsert_external_signal(&signal, 1_000);
+        assert_eq!(store.external_signal_snapshot_all().await.len(), 2);
+    }
+
+    #[test]
+    fn book_sequence_does_not_depend_on_timestamp_uniqueness() {
+        let mut store = EventSnapshotStore::new(1_000);
+        store.clock = Arc::new(|| 10_000);
+        let book = OrderBookTick {
+            exchange: "binance",
+            market: MarketKind::Spot,
+            symbol: "BTCUSDT".into(),
+            bids: vec![],
+            asks: vec![],
+            last_update_id: Some(1),
+            ts_ms: 10_000,
+        };
+        store.upsert_order_book(&book, 1_000);
+        let first = store.order_book_observation("binance", "BTCUSDT").unwrap();
+        store.upsert_order_book(&book, 1_000);
+        let second = store.order_book_observation("binance", "BTCUSDT").unwrap();
+        assert_eq!(first.received_at_ms, second.received_at_ms);
+        assert_eq!(first.sequence + 1, second.sequence);
+    }
 
     #[tokio::test]
     async fn silent_snapshot_expires_at_read_without_rewriting_receipt_time() {

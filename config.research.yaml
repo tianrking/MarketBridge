@@ -1,0 +1,26 @@
+# Local research API only. No external collectors and no order capability.
+runtime:
+  api_addr: "127.0.0.1:8080"
+  queue_capacity: 4096
+  broadcast_capacity: 4096
+  backpressure: block
+  report_interval_ms: 1000
+  stale_ttl_ms: 1500
+  api_key_env: MARKETBRIDGE_API_KEY
+  api_rate_limit_per_minute: 120
+  cors:
+    enabled: true
+    allowed_origins: ["http://localhost:*", "http://127.0.0.1:*"]
+    allow_private_network: false
+strategy:
+  min_profit_usdt: 0
+  min_profit_bps: 0
+  min_signal_hold_ms: 1000
+  slippage_bps: 0
+  book_signal_notional_usdt: 1000
+symbols: []
+exchanges: {}
+klines:
+  enabled: false
+  sqlite_path: "data/research.sqlite"
+  lake_root: "data/research-lake"

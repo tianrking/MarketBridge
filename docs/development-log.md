@@ -1,5 +1,27 @@
 # Development log
 
+## 2026-09-12 — Evidence-backed research API and recording foundation
+
+- Added explicit instrument/relationship evidence, same-base cost curves,
+  reference-only reason codes, bounded deterministic replay and local CLI.
+- Added opt-in normalized recording with sequences, CRC and partial/sealed
+  verification. Source drops remain visible; this is not raw exchange replay.
+- Wired live spot cached-book evaluation with conservative snapshot promotion.
+- Corrected historical/current feature mixing and timestamp alignment, net route
+  ranking, sized depth calculations, hold timing and maker-fill assumptions.
+- Added validation, custom-source instance/time identity, bounded HTTP with
+  shared-origin cooldowns, zero-collector service lifetime and queue-close handling.
+- Added local research config, API examples, standard-library Python client,
+  explicit status inventory, usage, changelog and Windows/Linux CI definitions.
+- Local Windows/MSVC evidence: `cargo test --locked --quiet` **280 passed**;
+  `cargo clippy --locked --all-targets --all-features -- -D warnings` passed;
+  `cargo build --locked` passed; formatting/diff checks passed.
+- `scripts/Test-ResearchApi.ps1` passed against its own authenticated localhost
+  process: cost/capacity, missing costs, replay, future rejection and crossed books.
+- Python client contract tests: **4 passed**. CLI evaluated the shipped fixture.
+- No push, remote CI result, live-provider soak, published version, or production
+  readiness claim. Full roadmap remains incomplete; consult feature inventory.
+
 ## 2026-09-12 — Clock and freshness foundation
 
 - Replaced timestamp-per-call increments with real observation time. Unique

@@ -1,0 +1,48 @@
+{
+  "as_of_ms": 10020,
+  "max_age_ms": 1000,
+  "max_skew_ms": 100,
+  "relationship": {
+    "left_instrument": "venue-a:BTCUSD:spot",
+    "right_instrument": "venue-b:BTCUSD:spot",
+    "kind": "same_asset",
+    "evidence": "Synthetic example registry; not live market data",
+    "known_at_ms": 9000,
+    "valid_until_ms": null
+  },
+  "buy": {
+    "observation_id": "fixture:a:1",
+    "instrument": {
+      "id": "venue-a:BTCUSD:spot", "venue": "venue-a", "symbol": "BTCUSD",
+      "asset_class": "crypto", "product_type": "spot",
+      "base_asset_id": "bitcoin:native", "quote_asset_id": "iso4217:USD",
+      "quantity_unit": "BTC", "price_unit": "USD/BTC", "contract_multiplier": 1,
+      "expiry_ms": null, "chain": null, "contract_address": null,
+      "issuer": null, "settlement": null
+    },
+    "quote_kind": "observed_book", "source_time_ms": 10000, "received_at_ms": 10010,
+    "complete": true,
+    "bids": [{"price": 60000, "qty": 2}],
+    "asks": [{"price": 60002, "qty": 0.5}, {"price": 60004, "qty": 1.5}]
+  },
+  "sell": {
+    "observation_id": "fixture:b:1",
+    "instrument": {
+      "id": "venue-b:BTCUSD:spot", "venue": "venue-b", "symbol": "BTCUSD",
+      "asset_class": "crypto", "product_type": "spot",
+      "base_asset_id": "bitcoin:native", "quote_asset_id": "iso4217:USD",
+      "quantity_unit": "BTC", "price_unit": "USD/BTC", "contract_multiplier": 1,
+      "expiry_ms": null, "chain": null, "contract_address": null,
+      "issuer": null, "settlement": null
+    },
+    "quote_kind": "observed_book", "source_time_ms": 10000, "received_at_ms": 10010,
+    "complete": true,
+    "bids": [{"price": 60015, "qty": 2}],
+    "asks": [{"price": 60018, "qty": 2}]
+  },
+  "quantities": [0.5, 0.8, 1, 3],
+  "costs": {
+    "version": "hypothetical-5bps-each/v1",
+    "buy_fee_bps": 5, "sell_fee_bps": 5, "other_cost_quote": 0
+  }
+}

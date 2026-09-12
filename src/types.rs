@@ -91,6 +91,8 @@ pub struct OrderBookTick {
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalSignalTick {
     pub source: &'static str,
+    pub source_instance: Option<Box<str>>,
+    pub source_time_ms: Option<u64>,
     pub category: Box<str>,
     pub symbol: Option<Box<str>>,
     pub metric: Box<str>,

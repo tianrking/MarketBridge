@@ -33,6 +33,47 @@ pub struct FeeTier {
 }
 
 impl FeeModel {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        match self {
+            Self::Fixed {
+                maker_bps,
+                taker_bps,
+            } => {
+                anyhow::ensure!(
+                    maker_bps.is_finite() && taker_bps.is_finite(),
+                    "fees must be finite"
+                );
+            }
+            Self::Tiered {
+                volume_30d_usdt,
+                tiers,
+            } => {
+                anyhow::ensure!(
+                    volume_30d_usdt.is_finite() && *volume_30d_usdt >= 0.0,
+                    "volume must be finite and nonnegative"
+                );
+                anyhow::ensure!(
+                    !tiers.is_empty(),
+                    "empty fee tiers cannot imply free trading"
+                );
+                anyhow::ensure!(
+                    tiers.iter().any(|t| t.min_volume_usdt == 0.0),
+                    "fee tiers require a zero-volume tier"
+                );
+                for tier in tiers {
+                    anyhow::ensure!(
+                        tier.min_volume_usdt.is_finite()
+                            && tier.min_volume_usdt >= 0.0
+                            && tier.maker_bps.is_finite()
+                            && tier.taker_bps.is_finite(),
+                        "invalid fee tier"
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn maker_bps(&self) -> f64 {
         match self {
             FeeModel::Fixed { maker_bps, .. } => *maker_bps,
@@ -73,6 +114,18 @@ fn select_fee_tier(volume_30d_usdt: f64, tiers: &[FeeTier]) -> Option<&FeeTier> 
 #[cfg(test)]
 mod tests {
     use super::{FeeModel, FeeTier};
+
+    #[test]
+    fn rejects_empty_tiers_instead_of_assuming_zero_fees() {
+        assert!(
+            FeeModel::Tiered {
+                volume_30d_usdt: 0.0,
+                tiers: vec![]
+            }
+            .validate()
+            .is_err()
+        );
+    }
 
     #[test]
     fn tiered_fee_selects_highest_matching_tier() {

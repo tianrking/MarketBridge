@@ -19,6 +19,9 @@ pub async fn info() -> impl IntoResponse {
         "service": "MarketBridge",
         "version": env!("CARGO_PKG_VERSION"),
         "api_version": "v1",
+        "orders_supported": false,
+        "research_models": ["same-asset-spot/v1"],
+        "research_limits": {"body_bytes":2097152,"book_levels":200,"sizes":32,"replay_frames":512},
         "status": "ok",
         "local_ui": {
             "browser_localhost_supported": true,
@@ -48,6 +51,8 @@ pub async fn info() -> impl IntoResponse {
             "onchain_transfers",
             "universe",
             "research",
+            "conditional_cost_curves",
+            "scenario_replay",
             "agent_context",
             "websocket_stream"
         ],

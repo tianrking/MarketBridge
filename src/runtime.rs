@@ -105,10 +105,39 @@ impl SourceRuntime {
             tasks.push(task);
         }
 
+        // A research-only configuration may have zero collectors. Keep the
+        // pipeline/API alive until cancellation, not merely until the last
+        // source sender is dropped.
+        let idle_stop = shutdown.clone();
+        tasks.push(tokio::spawn(async move {
+            idle_stop.cancelled().await;
+            drop(tx);
+        }));
+
         RuntimeHandle {
             rx,
             shutdown,
             tasks,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn research_only_runtime_stays_open_until_shutdown() {
+        let runtime = SourceRuntime::new(4, BackpressureMode::Block, AppMetrics::new());
+        let mut handle = runtime.spawn_sources(vec![]);
+        assert!(matches!(
+            handle.rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Empty)
+        ));
+        handle.shutdown.cancel();
+        for task in handle.tasks {
+            task.await.unwrap();
+        }
+        assert!(handle.rx.recv().await.is_none());
     }
 }

@@ -8,6 +8,9 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 
 当前版本：`v0.0.5`
 
+未发布的研究 API / CLI 增量见[使用与限制](docs/research-api.md)。
+`config.research.yaml` 提供仅监听本机、不启动采集源的研究服务配置。
+
 [English README](README.md)
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)

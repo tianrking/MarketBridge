@@ -7,6 +7,11 @@ to browse and search consistently.
 
 Current documented release: `v0.0.5`
 
+Unreleased research-platform work is documented separately in
+[research API](research-api.md), [development evidence](development-log.md) and
+[platform roadmap](platform-roadmap.md). Those pages do not imply a new published
+binary or completion of all roadmap milestones.
+
 Download the latest binary release:
 [https://github.com/tianrking/MarketBridge/releases/latest](https://github.com/tianrking/MarketBridge/releases/latest)
 

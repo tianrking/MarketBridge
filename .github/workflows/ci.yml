@@ -8,7 +8,11 @@ on:
 jobs:
   rust:
     name: fmt + clippy + test
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -26,7 +30,18 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Test
-        run: cargo test --all-features
+        run: cargo test --locked --all-features
+
+      - name: Build research CLI and server
+        run: cargo build --locked
+
+      - name: Python research client contract tests
+        run: python -B -m unittest discover -s sdk/python -p "test_*.py"
+
+      - name: Local HTTP research smoke test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/Test-ResearchApi.ps1

@@ -11,6 +11,7 @@ mod deribit_cache;
 mod domains;
 mod event_bus;
 mod event_snapshots;
+mod journal;
 mod klines;
 mod load_test;
 mod market_discovery;
@@ -19,6 +20,7 @@ mod onchain;
 mod order_flow;
 mod polymarket_ws;
 mod redis_sink;
+mod research_engine;
 mod router;
 mod runtime;
 mod source;
@@ -60,6 +62,38 @@ async fn main() -> anyhow::Result<()> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 
     let args: Vec<String> = std::env::args().collect();
+    if matches!(
+        args.get(1).map(String::as_str),
+        Some("--evaluate" | "--replay")
+    ) {
+        let path = args
+            .get(2)
+            .ok_or_else(|| anyhow::anyhow!("research command requires a JSON path"))?;
+        let file = std::fs::File::open(path)?;
+        anyhow::ensure!(
+            file.metadata()?.len() <= 2 * 1024 * 1024,
+            "research input exceeds 2 MiB"
+        );
+        let output = if args[1] == "--evaluate" {
+            let request = serde_json::from_reader(file)?;
+            serde_json::to_value(research_engine::scan(&request).map_err(anyhow::Error::msg)?)?
+        } else {
+            let request = serde_json::from_reader(file)?;
+            serde_json::to_value(research_engine::replay(&request).map_err(anyhow::Error::msg)?)?
+        };
+        println!("{}", serde_json::to_string_pretty(&output)?);
+        return Ok(());
+    }
+    if args.get(1).map(String::as_str) == Some("--verify-journal") {
+        let path = args
+            .get(2)
+            .ok_or_else(|| anyhow::anyhow!("--verify-journal requires a path"))?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&journal::verify(std::path::Path::new(path))?)?
+        );
+        return Ok(());
+    }
     if let Some(load_test_cfg) = load_test::load_test_config_from_args(&args) {
         load_test::run_load_test(load_test_cfg).await;
         return Ok(());
@@ -81,6 +115,17 @@ async fn main() -> anyhow::Result<()> {
     let handle = runtime.spawn_sources(sources);
     let shutdown = handle.shutdown.clone();
     let tasks = handle.tasks;
+    let (journal_tx, journal_task) = if let Some(path) = std::env::var_os("MARKETBRIDGE_RECORD_DIR")
+    {
+        let (tx, task) = journal::start(
+            std::path::Path::new(&path),
+            metrics.clone(),
+            shutdown.clone(),
+        )?;
+        (Some(tx), Some(task))
+    } else {
+        (None, None)
+    };
 
     let bus = EventBus::new_sharded(
         cfg.runtime.broadcast_capacity,
@@ -128,6 +173,7 @@ async fn main() -> anyhow::Result<()> {
             Ok(l) => l,
             Err(e) => {
                 error!(addr = %api_addr, error = %e, "api bind failed");
+                api_shutdown.cancel();
                 return;
             }
         };
@@ -272,7 +318,8 @@ async fn main() -> anyhow::Result<()> {
         bus.clone(),
         metrics.clone(),
         cfg.runtime.router_publish_queue_capacity(),
-    );
+    )
+    .with_journal(journal_tx);
     let router_task = tokio::spawn(router.run());
 
     let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));
@@ -296,6 +343,7 @@ async fn main() -> anyhow::Result<()> {
     background_tasks.extend("onchain_collector", onchain_tasks);
     background_tasks.extend("source", tasks);
     background_tasks.required("router", router_task);
+    background_tasks.optional("journal", journal_task);
     background_tasks.required("api", api_task);
 
     let mut agg_joined = false;

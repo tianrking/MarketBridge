@@ -5,6 +5,7 @@ pub mod history;
 pub mod legacy;
 pub mod market;
 pub mod onchain;
+pub mod opportunities;
 pub mod options;
 pub mod prediction;
 pub mod research;

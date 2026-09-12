@@ -6,8 +6,32 @@ use crate::core::schema::{
 };
 use crate::event_bus::NormalizedTick;
 
+/// Legacy feeds lack per-message provenance. Only audited BBO adapters are
+/// promoted; all others remain reference-only until their adapter is migrated.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuoteKind {
+    ObservedBook,
+    ObservedBbo,
+    DirectionalQuote,
+    Synthetic,
+    #[default]
+    Reference,
+}
+
+pub fn legacy_quote_kind(source: &str) -> QuoteKind {
+    match source {
+        "binance" | "okx" | "bybit" => QuoteKind::ObservedBbo,
+        "uniswap" | "uniswap_v3" | "dexscreener" | "paraswap" | "1inch" | "oneinch" | "raydium"
+        | "jupiter" | "coingecko" | "coincap" | "coinmarketcap" => QuoteKind::Synthetic,
+        _ => QuoteKind::Reference,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuotePayload {
+    #[serde(default)]
+    pub quote_kind: QuoteKind,
     pub bid: f64,
     pub ask: f64,
     pub mark: Option<f64>,
@@ -48,6 +72,7 @@ pub fn envelope_from_tick(tick: NormalizedTick) -> DataEnvelope<QuotePayload> {
             stale: tick.stale,
         },
         QuotePayload {
+            quote_kind: legacy_quote_kind(tick.exchange),
             bid: tick.bid,
             ask: tick.ask,
             mark: tick.mark,
@@ -87,6 +112,13 @@ fn split_symbol(symbol: &str) -> (Option<String>, Option<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unknown_sources_are_reference_not_executable() {
+        assert_eq!(legacy_quote_kind("new_provider"), QuoteKind::Reference);
+        assert_eq!(legacy_quote_kind("dexscreener"), QuoteKind::Synthetic);
+        assert_eq!(legacy_quote_kind("binance"), QuoteKind::ObservedBbo);
+    }
 
     #[test]
     fn converts_tick_to_quote_envelope() {

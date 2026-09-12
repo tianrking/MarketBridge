@@ -1,24 +1,54 @@
-use std::time::Duration;
-
-use anyhow::{Context, Result};
+use crate::config::CustomApiConfig;
+use crate::connectors::aggregate::common::parse_f64_value;
+use crate::source::{ExchangeSource, SourceContext};
+use crate::types::{DataEvent, ExternalSignalTick, now_ms};
+use anyhow::{Context, Result, ensure};
 use async_trait::async_trait;
 use serde_json::Value;
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+    time::{Duration, SystemTime},
+};
+use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::warn;
 
-use crate::config::CustomApiConfig;
-use crate::connectors::aggregate::common::{emit_external_signal, parse_f64_value};
-use crate::source::{ExchangeSource, SourceContext};
+type Budgets = Arc<Mutex<HashMap<String, Option<Instant>>>>;
+static BUDGETS: OnceLock<Budgets> = OnceLock::new();
 
 pub struct CustomApiPoller {
     cfg: CustomApiConfig,
     client: reqwest::Client,
 }
-
 impl CustomApiPoller {
     pub fn new(cfg: CustomApiConfig) -> Self {
         Self {
             cfg,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(15))
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .expect("static HTTP client settings"),
+        }
+    }
+}
+
+async fn reserve(budgets: &Budgets, scope: &str, interval: Duration) {
+    loop {
+        let wait = {
+            let mut map = budgets.lock().await;
+            let now = Instant::now();
+            let next = map.entry(scope.into()).or_insert(Some(now));
+            if next.is_some_and(|next| next <= now) {
+                *next = now.checked_add(interval);
+                return;
+            }
+            *next
+        };
+        match wait {
+            Some(wait) => tokio::time::sleep_until(wait).await,
+            None => std::future::pending::<()>().await,
         }
     }
 }
@@ -28,50 +58,133 @@ impl ExchangeSource for CustomApiPoller {
     fn name(&self) -> &'static str {
         "custom_api"
     }
-
+    fn label(&self) -> String {
+        format!("custom_api/{}", self.cfg.name)
+    }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
+        // Conservative shared-origin pacing, not a universal provider quota model.
+        let scope = url::Url::parse(&self.cfg.url)?
+            .origin()
+            .ascii_serialization();
+        let budgets = BUDGETS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+        let interval = Duration::from_secs(self.cfg.poll_secs.max(1));
         loop {
+            reserve(budgets, &scope, interval).await;
             match fetch_custom_value(&self.client, &self.cfg).await {
-                Ok((value, raw)) => {
-                    emit_external_signal(
-                        &ctx,
-                        self.name(),
-                        &self.cfg.category,
-                        self.cfg.symbol.as_deref(),
-                        &self.cfg.metric,
-                        value,
-                        raw,
-                    )
+                Ok(FetchOutcome::Value(value, source_time_ms, raw)) => {
+                    ctx.emit(DataEvent::ExternalSignal(ExternalSignalTick {
+                        source: "custom_api",
+                        source_instance: Some(self.cfg.name.clone().into_boxed_str()),
+                        source_time_ms,
+                        category: self.cfg.category.clone().into_boxed_str(),
+                        symbol: self
+                            .cfg
+                            .symbol
+                            .as_ref()
+                            .map(|s| s.to_ascii_uppercase().into_boxed_str()),
+                        metric: self.cfg.metric.clone().into_boxed_str(),
+                        value: Some(value),
+                        score: None,
+                        title: None,
+                        url: None,
+                        ts_ms: now_ms(),
+                        raw: Some(raw),
+                    }))
                     .await?;
                 }
-                Err(error) => warn!(source=%self.cfg.name, %error, "custom api refresh failed"),
+                Ok(FetchOutcome::Backoff(delay)) => {
+                    let mut map = budgets.lock().await;
+                    let next = Instant::now().checked_add(delay.max(interval));
+                    // None pauses only this origin until restart; no mutex is
+                    // held while waiting and other providers remain independent.
+                    map.entry(scope.clone())
+                        .and_modify(|old| {
+                            *old = old.zip(next).map(|(a, b)| a.max(b));
+                        })
+                        .or_insert(next);
+                    warn!(source=%self.cfg.name,delay_secs=delay.as_secs(),"custom API quota backoff");
+                }
+                Err(error) => warn!(source=%self.cfg.name,%error,"custom API refresh failed"),
             }
-            tokio::time::sleep(Duration::from_secs(self.cfg.poll_secs.max(1))).await;
+            tokio::time::sleep(interval).await;
         }
     }
+}
+
+enum FetchOutcome {
+    Value(f64, Option<u64>, Value),
+    Backoff(Duration),
+}
+
+fn retry_delay(header: Option<&str>, now: SystemTime) -> Duration {
+    header
+        .and_then(|s| {
+            s.parse::<u64>().ok().map(Duration::from_secs).or_else(|| {
+                httpdate::parse_http_date(s)
+                    .ok()
+                    .map(|t| t.duration_since(now).unwrap_or_default())
+            })
+        })
+        .unwrap_or(Duration::from_secs(60))
+        .max(Duration::from_secs(1))
 }
 
 async fn fetch_custom_value(
     client: &reqwest::Client,
     cfg: &CustomApiConfig,
-) -> Result<(Option<f64>, Option<Value>)> {
-    let text = client
-        .get(&cfg.url)
-        .send()
-        .await?
-        .error_for_status()?
-        .text()
-        .await
-        .context("failed to read custom api response")?;
-
-    if let Ok(value) = text.trim().parse::<f64>() {
-        return Ok((Some(value), Some(Value::String(text))));
+) -> Result<FetchOutcome> {
+    let mut response = client.get(&cfg.url).send().await?;
+    if matches!(response.status().as_u16(), 418 | 429 | 503) {
+        return Ok(FetchOutcome::Backoff(retry_delay(
+            response
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok()),
+            SystemTime::now(),
+        )));
     }
+    ensure!(
+        !response.status().is_redirection(),
+        "custom API redirects require explicit configuration"
+    );
+    response = response.error_for_status()?;
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        ensure!(
+            bytes.len() + chunk.len() <= 1024 * 1024,
+            "custom API body exceeds 1 MiB"
+        );
+        bytes.extend_from_slice(&chunk);
+    }
+    let text = std::str::from_utf8(&bytes).context("custom API requires UTF-8")?;
+    let (value, ts, raw) = parse_observation(text, cfg)?;
+    Ok(FetchOutcome::Value(value, ts, raw))
+}
 
-    let raw = serde_json::from_str::<Value>(&text)
-        .context("custom api response is not numeric or json")?;
-    let value = value_at_path(&raw, &cfg.value_path).and_then(parse_f64_value);
-    Ok((value, Some(raw)))
+fn parse_observation(text: &str, cfg: &CustomApiConfig) -> Result<(f64, Option<u64>, Value)> {
+    let raw: Value = serde_json::from_str(text).context("custom API response must be JSON")?;
+    let value = value_at_path(&raw, &cfg.value_path)
+        .and_then(parse_f64_value)
+        .filter(|v| v.is_finite())
+        .context("mapped value is missing, null or non-finite")?;
+    let source_time = cfg
+        .timestamp_path
+        .as_ref()
+        .map(|path| -> Result<u64> {
+            let field = value_at_path(&raw, path).context("mapped timestamp missing")?;
+            let value = field
+                .as_u64()
+                .or_else(|| field.as_str().and_then(|s| s.parse().ok()))
+                .context("timestamp must be a positive integer")?;
+            ensure!(value > 0, "timestamp must be positive");
+            if cfg.timestamp_in_seconds {
+                value.checked_mul(1000).context("timestamp overflow")
+            } else {
+                Ok(value)
+            }
+        })
+        .transpose()?;
+    Ok((value, source_time, raw))
 }
 
 fn value_at_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
@@ -92,7 +205,6 @@ fn value_at_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn custom_api_value_path_reads_nested_json() {
         let raw = serde_json::json!({"data":[{"price":"123.45"}]});
@@ -100,5 +212,27 @@ mod tests {
             value_at_path(&raw, "data.0.price").and_then(parse_f64_value),
             Some(123.45)
         );
+    }
+    #[test]
+    fn respects_seconds_and_http_date_retry_after() {
+        let now = SystemTime::UNIX_EPOCH;
+        assert_eq!(retry_delay(Some("120"), now), Duration::from_secs(120));
+        assert_eq!(
+            retry_delay(Some("Thu, 01 Jan 1970 00:02:00 GMT"), now),
+            Duration::from_secs(120)
+        );
+        assert_eq!(retry_delay(None, now), Duration::from_secs(60));
+    }
+    #[test]
+    fn mapped_time_is_explicit_and_missing_values_fail() {
+        let cfg: CustomApiConfig = serde_json::from_value(serde_json::json!({
+            "name":"gold","url":"https://example.invalid","metric":"price","value_path":"p",
+            "timestamp_path":"t","timestamp_in_seconds":true}))
+        .unwrap();
+        let (price, ts, _) = parse_observation(r#"{"p":123.4,"t":100}"#, &cfg).unwrap();
+        assert_eq!(price, 123.4);
+        assert_eq!(ts, Some(100_000));
+        assert!(parse_observation(r#"{"p":null,"t":100}"#, &cfg).is_err());
+        assert!(parse_observation(r#"{"p":123.4}"#, &cfg).is_err());
     }
 }

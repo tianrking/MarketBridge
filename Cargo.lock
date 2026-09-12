@@ -1057,6 +1057,7 @@ dependencies = [
  "dashmap",
  "flate2",
  "futures-util",
+ "httpdate",
  "prometheus",
  "redis",
  "reqwest",

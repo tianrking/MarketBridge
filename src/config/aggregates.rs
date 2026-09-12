@@ -97,6 +97,10 @@ pub struct CustomApiConfig {
     pub metric: String,
     #[serde(default)]
     pub value_path: String,
+    #[serde(default)]
+    pub timestamp_path: Option<String>,
+    #[serde(default)]
+    pub timestamp_in_seconds: bool,
     #[serde(default = "default_custom_api_poll_secs")]
     pub poll_secs: u64,
 }
