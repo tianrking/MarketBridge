@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-12 — publication identity audit
+
+GitHub rejected the first feature-branch push with GH007 (private commit email).
+The six unpublished research commits created during this work were rewritten to
+the account's public noreply identity; Git tree equality was checked before/after.
+No source content changed and no account privacy protection was disabled.
+Original local history remains on `codex/research-pre-noreply-backup` (not pushed).
+Current milestone IDs: `4f25e3a` clocks, `62670bb` evidence/replay, `75b0435` paper,
+`ce98eec` batch/live repair, `f0efe84` workspace, `90f7b1d` continuous research/manual.
+This records commit identity maintenance, not additional test or release evidence.
+
 ## 2026-09-12 — continuous research workflows and usage manual
 
 - Added background cached-book scanner, persisted transition alerts, validated
@@ -37,7 +48,7 @@ ordered bounded dataset chunks, cursor replay and archived successful/failed run
 Basis, unit-premium and interval-normalized funding models remain reference-only.
 Validation: strict all-target/all-feature Clippy; 299 Rust tests; build;
 `scripts/Test-ResearchApi.ps1` including registry, dataset, failed-run archive and
-integrity assertions passed. Commit: `7d6bb98`. Local validation, not remote CI.
+integrity assertions passed. Commit: `f0efe84` (original local ID `7d6bb98`). Local validation, not remote CI.
 
 ## 2026-09-12 — Batch screening and real-source depth repair
 
