@@ -243,10 +243,15 @@ configured timestamps fail parsing rather than creating successful empty data.
 Requests have a 15-second timeout and 1 MiB response cap. Redirects are not
 followed. Entries share conservative pacing by origin and share 418/429/503
 Retry-After cooldowns (both delta seconds and HTTP dates). This is not a full
-account/IP/provider-weight quota model. It does not rotate proxies or promise
-zero throttling. Different origins can still share upstream quotas; operators
-must respect those provider constraints. Configuration remains startup-only;
-hot reload and general event/pagination mappings are not implemented yet.
+account/IP credential model. Optional `aggregates.provider_quotas` define a
+named `max_requests`/`window_secs` shared window. A custom entry assigns
+`quota_group` and positive `quota_weight`; all entries in that group consume the
+same weighted budget before an HTTP request begins. The quota group must be
+declared and a weight cannot exceed the group maximum. This is conservative
+local pacing, not proof of a provider's undocumented account or IP policy. It
+does not rotate proxies or promise zero throttling. Configuration remains
+startup-only; hot reload and general event/pagination mappings are not
+implemented yet.
 # Continuous research workspace (unreleased extension)
 
 In addition to the original endpoints below, the current source exposes:

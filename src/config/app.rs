@@ -120,6 +120,22 @@ impl AppConfig {
                     .with_context(|| format!("invalid fees for {name}"))?;
             }
         }
+        let mut quota_names: std::collections::HashMap<&str, _> = std::collections::HashMap::new();
+        for quota in &self.aggregates.provider_quotas {
+            ensure!(
+                !quota.name.trim().is_empty()
+                    && quota_names.insert(quota.name.as_str(), quota).is_none(),
+                "provider quota names must be nonempty and unique"
+            );
+            ensure!(
+                (1..=1_000_000).contains(&quota.max_requests),
+                "provider quota max_requests must be within 1..1000000"
+            );
+            ensure!(
+                (1..=86_400).contains(&quota.window_secs),
+                "provider quota window_secs must be within 1..86400"
+            );
+        }
         let mut names = std::collections::HashSet::new();
         for source in self.aggregates.custom_apis.iter().filter(|s| s.enabled) {
             ensure!(
@@ -139,6 +155,19 @@ impl AppConfig {
                 url.username().is_empty() && url.password().is_none(),
                 "custom API credentials must not appear in URLs"
             );
+            ensure!(
+                source.quota_weight > 0,
+                "custom API quota_weight must be positive"
+            );
+            if let Some(group) = source.quota_group.as_deref() {
+                let quota = quota_names.get(group).with_context(|| {
+                    format!("custom API quota_group {group:?} is not configured")
+                })?;
+                ensure!(
+                    source.quota_weight <= quota.max_requests,
+                    "custom API quota_weight cannot exceed its provider quota max_requests"
+                );
+            }
         }
         Ok(())
     }
@@ -188,4 +217,51 @@ fn normalize_symbols(input: &[String]) -> Vec<String> {
         .map(|s| s.trim().to_ascii_uppercase())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{CustomApiConfig, ProviderQuotaConfig};
+
+    fn base_config() -> AppConfig {
+        serde_yaml::from_str(include_str!("../../config.research.yaml"))
+            .expect("research fixture config must parse")
+    }
+
+    fn custom_source(group: Option<&str>, weight: u32) -> CustomApiConfig {
+        CustomApiConfig {
+            enabled: true,
+            name: "reference-price".to_string(),
+            url: "https://example.invalid/price".to_string(),
+            category: "reference".to_string(),
+            symbol: Some("XAUUSD".to_string()),
+            metric: "price".to_string(),
+            value_path: "price".to_string(),
+            timestamp_path: None,
+            timestamp_in_seconds: false,
+            poll_secs: 30,
+            quota_group: group.map(str::to_string),
+            quota_weight: weight,
+        }
+    }
+
+    #[test]
+    fn custom_api_shared_quota_requires_a_declared_group_and_valid_weight() {
+        let mut cfg = base_config();
+        cfg.aggregates.provider_quotas = vec![ProviderQuotaConfig {
+            name: "reference".to_string(),
+            max_requests: 10,
+            window_secs: 60,
+        }];
+        cfg.aggregates.custom_apis = vec![custom_source(Some("reference"), 2)];
+        cfg.validate().expect("declared shared quota is valid");
+
+        cfg.aggregates.custom_apis[0].quota_group = Some("missing".to_string());
+        assert!(cfg.validate().is_err());
+
+        cfg.aggregates.custom_apis[0].quota_group = Some("reference".to_string());
+        cfg.aggregates.custom_apis[0].quota_weight = 11;
+        assert!(cfg.validate().is_err());
+    }
 }

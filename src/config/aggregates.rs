@@ -12,6 +12,8 @@ pub struct AggregatesConfig {
     pub coinglass: CoinGlassConfig,
     #[serde(default)]
     pub custom_apis: Vec<CustomApiConfig>,
+    #[serde(default)]
+    pub provider_quotas: Vec<ProviderQuotaConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -103,6 +105,22 @@ pub struct CustomApiConfig {
     pub timestamp_in_seconds: bool,
     #[serde(default = "default_custom_api_poll_secs")]
     pub poll_secs: u64,
+    /// Optional shared named quota. Every enabled custom API referencing the
+    /// same name consumes from the same bounded window.
+    #[serde(default)]
+    pub quota_group: Option<String>,
+    /// Requests consumed for one refresh. This must not exceed the group's
+    /// `max_requests`; a provider can therefore represent weighted endpoints.
+    #[serde(default = "default_quota_weight")]
+    pub quota_weight: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProviderQuotaConfig {
+    pub name: String,
+    pub max_requests: u32,
+    #[serde(default = "default_quota_window_secs")]
+    pub window_secs: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -154,6 +172,14 @@ fn default_coinglass_poll_secs() -> u64 {
 
 fn default_custom_api_poll_secs() -> u64 {
     5
+}
+
+fn default_quota_weight() -> u32 {
+    1
+}
+
+fn default_quota_window_secs() -> u64 {
+    60
 }
 
 fn default_aggregate_spread_bps() -> f64 {

@@ -20,7 +20,7 @@ truth for what is implemented and wired into the runtime/API.
 | Journal and verification CLI | implemented | Opt-in normalized events; capped session, CRC, dropped counters, partial/sealed files |
 | Whole-file journal replay | implemented | Streaming sealed normalized books for an explicit route; rejects recorded drops/corruption, not raw WS or portfolio execution |
 | Independent custom sources | implemented | Instance IDs, optional source time, bounded HTTP and shared-origin Retry-After pacing |
-| Full weighted provider quotas | planned | Shared-origin pacing is not account/IP/group weight accounting |
+| Shared weighted provider quotas | implemented | Optional named windows gate custom HTTP requests before dispatch; provider account/IP policy remains external |
 | Prefunded paper fill ledger | implemented | Fixed-pair explicit fills and depth reuse; no borrowing |
 | Allocated spot portfolio / exits | implemented | Multiple allocated accounts, reversible steps and time/net-bps gates; no margin, FX or cross-request position carry |
 | Versioned asset registry | implemented | Immutable caller-attested instruments and directed relationships; knowledge-time checks, not independent certification |

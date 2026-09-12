@@ -44,3 +44,28 @@
 
 公共访问不是商用转售许可。发布收费 API 前逐源核实服务条款、缓存和再分发权限；
 不要靠轮换 IP 或账号绕过平台限额。
+
+## 公共接口配额
+
+对 `aggregates.custom_apis`，可以在同一层配置命名的共享窗口，再由每一条来源
+声明它要消耗的权重：
+
+```yaml
+aggregates:
+  provider_quotas:
+    - name: public-metals
+      max_requests: 30
+      window_secs: 60
+  custom_apis:
+    - enabled: true
+      name: xau-reference
+      url: "https://provider.example/api/xau"
+      metric: price
+      value_path: price
+      quota_group: public-metals
+      quota_weight: 1
+```
+
+同组请求在发出前共同扣减额度；额度耗尽会等到窗口结束，而不是并发冲击上游。
+这只是本机的保守保护，不替代数据商按账号、IP、套餐或端点制定的规则。配置中
+引用的组必须存在，`quota_weight` 必须为正且不超过 `max_requests`。

@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-12 — weighted public-provider quota controls
+
+Added optional `aggregates.provider_quotas` shared windows for custom public
+HTTP sources. Each source can declare a named group and positive request weight;
+configuration rejects undeclared groups, duplicate groups, zero weights and
+weights exceeding the group capacity. Requests reserve the shared quota before
+dispatch and wait for a new window on exhaustion, while preserving independent
+origin pacing and Retry-After cooldowns. This is local protective pacing, not a
+claim about provider account/IP policy or a bypass of service limits.
+Validation: strict all-target/all-feature Clippy and 310 Rust tests passed locally.
+
 ## 2026-09-12 — scanner reset event semantics
 
 Configuration changes and scanner restarts now persist a `scanner_reset` event

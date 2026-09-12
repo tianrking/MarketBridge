@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::config::ProviderQuotaConfig;
 use crate::connectors::aggregate::coincap::CoinCapPricePoller;
 use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
@@ -31,7 +33,18 @@ pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &Registr
             cfg.aggregates.coinglass.clone(),
         )));
     }
+    let provider_quotas = Arc::new(
+        cfg.aggregates
+            .provider_quotas
+            .iter()
+            .cloned()
+            .map(|quota: ProviderQuotaConfig| (quota.name.clone(), quota))
+            .collect::<HashMap<_, _>>(),
+    );
     for custom_api in cfg.aggregates.custom_apis.iter().filter(|api| api.enabled) {
-        out.push(Arc::new(CustomApiPoller::new(custom_api.clone())));
+        out.push(Arc::new(CustomApiPoller::new(
+            custom_api.clone(),
+            provider_quotas.clone(),
+        )));
     }
 }

@@ -1,4 +1,4 @@
-use crate::config::CustomApiConfig;
+use crate::config::{CustomApiConfig, ProviderQuotaConfig};
 use crate::connectors::aggregate::common::parse_f64_value;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{DataEvent, ExternalSignalTick, now_ms};
@@ -14,15 +14,33 @@ use tokio::sync::Mutex;
 use tokio::time::Instant;
 use tracing::warn;
 
-type Budgets = Arc<Mutex<HashMap<String, Option<Instant>>>>;
-static BUDGETS: OnceLock<Budgets> = OnceLock::new();
+type PacingBudgets = Arc<Mutex<HashMap<String, Option<Instant>>>>;
+type QuotaBudgets = Arc<Mutex<HashMap<String, QuotaWindow>>>;
+static PACING_BUDGETS: OnceLock<PacingBudgets> = OnceLock::new();
+static QUOTA_BUDGETS: OnceLock<QuotaBudgets> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug)]
+struct QuotaPolicy {
+    max_requests: u32,
+    window: Duration,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct QuotaWindow {
+    started_at: Instant,
+    used_requests: u32,
+}
 
 pub struct CustomApiPoller {
     cfg: CustomApiConfig,
     client: reqwest::Client,
+    provider_quotas: Arc<HashMap<String, ProviderQuotaConfig>>,
 }
 impl CustomApiPoller {
-    pub fn new(cfg: CustomApiConfig) -> Self {
+    pub fn new(
+        cfg: CustomApiConfig,
+        provider_quotas: Arc<HashMap<String, ProviderQuotaConfig>>,
+    ) -> Self {
         Self {
             cfg,
             client: reqwest::Client::builder()
@@ -30,11 +48,12 @@ impl CustomApiPoller {
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .expect("static HTTP client settings"),
+            provider_quotas,
         }
     }
 }
 
-async fn reserve(budgets: &Budgets, scope: &str, interval: Duration) {
+async fn reserve_pacing(budgets: &PacingBudgets, scope: &str, interval: Duration) {
     loop {
         let wait = {
             let mut map = budgets.lock().await;
@@ -53,6 +72,56 @@ async fn reserve(budgets: &Budgets, scope: &str, interval: Duration) {
     }
 }
 
+fn quota_policy(
+    quotas: &HashMap<String, ProviderQuotaConfig>,
+    group: Option<&str>,
+) -> Option<QuotaPolicy> {
+    let quota = quotas.get(group?)?;
+    Some(QuotaPolicy {
+        max_requests: quota.max_requests,
+        window: Duration::from_secs(quota.window_secs),
+    })
+}
+
+fn reserve_quota_window(
+    windows: &mut HashMap<String, QuotaWindow>,
+    group: &str,
+    weight: u32,
+    policy: QuotaPolicy,
+    now: Instant,
+) -> Option<Instant> {
+    let window = windows.entry(group.to_string()).or_insert(QuotaWindow {
+        started_at: now,
+        used_requests: 0,
+    });
+    if now.saturating_duration_since(window.started_at) >= policy.window {
+        *window = QuotaWindow {
+            started_at: now,
+            used_requests: 0,
+        };
+    }
+    if window.used_requests.saturating_add(weight) <= policy.max_requests {
+        window.used_requests += weight;
+        None
+    } else {
+        window.started_at.checked_add(policy.window)
+    }
+}
+
+async fn reserve_quota(group: &str, weight: u32, policy: QuotaPolicy) {
+    let budgets = QUOTA_BUDGETS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+    loop {
+        let wait = {
+            let mut windows = budgets.lock().await;
+            reserve_quota_window(&mut windows, group, weight, policy, Instant::now())
+        };
+        match wait {
+            Some(wait) => tokio::time::sleep_until(wait).await,
+            None => return,
+        }
+    }
+}
+
 #[async_trait]
 impl ExchangeSource for CustomApiPoller {
     fn name(&self) -> &'static str {
@@ -62,14 +131,18 @@ impl ExchangeSource for CustomApiPoller {
         format!("custom_api/{}", self.cfg.name)
     }
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        // Conservative shared-origin pacing, not a universal provider quota model.
+        // Origin pacing is supplemented by an optional shared weighted provider quota.
         let scope = url::Url::parse(&self.cfg.url)?
             .origin()
             .ascii_serialization();
-        let budgets = BUDGETS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+        let pacing_budgets = PACING_BUDGETS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
         let interval = Duration::from_secs(self.cfg.poll_secs.max(1));
+        let quota = quota_policy(&self.provider_quotas, self.cfg.quota_group.as_deref());
         loop {
-            reserve(budgets, &scope, interval).await;
+            reserve_pacing(pacing_budgets, &scope, interval).await;
+            if let (Some(group), Some(policy)) = (self.cfg.quota_group.as_deref(), quota) {
+                reserve_quota(group, self.cfg.quota_weight, policy).await;
+            }
             match fetch_custom_value(&self.client, &self.cfg).await {
                 Ok(FetchOutcome::Value(value, source_time_ms, raw)) => {
                     ctx.emit(DataEvent::ExternalSignal(ExternalSignalTick {
@@ -93,7 +166,7 @@ impl ExchangeSource for CustomApiPoller {
                     .await?;
                 }
                 Ok(FetchOutcome::Backoff(delay)) => {
-                    let mut map = budgets.lock().await;
+                    let mut map = pacing_budgets.lock().await;
                     let next = Instant::now().checked_add(delay.max(interval));
                     // None pauses only this origin until restart; no mutex is
                     // held while waiting and other providers remain independent.
@@ -234,5 +307,41 @@ mod tests {
         assert_eq!(ts, Some(100_000));
         assert!(parse_observation(r#"{"p":null,"t":100}"#, &cfg).is_err());
         assert!(parse_observation(r#"{"p":123.4}"#, &cfg).is_err());
+    }
+
+    #[test]
+    fn weighted_quota_waits_until_its_window_then_resets() {
+        let policy = QuotaPolicy {
+            max_requests: 5,
+            window: Duration::from_secs(60),
+        };
+        let now = Instant::now();
+        let mut windows = HashMap::new();
+        assert_eq!(
+            reserve_quota_window(&mut windows, "public", 3, policy, now),
+            None
+        );
+        let wait = reserve_quota_window(&mut windows, "public", 3, policy, now)
+            .expect("second request exceeds the shared weighted quota");
+        assert_eq!(wait.duration_since(now), Duration::from_secs(60));
+        assert_eq!(
+            reserve_quota_window(&mut windows, "public", 5, policy, wait),
+            None
+        );
+    }
+
+    #[test]
+    fn quota_policy_requires_a_declared_group() {
+        let quotas = HashMap::from([(
+            "public".to_string(),
+            ProviderQuotaConfig {
+                name: "public".to_string(),
+                max_requests: 30,
+                window_secs: 60,
+            },
+        )]);
+        assert!(quota_policy(&quotas, Some("public")).is_some());
+        assert!(quota_policy(&quotas, Some("unknown")).is_none());
+        assert!(quota_policy(&quotas, None).is_none());
     }
 }

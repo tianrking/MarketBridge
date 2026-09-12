@@ -419,6 +419,13 @@ aggregates:
   # Generic numeric/JSON external signal pollers. Each row emits one
   # /v1/external/signals item and never touches accounts, wallets, or orders.
   custom_apis: []
+
+  # Optional shared, weighted request budgets for custom public HTTP sources.
+  # A custom entry sets quota_group and quota_weight to consume this pool.
+  # provider_quotas:
+  #   - name: "example-free-api"
+  #     max_requests: 30
+  #     window_secs: 60
   # Example:
   # custom_apis:
   #   - enabled: true
@@ -429,6 +436,8 @@ aggregates:
   #     metric: sample_price
   #     value_path: data.price
   #     poll_secs: 5
+  #     quota_group: "example-free-api"
+  #     quota_weight: 1
 
 sentiment:
   fear_greed:
