@@ -69,3 +69,10 @@ aggregates:
 同组请求在发出前共同扣减额度；额度耗尽会等到窗口结束，而不是并发冲击上游。
 这只是本机的保守保护，不替代数据商按账号、IP、套餐或端点制定的规则。配置中
 引用的组必须存在，`quota_weight` 必须为正且不超过 `max_requests`。
+
+运行后用以下只读接口核对本机窗口的已用与剩余额度；没有已初始化的命名配额时，
+返回空数组：
+
+```powershell
+Invoke-RestMethod 'http://127.0.0.1:8080/v1/system/provider-quotas'
+```

@@ -447,6 +447,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/` | Service metadata. |
 | GET | `/health` | Service liveness. |
 | GET | `/v1/system/info` | Version, API version, local UI connection hints, and capability list. |
+| GET | `/v1/system/provider-quotas` | Read-only local weighted quota status for configured custom HTTP sources. |
 | GET | `/v1/catalog/sources` | Source availability and API-key status. |
 | GET | `/v1/catalog/search` | Product search: where an asset/symbol trades and which data domains are available. |
 | GET | `/v1/catalog/markets` | On-demand platform market/symbol discovery. |

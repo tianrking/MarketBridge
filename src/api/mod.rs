@@ -107,6 +107,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/integration/context" => routes::integration::context,
         "/v1/integration/capabilities" => routes::integration::capabilities,
         "/v1/system/info" => routes::system::info,
+        "/v1/system/provider-quotas" => routes::system::provider_quotas,
         "/health" => routes::system::health,
         "/snapshot" => routes::legacy::snapshot,
         "/funding" => routes::legacy::funding,

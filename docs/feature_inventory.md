@@ -21,6 +21,7 @@ truth for what is implemented and wired into the runtime/API.
 | Whole-file journal replay | implemented | Streaming sealed normalized books for an explicit route; rejects recorded drops/corruption, not raw WS or portfolio execution |
 | Independent custom sources | implemented | Instance IDs, optional source time, bounded HTTP and shared-origin Retry-After pacing |
 | Shared weighted provider quotas | implemented | Optional named windows gate custom HTTP requests before dispatch; provider account/IP policy remains external |
+| Provider quota observability | implemented | `/v1/system/provider-quotas` exposes configured local windows, consumed and remaining request weight; it is not an upstream account-limit statement |
 | Prefunded paper fill ledger | implemented | Fixed-pair explicit fills and depth reuse; no borrowing |
 | Allocated spot portfolio / exits | implemented | Multiple allocated accounts, reversible steps and time/net-bps gates; no margin, FX or cross-request position carry |
 | Versioned asset registry | implemented | Immutable caller-attested instruments and directed relationships; knowledge-time checks, not independent certification |

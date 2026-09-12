@@ -12,6 +12,9 @@ These examples assume MarketBridge is already running locally:
 MB="http://127.0.0.1:8080"
 curl -s "$MB/health" | jq
 curl -s "$MB/v1/system/info" | jq
+
+# Inspect configured local custom-source quota windows.
+curl -s "$MB/v1/system/provider-quotas" | jq
 ```
 
 If API auth is enabled, add the header:

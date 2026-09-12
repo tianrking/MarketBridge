@@ -466,6 +466,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/` | 服务元信息。 |
 | GET | `/health` | 健康检查。 |
 | GET | `/v1/system/info` | 版本、API 版本、本地 UI 连接提示和能力清单。 |
+| GET | `/v1/system/provider-quotas` | 本地自定义来源共享配额窗口与剩余额度。 |
 | GET | `/v1/catalog/sources` | 数据源启用状态和 API key 状态。 |
 | GET | `/v1/catalog/search` | 产品搜索：输入资产或 symbol，返回在哪里交易以及能获取哪些数据。 |
 | GET | `/v1/catalog/markets` | 按需查询交易所公开 market/symbol 清单。 |

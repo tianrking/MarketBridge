@@ -5,6 +5,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 
 use crate::api::ApiState;
+use crate::connectors::aggregate::custom_api::provider_quota_status;
 
 pub async fn root() -> impl IntoResponse {
     Json(serde_json::json!({"service":"MarketBridge"}))
@@ -99,6 +100,39 @@ pub async fn info() -> impl IntoResponse {
     }))
 }
 
+pub async fn provider_quotas() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "provider_quota_status",
+        "quotas": provider_quota_status().await,
+        "notes": [
+            "Rows are local shared windows for configured custom HTTP sources.",
+            "An empty list means no enabled custom source initialized a named provider quota.",
+            "This status is not a statement of upstream account, IP, or subscription limits."
+        ]
+    }))
+}
+
 pub async fn metrics(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     state.metrics.render()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn provider_quota_status_has_a_stable_read_only_envelope() {
+        let response = provider_quotas().await.into_response();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("quota status body must be readable");
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("quota status must be JSON");
+        assert_eq!(value["version"], "v1");
+        assert_eq!(value["domain"], "provider_quota_status");
+        assert!(value["quotas"].is_array());
+        assert!(value["notes"].is_array());
+    }
 }

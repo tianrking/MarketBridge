@@ -618,6 +618,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/` | Service metadata |
 | GET | `/health` | Liveness check |
 | GET | `/v1/system/info` | Version, API version, local UI connection hints, and capability list |
+| GET | `/v1/system/provider-quotas` | Local weighted custom-source quota windows and remaining budget |
 | GET | `/v1/catalog/sources` | Implemented public data sources |
 | GET | `/v1/catalog/search` | Product search: where an asset/symbol trades and which data domains are available |
 | GET | `/v1/catalog/markets` | On-demand public market/symbol discovery by exchange |

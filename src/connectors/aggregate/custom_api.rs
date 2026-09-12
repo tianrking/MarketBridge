@@ -4,6 +4,7 @@ use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{DataEvent, ExternalSignalTick, now_ms};
 use anyhow::{Context, Result, ensure};
 use async_trait::async_trait;
+use serde::Serialize;
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -18,6 +19,7 @@ type PacingBudgets = Arc<Mutex<HashMap<String, Option<Instant>>>>;
 type QuotaBudgets = Arc<Mutex<HashMap<String, QuotaWindow>>>;
 static PACING_BUDGETS: OnceLock<PacingBudgets> = OnceLock::new();
 static QUOTA_BUDGETS: OnceLock<QuotaBudgets> = OnceLock::new();
+static QUOTA_POLICIES: OnceLock<Arc<HashMap<String, QuotaPolicy>>> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug)]
 struct QuotaPolicy {
@@ -31,6 +33,16 @@ struct QuotaWindow {
     used_requests: u32,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ProviderQuotaStatus {
+    pub group: String,
+    pub max_requests: u32,
+    pub window_secs: u64,
+    pub used_requests: u32,
+    pub remaining_requests: u32,
+    pub window_remaining_ms: u64,
+}
+
 pub struct CustomApiPoller {
     cfg: CustomApiConfig,
     client: reqwest::Client,
@@ -41,6 +53,22 @@ impl CustomApiPoller {
         cfg: CustomApiConfig,
         provider_quotas: Arc<HashMap<String, ProviderQuotaConfig>>,
     ) -> Self {
+        QUOTA_POLICIES.get_or_init(|| {
+            Arc::new(
+                provider_quotas
+                    .iter()
+                    .map(|(name, quota)| {
+                        (
+                            name.clone(),
+                            QuotaPolicy {
+                                max_requests: quota.max_requests,
+                                window: Duration::from_secs(quota.window_secs),
+                            },
+                        )
+                    })
+                    .collect(),
+            )
+        });
         Self {
             cfg,
             client: reqwest::Client::builder()
@@ -51,6 +79,57 @@ impl CustomApiPoller {
             provider_quotas,
         }
     }
+}
+
+pub async fn provider_quota_status() -> Vec<ProviderQuotaStatus> {
+    let Some(policies) = QUOTA_POLICIES.get() else {
+        return Vec::new();
+    };
+    let now = Instant::now();
+    let windows = match QUOTA_BUDGETS.get() {
+        Some(windows) => windows.lock().await,
+        None => {
+            return policies
+                .iter()
+                .map(|(group, policy)| ProviderQuotaStatus {
+                    group: group.clone(),
+                    max_requests: policy.max_requests,
+                    window_secs: policy.window.as_secs(),
+                    used_requests: 0,
+                    remaining_requests: policy.max_requests,
+                    window_remaining_ms: 0,
+                })
+                .collect();
+        }
+    };
+    let mut rows = policies
+        .iter()
+        .map(|(group, policy)| {
+            let (used, remaining_ms) = match windows.get(group) {
+                Some(window)
+                    if now.saturating_duration_since(window.started_at) < policy.window =>
+                {
+                    let remaining_ms = policy
+                        .window
+                        .saturating_sub(now.saturating_duration_since(window.started_at))
+                        .as_millis()
+                        .min(u128::from(u64::MAX)) as u64;
+                    (window.used_requests, remaining_ms)
+                }
+                _ => (0, 0),
+            };
+            ProviderQuotaStatus {
+                group: group.clone(),
+                max_requests: policy.max_requests,
+                window_secs: policy.window.as_secs(),
+                used_requests: used,
+                remaining_requests: policy.max_requests.saturating_sub(used),
+                window_remaining_ms: remaining_ms,
+            }
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|a, b| a.group.cmp(&b.group));
+    rows
 }
 
 async fn reserve_pacing(budgets: &PacingBudgets, scope: &str, interval: Duration) {
