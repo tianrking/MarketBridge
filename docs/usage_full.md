@@ -234,24 +234,24 @@ Returned features include rolling return, rolling volume, realized volatility,
 z-score, benchmark correlation, correlated asset features, basis regime,
 funding/OI regime, liquidity score, exchange disagreement, and market regime.
 
-## Agent Mode
+## Integration Context
 
-Agent mode is an AI-friendly read-only API surface. It gives an agent a compact
+Integration context is a read-only API surface. It gives an external consumer a compact
 context bundle and tells it which follow-up endpoints are available.
 
 Capabilities:
 
 ```bash
-curl -s "http://127.0.0.1:8080/v1/agent/capabilities" | jq
+curl -s "http://127.0.0.1:8080/v1/integration/capabilities" | jq
 ```
 
 Context:
 
 ```bash
-curl -s "http://127.0.0.1:8080/v1/agent/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
+curl -s "http://127.0.0.1:8080/v1/integration/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
 ```
 
-The agent contract is explicit: read-only market data, no order execution, no
+The integration contract is explicit: read-only market data, no order execution, no
 wallets, no strategy guarantee.
 
 ## WebSocket

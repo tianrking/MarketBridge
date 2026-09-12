@@ -88,7 +88,7 @@ pub async fn info() -> impl IntoResponse {
             "scenario_replay",
             "paper_fill_scenarios",
             "candidate_screening",
-            "agent_context",
+            "integration_context",
             "websocket_stream"
         ],
         "recommended_probe_order": [

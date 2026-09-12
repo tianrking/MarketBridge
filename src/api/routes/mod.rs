@@ -1,7 +1,7 @@
-pub mod agent;
 pub mod catalog;
 pub mod external;
 pub mod history;
+pub mod integration;
 pub mod legacy;
 pub mod market;
 pub mod onchain;

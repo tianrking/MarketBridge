@@ -11,7 +11,7 @@ use crate::api::utils::{parse_csv_set_lower, parse_csv_set_upper};
 use crate::data_lake::LakeManifestQuery;
 
 #[derive(Debug, Deserialize, Default)]
-pub struct AgentContextQuery {
+pub struct IntegrationContextQuery {
     symbols: Option<String>,
     exchanges: Option<String>,
     include_storage: Option<bool>,
@@ -19,7 +19,7 @@ pub struct AgentContextQuery {
 }
 
 #[derive(Debug, Serialize)]
-struct AgentCapability {
+struct IntegrationCapability {
     name: &'static str,
     endpoint: &'static str,
     purpose: &'static str,
@@ -28,10 +28,10 @@ struct AgentCapability {
 pub async fn capabilities() -> impl IntoResponse {
     Json(serde_json::json!({
         "version": "v1",
-        "domain": "agent_capabilities",
+        "domain": "integration_capabilities",
         "capabilities": capability_rows(),
         "notes": [
-            "Use /v1/agent/context for a compact one-call market context.",
+            "Use /v1/integration/context for a compact one-call market context.",
             "Use persist=true on history/klines requests only for data you want to retain locally.",
             "MarketBridge provides data and research scenarios: no orders, live balances, or trading authority."
         ]
@@ -40,7 +40,7 @@ pub async fn capabilities() -> impl IntoResponse {
 
 pub async fn context(
     State(state): State<Arc<ApiState>>,
-    Query(q): Query<AgentContextQuery>,
+    Query(q): Query<IntegrationContextQuery>,
 ) -> impl IntoResponse {
     let symbols = q.symbols.as_ref().cloned().map(parse_csv_set_upper);
     let exchanges = q.exchanges.as_ref().cloned().map(parse_csv_set_lower);
@@ -115,8 +115,8 @@ pub async fn context(
 
     Json(serde_json::json!({
         "version": "v1",
-        "domain": "agent_context",
-        "agent_mode": {
+        "domain": "integration_context",
+        "integration_context": {
             "contract": "read_only_market_data",
             "data_boundary": "no_order_execution_no_wallet_no_strategy_claims",
             "recommended_next_calls": [
@@ -136,44 +136,44 @@ pub async fn context(
     }))
 }
 
-fn capability_rows() -> Vec<AgentCapability> {
+fn capability_rows() -> Vec<IntegrationCapability> {
     vec![
-        AgentCapability {
+        IntegrationCapability {
             name: "history_candles",
             endpoint: "/v1/history/candles",
             purpose: "Fetch on-demand spot/futures/mark/index/premiumIndex/funding_rate candles and optionally persist them.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "storage_manifest",
             endpoint: "/v1/storage/manifest",
             purpose: "Inspect local lake coverage, file paths, watermarks, gaps, duplicates, and stale metrics.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "orderflow_footprint",
             endpoint: "/v1/market/footprint",
             purpose: "Read price-bin footprint, delta, imbalance, stacked imbalance, and raw trade snippets.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "research_features",
             endpoint: "/v1/research/features",
             purpose: "Read multi-timeframe research features and correlated asset context.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "candidate_screening",
             endpoint: "/v1/research/scan",
             purpose: "POST explicit evidence candidates for conditional cost ranking; errors and reference-only rows remain visible.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "live_candidate_screening",
             endpoint: "/v1/research/scan-live",
             purpose: "POST configured instrument routes to screen cached books with explicit identity and costs; no automatic asset equivalence.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "paper_fill_scenarios",
             endpoint: "/v1/research/paper",
             purpose: "POST prefunded fill scenarios; inspect balances and unmatched exposure without order execution.",
         },
-        AgentCapability {
+        IntegrationCapability {
             name: "strategy_symbol_state",
             endpoint: "/v1/research/symbol-state",
             purpose: "Read real-time short-squeeze and exhaustion-short states with CVD, OFI, OI change, depth pressure, liquidations, and read-only risk context.",

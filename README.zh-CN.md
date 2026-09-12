@@ -501,8 +501,8 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/research/features` | 多周期 research feature package。 |
 | GET | `/v1/research/market-regime` | 市场 regime snapshot。 |
 | GET | `/v1/research/symbol-state` | 单标的 squeeze / exhaustion 状态机。 |
-| GET | `/v1/agent/context` | AI / agent 友好的紧凑市场上下文。 |
-| GET | `/v1/agent/capabilities` | AI / agent 能力清单。 |
+| GET | `/v1/integration/context` | 面向外部集成的紧凑只读市场上下文。 |
+| GET | `/v1/integration/capabilities` | 只读集成能力清单。 |
 | GET | `/v1/options/chains` | 多交易所 option chains。 |
 | GET | `/v1/prediction/books` | cached Polymarket books。 |
 | GET | `/v1/external/signals` | 聚合、新闻、情绪、宏观信号。 |

@@ -835,16 +835,16 @@ find docs -maxdepth 1 -type f -name '*.md' -printf '%f\n' | sort
 curl -s "$MB/" | jq
 ```
 
-### Q118. Build an API context bundle for an agent
+### Q118. Build a compact integration context bundle
 
 ```bash
-curl -s "$MB/v1/agent/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
+curl -s "$MB/v1/integration/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
 ```
 
-### Q119. List agent capabilities
+### Q119. List integration capabilities
 
 ```bash
-curl -s "$MB/v1/agent/capabilities" | jq
+curl -s "$MB/v1/integration/capabilities" | jq
 ```
 
 ### Q120. Download release binaries

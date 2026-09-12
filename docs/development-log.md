@@ -25,7 +25,7 @@ GitHub rejected the first feature-branch push with GH007 (private commit email).
 The six unpublished research commits created during this work were rewritten to
 the account's public noreply identity; Git tree equality was checked before/after.
 No source content changed and no account privacy protection was disabled.
-Original local history remains on `codex/research-pre-noreply-backup` (not pushed).
+The obsolete local-only backup ref was removed after the public identity check.
 Current milestone IDs: `4f25e3a` clocks, `62670bb` evidence/replay, `75b0435` paper,
 `ce98eec` batch/live repair, `f0efe84` workspace, `90f7b1d` continuous research/manual.
 This records commit identity maintenance, not additional test or release evidence.
@@ -48,7 +48,7 @@ This records commit identity maintenance, not additional test or release evidenc
 - Browser validation: real local page loaded, connected, ran/archived a synthetic
   experiment, loaded/stopped scanner configuration; screenshot rendered and
   captured browser warning/error log was empty. This used the in-app browser
-  because the agent-browser command was unavailable, not a mocked page.
+  because the browser validation command was unavailable, not a mocked page.
 - Public-source observation ending 2026-09-12 06:46:19 UTC: 60.16 seconds,
   12 samples, 11 with both Binance/OKX books and 11 changing pairs, zero HTTP errors,
   peak sampled working set 30,355,456 bytes. This was a dirty development build,

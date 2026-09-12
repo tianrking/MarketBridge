@@ -657,8 +657,8 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/research/symbol-state` | Real-time per-symbol squeeze/exhaustion state machine |
 | GET | `/v1/storage/manifest` | Local lake manifest, quality, coverage, and file index |
 | DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter |
-| GET | `/v1/agent/context` | AI/agent-friendly compact market context |
-| GET | `/v1/agent/capabilities` | AI/agent-friendly capability inventory |
+| GET | `/v1/integration/context` | Compact read-only market context for external integrations |
+| GET | `/v1/integration/capabilities` | Read-only integration capability inventory |
 | GET | `/snapshot` | Latest normalized ticks |
 | GET | `/funding` | Unified perp funding view |
 | GET | `/options/deribit/summary` | Deribit option chain summaries and IV |
@@ -1123,7 +1123,7 @@ Example:
 curl -s "http://127.0.0.1:8080/v1/market/footprint?exchange=binance&market=perp&symbol=BTCUSDT&interval_ms=60000&scale=1" | jq
 ```
 
-### Universe, Research, And Agent APIs
+### Universe, Research, And Integration APIs
 
 Universe filters:
 
@@ -1140,11 +1140,11 @@ curl -s "http://127.0.0.1:8080/v1/research/features?symbols=BTCUSDT,ETHUSDT&inte
 curl -s "http://127.0.0.1:8080/v1/research/market-regime?symbols=BTCUSDT,ETHUSDT&intervals=1h,4h" | jq
 ```
 
-Agent-friendly read-only context:
+Compact read-only integration context:
 
 ```bash
-curl -s "http://127.0.0.1:8080/v1/agent/capabilities" | jq
-curl -s "http://127.0.0.1:8080/v1/agent/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
+curl -s "http://127.0.0.1:8080/v1/integration/capabilities" | jq
+curl -s "http://127.0.0.1:8080/v1/integration/context?symbols=BTCUSDT,ETHUSDT&include_storage=true" | jq
 ```
 
 For a full walkthrough, see [docs/usage_full.md](docs/usage_full.md).

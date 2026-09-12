@@ -159,7 +159,7 @@ onchain:
 For a symbol such as `BTCUSDT`, `ETHUSDT`, or another perpetual contract, a
 typical read-only query sequence is:
 
-1. `/v1/agent/context?symbols=BTCUSDT&include_storage=true`
+1. `/v1/integration/context?symbols=BTCUSDT&include_storage=true`
 2. `/v1/research/symbol-state?symbol=BTCUSDT&exchange=binance`
 3. `/v1/research/features?symbols=BTCUSDT&exchange=binance&market=perp&intervals=1m,5m,15m`
 4. `/v1/market/funding?symbols=BTCUSDT`
