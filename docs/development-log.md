@@ -1064,3 +1064,17 @@ explicit; no hedge route or arbitrage PnL is inferred.
 
 Provenance: the public [spot/perp depth-gap discussion on X](https://x.com/ciaobelindazhou/status/2031929849850273955)
 is an unverified lead, cross-checked against [Binance's official order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).
+
+## 2026-09-14 — generic microstructure imbalance response replay
+
+Added a response lifecycle for the generic top-level order-book imbalance
+monitor. The recorder freezes bid/ask notional imbalance, funding-crowding
+context and a perpetual quote; replay compares fixed-record signed and
+absolute BTC movement after bid pressure, ask pressure, funding-conflict and
+balanced-book states. Conflict labels remain separate, and missing quotes stay
+outside the aligned sample. This is a descriptive microstructure study with
+no fill, causality or execution model.
+
+Provenance: the unverified [XWIN OI/order-flow discussion](https://x.com/xwinfinance/status/2023155692916646257)
+is a research lead; book fields are cross-checked against [Binance's official order-book data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)
+and funding fields against the [official funding-rate documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).

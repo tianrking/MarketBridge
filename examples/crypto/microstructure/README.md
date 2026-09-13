@@ -18,6 +18,7 @@ Cases:
 - `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`: freeze the rolling burst beside a quote and compare later BTC responses with ordinary snapshots.
 - `crypto_liquidation_price_cluster_replay.py`: observed liquidation prints grouped into price bands, compared with ordinary forward absolute movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
+- `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`: freeze imbalance/funding states beside a quote and compare later BTC responses.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
 - `crypto_cvd_divergence_replay.py`: tests whether a price move that disagrees with single-venue taker-flow delta is followed by a fixed-horizon reversal.
 - `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
@@ -111,6 +112,18 @@ The spot/perp depth-gap monitor is an execution-risk observation motivated by
 [a public discussion of the spot/perp depth gap on X](https://x.com/ciaobelindazhou/status/2031929849850273955).
 It tests the claim with a target-size snapshot and current basis context; it
 does not assume that deeper perp liquidity makes a hedge executable.
+
+The generic microstructure response recorder/replay is separate from the
+target-size depth-gap and liquidity-stress cases. It freezes the monitor's
+top-level bid/ask imbalance plus funding state beside a perpetual quote, then
+compares fixed-record signed and absolute BTC movement after bid pressure, ask
+pressure, funding-conflict and balanced-book states. Conflict labels remain
+separate instead of being silently promoted to pressure signals.
+
+Provenance: the unverified public [OI/order-flow microstructure discussion on X](https://x.com/xwinfinance/status/2023155692916646257)
+motivates the falsifiable pressure/response split, while the normalized fields
+are cross-checked against [Binance's official order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)
+and [funding-rate documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
 
 The spot/perp depth-gap response recorder/replay is a separate temporal test.
 It adds a perpetual MarketBridge quote to each depth/basis snapshot, then
@@ -236,6 +249,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`：把滚动 burst 与同步报价冻结到 JSONL，去重重复事件后比较 burst 与普通快照的后续 BTC 响应。
 - `crypto_liquidation_price_cluster_replay.py`：把已观测清算成交按价格带聚类，并与普通窗口的未来绝对波动比较。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
+- `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`：把盘口失衡/资金费率状态与同步报价冻结，比较压力、冲突和普通状态之后的 BTC 响应。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
 - `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否反转。
 - `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short 与清算上下文，不把聚合指标解释成持仓归属。
@@ -299,6 +313,14 @@ MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺�
 
 现货/永续深度差监控的研究线索来自[公开 X 讨论](https://x.com/ciaobelindazhou/status/2031929849850273955)。
 它用目标规模盘口和当前 basis 做执行风险观察，不假设永续深度更深就代表对冲一定可成交。
+
+generic microstructure response recorder/replay 与目标规模深度差和流动性压力案例分开：它冻结 monitor 的 top-level bid/ask
+失衡、资金费率状态和永续报价，再比较固定记录窗口中 bid pressure、ask pressure、资金费率冲突和 balanced-book 状态的
+有符号/绝对 BTC 波动。冲突标签保持独立，不会静默升级成压力信号。
+
+出处：未经验证的 [X 上 OI/订单流微结构讨论](https://x.com/xwinfinance/status/2023155692916646257)
+只用于提出压力/响应的可证伪拆分；盘口字段对照 [Binance 官方 order-book 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)，
+资金费率字段对照 [官方 funding-rate 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
 
 spot/perp depth-gap response recorder/replay 是独立的时间检验：为每个深度/basis 快照补充永续 MarketBridge 报价，
 再按 `perp_depth_advantage_observation`、`spot_depth_advantage_observation` 和 `no_material_depth_gap` 比较固定记录窗口的
@@ -458,6 +480,13 @@ python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_response_recor
   --output work/crypto-spot-perp-depth-response.jsonl
 python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_response_replay.py \
   --input work/crypto-spot-perp-depth-response.jsonl \
+  --horizon-records 3 --min-observations 5
+python3 examples/crypto/microstructure/crypto_microstructure_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --top-levels 5 \
+  --iterations 60 --interval-secs 30 \
+  --output work/crypto-microstructure-response.jsonl
+python3 examples/crypto/microstructure/crypto_microstructure_response_replay.py \
+  --input work/crypto-microstructure-response.jsonl \
   --horizon-records 3 --min-observations 5
 python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --interval 5m --days 7 \

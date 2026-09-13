@@ -139,6 +139,9 @@ snapshots; this remains descriptive and does not infer arbitrage PnL or fills.
 The microstructure family also has a spot/perp depth-gap response replay that
 compares later BTC movement after perp-depth advantage, spot-depth advantage
 and no-material-gap states without turning a displayed book into a hedge route.
+It also has a generic imbalance/funding response recorder/replay that keeps
+bid/ask pressure, funding conflicts and balanced-book states separate before
+measuring later BTC movement.
 The carry family now also includes a single-venue triangular quote-consistency
 monitor/recorder/replay for BTCUSDT, ETHBTC and ETHUSDT. It evaluates both
 conversion directions with a paper per-leg cost and consecutive-snapshot
