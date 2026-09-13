@@ -287,6 +287,17 @@ python3 examples/crypto_funding_oi_replay.py \
 输出中的 `expected_direction_hit_rate` 只是条件样本统计；跨 venue 的 funding、OI 与价格
 需要明确标注，手续费、借贷、保证金、转账、滑点和清算都不在这个 replay 中。
 
+另一个更短周期的加密案例是 L2 深度不平衡：前五档 bid/ask notional 的差异超过阈值时，
+把它当作短时压力候选；若同时出现极端 funding，则输出冲突状态，而不是强行给出方向：
+
+```bash
+python3 examples/crypto_microstructure_monitor.py \
+  --symbol BTCUSDT --exchange binance --top-levels 5 \
+  --imbalance-threshold 0.30 --funding-extreme-pct 0.01
+```
+
+这只是盘口快照观察器；队列、成交、滑点和下一次更新前的撤单都没有被假设为可执行。
+
 Liquidation reversal 目前先提供一个边界清晰的 OKX/CoinEx partial replay：
 
 ```bash
