@@ -104,7 +104,7 @@ python3 examples/crypto_session_filter.py \
 python3 examples/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --days 3 --range-bars 12 --compression-window 12 \
-  --baseline-window 48 --flow-exchange binance
+  --baseline-window 48 --flow-exchange binance --flow-pages 12
 python3 examples/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit \
   --iterations 3 --interval-secs 30

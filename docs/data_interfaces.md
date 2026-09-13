@@ -163,7 +163,7 @@ Short version:
 | History candles | `/v1/history/candles` | Binance/OKX/Bybit public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; Bybit currently adds funding history. Funding history also returns point-in-time adjacent timestamp intervals. |
 | Historical liquidations | `/v1/history/liquidations` | OKX/CoinEx public liquidation history | raw normalized | Bounded recent liquidation details with normalized side, position side, price, quantity and timestamp; provider retention and other venue gaps remain explicit. |
 | Historical open interest | `/v1/history/open-interest` | Binance/Bybit public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value and timestamp; not a long/short split. |
-| Historical trades | `/v1/history/trades` | Binance aggregate trades / OKX history-trades | raw normalized | Bounded public trades with taker side, price, quantity, notional and timestamp for CVD research. |
+| Historical trades | `/v1/history/trades` | Binance aggregate trades / OKX history-trades | raw normalized | Bounded public trades with taker side, price, quantity, notional and timestamp for CVD research; `pages` requests bounded provider pages and `coverage_detail` reports partial/truncated windows. |
 | Basis | `/v1/market/basis` | quote snapshots | derived | Spot-perp basis per exchange/symbol. |
 | Order flow | `/v1/market/order-flow` | trade events | derived | Buy/sell pressure buckets and CVD. |
 | Order-flow windows | `/v1/market/order-flow/windows` | trade events | derived | Multi-window order-flow and CVD query. |
@@ -487,7 +487,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | On-demand special candle history. |
 | GET | `/v1/history/liquidations` | Bounded public OKX/CoinEx liquidation history for research replay. |
 | GET | `/v1/history/open-interest` | Binance/Bybit historical open-interest observations. |
-| GET | `/v1/history/trades` | Binance/OKX historical public trades for order-flow/CVD research. |
+| GET | `/v1/history/trades` | Binance/OKX historical public trades for order-flow/CVD research; use `pages=N` for bounded pagination and inspect `coverage_detail`. |
 | GET | `/v1/storage/manifest` | Local Arrow IPC lake manifest and quality metadata. |
 | DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter. |
 | GET | `/v1/universe/top-volume` | Universe by volume. |

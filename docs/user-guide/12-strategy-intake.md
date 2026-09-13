@@ -254,12 +254,13 @@ taker flow 只作为确认字段。每个事件记录固定 horizon 的 close-to
 python3 examples/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --days 3 --range-bars 12 --compression-window 12 \
-  --baseline-window 48 --flow-exchange binance
+  --baseline-window 48 --flow-exchange binance --flow-pages 12
 ```
 
 `breakout_confirmed_by_volume_and_flow` 只表示三个数据条件在同一事件窗口相交；
 `breakout_flow_conflict`、缺少成交量或缺少历史成交都保留为失败/不足证据。这个 replay
-仍未建模交易费用、funding、盘口冲击、延迟、排队和止损路径，因此需要更长样本及样本外
+还会输出 `flow_coverage`；如果状态不是完整覆盖，就不能把 flow 确认当作成立。它仍未建模
+交易费用、funding、盘口冲击、延迟、排队和止损路径，因此需要更长样本及样本外
 区间后才能判断假设是否值得继续研究。
 
 跨交易所 funding 也先做差异监控，不直接把 APR 当成收益：

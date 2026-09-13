@@ -166,6 +166,8 @@ def main():
     parser.add_argument("--volume-multiplier", type=float, default=1.20)
     parser.add_argument("--horizon-bars", type=int, default=6)
     parser.add_argument("--flow-exchange", choices=("none", "binance", "okx"), default="none")
+    parser.add_argument("--flow-pages", type=int, default=12,
+                        help="historical trade pages/windows requested from MarketBridge")
     parser.add_argument("--flow-window-ms", type=int, default=300_000)
     parser.add_argument("--flow-threshold", type=float, default=0.20)
     parser.add_argument("--timeout", type=float, default=30.0)
@@ -174,7 +176,8 @@ def main():
             or options.compression_window <= 1 or options.baseline_window <= 1
             or not 0 < options.max_compression_ratio < 2 or options.breakout_buffer < 0
             or options.volume_multiplier < 0 or options.horizon_bars <= 0
-            or options.flow_window_ms <= 0 or not 0 < options.flow_threshold < 1):
+            or not 1 <= options.flow_pages <= 48 or options.flow_window_ms <= 0
+            or not 0 < options.flow_threshold < 1):
         parser.error("invalid replay windows, thresholds or limits")
 
     end_ms = int(time.time() * 1000)
@@ -187,14 +190,17 @@ def main():
     rows = candle_rows(candle_payload)
     flow_rows = None
     flow_error = None
+    flow_coverage = None
     if options.flow_exchange != "none":
         try:
             flow_payload = fetch(options.base_url, "/v1/history/trades", {
                 "exchange": options.flow_exchange, "symbol": options.symbol,
                 "start_ms": start_ms, "end_ms": end_ms, "limit": 1000,
+                "pages": options.flow_pages,
             }, options.timeout)
             flow_rows = flow_payload.get("rows", [])
             flow_error = flow_payload.get("error")
+            flow_coverage = flow_payload.get("coverage_detail")
         except Exception as error:  # network/provider gaps remain evidence, not a zero
             flow_error = str(error)
 
@@ -221,6 +227,9 @@ def main():
     evidence = ["historical_candles_available" if rows else "missing_historical_candles"]
     evidence.append("historical_taker_flow_available" if flow_rows is not None and flow_rows else
                     "taker_flow_not_requested" if options.flow_exchange == "none" else "missing_historical_taker_flow")
+    if flow_coverage:
+        coverage_status = flow_coverage.get("status")
+        evidence.append(f"taker_flow_coverage_{coverage_status}" if coverage_status else "taker_flow_coverage_reported")
     if flow_error:
         evidence.append("taker_flow_provider_error")
     print(json.dumps({
@@ -231,18 +240,21 @@ def main():
                        "compression_window": options.compression_window, "baseline_window": options.baseline_window,
                        "max_compression_ratio": options.max_compression_ratio, "breakout_buffer": options.breakout_buffer,
                        "volume_multiplier": options.volume_multiplier, "horizon_bars": options.horizon_bars,
-                       "flow_exchange": options.flow_exchange, "flow_window_ms": options.flow_window_ms,
+                       "flow_exchange": options.flow_exchange, "flow_pages": options.flow_pages,
+                       "flow_window_ms": options.flow_window_ms,
                        "flow_threshold": options.flow_threshold},
         "bars_available": len(rows),
         "summary": summarize(events),
         "events": events,
+        "flow_coverage": flow_coverage,
         "evidence": evidence,
         "provider_error": flow_error or candle_payload.get("error"),
         "execution": "research_only_no_orders",
         "limitations": [
             "compression and breakout thresholds are research parameters, not universal constants",
             "forward return is close-to-close and excludes fees, spread, slippage, funding and latency",
-            "historical trade endpoints are bounded and do not reconstruct every private or block execution",
+            "historical trade endpoints are bounded; inspect flow_coverage before treating flow as complete",
+            "public trade history does not reconstruct every private or block execution",
             "a missing volume or flow confirmation is an evidence gap, not a zero",
         ],
     }, ensure_ascii=False, sort_keys=True))

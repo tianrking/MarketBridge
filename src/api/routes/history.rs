@@ -50,6 +50,21 @@ pub struct HistoryTradesQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
+}
+
+const BINANCE_AGG_TRADE_WINDOW_MS: u64 = 60 * 60 * 1000;
+
+struct HistoricalTradesResult {
+    rows: Vec<Value>,
+    requested_windows: usize,
+    completed_windows: usize,
+    truncated_windows: usize,
+    requested_start_ms: Option<u64>,
+    requested_end_ms: Option<u64>,
+    covered_start_ms: Option<u64>,
+    covered_end_ms: Option<u64>,
+    page_limit: usize,
 }
 
 pub async fn trades(
@@ -64,15 +79,32 @@ pub async fn trades(
         )),
     };
     match result {
-        Ok(rows) => Json(serde_json::json!({
+        Ok(result) => Json(serde_json::json!({
             "version": "v1",
             "domain": "history_trade",
             "exchange": q.exchange,
             "symbol": q.symbol,
             "coverage": "bounded_public_trade_history",
-            "rows": rows,
+            "coverage_detail": {
+                "status": result.coverage_status(),
+                "requested_windows": result.requested_windows,
+                "completed_windows": result.completed_windows,
+                "truncated_windows": result.truncated_windows,
+                "requested_start_ms": result.requested_start_ms,
+                "requested_end_ms": result.requested_end_ms,
+                "covered_start_ms": result.covered_start_ms,
+                "covered_end_ms": result.covered_end_ms,
+                "page_limit": result.page_limit,
+                "provider_window_ms": if q.exchange.eq_ignore_ascii_case("binance") {
+                    serde_json::json!(BINANCE_AGG_TRADE_WINDOW_MS)
+                } else {
+                    Value::Null
+                },
+            },
+            "rows": result.rows,
             "limitations": [
-                "provider retention and pagination limits apply",
+                "Binance aggregate trade history is provider-limited to recent data and one-hour time windows",
+                "set pages=N to request multiple provider time windows; coverage_detail reports truncation",
                 "CVD is a taker-side proxy derived from public trade side",
                 "this endpoint does not reconstruct every private or block execution"
             ]
@@ -87,6 +119,18 @@ pub async fn trades(
             "rows": []
         }))
         .into_response(),
+    }
+}
+
+impl HistoricalTradesResult {
+    fn coverage_status(&self) -> &'static str {
+        if self.completed_windows < self.requested_windows {
+            "partial_requested_windows"
+        } else if self.truncated_windows > 0 {
+            "provider_page_may_be_truncated"
+        } else {
+            "complete_for_requested_windows"
+        }
     }
 }
 
@@ -783,33 +827,47 @@ async fn fetch_bybit_open_interest(
 async fn fetch_binance_trades(
     http: &reqwest::Client,
     q: &HistoryTradesQuery,
-) -> Result<Vec<Value>> {
+) -> Result<HistoricalTradesResult> {
     let symbol = q.symbol.trim().to_ascii_uppercase();
     let limit = q.limit.unwrap_or(500).clamp(1, 1000).to_string();
-    let mut request = http
-        .get("https://fapi.binance.com/fapi/v1/aggTrades")
-        .query(&[("symbol", symbol.as_str()), ("limit", limit.as_str())]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
-    }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Value>>()
-        .await
-        .context("failed to parse binance aggregate trades")?;
-    payload
-        .into_iter()
-        .map(|row| {
-            let ts_ms = value_u64(row.get("T")).context("missing binance trade timestamp")?;
-            let price = value_f64(row.get("p")).context("missing binance trade price")?;
-            let qty = value_f64(row.get("q")).context("missing binance trade quantity")?;
+    let page_limit = limit.parse::<usize>().unwrap_or(500);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let (windows, requested_windows) = binance_trade_windows(q.start_ms, q.end_ms, pages);
+    let mut rows = Vec::new();
+    let mut completed_windows = 0;
+    let mut truncated_windows = 0;
+    for (start_ms, end_ms) in windows {
+        let mut request = http
+            .get("https://fapi.binance.com/fapi/v1/aggTrades")
+            .query(&[("symbol", symbol.as_str()), ("limit", limit.as_str())]);
+        if let Some(start_ms) = start_ms {
+            request = request.query(&[("startTime", start_ms.to_string())]);
+        }
+        if let Some(end_ms) = end_ms {
+            request = request.query(&[("endTime", end_ms.to_string())]);
+        }
+        let payload = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Value>>()
+            .await
+            .context("failed to parse binance aggregate trades")?;
+        if payload.len() >= page_limit {
+            truncated_windows += 1;
+        }
+        completed_windows += 1;
+        rows.extend(payload.into_iter().filter_map(|row| {
+            let ts_ms = value_u64(row.get("T"))?;
+            if q.start_ms.is_some_and(|start| ts_ms < start)
+                || q.end_ms.is_some_and(|end| ts_ms > end)
+            {
+                return None;
+            }
+            let price = value_f64(row.get("p"))?;
+            let qty = value_f64(row.get("q"))?;
             let is_buyer_maker = row.get("m").and_then(Value::as_bool).unwrap_or(false);
-            Ok(serde_json::json!({
+            Some(serde_json::json!({
                 "exchange": "binance",
                 "symbol": symbol,
                 "trade_id": row.get("a"),
@@ -820,58 +878,98 @@ async fn fetch_binance_trades(
                 "ts_ms": ts_ms,
                 "source": "binance_futures_agg_trades"
             }))
-        })
-        .collect()
+        }));
+    }
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    let covered_start_ms = rows
+        .iter()
+        .filter_map(|row| value_u64(row.get("ts_ms")))
+        .min();
+    let covered_end_ms = rows
+        .iter()
+        .filter_map(|row| value_u64(row.get("ts_ms")))
+        .max();
+    Ok(HistoricalTradesResult {
+        rows,
+        requested_windows,
+        completed_windows,
+        truncated_windows,
+        requested_start_ms: q.start_ms,
+        requested_end_ms: q.end_ms,
+        covered_start_ms,
+        covered_end_ms,
+        page_limit,
+    })
 }
 
-async fn fetch_okx_trades(http: &reqwest::Client, q: &HistoryTradesQuery) -> Result<Vec<Value>> {
+async fn fetch_okx_trades(
+    http: &reqwest::Client,
+    q: &HistoryTradesQuery,
+) -> Result<HistoricalTradesResult> {
     let symbol = q.symbol.trim().to_ascii_uppercase();
     let inst_id = okx_inst_id(&symbol, "perp");
-    let limit = q.limit.unwrap_or(100).clamp(1, 100).to_string();
-    let mut request = http
-        .get("https://www.okx.com/api/v5/market/history-trades")
-        .query(&[
-            ("instId", inst_id.as_str()),
-            ("type", "2"),
-            ("limit", limit.as_str()),
-        ]);
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("after", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Value>()
-        .await
-        .context("failed to parse okx history trades")?;
-    if payload.get("code").and_then(Value::as_str) != Some("0") {
-        bail!(
-            "okx history trades error: {}",
-            payload
-                .get("msg")
-                .and_then(Value::as_str)
-                .unwrap_or("unknown provider error")
-        );
-    }
-    let rows = payload
-        .get("data")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let rows = rows
-        .into_iter()
-        .filter_map(|row| {
-            let ts_ms = value_u64(row.get("ts"))?;
+    let page_limit = q.limit.unwrap_or(100).clamp(1, 100);
+    let pages = q.pages.unwrap_or(1).clamp(1, 20);
+    let mut rows = Vec::new();
+    let mut cursor_end = q.end_ms;
+    let mut completed_windows = 0;
+    let mut truncated_windows = 0;
+    for _ in 0..pages {
+        let mut request = http
+            .get("https://www.okx.com/api/v5/market/history-trades")
+            .query(&[
+                ("instId", inst_id.as_str()),
+                ("type", "2"),
+                ("limit", page_limit.to_string().as_str()),
+            ]);
+        if let Some(end_ms) = cursor_end {
+            request = request.query(&[("after", end_ms.to_string())]);
+        }
+        let payload = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await
+            .context("failed to parse okx history trades")?;
+        if payload.get("code").and_then(Value::as_str) != Some("0") {
+            bail!(
+                "okx history trades error: {}",
+                payload
+                    .get("msg")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown provider error")
+            );
+        }
+        let page = payload
+            .get("data")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let page_len = page.len();
+        if page_len >= page_limit {
+            truncated_windows += 1;
+        }
+        completed_windows += 1;
+        let mut oldest_ts = None;
+        for row in page {
+            let Some(ts_ms) = value_u64(row.get("ts")) else {
+                continue;
+            };
+            oldest_ts = Some(oldest_ts.map_or(ts_ms, |oldest: u64| oldest.min(ts_ms)));
             if q.start_ms.is_some_and(|start| ts_ms < start)
                 || q.end_ms.is_some_and(|end| ts_ms > end)
             {
-                return None;
+                continue;
             }
-            let price = value_f64(row.get("px"))?;
-            let qty = value_f64(row.get("sz"))?;
+            let Some(price) = value_f64(row.get("px")) else {
+                continue;
+            };
+            let Some(qty) = value_f64(row.get("sz")) else {
+                continue;
+            };
             let side = row.get("side").and_then(Value::as_str).unwrap_or("unknown");
-            Some(serde_json::json!({
+            rows.push(serde_json::json!({
                 "exchange": "okx",
                 "symbol": symbol,
                 "trade_id": row.get("tradeId"),
@@ -881,10 +979,74 @@ async fn fetch_okx_trades(http: &reqwest::Client, q: &HistoryTradesQuery) -> Res
                 "notional": price * qty,
                 "ts_ms": ts_ms,
                 "source": "okx_history_trades"
-            }))
-        })
-        .collect::<Vec<_>>();
-    Ok(rows)
+            }));
+        }
+        if page_len < page_limit
+            || q.start_ms
+                .is_some_and(|start| oldest_ts.is_some_and(|oldest| oldest <= start))
+        {
+            break;
+        }
+        cursor_end = oldest_ts.map(|oldest| oldest.saturating_sub(1));
+        if cursor_end.is_none() {
+            break;
+        }
+    }
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    let covered_start_ms = rows
+        .iter()
+        .filter_map(|row| value_u64(row.get("ts_ms")))
+        .min();
+    let covered_end_ms = rows
+        .iter()
+        .filter_map(|row| value_u64(row.get("ts_ms")))
+        .max();
+    Ok(HistoricalTradesResult {
+        rows,
+        requested_windows: pages,
+        completed_windows,
+        truncated_windows,
+        requested_start_ms: q.start_ms,
+        requested_end_ms: q.end_ms,
+        covered_start_ms,
+        covered_end_ms,
+        page_limit,
+    })
+}
+
+fn binance_trade_windows(
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    pages: usize,
+) -> (Vec<(Option<u64>, Option<u64>)>, usize) {
+    if start_ms.is_none() && end_ms.is_none() && pages == 1 {
+        return (vec![(None, None)], 1);
+    }
+    let end = end_ms.unwrap_or_else(now_ms);
+    let start = start_ms.unwrap_or_else(|| {
+        end.saturating_sub(
+            BINANCE_AGG_TRADE_WINDOW_MS
+                .saturating_mul(pages as u64)
+                .saturating_sub(1),
+        )
+    });
+    let requested_windows = end
+        .saturating_sub(start)
+        .saturating_add(1)
+        .div_ceil(BINANCE_AGG_TRADE_WINDOW_MS) as usize;
+    let mut windows = Vec::new();
+    let mut cursor = start;
+    while cursor <= end && windows.len() < pages {
+        let window_end = cursor
+            .saturating_add(BINANCE_AGG_TRADE_WINDOW_MS - 1)
+            .min(end);
+        windows.push((Some(cursor), Some(window_end)));
+        if window_end == u64::MAX {
+            break;
+        }
+        cursor = window_end + 1;
+    }
+    (windows, requested_windows)
 }
 
 fn bybit_oi_interval(value: &str) -> Result<&'static str> {
@@ -1084,5 +1246,52 @@ mod tests {
         assert_eq!(schedule["points"][0]["interval_ms"], 28_800_000);
         assert_eq!(schedule["points"][1]["interval_ms"], 14_400_000);
         assert_eq!(schedule["point_in_time"], true);
+    }
+
+    #[test]
+    fn binance_trade_windows_are_hour_bounded_and_report_requested_span() {
+        let (windows, requested) = binance_trade_windows(Some(0), Some(7_200_000), 2);
+        assert_eq!(requested, 3);
+        assert_eq!(windows.len(), 2);
+        assert_eq!(windows[0], (Some(0), Some(3_599_999)));
+        assert_eq!(windows[1], (Some(3_600_000), Some(7_199_999)));
+    }
+
+    #[test]
+    fn unbounded_single_trade_page_preserves_provider_latest_query() {
+        let (windows, requested) = binance_trade_windows(None, None, 1);
+        assert_eq!(windows, vec![(None, None)]);
+        assert_eq!(requested, 1);
+    }
+
+    #[test]
+    fn trade_coverage_status_exposes_partial_and_truncated_pages() {
+        let partial = HistoricalTradesResult {
+            rows: Vec::new(),
+            requested_windows: 3,
+            completed_windows: 2,
+            truncated_windows: 0,
+            requested_start_ms: None,
+            requested_end_ms: None,
+            covered_start_ms: None,
+            covered_end_ms: None,
+            page_limit: 1000,
+        };
+        assert_eq!(partial.coverage_status(), "partial_requested_windows");
+        let truncated = HistoricalTradesResult {
+            rows: Vec::new(),
+            requested_windows: 1,
+            completed_windows: 1,
+            truncated_windows: 1,
+            requested_start_ms: None,
+            requested_end_ms: None,
+            covered_start_ms: None,
+            covered_end_ms: None,
+            page_limit: 1000,
+        };
+        assert_eq!(
+            truncated.coverage_status(),
+            "provider_page_may_be_truncated"
+        );
     }
 }
