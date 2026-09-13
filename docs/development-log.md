@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — crypto pair mean-reversion replay
+
+Added `crypto_pairs_mean_reversion_replay.py` to cover relative-value research
+that was absent from the momentum and funding cross-sectional cases. It uses
+exact timestamp candle intersections, a caller-supplied fixed hedge ratio, and
+freezes trailing spread mean/standard deviation before measuring future
+convergence. Added bilingual universe documentation and deterministic tests;
+the case does not claim cointegration, market neutrality, paired fills, PnL or
+execution. Provenance is the peer-reviewed [crypto pairs-trading study](https://ieeexplore.ieee.org/document/9200323/)
+and the public [Pairs Trading in Crypto paper](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2).
+
 ## 2026-09-14 — cross-sectional funding dispersion replay
 
 Added `crypto_funding_cross_section_replay.py` to separate cross-asset funding

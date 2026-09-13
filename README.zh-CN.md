@@ -905,6 +905,8 @@ carry 系列还新增 `crypto_funding_regime_replay.py`：把连续极端资金�
 检验后续永续价格方向，同时保留结算间隔缺口；它不计算资金费收入、不对冲、不下单。
 同系列还新增 `crypto_funding_cross_section_replay.py`：在资金费率分散较大时，按逐点新鲜资金费率
 比较低费率组与高费率组的后续收益，可加入纸面成本门槛，但不分配资金或执行对冲。
+universe 系列还新增 `crypto_pairs_mean_reversion_replay.py`：用冻结的滚动价差均值和标准差检验两种
+资产的相对价格是否收敛，不声称协整成立，也不模拟配对成交。
 microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：只对接口返回的已发生清算成交
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
 options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、

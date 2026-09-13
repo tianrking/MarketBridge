@@ -32,6 +32,12 @@ descriptive only; a time-held-out, cost-aware replay is still required.
 holdout for one selected parameter set. Warm-up bars before the split are used
 only to form test features; the test score is never used to choose parameters.
 
+`crypto_pairs_mean_reversion_replay.py` is a separate relative-value case. It
+forms a caller-selected log-price spread, freezes its trailing mean and
+standard deviation at each signal, and tests whether an extreme deviation
+shrinks over a fixed future horizon. A fixed hedge ratio is a transparent
+diagnostic parameter, not a cointegration certification or paired execution.
+
 Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
 motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
@@ -41,6 +47,12 @@ are inputs to a falsifiable replay, not evidence of a guaranteed edge.
 The candidate-discovery framing is also informed by the public [multi-asset
 perpetuals discussion by RoboNet](https://x.com/RoboNetHQ/status/2024893544520143012);
 it is treated as an unverified research lead.
+
+The pair-reversion decomposition is cross-checked against the peer-reviewed
+[Pairs Trading in Cryptocurrency Markets](https://ieeexplore.ieee.org/document/9200323/)
+and the public [Pairs Trading in Crypto paper](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2).
+Those sources motivate a testable relative-price hypothesis; they are not a
+performance or execution guarantee for MarketBridge.
 
 ## 中文
 
@@ -62,12 +74,20 @@ it is treated as an unverified research lead.
 `crypto_volatility_adjusted_momentum_walkforward.py` 对选定参数执行按时间排序的训练/测试
 切分。测试段只使用切分前的预热 K 线和切分后的当前数据，测试结果不会反过来挑参数。
 
+`crypto_pairs_mean_reversion_replay.py` 是独立的相对价值案例：构造调用者选择的对数价格价差，
+在每个信号时冻结滚动均值和标准差，检验极端偏离是否在固定未来窗口收缩。固定 hedge ratio 只是
+透明诊断参数，不是协整证明或配对执行。
+
 `crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py` 会冻结 scanner
 候选集合，检验 top-k 标的是否跨快照持续出现。这只是候选持续性证据，不会把排名变成资金分配或执行信号。
 
 出处：[RoboNet 在 X 的多资产策略讨论](https://x.com/RoboNetHQ/status/2024893544520143012)
 提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
+
+配对回归拆解另外对照了同行评审的 [Pairs Trading in Cryptocurrency Markets](https://ieeexplore.ieee.org/document/9200323/)
+和公开的 [Pairs Trading in Crypto 论文](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2)。
+这些资料只提供可测试的相对价格假设，不是 MarketBridge 的收益或执行保证。
 
 ## Commands / 命令
 
@@ -95,4 +115,8 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 \
   --train-fraction 0.7 --roundtrip-cost-bps 20
+python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
+  --symbol-a BTCUSDT --symbol-b ETHUSDT --exchange binance --market perp \
+  --interval 1h --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
+  --paper-cost-bps 10 --min-convergence-bps 0
 ```
