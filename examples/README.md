@@ -31,6 +31,7 @@ experiments should start from `python_strategy_runner.py`.
 | `crypto_session_filter.py` | Test a short session-window hypothesis with VWAP, EMA(9/21), MACD and volume confirmation | `/v1/market/klines` | Research filter; no universal timing edge or fill model |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Uses point-in-time adjacent timestamp intervals; no fill, cost or hedge simulation |
+| `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `python_strategy_runner.py` | Python-first versions of squeeze, exhaustion, basis and liquidation observers | normalized MarketBridge endpoints | Primary strategy entry point; read-only JSON output |
 | `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
 | `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
@@ -95,6 +96,10 @@ python3 examples/funding_convergence_monitor.py \
   --iterations 3 --interval-secs 30
 python3 examples/funding_convergence_replay.py \
   --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200
+python3 examples/crypto_funding_oi_replay.py \
+  --symbol BTCUSDT --funding-exchange binance \
+  --oi-exchange binance --price-exchange binance \
+  --days 7 --min-funding-pct 0.01 --min-oi-change-pct 0.10
 python3 examples/python_strategy_runner.py \
   --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
 python3 examples/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
@@ -120,6 +125,7 @@ rewritten as falsifiable hypotheses:
 - [15-minute Polymarket timing, early price discovery vs late conviction narrative (unverified public claim)](https://x.com/telonex/status/2022251717270573513)
 - [15-minute session, VWAP/EMA/MACD/volume narrative (unverified public claim)](https://x.com/Gustafssonkotte/status/2030566353178882122)
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
+- [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
 
 Next additions are ordered by evidence value: deeper venue-specific public
 liquidation coverage, larger verified weather manifests, and point-in-time

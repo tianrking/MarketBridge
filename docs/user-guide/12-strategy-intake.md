@@ -272,6 +272,21 @@ python3 examples/funding_convergence_replay.py \
 由 history response 的 `funding_schedule.points[]` 提供；成交可行性和真实对冲成本仍需
 另外建模。
 
+加密货币主线的另一个可证伪案例是“极端 funding + OI 增长代表拥挤仓位”：正 funding
+配合 OI 上升标记 `long_crowded`，负 funding 配合 OI 上升标记 `short_crowded`，再观察
+之后固定数量 5m bars 的价格方向。它不会把 funding 方向直接当成交易信号，也不会用缺失
+的 OI 或 schedule 填零：
+
+```bash
+python3 examples/crypto_funding_oi_replay.py \
+  --symbol BTCUSDT --funding-exchange binance \
+  --oi-exchange binance --price-exchange binance \
+  --days 7 --min-funding-pct 0.01 --min-oi-change-pct 0.10
+```
+
+输出中的 `expected_direction_hit_rate` 只是条件样本统计；跨 venue 的 funding、OI 与价格
+需要明确标注，手续费、借贷、保证金、转账、滑点和清算都不在这个 replay 中。
+
 Liquidation reversal 目前先提供一个边界清晰的 OKX/CoinEx partial replay：
 
 ```bash
