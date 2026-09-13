@@ -28,6 +28,7 @@ Cases:
 - `crypto_bollinger_squeeze_replay.py`: a trailing BandWidth squeeze followed by an upper/lower-band break versus fixed-horizon continuation.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
+- `crypto_weekday_hour_effect_replay.py`: matched-clock test of a selected UTC weekday/hour against other weekdays at the same hour.
 - `crypto_vwap_deviation_reversion_replay.py`: prior UTC-session VWAP deviation followed by a cross-back versus fixed-horizon directional response.
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
@@ -131,6 +132,15 @@ kline documentation](https://developers.binance.com/docs/derivatives/coin-margin
 The result reports aligned close-to-close returns after a paper hurdle; it is
 not a universal session edge or an execution instruction.
 
+The weekday/hour replay turns a recurring-clock claim into a matched control
+study. It compares the selected weekday/hour (Tuesday 05:00 UTC by default)
+with all other weekdays at that UTC hour, and reports the event candle return,
+the next-hour bounce and a later fixed-hour response. Provenance: the
+unverified [recurring Tuesday 05:00 UTC BTC-selling discussion on X](https://x.com/Sherlockwhale/status/2041499514033320163),
+cross-checked against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+The matched clock is a descriptive falsification tool; it does not identify an
+actor, establish causality or create a timing instruction.
+
 The anchored-VWAP replay is deliberately separate from session VWAP. At each
 candle it chooses a low or high only from the preceding lookback, anchors the
 typical-price OHLCV VWAP there, and records only a fresh reclaim or rejection
@@ -187,6 +197,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_bollinger_squeeze_replay.py`：用前一根 K 线的 BandWidth 历史分位识别压缩，再检验上下轨突破后的固定窗口延续。
 - `crypto_vwap_deviation_reversion_replay.py`：按 UTC 日重置 VWAP，用成交量加权典型价标准差识别前一根偏离，再检验回穿 VWAP 后的固定窗口方向响应。
 - `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
+- `crypto_weekday_hour_effect_replay.py`：把指定 UTC 星期/小时与其他星期同一小时做匹配时钟对照，检验事件、反弹与后续响应。
 - `crypto_anchored_vwap_replay.py`：以前置窗口 swing low/high 为锚点，检验 VWAP 夺回/跌破后的固定窗口响应。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`：检验两项以上压力条件是否在多个快照中持续。
@@ -237,6 +248,12 @@ session VWAP、EMA(9/21)、MACD 加成交量确认，并测量固定未来 K 线
 [X 上 15 分钟 VWAP/EMA/MACD/成交量讨论](https://x.com/Gustafssonkotte/status/2030566353178882122)，
 K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
 输出是纸面 close-to-close 统计，不是普适时段优势或执行指令。
+
+`crypto_weekday_hour_effect_replay.py` 把周期性时钟说法拆成匹配对照：默认比较周二 05:00 UTC 与其他星期同一小时，
+分别输出事件 K 线、下一小时反弹和固定小时后的响应。出处是未经验证的
+[X 上“周二 05:00 UTC BTC 卖压”讨论](https://x.com/Sherlockwhale/status/2041499514033320163)，并对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+匹配时钟只是证伪工具，不识别行为主体、不证明因果，也不生成择时指令。
 
 `crypto_anchored_vwap_replay.py` 与 session VWAP 分开：每根 K 线只从前置回看窗口选择 swing low 或 swing high，
 以该点开始计算 typical-price OHLCV VWAP，只记录新的夺回或跌破，并可要求成交量确认，再测量固定未来 K 线窗口。
@@ -383,6 +400,10 @@ python3 examples/crypto/microstructure/crypto_session_momentum_replay.py \
   --timezone America/New_York --session-start 09:00 --session-end 09:15 \
   --volume-multiplier 1.0 --horizon-bars 15 --min-score 4 \
   --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/microstructure/crypto_weekday_hour_effect_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1h --days 180 \
+  --target-weekday 1 --target-hour 5 --bounce-hours 1 --horizon-hours 8 \
+  --paper-cost-bps 10 --min-observations 5
 python3 examples/crypto/microstructure/crypto_anchored_vwap_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --anchor-lookback 96 --anchor-mode both --horizon-bars 12 \

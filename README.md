@@ -167,6 +167,10 @@ of being mistaken for historical evidence.
 The same family now includes a UTC-session VWAP-deviation cross-back replay,
 which tests a deliberately narrow mean-reversion hypothesis and preserves the
 possibility of a negative after-cost result.
+It also includes a matched-clock weekday/hour replay: the default Tuesday
+05:00 UTC event, next-hour bounce and later response are compared with other
+weekdays at the same UTC hour. This tests a public calendar-effect claim with
+OHLCV controls; it does not identify a cause or provide a timing instruction.
 The same family now includes an explicitly approximate volume-profile/LVN
 breakout replay; it keeps the lack of tick-level volume-at-price visible rather
 than presenting candle-volume bins as an order-book map.

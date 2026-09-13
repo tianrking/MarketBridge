@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — matched-clock weekday/hour effect replay
+
+Added `crypto_weekday_hour_effect_replay.py` under microstructure. The replay
+compares a selected UTC weekday/hour (Tuesday 05:00 UTC by default) with other
+weekdays at the same hour, reporting the event candle, next-hour bounce and a
+fixed later response. It keeps missing bars, sample sufficiency, paper costs
+and the no-execution boundary explicit. Provenance: the unverified [recurring
+Tuesday 05:00 UTC BTC-selling discussion on X](https://x.com/Sherlockwhale/status/2041499514033320163),
+cross-checked with [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — unsigned options gamma response study
 
 Added `crypto_options_gamma_response_recorder.py` and

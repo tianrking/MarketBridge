@@ -944,6 +944,8 @@ microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检�
 避免把单次打分误当成历史证据。
 同系列还新增 UTC session VWAP 偏离回穿回放：只检验前一根收盘价偏离 VWAP 带后回穿 VWAP 的固定窗口方向响应，
 允许 after-cost 结果为负，不把均值回归假设包装成收益保证。
+同系列还新增匹配时钟的 weekday/hour 回放：默认把周二 05:00 UTC 的事件 K 线、下一小时反弹和后续固定窗口响应，
+与其他星期同一 UTC 小时做对照。它只用 OHLCV 检验公开的日历效应说法，不识别原因、不证明因果，也不提供择时指令。
 同系列还新增明确标注近似的 volume profile/LVN 突破回放；由于没有 tick 级 volume-at-price，程序不会把 K 线成交量
 分箱冒充订单簿热图，而是把这一数据缺口保留在结果中。
 同系列还提供 Python footprint imbalance monitor/recorder/replay，使用已有滚动成交缓存检验价格分桶压力是否持续，
