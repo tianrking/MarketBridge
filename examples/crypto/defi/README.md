@@ -13,11 +13,25 @@ higher-pressure state? The monitor reports `high_turnover_pool` and
 `--min-run` observations. This is an execution-risk and pool-regime diagnostic;
 it is not an LP APR, impermanent-loss, fee, route, MEV, or wallet strategy.
 
+`crypto_stablecoin_depeg_monitor.py` / `crypto_stablecoin_depeg_recorder.py` /
+`crypto_stablecoin_depeg_replay.py` observe selected stablecoin pair deviations
+and compare stressed snapshots with later absolute BTC movement. This is a
+risk event study, not a depeg-arbitrage or liquidity-withdrawal instruction.
+
 Provenance: the decomposition follows the public [Uniswap explanation of pool
 liquidity and price impact](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
 and [swap execution](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps).
 MarketBridge currently uses bounded provider snapshots and does not claim a
 complete on-chain swap ledger or protocol-native route depth.
+
+The stablecoin case follows the unverified [DEWS-style early-warning discussion
+on X](https://x.com/crazydnekana/status/2030633787462242588), which describes
+price drift, thinning liquidity and trading pressure as a sequence to monitor.
+It is cross-checked against the peer-reviewed [Tether depegging and crypto
+returns study](https://doi.org/10.1111/acfi.70201) and the research [Detecting
+Depegs paper](https://arxiv.org/abs/2306.10612). MarketBridge tests only quote
+deviation and subsequent absolute movement; it does not infer reserves,
+redemptions, solvency or executable mean reversion.
 
 ## 中文
 
@@ -32,6 +46,12 @@ complete on-chain swap ledger or protocol-native route depth.
 以及 [swap 执行说明](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps)。MarketBridge 当前使用有界的
 提供方快照，不声称完整覆盖链上 swap ledger 或协议原生路由深度。
 
+稳定币案例参考未经验证的 [X 上 DEWS 风险预警讨论](https://x.com/crazydnekana/status/2030633787462242588)，
+其提出持续价格漂移、流动性变薄和交易压力的监控顺序；并对照同行评审的
+[Tether 脱锚与加密资产收益研究](https://doi.org/10.1111/acfi.70201) 以及
+[Detecting Depegs 研究](https://arxiv.org/abs/2306.10612)。MarketBridge 只检验报价偏离和之后的绝对波动，
+不推断储备、赎回、偿付能力或可执行均值回归。
+
 ## Commands / 命令
 
 ```bash
@@ -43,4 +63,13 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
   --output work/crypto-defi-pool-flow.jsonl
 python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
   --input work/crypto-defi-pool-flow.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_stablecoin_depeg_monitor.py \
+  --exchange binance --stable-symbols USDTUSDC,USDCUSDT,DAIUSDT \
+  --risk-symbol BTCUSDT --watch-bps 20 --stress-bps 50
+python3 examples/crypto/defi/crypto_stablecoin_depeg_recorder.py \
+  --exchange binance --iterations 120 --interval-secs 30 \
+  --output work/crypto-stablecoin-depeg.jsonl
+python3 examples/crypto/defi/crypto_stablecoin_depeg_replay.py \
+  --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
+  --stress-bps 50 --min-stress 3 --min-ordinary 3
 ```

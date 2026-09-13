@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — stablecoin depeg-risk event study
+
+Added the DeFi-family Python stablecoin monitor/recorder/replay. The monitor
+normalizes selected CEX or DEX-pool stablecoin pairs, measures deviation from
+one-for-one and top-of-book spread stress, and optionally keeps a BTCUSDT quote.
+The replay compares later absolute BTC movement after stressed snapshots with
+ordinary snapshots. It deliberately does not infer reserves, redemptions,
+solvency or executable mean reversion. Provenance: the unverified [DEWS-style
+early-warning discussion on X](https://x.com/crazydnekana/status/2030633787462242588),
+the peer-reviewed [Tether depegging and crypto returns study](https://doi.org/10.1111/acfi.70201),
+and [Detecting Depegs](https://arxiv.org/abs/2306.10612).
+
 ## 2026-09-14 — quarter-hour order-flow replay
 
 Added the microstructure-family Python replay for a phase-aligned order-flow

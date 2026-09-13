@@ -136,6 +136,10 @@ The microstructure family now also includes a quarter-hour flow replay: it
 tests whether a UTC quarter-hour opening taker-flow imbalance aligns with a
 fixed-horizon perp return, while keeping bounded trade history and clock-phase
 causality explicit.
+The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
+keeps quote deviation and spread stress visible and compares stressed snapshots
+with later absolute BTC movement; it does not infer reserves, redemptions or
+executable mean reversion.
 The microstructure family also exposes optional CoinGlass aggregate derivatives
 context while preserving missing-key and missing-metric evidence.
 It now includes a Python recorder/replay pair that tests whether aggregate

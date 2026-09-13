@@ -926,6 +926,8 @@ microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：�
 反向移动；它不代表全市场 CVD，也不构成执行信号。
 microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检验 UTC 每 15 分钟开盘后的主动买卖
 差值是否与固定窗口的永续收益方向一致，同时明确公开成交历史、时钟阶段因果性、成本和执行缺口。
+DeFi 系列现在还新增稳定币脱锚 monitor/recorder/replay：保留报价偏离和点差压力，并比较压力快照之后的
+BTC 绝对波动；不推断储备、赎回、偿付能力，也不把它变成可执行均值回归。
 同系列还提供 `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short、
 清算和 basis 上下文，但不把聚合比率解释成真实持仓归属。
 现在还提供 Python recorder/replay：把聚合拥挤状态写入 JSONL，并要求连续快照后才报告持续候选；
