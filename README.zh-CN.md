@@ -913,6 +913,8 @@ universe 系列还新增 `crypto_pairs_mean_reversion_replay.py`：用冻结的�
 但不预测退市，也不自动排除资产。
 同系列还提供 `crypto_market_regime_monitor.py`：把 Rust 聚合市场状态作为 Python JSON 上下文输出，
 但不把当前快照变成策略选择器。
+新增 `macro` 系列把已配置的 DXY、VIX、US10Y 与资金费率放在同一研究上下文中，但不把宏观快照变成
+crypto 收益预测。
 microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：只对接口返回的已发生清算成交
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
 同系列还新增 `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否

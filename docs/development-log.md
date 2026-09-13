@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — crypto macro context monitor
+
+Added the categorized `examples/crypto/macro/` family. The Python monitor
+joins configured DXY, VIX and US10Y quote snapshots with one crypto funding row
+and emits explicit missing-data/elevated-volatility context. It is not a
+historical factor replay or return forecast; VIX is an SPX option-implied
+reference and all macro snapshots remain provider/configuration dependent.
+Added bilingual provenance docs and deterministic tests.
+
 ## 2026-09-14 — Python aggregate market-regime context monitor
 
 Added `crypto_market_regime_monitor.py` under the universe family for the

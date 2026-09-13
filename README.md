@@ -117,6 +117,8 @@ It also exposes a stale/missing-quote risk guard before universe candidates
 enter research, without forecasting delistings or automatically excluding assets.
 The same family exposes the aggregate Rust market-regime context as Python
 JSON without turning that snapshot into a strategy selector.
+The macro family also exposes configured DXY, VIX and US10Y references beside
+funding context, without turning them into a crypto return forecast.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.
