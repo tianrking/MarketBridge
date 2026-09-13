@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — point-in-time positioning regime replay
+
+Added a carry-family regime matrix replay that joins funding history, aggregate
+open interest and perp candles at explicit timestamps. It labels each usable
+observation by price trend, OI change and funding sign, then reports forward
+return distributions and continuation hit rates by regime. Missing inputs are a
+separate state; OI is never interpreted as long/short ownership. Added a
+categorized launcher, bilingual guidance, public-source provenance and
+deterministic timestamp/coverage tests. No order, hedge or wallet path was
+added.
+
+Provenance: [public OI/funding/price context brief on X](https://x.com/ImCryptOpus/status/1949195275903410571),
+[Binance's official open-interest history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info),
+and MarketBridge's normalized historical interfaces.
+
 ## 2026-09-14 — cost-aware volatility breakout replay
 
 Extended the compression-to-expansion breakout replay with a fixed

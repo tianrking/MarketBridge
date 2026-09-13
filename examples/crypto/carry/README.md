@@ -29,6 +29,11 @@ income, hedge PnL or an execution instruction. `funding_extremes.py` remains a
 current-universe filter, while `funding_curve_demo.py` is a visualization
 utility; neither is a backtest.
 
+`crypto_positioning_regime_replay.py` joins funding, aggregate OI and perp price
+at point-in-time timestamps, then reports the forward-return distribution for
+each `price × OI × funding` regime. It is a state-matrix diagnostic, not a
+long/short classifier: OI ownership, fills and hedge PnL remain unknown.
+
 Provenance: the basis tests are motivated by the public [CryptoCred basis-trade
 discussion on X](https://x.com/CryptoCred/status/1777720296297975952) and the
 [CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
@@ -39,6 +44,11 @@ explicit funding schedule. These are research leads, not verified performance
 claims.
 The cross-venue differential lead is also informed by this public [funding
 spread discussion on X](https://x.com/leondoteth/status/2012127303850213817).
+The regime-matrix lead is informed by the public [OI/funding/price context
+brief on X](https://x.com/ImCryptOpus/status/1949195275903410571).
+The data semantics are cross-checked against [Binance's official open-interest
+history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info),
+which describes bounded historical OI observations rather than trader-side ownership.
 
 Useful inputs:
 
@@ -67,11 +77,16 @@ Useful inputs:
 不是资金费收入、对冲 PnL 或执行指令。`funding_extremes.py` 只是当前市场筛选，
 `funding_curve_demo.py` 只是可视化，二者都不是回测。
 
+`crypto_positioning_regime_replay.py` 在逐点时间上连接资金费率、聚合 OI 和永续价格，输出每个
+`价格 × OI × 资金费率` 状态的未来收益分布。它是状态矩阵诊断，不是多空分类器；OI 归属、成交和
+对冲 PnL 仍然未知。
+
 出处：基差测试思路来自公开的 [CryptoCred 基差交易讨论](https://x.com/CryptoCred/status/1777720296297975952)
 和 [CME 与现货基差示例](https://x.com/0xscarlettw/status/1944584946670276938)。资金费率持续性线索
 另外对照了一级资料 [Kraken 资金费率策略说明](https://www.kraken.com/learn/futures-trading-funding-rate-strategy)，
 以及 MarketBridge 返回的明确结算间隔。它们都是研究线索，不是已经验证的收益声明。
 跨交易所差异线索也参考了公开的 [资金费率价差讨论](https://x.com/leondoteth/status/2012127303850213817)。
+状态矩阵线索也参考了公开的 [OI/资金费率/价格上下文简报](https://x.com/ImCryptOpus/status/1949195275903410571)。
 
 主要接口：
 
@@ -101,6 +116,10 @@ python3 examples/crypto/carry/crypto_funding_oi_replay.py \
 python3 examples/crypto/carry/crypto_funding_regime_replay.py \
   --symbol BTCUSDT --funding-exchange binance --price-exchange binance \
   --days 14 --min-funding-pct 0.01 --min-run 3 --horizon-bars 3
+python3 examples/crypto/carry/crypto_positioning_regime_replay.py \
+  --symbol BTCUSDT --funding-exchange binance --oi-exchange binance \
+  --price-exchange binance --days 7 --price-interval 5m \
+  --lookback-bars 3 --horizon-bars 3 --min-observations 3
 python3 examples/crypto/carry/funding_extremes.py \
   --exchange binance --min-pct -2 --max-pct -0.1
 python3 examples/crypto/carry/funding_curve_demo.py \

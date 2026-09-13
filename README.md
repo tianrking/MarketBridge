@@ -122,6 +122,8 @@ The universe scanner also has a recorder/replay pair that tests candidate-set
 persistence without turning current rankings into portfolio weights.
 Volatility-breakout replay also exposes an explicit paper cost hurdle and keeps
 gross versus after-cost continuation evidence separate.
+The carry family also includes a point-in-time price/OI/funding regime replay;
+it reports distributions by state without inferring position ownership.
 
 The large copy-paste query cookbook is maintained in
 [docs/query_examples.md](docs/query_examples.md).

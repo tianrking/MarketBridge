@@ -909,6 +909,7 @@ options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状
 但不会伪装成交易所手续费、借贷成本或对冲成交模型。
 Universe scanner 也新增 recorder/replay，用于检验候选集合是否跨快照持续，不会把当前排名变成组合权重。
 volatility-breakout 回放也支持显式纸面成本门槛，并分开保留 gross 与 after-cost 的突破延续证据。
+carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状态报告分布，不推断持仓多空归属。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 
