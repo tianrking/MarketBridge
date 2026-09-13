@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — DeFi pool-flow response replay
+
+Added `crypto_defi_pool_flow_response_recorder.py` and
+`crypto_defi_pool_flow_response_replay.py` under the categorized DeFi family.
+The recorder joins the existing normalized `defi_native_state`/`dex_pool`
+snapshot with a synchronized MarketBridge BTC quote; replay compares signed
+and absolute fixed-record responses after pressure versus ordinary pool states.
+The hypothesis is grounded in [Uniswap's explanation of pool liquidity and
+price impact](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
+and [swap execution](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps).
+Provider snapshots, sampling gaps and the no-route/no-wallet/no-execution
+boundary remain explicit.
+
 ## 2026-09-14 — footprint pressure response replay
 
 Added `crypto_footprint_response_recorder.py` and

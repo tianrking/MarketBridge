@@ -886,6 +886,9 @@ python3 examples/crypto_session_filter.py --exchange binance --market perp --sym
 请求最小接口集合，但 Rust 服务仍会按运行配置在后台采集已启用的数据源。
 defi 系列新增 `crypto_defi_pool_flow_monitor.py` 及 recorder/replay：用 DEX 池报告的
 swap volume、流动性和买卖笔数识别高换手/薄流动性压力状态，不执行路由、估算 LP 收益或钱包操作。
+现在还提供 `crypto_defi_pool_flow_response_recorder.py` / `crypto_defi_pool_flow_response_replay.py`：把
+标准化 `defi_native_state` 压力快照与同步 BTC 报价配对，比较压力状态和普通池状态之后固定记录窗口的有符号/绝对收益。
+这只是描述性事件研究，不新增路由、gas、LP 收益、钱包或 swap 执行路径。
 onchain 系列新增 `crypto_onchain_transfer_burst_replay.py`：把公开大额转账 burst 与未来绝对波动做
 非方向性比较，不把转账方向解释成交易所净流入，也不执行钱包操作。
 carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，universe 系列新增

@@ -13,6 +13,13 @@ higher-pressure state? The monitor reports `high_turnover_pool` and
 `--min-run` observations. This is an execution-risk and pool-regime diagnostic;
 it is not an LP APR, impermanent-loss, fee, route, MEV, or wallet strategy.
 
+`crypto_defi_pool_flow_response_recorder.py` adds a synchronized MarketBridge
+BTC quote to each pool snapshot. Its paired replay compares the later BTC
+signed and absolute return after `pressure` (thin liquidity/high flow or high
+turnover) versus `ordinary_pool_activity` snapshots. The record-count horizon
+is explicit: this is a descriptive event study, not proof that pool pressure
+causes BTC movement or that a swap is executable.
+
 `crypto_stablecoin_depeg_monitor.py` / `crypto_stablecoin_depeg_recorder.py` /
 `crypto_stablecoin_depeg_replay.py` observe selected stablecoin pair deviations
 and compare stressed snapshots with later absolute BTC movement. This is a
@@ -42,6 +49,10 @@ redemptions, solvency or executable mean reversion.
 `crypto_defi_pool_flow_recorder.py` 先冻结连续快照，`crypto_defi_pool_flow_replay.py` 再用 `--min-run`
 检验压力状态是否持续。这是执行风险和池状态诊断，不是 LP APR、无常损失、手续费、路由、MEV 或钱包策略。
 
+`crypto_defi_pool_flow_response_recorder.py` 会在每个池状态快照旁边记录同步的 MarketBridge BTC 报价；配套 replay
+比较 `pressure`（薄流动性高流量或高换手）与 `ordinary_pool_activity` 快照之后的 BTC 有符号和绝对收益。
+回放窗口按记录数明确给出，只是描述性事件研究，不证明池压力造成 BTC 变动，也不代表 swap 可执行。
+
 出处：拆解参考 [Uniswap 关于流动性池和价格冲击的说明](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
 以及 [swap 执行说明](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps)。MarketBridge 当前使用有界的
 提供方快照，不声称完整覆盖链上 swap ledger 或协议原生路由深度。
@@ -63,6 +74,13 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
   --output work/crypto-defi-pool-flow.jsonl
 python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
   --input work/crypto-defi-pool-flow.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
+  --sources uniswap_v3,meteora --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 120 --interval-secs 30 \
+  --output work/crypto-defi-pool-flow-response.jsonl
+python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
+  --input work/crypto-defi-pool-flow-response.jsonl \
+  --horizon-records 3 --min-observations 10
 python3 examples/crypto/defi/crypto_stablecoin_depeg_monitor.py \
   --exchange binance --stable-symbols USDTUSDC,USDCUSDT,DAIUSDT \
   --risk-symbol BTCUSDT --watch-bps 20 --stress-bps 50

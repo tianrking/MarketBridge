@@ -195,6 +195,11 @@ The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or
 executable mean reversion.
+The DeFi family now also includes a pool-flow response recorder/replay: it
+joins normalized `defi_native_state` pressure snapshots with a synchronized BTC
+quote and compares fixed-record forward responses for pressure versus ordinary
+pool states. This remains a descriptive study; it adds no route, gas, LP-PnL,
+wallet or swap-execution path.
 The microstructure family also exposes optional CoinGlass aggregate derivatives
 context while preserving missing-key and missing-metric evidence.
 It now includes a Python recorder/replay pair that tests whether aggregate

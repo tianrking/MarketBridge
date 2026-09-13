@@ -72,6 +72,7 @@ categorized command is the recommended one.
 | `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
 | `crypto/defi/crypto_stablecoin_depeg_monitor.py` / recorder / replay | Stablecoin quote deviation and spread stress may coincide with larger later absolute BTC movement | `/v1/market/quotes` for selected CEX/DEX pairs and BTCUSDT, plus JSONL archive | Depeg-risk event study; no reserve, redemption, solvency, mean-reversion or execution model |
 | `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
+| `crypto/defi/crypto_defi_pool_flow_response_recorder.py` / `crypto_defi_pool_flow_response_replay.py` | Compare later BTC movement after pressure versus ordinary DEX-pool snapshots | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, LP-PnL, route, gas or wallet-execution claim |
 | `crypto/onchain/crypto_onchain_transfer_burst_replay.py` | A rolling burst of public large-transfer notional may precede larger absolute price movement | `/v1/onchain/transfers`, `/v1/history/candles` | Non-directional bounded replay; transfer semantics, labels, coverage and execution remain explicit |
 | `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
 | `crypto/options/crypto_options_vrp_recorder.py` / `crypto_options_vrp_replay.py` | Test whether an IV-minus-RV premium regime persists for one option expiry | `/v1/options/chains`, `/v1/history/candles`, JSONL archive | Descriptive VRP persistence; no option PnL, delta hedge or short-vol execution model |
@@ -252,6 +253,13 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
   --output work/crypto-defi-pool-flow.jsonl
 python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
   --input work/crypto-defi-pool-flow.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
+  --sources uniswap_v3,meteora --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 120 --interval-secs 30 \
+  --output work/crypto-defi-pool-flow-response.jsonl
+python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
+  --input work/crypto-defi-pool-flow-response.jsonl \
+  --horizon-records 3 --min-observations 10
 python3 examples/crypto/onchain/crypto_onchain_transfer_burst_replay.py \
   --source whale_alert --asset USDT --min-transfer-usd 100000 \
   --price-exchange binance --symbol BTCUSDT --interval 5m \
