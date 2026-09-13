@@ -121,6 +121,10 @@ It now also includes a bull-call-spread response recorder/replay, which joins
 the existing paper spread geometry to a BTC quote and compares later movement
 after observable spread states versus unvalidated snapshots. Quotes remain
 research evidence; no option fill, hedge, PnL or execution is inferred.
+The options family also includes an IV-skew response recorder/replay that joins
+put-wing minus call-wing states to BTC quotes and compares later movement by
+skew regime. It keeps moneyness-bucket and expiry-roll uncertainty visible and
+does not infer option PnL, hedges or execution.
 The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes

@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — options IV-skew response replay
+
+Added `crypto_options_skew_response_recorder.py` and
+`crypto_options_skew_response_replay.py` under the categorized options family.
+The recorder joins the existing target-expiry put-wing-minus-call-wing
+snapshot with a synchronized MarketBridge BTC quote; replay compares signed
+and absolute fixed-record responses across downside-protection, upside-call and
+balanced-wing states. Provenance: the public [options brief on X](https://x.com/Gate_Launch/status/2063810805552845140),
+cross-checked with the existing [Deribit options data guide](https://insights.deribit.com/industry/genesis-volatility-options-data-guide/).
+Moneyness buckets are deliberately not treated as a universal 25-delta surface,
+and no option PnL, hedge or execution path is added.
+
 ## 2026-09-14 — frozen on-chain transfer response replay
 
 Added `crypto_onchain_transfer_response_recorder.py` and
