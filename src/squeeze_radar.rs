@@ -72,6 +72,7 @@ pub struct SqueezeDataQuality {
     pub ready_for_trigger: bool,
 }
 
+#[cfg(test)]
 pub fn scan(
     states: Vec<StrategySymbolState>,
     now_ms: u64,
