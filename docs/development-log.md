@@ -1078,3 +1078,18 @@ no fill, causality or execution model.
 Provenance: the unverified [XWIN OI/order-flow discussion](https://x.com/xwinfinance/status/2023155692916646257)
 is a research lead; book fields are cross-checked against [Binance's official order-book data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)
 and funding fields against the [official funding-rate documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+
+## 2026-09-14 — liquidation price-cluster response recorder and replay
+
+Added a temporal response layer for the observed liquidation price-cluster
+case. The recorder freezes bounded liquidation-history rows beside a
+MarketBridge quote; replay deduplicates repeated rows, rebuilds rolling
+price-band concentration, applies a cooldown, and compares fixed-record BTC
+absolute movement after qualifying clusters versus ordinary windows. It keeps
+the distinction from rolling liquidation bursts and does not reconstruct
+latent heatmap levels, leverage, forecasts or execution.
+
+Provenance: the public [CoinGlass liquidation-heatmap post on X](https://x.com/coinglass_com/status/1930154005491282291)
+and [Glassnode's liquidation-heatmap research](https://research.glassnode.com/liquidation-heatmaps/)
+motivate the falsifiable concentration hypothesis; event semantics remain
+bounded by [Binance's liquidation-order stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams).

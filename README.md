@@ -181,6 +181,9 @@ freezes bounded liquidation history beside a MarketBridge quote, and the replay
 deduplicates repeated events before comparing fixed-record BTC responses after
 burst versus ordinary snapshots. Side semantics, provider coverage and the
 no-order boundary remain explicit.
+The same family now includes a price-cluster response recorder/replay that
+tests realized liquidation-print concentration separately from rolling burst
+notional, without reconstructing latent heatmap levels.
 It also includes a CVD divergence replay that measures fixed-horizon reversal
 after a price/taker-flow disagreement on one venue.
 The microstructure family now also includes a quarter-hour flow replay: it

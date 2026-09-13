@@ -17,6 +17,7 @@ Cases:
 - `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
 - `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`: freeze the rolling burst beside a quote and compare later BTC responses with ordinary snapshots.
 - `crypto_liquidation_price_cluster_replay.py`: observed liquidation prints grouped into price bands, compared with ordinary forward absolute movement.
+- `crypto_liquidation_price_cluster_response_recorder.py` / `crypto_liquidation_price_cluster_response_replay.py`: freeze observed price-band concentration beside a quote and compare later BTC movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`: freeze imbalance/funding states beside a quote and compare later BTC responses.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
@@ -96,6 +97,13 @@ It clusters only observed liquidation prints returned by
 leverage distributions or a price magnet. A candidate requires a notional
 threshold, a minimum share in one price band and a fixed forward window, then
 reports an absolute-move comparison rather than a directional trade.
+
+The price-cluster response recorder/replay is the temporal companion to that
+single-page analysis. It deduplicates repeated observed liquidation rows,
+reconstructs the rolling cluster share at each capture, applies a cooldown,
+and compares fixed-record BTC movement after qualifying clusters versus
+ordinary windows. The result tests only realized-print concentration; it does
+not infer latent liquidation walls, leverage distribution or a price magnet.
 
 Provenance: [CryptoData's public liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
 is treated as an unverified research lead; the replay tests the threshold and
@@ -248,6 +256,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
 - `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`：把滚动 burst 与同步报价冻结到 JSONL，去重重复事件后比较 burst 与普通快照的后续 BTC 响应。
 - `crypto_liquidation_price_cluster_replay.py`：把已观测清算成交按价格带聚类，并与普通窗口的未来绝对波动比较。
+- `crypto_liquidation_price_cluster_response_recorder.py` / `crypto_liquidation_price_cluster_response_replay.py`：把已观测价格带集中状态与报价冻结，比较之后固定窗口的 BTC 波动。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`：把盘口失衡/资金费率状态与同步报价冻结，比较压力、冲突和普通状态之后的 BTC 响应。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
@@ -303,6 +312,10 @@ stress-response recorder/replay 是单独的固定窗口研究：为每个压力
 价格带聚类回放比商业热图更窄：它只聚类 `/v1/history/liquidations` 返回的已发生清算成交，
 不推断尚未触发的清算价、杠杆分布或“价格磁铁”。必须同时满足名义金额阈值、单一价格带占比
 阈值和固定未来窗口，输出仍是绝对波动比较，不是方向性交易。
+
+价格带 response recorder/replay 是上述单页分析的时间维度 companion：按可观察的时间、价格、名义金额和 side 去重重复行，
+在每个采集点重建滚动 cluster share，应用 cooldown，再比较符合条件的价格带与普通窗口之后固定记录数的 BTC 波动。
+它只检验已发生清算成交的集中度，不推断潜在清算墙、杠杆分布或价格磁铁。
 
 出处：[CryptoData 在 X 的清算阈值讨论](https://x.com/TheCryptoData/status/1948466627365769584)
 只是未经验证的研究线索；回放会检验阈值，并把覆盖范围限制明确输出，而不是复述结论。
@@ -466,6 +479,15 @@ python3 examples/crypto/microstructure/crypto_liquidation_price_cluster_replay.p
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --cluster-band-bps 25 \
   --min-cluster-share 0.5 --window-hours 24 --horizon-bars 12
+python3 examples/crypto/microstructure/crypto_liquidation_price_cluster_response_recorder.py \
+  --exchange okx --price-exchange okx --symbol BTCUSDT \
+  --liquidation-limit 100 --iterations 120 --interval-secs 30 \
+  --output work/crypto-liquidation-price-cluster-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidation_price_cluster_response_replay.py \
+  --input work/crypto-liquidation-price-cluster-response.jsonl \
+  --window-hours 24 --horizon-records 12 --threshold-notional 1000000 \
+  --cluster-band-bps 25 --min-cluster-share 0.5 --cooldown-records 12 \
+  --min-observations 3
 python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_monitor.py \
   --symbol BTCUSDT --exchange binance --target-notional 10000 \
   --min-depth-ratio 2.0 --min-impact-improvement-bps 5
