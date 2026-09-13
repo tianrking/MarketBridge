@@ -995,3 +995,18 @@ high-volatility, leveraged and normal states. It keeps the current-feature,
 non-point-in-time limitation explicit and does not turn the label into a
 strategy selector. Provenance: the unverified [XWIN trend and positioning
 discussion on X](https://x.com/xwinfinance/status/2023155692916646257).
+
+## 2026-09-14 — liquidation-burst response recorder and replay
+
+Added a temporal companion to the bounded liquidation-burst replay. The new
+Python recorder freezes each `/v1/history/liquidations` page beside a
+synchronized MarketBridge quote in JSONL. The replay deduplicates repeated
+observable event rows across snapshots, rebuilds rolling notional at each
+capture, applies a configurable cooldown, and compares fixed-record BTC
+responses after burst and ordinary windows. It keeps provider coverage,
+side-label ambiguity, missing quotes and the no-order boundary explicit.
+
+Provenance: [CryptoData's liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
+is an unverified lead, while [Binance's liquidation-order stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams)
+defines the primary event-semantic boundary. This round adds no trading,
+wallet or signing path.

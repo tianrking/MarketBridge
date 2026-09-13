@@ -948,6 +948,9 @@ crypto 收益预测。
 会把 Farside 最新一行暴露到 `/v1/external/signals`；历史 ETF 流量回放仍需要 recorder JSONL 或显式 CSV，绝不会用零值伪造。
 microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：只对接口返回的已发生清算成交
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
+现在还提供 `crypto_liquidation_burst_response_recorder.py` /
+`crypto_liquidation_burst_response_replay.py`：recorder 把有界清算历史与 MarketBridge 行情冻结到 JSONL，
+replay 按可观察字段去重跨快照重复事件，再比较 burst 与普通快照之后固定记录窗口的 BTC 响应；清算 side 语义、提供方覆盖和不下单边界都保持显式。
 同系列还新增 `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否
 反向移动；它不代表全市场 CVD，也不构成执行信号。
 microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检验 UTC 每 15 分钟开盘后的主动买卖

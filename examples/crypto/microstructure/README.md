@@ -15,6 +15,7 @@ Cases:
 - `exhaustion_short_monitor.py`: positive funding + failed highs + falling OI + weak bids.
 - `liquidation_reversal_monitor.py`: sell-side liquidation + falling OI + positive CVD + recovery.
 - `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
+- `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`: freeze the rolling burst beside a quote and compare later BTC responses with ordinary snapshots.
 - `crypto_liquidation_price_cluster_replay.py`: observed liquidation prints grouped into price bands, compared with ordinary forward absolute movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
@@ -59,6 +60,20 @@ reversal monitor: it aggregates all public liquidation notional over a rolling
 window, compares the next price movement with ordinary candle windows, and
 keeps side labels as metadata only. It does not assume that a venue's `sell`
 label proves a long liquidation.
+
+The liquidation-burst response recorder/replay is the temporal companion to
+that one-page replay. The recorder appends each bounded
+`/v1/history/liquidations` response beside a synchronized MarketBridge quote;
+the replay deduplicates repeated event rows, reconstructs the rolling notional
+at each capture, and compares fixed-record BTC responses after burst versus
+ordinary snapshots. A burst is not counted again during the configurable
+cooldown, and missing quotes remain outside the aligned sample. This is a
+non-directional response study, not a liquidation forecast or order model.
+
+Provenance: the public [CryptoData liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
+is an unverified research lead. The event semantics are bounded by
+[Binance's public liquidation-order stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams);
+MarketBridge's history endpoint may cover only a provider-limited recent page.
 
 The price-cluster replay is deliberately narrower than a commercial heatmap.
 It clusters only observed liquidation prints returned by
@@ -193,6 +208,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `exhaustion_short_monitor.py`：正资金费率 + 冲高失败 + OI 下降 + 买盘变弱。
 - `liquidation_reversal_monitor.py`：卖方清算 + OI 下降 + CVD 转正 + 价格恢复。
 - `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
+- `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`：把滚动 burst 与同步报价冻结到 JSONL，去重重复事件后比较 burst 与普通快照的后续 BTC 响应。
 - `crypto_liquidation_price_cluster_replay.py`：把已观测清算成交按价格带聚类，并与普通窗口的未来绝对波动比较。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
@@ -225,6 +241,15 @@ recorder/replay 把它变成时间维度的检验，避免把一个压力盘口�
 清算 burst 回放与单次事件反转监控不同：它在滚动窗口内聚合所有公开清算名义金额，
 再和普通 K 线窗口的未来价格波动比较；side 只作为元数据保留，不假设交易所的
 `sell` 一定代表多头清算。
+
+清算 burst response recorder/replay 是上述单页回放的时间维度 companion：recorder 把每次
+`/v1/history/liquidations` 的有界响应与同步 MarketBridge 报价追加到 JSONL；replay 只按可观察字段去重跨快照重复事件，
+在每个采集点重建滚动名义金额，并比较 burst 与普通快照之后固定记录窗口的 BTC 响应。可配置 cooldown，避免同一 burst
+被连续快照重复计数；报价缺失会排除出对齐样本。这是非方向性的响应研究，不是清算预测或下单模型。
+
+出处：公开 [CryptoData 在 X 的清算阈值讨论](https://x.com/TheCryptoData/status/1948466627365769584)
+只是未经验证的研究线索；事件语义以 [Binance 官方清算订单流文档](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams)
+为边界，MarketBridge 的历史接口仍可能只覆盖提供方最近的一页数据。
 
 价格带聚类回放比商业热图更窄：它只聚类 `/v1/history/liquidations` 返回的已发生清算成交，
 不推断尚未触发的清算价、杠杆分布或“价格磁铁”。必须同时满足名义金额阈值、单一价格带占比
@@ -358,6 +383,14 @@ python3 examples/crypto/microstructure/crypto_liquidity_stress_replay.py \
 python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --window-hours 24 --horizon-bars 12
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorder.py \
+  --exchange okx --price-exchange okx --symbol BTCUSDT \
+  --iterations 120 --interval-secs 30 --threshold-notional 1000000 \
+  --output work/crypto-liquidation-burst-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_replay.py \
+  --input work/crypto-liquidation-burst-response.jsonl \
+  --window-hours 24 --horizon-records 12 --threshold-notional 1000000 \
+  --cooldown-records 12 --min-observations 3
 python3 examples/crypto/microstructure/crypto_liquidation_price_cluster_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --cluster-band-bps 25 \

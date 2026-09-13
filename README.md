@@ -170,6 +170,11 @@ timestamp and synchronization limits.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.
+It now also includes a liquidation-burst response recorder/replay: the recorder
+freezes bounded liquidation history beside a MarketBridge quote, and the replay
+deduplicates repeated events before comparing fixed-record BTC responses after
+burst versus ordinary snapshots. Side semantics, provider coverage and the
+no-order boundary remain explicit.
 It also includes a CVD divergence replay that measures fixed-horizon reversal
 after a price/taker-flow disagreement on one venue.
 The microstructure family now also includes a quarter-hour flow replay: it
