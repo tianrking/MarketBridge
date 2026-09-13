@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — cross-venue order-book response replay
+
+Added `crypto_cross_venue_orderbook_response_recorder.py` and
+`crypto_cross_venue_orderbook_response_replay.py` under the carry family. The
+recorder joins the existing timestamp-skew-filtered, target-notional VWAP edge
+with a synchronized MarketBridge BTC quote; replay compares signed and
+absolute responses after qualifying versus unqualified snapshots. Provenance:
+the public [cross-venue funding-spread discussion on X](https://x.com/leondoteth/status/2012127303850213817),
+[Binance's order-book API documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data),
+and the [cross-exchange arbitrage-friction study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad).
+No fill, inventory, routing or execution path is added.
+
 ## 2026-09-14 — options IV-skew response replay
 
 Added `crypto_options_skew_response_recorder.py` and

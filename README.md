@@ -130,6 +130,9 @@ tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes
 target-notional VWAP edges under timestamp-skew and paper-cost hurdles while
 leaving inventory, settlement and execution outside MarketBridge.
+It now also has a response recorder/replay that joins those book states to a
+BTC quote and compares later movement after qualifying versus unqualified
+snapshots; this remains descriptive and does not infer arbitrage PnL or fills.
 The carry family now also includes a single-venue triangular quote-consistency
 monitor/recorder/replay for BTCUSDT, ETHBTC and ETHUSDT. It evaluates both
 conversion directions with a paper per-leg cost and consecutive-snapshot

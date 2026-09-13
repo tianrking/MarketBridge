@@ -107,6 +107,7 @@ categorized command is the recommended one.
 | `crypto/carry/crypto_funding_cross_section_replay.py` | At wide funding dispersion, low-funding assets may have different next-window returns from high-funding assets | `/v1/history/candles` for funding-rate and perp candles across a caller-selected universe | Cross-sectional diagnostic with freshness, exact price intersections and optional paper cost; no allocation or hedge execution |
 | `crypto/carry/crypto_cross_venue_price_gap_replay.py` | An extreme same-asset log-price gap across two venues may contract toward its frozen trailing mean | `/v1/history/candles` for the same symbol on two venues, exact timestamp intersection | Price-fragmentation diagnostic; synchronized fills, inventory, transfers, fees and execution remain explicit gaps |
 | `crypto/carry/crypto_cross_venue_orderbook_monitor.py` / recorder / replay | A synchronized target-notional ask/bid VWAP gap may persist after a paper round-trip cost hurdle | `/v1/market/order-books` and JSONL archive | Snapshot depth diagnostic; timestamp skew, inventory, settlement, transfer and execution remain explicit gaps |
+| `crypto/carry/crypto_cross_venue_orderbook_response_recorder.py` / `crypto_cross_venue_orderbook_response_replay.py` | A qualifying synchronized book edge may have a different later BTC response than an unqualified snapshot | `/v1/market/order-books`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no simultaneous fills, arbitrage PnL, inventory or execution claim |
 | `crypto/carry/crypto_triangular_arbitrage_monitor.py` / recorder / replay | A synchronized single-venue three-leg top-of-book conversion edge may persist after paper per-leg costs | `/v1/market/quotes?product_type=spot` for `BTCUSDT`, `ETHBTC`, `ETHUSDT`, plus JSONL archive | Quote-consistency persistence diagnostic; depth, atomicity, latency, inventory and execution remain explicit gaps |
 | `crypto/carry/crypto_positioning_regime_replay.py` | Price trend, OI change and funding sign may separate forward-return distributions | `/v1/history/candles`, `/v1/history/open-interest` | Point-in-time regime matrix; OI is aggregate and no long/short ownership is inferred |
 | `crypto/carry/crypto_oi_impulse_response_recorder.py` / `crypto_oi_impulse_response_replay.py` | An unusually large OI expansion may be followed by larger absolute price movement, as liquidation-risk context rather than direction | `/v1/market/open-interest`, `/v1/market/quotes`, JSONL archive | Expansion/contraction response study; OI ownership, elapsed-time alignment and execution remain explicit gaps |
@@ -355,6 +356,14 @@ python3 examples/crypto/carry/crypto_cross_venue_orderbook_recorder.py \
 python3 examples/crypto/carry/crypto_cross_venue_orderbook_replay.py \
   --input work/crypto-cross-venue-orderbook.jsonl --min-run 3 \
   --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_recorder.py \
+  --symbol BTCUSDT --exchanges binance,okx,bybit --market spot \
+  --target-notional 10000 --paper-cost-bps 20 --min-net-edge-bps 0 \
+  --iterations 120 --interval-secs 5 \
+  --output work/crypto-cross-venue-orderbook-response.jsonl
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_replay.py \
+  --input work/crypto-cross-venue-orderbook-response.jsonl \
+  --horizon-records 3 --min-net-edge-bps 0 --min-observations 5
 python3 examples/crypto_microstructure_monitor.py \
   --symbol BTCUSDT --exchange binance --top-levels 5 \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01

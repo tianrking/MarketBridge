@@ -65,6 +65,11 @@ The recorder/replay tests whether a qualifying book edge persists across
 consecutive snapshots. It still does not model prefunded inventory, settlement,
 queue position, transfer fees or execution.
 
+The order-book response recorder adds a synchronized MarketBridge BTC quote;
+its replay compares later signed and absolute BTC returns after a qualifying
+book edge versus unqualified snapshots. This is a response study, not a
+simultaneous fill, arbitrage PnL or routing model.
+
 `crypto_triangular_arbitrage_monitor.py` is the single-venue three-leg analogue:
 it requests the synchronized `BTCUSDT`, `ETHBTC` and `ETHUSDT` spot top-of-book,
 calculates both USDT cycle directions, and applies a paper per-leg cost. The
@@ -152,6 +157,9 @@ Useful inputs:
 两边 VWAP，拒绝超出时间偏差阈值的快照，并扣除调用者提供的纸面双边成本。recorder/replay 再检验盘口
 edge 是否连续出现。它仍不模拟预存库存、结算、队列位置、转账费或执行。
 
+orderbook response recorder 还会记录同步的 MarketBridge BTC 报价；replay 比较 qualifying book edge 与普通快照之后
+固定记录窗口的 BTC 有符号/绝对收益。这是响应研究，不是同时成交、套利 PnL 或路由模型。
+
 `crypto_triangular_arbitrage_monitor.py` 是同一交易所的三腿报价一致性案例：请求同步的
 `BTCUSDT`、`ETHBTC`、`ETHUSDT` 现货盘口，分别计算两个 USDT 换算方向，并扣除每腿纸面成本。
 recorder/replay 再检验净 edge 是否连续出现。它只是可证伪的报价实验，不是三角套利成交声明；深度、原子性、
@@ -229,6 +237,14 @@ python3 examples/crypto/carry/crypto_cross_venue_orderbook_recorder.py \
 python3 examples/crypto/carry/crypto_cross_venue_orderbook_replay.py \
   --input work/crypto-cross-venue-orderbook.jsonl --min-run 3 \
   --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_recorder.py \
+  --symbol BTCUSDT --exchanges binance,okx,bybit --market spot \
+  --target-notional 10000 --paper-cost-bps 20 --min-net-edge-bps 0 \
+  --iterations 120 --interval-secs 5 \
+  --output work/crypto-cross-venue-orderbook-response.jsonl
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_replay.py \
+  --input work/crypto-cross-venue-orderbook-response.jsonl \
+  --horizon-records 3 --min-net-edge-bps 0 --min-observations 5
 python3 examples/crypto/carry/crypto_triangular_arbitrage_monitor.py \
   --exchange binance --start-notional 10000 --max-skew-ms 500 \
   --paper-cost-bps-per-leg 10 --min-net-edge-bps 0

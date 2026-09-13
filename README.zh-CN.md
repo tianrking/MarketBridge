@@ -923,6 +923,7 @@ carry 系列还新增 `crypto_funding_regime_replay.py`：把连续极端资金�
 carry 系列还新增 `crypto_cross_venue_price_gap_replay.py`：检验同一资产跨交易所价格 gap 是否收敛，
 但不把异步价差称为可执行套利，也不模拟库存、转账或成交。
 同系列还新增跨交易所盘口 monitor/recorder/replay：按目标名义金额计算两边 VWAP，应用时间偏差和纸面成本门槛，
+并将 qualifying edge 与同步 BTC 报价配对，比较之后固定窗口的行情变化；这仍是描述性研究，不推断套利 PnL、同时成交或路由执行。
 但把库存、结算和执行明确留在 MarketBridge 之外。
 carry 系列现在还新增单交易所三角报价一致性 monitor/recorder/replay：对 `BTCUSDT`、`ETHBTC`、`ETHUSDT`
 两个换算方向应用每腿纸面成本，并要求连续快照证据；深度、原子性、延迟、库存和执行仍然不属于
