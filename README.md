@@ -130,6 +130,9 @@ It now includes a Python recorder/replay pair that tests whether aggregate
 long/short crowding states persist across snapshots; ratios remain provider
 context, not position ownership, and the replay has no allocation or execution
 path.
+The sentiment family also includes a Fear & Greed extreme-state recorder/replay
+that measures fixed-horizon forward-response distributions from MarketBridge
+price snapshots without turning public sentiment into an execution signal.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.

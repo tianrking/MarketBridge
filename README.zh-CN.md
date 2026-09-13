@@ -923,6 +923,8 @@ microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：�
 清算和 basis 上下文，但不把聚合比率解释成真实持仓归属。
 现在还提供 Python recorder/replay：把聚合拥挤状态写入 JSONL，并要求连续快照后才报告持续候选；
 ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配或执行路径。
+sentiment 系列还新增 Fear & Greed 极值 recorder/replay，用 MarketBridge 价格快照测量固定窗口的未来收益分布，
+但不会把公开情绪转成执行信号。
 options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、
 对冲或实盘执行指令。
 同系列还新增期限结构回放：检验近端/远端 ATM IV 升水或倒挂是否持续，并明确保留到期滚动和日历价差

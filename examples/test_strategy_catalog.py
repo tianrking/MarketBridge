@@ -7,7 +7,7 @@ import unittest
 
 EXAMPLES = Path(__file__).resolve().parent
 CRYPTO = EXAMPLES / "crypto"
-CATEGORIES = ("carry", "defi", "macro", "microstructure", "onchain", "options", "universe")
+CATEGORIES = ("carry", "defi", "macro", "microstructure", "onchain", "options", "sentiment", "universe")
 
 
 class StrategyCatalogTests(unittest.TestCase):

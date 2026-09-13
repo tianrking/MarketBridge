@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Fear & Greed sentiment-extremes replay
+
+Added the Python-first `examples/crypto/sentiment/` family. The monitor reads
+the existing `fear_greed` external signal and a selected MarketBridge price
+snapshot; the recorder freezes both to JSONL; the replay compares fixed-record-
+horizon forward returns after extreme fear/greed states with aligned ordinary
+windows. Missing prices and minimum sample counts remain explicit, and paper
+cost is only a sensitivity input. There is no allocation, wallet or execution
+path. Added bilingual index/docs and deterministic tests. Provenance is
+[Alternative.me's official Crypto Fear & Greed API description](https://alternative.me/crypto/fear-and-greed-index/)
+and the unverified [BitcoinFear public X extreme-value post](https://x.com/BitcoinFear/status/2043554800046940376).
+
 ## 2026-09-14 — derivatives sentiment persistence recorder/replay
 
 Added Python `crypto_derivatives_sentiment_recorder.py` and
