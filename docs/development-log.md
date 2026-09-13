@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — CVD divergence reversal replay
+
+Added `crypto_cvd_divergence_replay.py` to separate historical price/taker-flow
+divergence from the existing snapshot confirmation and breakout cases. It
+joins bounded `/v1/history/trades` with candles, requires a material price move
+and opposite signed-flow ratio, and measures the next-window aligned reversal
+with an optional paper hurdle. Added bilingual microstructure docs and
+deterministic tests; single-venue coverage, trade-side semantics and missing
+history remain explicit. CVD semantics are referenced from [a public CVD
+indicator explanation](https://mindpillar.com/cvd/), not treated as a
+performance claim.
+
 ## 2026-09-14 — crypto pair mean-reversion replay
 
 Added `crypto_pairs_mean_reversion_replay.py` to cover relative-value research

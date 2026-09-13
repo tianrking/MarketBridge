@@ -909,6 +909,8 @@ universe 系列还新增 `crypto_pairs_mean_reversion_replay.py`：用冻结的�
 资产的相对价格是否收敛，不声称协整成立，也不模拟配对成交。
 microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：只对接口返回的已发生清算成交
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
+同系列还新增 `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否
+反向移动；它不代表全市场 CVD，也不构成执行信号。
 options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、
 对冲或实盘执行指令。
 同系列还新增期限结构回放：检验近端/远端 ATM IV 升水或倒挂是否持续，并明确保留到期滚动和日历价差

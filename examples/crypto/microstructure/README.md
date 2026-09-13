@@ -17,6 +17,7 @@ Cases:
 - `crypto_liquidation_price_cluster_replay.py`: observed liquidation prints grouped into price bands, compared with ordinary forward absolute movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
+- `crypto_cvd_divergence_replay.py`: tests whether a price move that disagrees with single-venue taker-flow delta is followed by a fixed-horizon reversal.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
@@ -69,6 +70,15 @@ The spot/perp depth-gap monitor is an execution-risk observation motivated by
 It tests the claim with a target-size snapshot and current basis context; it
 does not assume that deeper perp liquidity makes a hedge executable.
 
+The CVD divergence replay is deliberately separate from breakout confirmation:
+it requires a material price move and opposite taker-flow ratio over the same
+lookback, then measures the next-window reversal. It only uses public trades on
+the requested venue, so it does not represent global flow or a causal signal.
+
+The CVD semantics and single-venue coverage boundary are cross-checked against
+[a public CVD indicator explanation](https://mindpillar.com/cvd/); that source
+is indicator context, not a performance claim.
+
 The volatility-breakout replay accepts `--roundtrip-cost-bps` and reports gross
 versus cost-adjusted aligned returns. Its candidate verdict requires the
 after-cost mean to clear `--min-cost-adjusted-edge-bps` with enough observations;
@@ -91,6 +101,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_liquidation_price_cluster_replay.py`：把已观测清算成交按价格带聚类，并与普通窗口的未来绝对波动比较。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
+- `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否反转。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
@@ -129,6 +140,10 @@ MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺�
 
 波动率突破回放支持 `--roundtrip-cost-bps`，同时输出 gross 与扣除纸面成本后的方向收益、命中率和 verdict；
 候选必须满足 after-cost 平均 edge 与最小样本数。这个门槛是透明敏感性输入，不是交易所成交模型。
+
+CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有足够幅度、但单交易所主动买卖差值指向相反，
+再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
+[CVD 说明](https://mindpillar.com/cvd/)。
 
 ## Commands / 命令
 

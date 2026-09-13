@@ -37,6 +37,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_liquidation_burst_replay.py` | A rolling liquidation-notional burst may precede larger absolute price movement than ordinary windows | `/v1/history/liquidations`, `/v1/history/candles` | Non-directional burst replay; bounded provider history and side semantics remain explicit |
 | `crypto/microstructure/crypto_liquidation_price_cluster_replay.py` | A concentrated band of observed liquidation prints may precede larger absolute movement | `/v1/history/liquidations`, `/v1/history/candles` | Observed-print cluster only; no latent liquidation heatmap, direction or execution model |
 | `crypto/microstructure/crypto_volatility_breakout_replay.py` | A compressed range break with volume/flow confirmation may continue after a fixed horizon | `/v1/history/candles`, optional `/v1/history/trades` | Gross and optional after-cost replay; no execution or fill model |
+| `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
 | `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
 | `polymarket_price_shock_replay.py` | A sharp public probability update may continue over the next few history points | `/polymarket/markets`, `/polymarket/prices-history` | Descriptive continuation replay; the causal evidence timestamp and execution costs remain explicit |
@@ -155,6 +156,11 @@ python3 examples/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --days 3 --range-bars 12 --compression-window 12 \
   --baseline-window 48 --flow-exchange binance --flow-pages 12
+python3 examples/crypto/microstructure/crypto_cvd_divergence_replay.py \
+  --exchange binance --trades-exchange binance --symbol BTCUSDT \
+  --interval 5m --lookback-bars 12 --horizon-bars 3 \
+  --min-price-move-pct 0.5 --min-flow-ratio 0.2 \
+  --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --min-skew-iv 3 --min-term-slope-iv 3

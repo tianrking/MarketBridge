@@ -114,6 +114,8 @@ relative-price convergence without claiming cointegration or paired fills.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.
+It also includes a CVD divergence replay that measures fixed-horizon reversal
+after a price/taker-flow disagreement on one venue.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.
