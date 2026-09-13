@@ -930,6 +930,8 @@ microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检�
 避免把单次打分误当成历史证据。
 同系列还新增明确标注近似的 volume profile/LVN 突破回放；由于没有 tick 级 volume-at-price，程序不会把 K 线成交量
 分箱冒充订单簿热图，而是把这一数据缺口保留在结果中。
+同系列还提供 Python footprint imbalance monitor/recorder/replay，使用已有滚动成交缓存检验价格分桶压力是否持续，
+但不把它解释成挂单流动性或成交证据。
 DeFi 系列现在还新增稳定币脱锚 monitor/recorder/replay：保留报价偏离和点差压力，并比较压力快照之后的
 BTC 绝对波动；不推断储备、赎回、偿付能力，也不把它变成可执行均值回归。
 同系列还提供 `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short、

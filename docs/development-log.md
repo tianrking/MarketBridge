@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — footprint imbalance persistence monitor
+
+Added Python monitor/recorder/replay entrypoints for the existing
+`/v1/market/footprint` endpoint. The case summarizes price-bin bid/ask delta,
+stacked imbalance and pressure direction, then requires consecutive snapshots
+before reporting persistence. It explicitly retains the rolling in-memory
+trade-buffer, binning and taker-side limitations; no forward-return, order-book
+or execution claim is added. Provenance: the unverified [public OI/flow
+confirmation discussion on X](https://x.com/xwinfinance/status/2023155692916646257).
+
 ## 2026-09-14 — volume-profile low-volume-node replay
 
 Added the microstructure-family `crypto_volume_profile_breakout_replay.py`.

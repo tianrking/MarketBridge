@@ -142,6 +142,9 @@ of being mistaken for historical evidence.
 The same family now includes an explicitly approximate volume-profile/LVN
 breakout replay; it keeps the lack of tick-level volume-at-price visible rather
 than presenting candle-volume bins as an order-book map.
+It also exposes Python footprint imbalance monitor/recorder/replay over the
+existing rolling trade buffer, testing persistence of price-bin pressure without
+claiming resting liquidity or execution evidence.
 The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or
