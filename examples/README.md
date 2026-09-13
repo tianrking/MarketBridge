@@ -69,6 +69,7 @@ categorized command is the recommended one.
 | `crypto_options_skew_replay.py` | Measure skew persistence and term-state runs from recorded snapshots | explicit JSONL from recorder | Descriptive persistence replay; no option PnL or hedge simulation |
 | `crypto/options/crypto_options_skew_response_recorder.py` / `crypto_options_skew_response_replay.py` | Compare later BTC movement after downside-protection, upside-call or balanced wing-IV states | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; moneyness buckets, expiry roll, option PnL and execution remain explicit gaps |
 | `crypto/options/crypto_options_term_structure_replay.py` | Test whether the near/far ATM-IV slope stays in contango or backwardation for a minimum run | JSONL from `crypto_options_skew_recorder.py` | Term-structure persistence diagnostic; expiry roll, quotes, costs and calendar-spread execution remain explicit gaps |
+| `crypto/options/crypto_options_term_structure_response_replay.py` | Compare later BTC movement after upward, inverted or flat near/far ATM-IV states | JSONL from `crypto_options_skew_response_recorder.py` | Fixed-record response study; expiry roll, option PnL, hedge and execution remain explicit gaps |
 | `crypto/options/crypto_options_bull_call_spread_monitor.py` / recorder / replay | A lower-call ask plus higher-call bid can form a paper debit below strike width for one expiry | `/v1/options/chains`, JSONL archive | Leg-selection and payoff-geometry persistence diagnostic; mark-only quotes, settlement, margin, costs and execution remain explicit gaps |
 | `crypto/options/crypto_options_bull_call_spread_response_recorder.py` / `crypto_options_bull_call_spread_response_replay.py` | Observable bull-call-spread quote states may have different later BTC responses than unvalidated snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; quote structure is not option PnL, fill, hedge or execution |
 | `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
@@ -250,6 +251,9 @@ python3 examples/crypto/options/crypto_options_skew_response_replay.py \
   --min-skew-iv 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_term_structure_replay.py \
   --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
+python3 examples/crypto/options/crypto_options_term_structure_response_replay.py \
+  --input work/crypto-options-skew-response.jsonl --horizon-records 3 \
+  --min-slope-iv 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_bull_call_spread_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --long-moneyness 0.95 --short-moneyness 1.05

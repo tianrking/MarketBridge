@@ -23,6 +23,11 @@ whether an upward (contango) or inverted term-structure state persists for a
 minimum run. Expiry identities can roll, so a persistent state is evidence to
 investigate, not a calendar-spread or option trade.
 
+`crypto_options_term_structure_response_replay.py` reuses the skew-response
+archive, joins each term-structure state to its BTC quote, and compares later
+signed and absolute movement after upward, inverted and flat states. It is a
+descriptive surface-response study, not a calendar-spread PnL or hedge model.
+
 The skew-response recorder pairs the target-expiry wing-IV snapshot with a
 synchronized MarketBridge BTC quote. Its replay compares fixed-record BTC
 signed and absolute returns after `downside_protection_demand`,
@@ -88,6 +93,9 @@ VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到
 斜率是否持续为升水（contango）或倒挂。到期标识会滚动，因此“持续”只是值得继续研究的
 曲面状态证据，不是日历价差或期权交易指令。
 
+`crypto_options_term_structure_response_replay.py` 复用 skew-response 归档，把期限结构状态与 BTC 报价配对，比较
+升水、倒挂和平坦状态之后的有符号/绝对波动。这是曲面响应研究，不是日历价差 PnL 或对冲模型。
+
 skew-response recorder 会把目标到期日的翼部 IV 快照与同步 MarketBridge BTC 报价配对；replay 比较
 `downside_protection_demand`、`upside_call_demand` 和 `balanced_wing_iv` 状态之后固定记录窗口的 BTC
 有符号/绝对收益。这只是描述性响应研究：moneyness 分桶不等于通用 25-delta 曲面，也不是期权 PnL、对冲或执行信号。
@@ -152,6 +160,9 @@ python3 examples/crypto/options/crypto_options_skew_response_replay.py \
   --min-skew-iv 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_term_structure_replay.py \
   --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
+python3 examples/crypto/options/crypto_options_term_structure_response_replay.py \
+  --input work/crypto-options-skew-response.jsonl --horizon-records 3 \
+  --min-slope-iv 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_bull_call_spread_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --long-moneyness 0.95 --short-moneyness 1.05

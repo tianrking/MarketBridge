@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — options term-structure response replay
+
+Added `crypto_options_term_structure_response_replay.py` under the options
+family. It reuses the skew-response JSONL archive, joins near/far ATM-IV slope
+states to synchronized BTC prices, and compares signed and absolute responses
+after upward, inverted and flat states. Provenance: the existing [Deribit
+options data guide](https://insights.deribit.com/industry/genesis-volatility-options-data-guide/)
+and the public [options-market brief on X](https://x.com/Gate_Launch/status/2063810805552845140).
+Expiry roll, surface interpolation, option PnL, hedging and execution remain
+outside the case.
+
 ## 2026-09-14 — triangular quote response replay
 
 Added `crypto_triangular_arbitrage_response_recorder.py` and

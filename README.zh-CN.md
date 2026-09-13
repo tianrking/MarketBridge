@@ -908,6 +908,7 @@ options 系列新增 `crypto_options_gamma_response_recorder.py` /
 可观察价差状态和未验证状态之后的固定窗口波动。报价只作为研究证据，不推断成交、期权 PnL、对冲或执行。
 同系列还提供 IV-skew response recorder/replay：把 put-wing 减 call-wing 的状态与 BTC 报价配对，按 skew 状态比较后续波动，
 并明确保留 moneyness 分桶和到期滚动的不确定性；不推断期权 PnL、对冲或执行。
+同样新增期限结构 response replay：复用同一归档，比较近端/远端 ATM IV 升水、倒挂和平坦状态之后的 BTC 行情，不把它变成日历价差或对冲。
 同系列的 `crypto_spot_perp_depth_gap_monitor.py` 比较同交易所现货/永续目标规模深度与冲击，
 只输出执行风险观察，不执行路由或对冲。
 并提供 recorder/replay 版本检验深度优势是否持续，避免单个盘口快照被误当成稳定结构。

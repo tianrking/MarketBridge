@@ -125,6 +125,9 @@ The options family also includes an IV-skew response recorder/replay that joins
 put-wing minus call-wing states to BTC quotes and compares later movement by
 skew regime. It keeps moneyness-bucket and expiry-roll uncertainty visible and
 does not infer option PnL, hedges or execution.
+It also includes a term-structure response replay over the same archive, which
+compares BTC movement after upward, inverted and flat near/far ATM-IV states
+without turning them into a calendar spread or hedge.
 The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes
