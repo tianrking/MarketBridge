@@ -327,6 +327,20 @@ python3 examples/crypto_options_vrp_monitor.py \
 `implied_volatility_premium` 只表示 IV 高于指定 RV 阈值，且两者期限并不天然匹配；
 它不是卖波动率建议。缺少完整 K 线窗口或 ATM IV 时必须输出 observe-only。
 
+当研究从单一 BTCUSDT 扩展到多个 perpetual 时，可先用 universe scanner 做候选发现，再
+把人工审核后的 symbols 放回配置。它把成交额、realized volatility 和当前 funding
+magnitude 做透明 join；任何缺失的 kline、funding 或 interval 都不会补零：
+
+```bash
+python3 examples/crypto_universe_opportunity_scan.py \
+  --exchange binance --market perp --interval 5m \
+  --min-quote-volume 1000000 --min-realized-vol 0.2 \
+  --min-abs-funding-hourly-pct 0.01 --min-score 2
+```
+
+这只是跨资产候选排序，不是自动轮动、仓位分配或执行器；候选仍需分别做 basis、liquidity、
+funding、OI、费用和样本外 replay。
+
 跨交易所 funding 也先做差异监控，不直接把 APR 当成收益：
 
 ```bash
