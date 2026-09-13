@@ -17,6 +17,13 @@ Strategy code is Python-first. Rust remains the framework/runtime layer for
 connectors, normalization, caches, history, replay primitives and API serving.
 New strategy experiments should start from the relevant categorized Python
 launcher or `python_strategy_runner.py`; Rust remains the data/runtime layer.
+The `crypto/` paths are canonical for new users. Unqualified `crypto_*.py`
+rows below are retained compatibility entrypoints to the same Python
+implementations, not separate strategies; when both forms appear, the
+categorized command is the recommended one.
+
+新用户应优先使用 `crypto/` 下的分类入口。下表中不带目录的 `crypto_*.py` 是保留的兼容入口，
+与分类入口共享同一份 Python 实现，不代表另一套策略；同时出现两种路径时，以分类命令为准。
 
 ## Current cases
 
