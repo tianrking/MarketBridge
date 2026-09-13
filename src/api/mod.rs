@@ -182,7 +182,7 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .route(
             "/v1/reference/venue-asset-status",
-            post(routes::reference::ingest_venue_asset_status).options(cors::preflight),
+            post(routes::reference::ingest_venue_asset_status),
         )
         .route(
             "/v1/storage/partitions",

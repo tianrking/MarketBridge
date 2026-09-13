@@ -148,10 +148,12 @@ try {
     $restored=Workspace @{action='get';request=@{namespace='runs';id='dataset-run'}}
     if ($restored.document.id -ne 'dataset-run') {throw 'Archived run lost after restart'}
     if ($Python) {
-        & $Python (Join-Path $repo 'scripts/Test-ResearchModels.py') --base-url $base
-        if ($LASTEXITCODE -ne 0) {throw 'Archived model integration suite failed'}
-        & $Python (Join-Path $repo 'scripts/Test-AsyncResearch.py') --base-url $base
-        if ($LASTEXITCODE -ne 0) {throw 'Async HTTP integration suite failed'}
+        $modelOutput = & $Python (Join-Path $repo 'scripts/Test-ResearchModels.py') --base-url $base 2>&1
+        $modelOutput | Write-Output
+        if ($LASTEXITCODE -ne 0) {throw ("Archived model integration suite failed: " + ($modelOutput | Out-String))}
+        $asyncOutput = & $Python (Join-Path $repo 'scripts/Test-AsyncResearch.py') --base-url $base 2>&1
+        $asyncOutput | Write-Output
+        if ($LASTEXITCODE -ne 0) {throw ("Async HTTP integration suite failed: " + ($asyncOutput | Out-String))}
     }
     Write-Output 'PASS: auth, integration/quota status, cost/replay/paper/batch, CLI parity, registry/datasets/archives, scanner validation, events, workbench assets, forced-process restart recovery'
 } finally {
