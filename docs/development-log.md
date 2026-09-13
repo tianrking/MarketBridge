@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — persistent funding-regime replay
+
+Added a carry-family funding-only replay that groups consecutive extreme
+funding observations, preserves known schedule gaps, and measures whether the
+next fixed perp-price window moves against the crowded-side proxy. It reports
+run-level forward returns, hit rates, source counts and an explicit
+`observe only` verdict; it does not infer positions, funding income, hedge PnL,
+fills or orders. Added categorized launchers for the replay plus the existing
+funding curve/extremes utilities, bilingual carry guidance and deterministic
+tests for neutral breaks, schedule gaps and expected-direction scoring.
+
+Provenance: [public funding-rate strategy explanation on Kraken](https://www.kraken.com/learn/futures-trading-funding-rate-strategy),
+cross-checked with MarketBridge's provider schedule fields. The source is a
+research lead, not a performance claim.
+
 ## 2026-09-14 — spot/perp depth-gap persistence replay
 
 Extended the spot/perpetual target-size depth observer with a JSONL recorder and

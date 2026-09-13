@@ -55,6 +55,7 @@ launcher or `python_strategy_runner.py`; Rust remains the data/runtime layer.
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Uses point-in-time adjacent timestamp intervals; no fill, cost or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
+| `crypto/carry/crypto_funding_regime_replay.py` | Persistent same-direction extreme funding may precede a move against the crowded side | `/v1/history/candles` for funding-rate and perp candles | Funding-only persistence replay; no OI, funding income, hedge or execution model |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
 | `crypto_spot_perp_depth_gap_monitor.py` | Same-venue perp depth may exceed spot depth for a target notional, creating an execution-risk asymmetry | `/v1/market/order-books` for spot/perp, `/v1/market/basis` | Snapshot observation; books are not synchronized fills and no hedge route is inferred |
@@ -175,6 +176,9 @@ python3 examples/crypto_funding_oi_replay.py \
   --symbol BTCUSDT --funding-exchange binance \
   --oi-exchange binance --price-exchange binance \
   --days 7 --min-funding-pct 0.01 --min-oi-change-pct 0.10
+python3 examples/crypto/carry/crypto_funding_regime_replay.py \
+  --symbol BTCUSDT --funding-exchange binance --price-exchange binance \
+  --days 14 --min-funding-pct 0.01 --min-run 3 --horizon-bars 3
 python3 examples/crypto_microstructure_monitor.py \
   --symbol BTCUSDT --exchange binance --top-levels 5 \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01

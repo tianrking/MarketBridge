@@ -103,6 +103,9 @@ include carry/funding, microstructure/liquidation/liquidity stress,
 options/volatility and cross-asset research. Each runner requests only the
 selected strategy's normalized inputs; the Rust server may still ingest every
 feed enabled in its runtime config.
+The carry family now also includes a funding-regime persistence replay: it
+tests consecutive extreme funding runs against later perp returns while
+keeping schedule gaps and the no-order boundary explicit.
 
 The large copy-paste query cookbook is maintained in
 [docs/query_examples.md](docs/query_examples.md).

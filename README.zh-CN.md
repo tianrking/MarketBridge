@@ -897,6 +897,8 @@ universe 系列还提供 `crypto_volatility_adjusted_momentum_sweep.py`，用于
 挑选或发布实盘参数。
 同系列的 `crypto_volatility_adjusted_momentum_walkforward.py` 会把固定参数放到后续时间段
 做样本外检查，并保留切分前预热数据与测试段边界。
+carry 系列还新增 `crypto_funding_regime_replay.py`：把连续极端资金费率作为拥挤代理，
+检验后续永续价格方向，同时保留结算间隔缺口；它不计算资金费收入、不对冲、不下单。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 
