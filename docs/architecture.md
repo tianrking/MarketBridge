@@ -40,6 +40,12 @@ Every strategy example must remain research-only: it may collect evidence,
 score a hypothesis, replay historical data, or emit a paper observation, but
 it must not place orders, sign transactions, or imply guaranteed returns.
 
+The Python runner also keeps request scope strategy-specific. A squeeze run
+requests funding, OI and the two flow views it needs; a liquidity-stress run
+requests only the selected order book and kline window. Starting the Rust
+server can still ingest every feed enabled by its configuration, but that
+background telemetry is not the same thing as running every Python strategy.
+
 ## Documentation Map
 
 - [`data_sources.md`](data_sources.md): operator-facing source inventory,

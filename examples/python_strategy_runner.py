@@ -29,6 +29,11 @@ from crypto_options_gamma_monitor import (
 from crypto_cross_asset_momentum_replay import candle_points, evaluate_momentum
 from crypto_volatility_breakout_replay import breakout_features
 from funding_convergence_monitor import observe as observe_funding_convergence
+from crypto_liquidity_stress_monitor import (
+    book_metrics,
+    classify_stress,
+    ewma_vol_bps,
+)
 
 
 def fetch(base_url, path, params, timeout=30.0):
@@ -61,22 +66,47 @@ def latest_value(payload, key, exchange):
 
 def fetch_core(client, args):
     symbol = args.symbol
-    data = {
-        "funding": client("/v1/market/funding", {"symbols": symbol}),
-        "oi": client("/v1/market/open-interest", {"symbols": symbol}),
-        "perp_flow": client("/v1/market/order-flow", {
-            "market": "perp", "symbol": symbol, "window_ms": 900_000, "limit": 50
-        }),
-        "spot_flow": client("/v1/market/order-flow", {
-            "market": "spot", "symbol": symbol, "window_ms": 900_000, "limit": 50
-        }),
-        "liquidations": client("/v1/market/liquidations", {"symbols": symbol}),
-        "klines": client("/v1/market/klines", {
-            "exchange": args.exchange or "binance", "market": "perp",
-            "symbol": symbol, "interval": "5m", "limit": 12
-        }),
-        "basis": client("/v1/market/basis", {"symbols": symbol}),
-    }
+    data = {}
+    if args.strategy == "squeeze":
+        data.update({
+            "funding": client("/v1/market/funding", {"symbols": symbol}),
+            "oi": client("/v1/market/open-interest", {"symbols": symbol}),
+            "perp_flow": client("/v1/market/order-flow", {
+                "market": "perp", "symbol": symbol, "window_ms": 900_000, "limit": 50
+            }),
+            "spot_flow": client("/v1/market/order-flow", {
+                "market": "spot", "symbol": symbol, "window_ms": 900_000, "limit": 50
+            }),
+        })
+    elif args.strategy == "exhaustion":
+        data.update({
+            "funding": client("/v1/market/funding", {"symbols": symbol}),
+            "oi": client("/v1/market/open-interest", {"symbols": symbol}),
+            "perp_flow": client("/v1/market/order-flow", {
+                "market": "perp", "symbol": symbol, "window_ms": 900_000, "limit": 50
+            }),
+            "klines": client("/v1/market/klines", {
+                "exchange": args.exchange or "binance", "market": "perp",
+                "symbol": symbol, "interval": "5m", "limit": 12
+            }),
+        })
+    elif args.strategy == "basis":
+        data.update({
+            "funding": client("/v1/market/funding", {"symbols": symbol}),
+            "basis": client("/v1/market/basis", {"symbols": symbol}),
+        })
+    elif args.strategy == "liquidation":
+        data.update({
+            "liquidations": client("/v1/market/liquidations", {"symbols": symbol}),
+            "oi": client("/v1/market/open-interest", {"symbols": symbol}),
+            "perp_flow": client("/v1/market/order-flow", {
+                "market": "perp", "symbol": symbol, "window_ms": 900_000, "limit": 50
+            }),
+            "klines": client("/v1/market/klines", {
+                "exchange": args.exchange or "binance", "market": "perp",
+                "symbol": symbol, "interval": "5m", "limit": 12
+            }),
+        })
     if args.strategy in ("options_skew", "options_vrp"):
         data["options"] = client("/v1/options/chains", {
             "venue": args.options_venue,
@@ -125,6 +155,14 @@ def fetch_core(client, args):
             })
             for symbol in args.cross_asset_symbols
         }
+    if args.strategy == "liquidity_stress":
+        data["liquidity_books"] = client("/v1/market/order-books", {
+            "market": "perp", "symbols": symbol, "exchanges": args.exchange,
+        })
+        data["liquidity_klines"] = client("/v1/history/candles", {
+            "exchange": args.exchange or "binance", "market": "perp",
+            "symbol": symbol, "interval": "1m", "limit": args.liquidity_volatility_bars + 1,
+        })
     return data
 
 
@@ -422,10 +460,39 @@ def score_cross_asset_momentum(data, args, _previous):
     return int(candidate), 1, "cross-asset momentum observation" if candidate else "observe only", evidence
 
 
+def score_liquidity_stress(data, args, _previous):
+    book = next((row for row in rows(data.get("liquidity_books", {}), "books")
+                 if str(row.get("symbol", "")).upper() == args.symbol.upper()
+                 and str(row.get("exchange", "")).lower() == args.exchange.lower()), None)
+    metrics = book_metrics(book, args.liquidity_target_notional, args.liquidity_top_levels)
+    candle_payload = data.get("liquidity_klines", {})
+    candles = rows(candle_payload, "candles") or rows(candle_payload, "klines")
+    closes = [number(row, "close") for row in candles[-(args.liquidity_volatility_bars + 1):]]
+    volatility = ewma_vol_bps(closes, args.liquidity_ewma_alpha)
+    state = classify_stress(
+        metrics, volatility, args.liquidity_min_impact_bps,
+        args.liquidity_max_spread_bps, args.liquidity_min_volatility_bps,
+    )
+    evidence = [
+        "order_book_snapshot_available" if book else "missing_order_book_snapshot",
+        "volatility_window_available" if volatility is not None else "missing_volatility_window",
+    ]
+    if metrics and metrics.get("spread_bps") is not None:
+        evidence.append(f"spread={metrics['spread_bps']:.2f} bps")
+    if metrics:
+        impacts = [metrics.get("sell_impact_bps"), metrics.get("buy_impact_bps")]
+        if any(value is not None for value in impacts):
+            evidence.append(f"max target-size impact={max(value for value in impacts if value is not None):.2f} bps")
+    if volatility is not None:
+        evidence.append(f"EWMA volatility={volatility:.2f} bps/bar")
+    candidate = state == "liquidity_stress"
+    return int(candidate), 1, "liquidity-stress observation" if candidate else "observe only", evidence
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "cross_asset_momentum", "options_skew", "options_vrp", "options_gamma", "volatility_breakout"), required=True)
+    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "cross_asset_momentum", "options_skew", "options_vrp", "options_gamma", "volatility_breakout", "liquidity_stress"), required=True)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--interval-secs", type=float, default=30.0)
@@ -464,6 +531,13 @@ def main():
     parser.add_argument("--max-compression-ratio", type=float, default=0.75)
     parser.add_argument("--breakout-buffer", type=float, default=0.0)
     parser.add_argument("--volume-multiplier", type=float, default=1.2)
+    parser.add_argument("--liquidity-target-notional", type=float, default=10_000.0)
+    parser.add_argument("--liquidity-top-levels", type=int, default=10)
+    parser.add_argument("--liquidity-volatility-bars", type=int, default=60)
+    parser.add_argument("--liquidity-ewma-alpha", type=float, default=0.2)
+    parser.add_argument("--liquidity-min-impact-bps", type=float, default=5.0)
+    parser.add_argument("--liquidity-max-spread-bps", type=float, default=2.0)
+    parser.add_argument("--liquidity-min-volatility-bps", type=float, default=25.0)
     args = parser.parse_args()
     if (args.interval_secs < 0 or args.iterations <= 0 or args.expiry_days <= 0
             or args.rv_bars <= 1 or args.min_skew_iv < 0 or args.min_term_slope_iv < 0
@@ -482,6 +556,11 @@ def main():
         parser.error("invalid volatility breakout windows or thresholds")
     if args.min_spread_bps_per_hour < 0:
         parser.error("min-spread-bps-per-hour cannot be negative")
+    if (args.liquidity_target_notional <= 0 or args.liquidity_top_levels <= 0
+            or args.liquidity_volatility_bars <= 1 or not 0 < args.liquidity_ewma_alpha <= 1
+            or min(args.liquidity_min_impact_bps, args.liquidity_max_spread_bps,
+                   args.liquidity_min_volatility_bps) < 0):
+        parser.error("invalid liquidity target, window, alpha or threshold arguments")
     args.cross_asset_symbols = [
         item.strip().upper() for item in args.cross_asset_symbols.split(",") if item.strip()
     ]
@@ -504,6 +583,7 @@ def main():
         "volatility_breakout": score_volatility_breakout,
         "funding_convergence": score_funding_convergence,
         "cross_asset_momentum": score_cross_asset_momentum,
+        "liquidity_stress": score_liquidity_stress,
     }
     previous = {}
 

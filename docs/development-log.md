@@ -1,5 +1,22 @@
 # Development log
 
+## 2026-09-14 — liquidity stress case and strategy-scoped requests
+
+Added the Python-first `liquidity_stress` observer under
+`examples/crypto/microstructure/`. It measures target-notional executable
+book impact, quoted spread and non-annualized short-horizon EWMA volatility,
+and reports `liquidity_stress` only when at least two components are elevated.
+Missing depth or candles stays visible; the case has no direction, routing,
+position-sizing or execution path. The shared runner now requests only the
+endpoints required by the selected strategy (`/v1/market/order-books` and
+`/v1/history/candles` for this case) instead of fetching the full core bundle
+on every invocation. This makes a command's data boundary inspectable and
+keeps the Rust server's background ingestion separate from Python scoring.
+
+Provenance: [Pine Analytics / FlyingTulip execution-aware risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994).
+The post is a research lead, not a performance claim. Added deterministic tests
+for multi-level impact, EWMA missing-window behavior and the two-of-three gate.
+
 ## 2026-09-14 — Python-only categorized strategy examples
 
 Migrated the four legacy Rust example monitors (squeeze, exhaustion, basis

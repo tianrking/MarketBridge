@@ -5,6 +5,7 @@ import unittest
 from types import SimpleNamespace
 
 from python_strategy_runner import (
+    fetch_core,
     score_cross_asset_momentum,
     score_funding_convergence,
     score_options_gamma,
@@ -40,6 +41,20 @@ def options_payload():
 
 
 class PythonStrategyRunnerTests(unittest.TestCase):
+    def test_fetch_core_scopes_liquidity_strategy_to_two_inputs(self):
+        settings = SimpleNamespace(
+            strategy="liquidity_stress", symbol="BTCUSDT", exchange="binance",
+            liquidity_volatility_bars=60,
+        )
+        paths = []
+
+        def client(path, _params):
+            paths.append(path)
+            return {}
+
+        fetch_core(client, settings)
+        self.assertEqual(paths, ["/v1/market/order-books", "/v1/history/candles"])
+
     def test_options_gamma_dispatch_keeps_dealer_sign_unknown(self):
         settings = args()
         settings.gamma_min_near_share = 0.5

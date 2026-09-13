@@ -15,8 +15,8 @@ Each demo must state its data assumptions and keep missing data visible.
 
 Strategy code is Python-first. Rust remains the framework/runtime layer for
 connectors, normalization, caches, history, replay primitives and API serving.
-The older Rust strategy examples remain compatibility references; new strategy
-experiments should start from `python_strategy_runner.py`.
+New strategy experiments should start from the relevant categorized Python
+launcher or `python_strategy_runner.py`; Rust remains the data/runtime layer.
 
 ## Current cases
 
@@ -52,7 +52,8 @@ experiments should start from `python_strategy_runner.py`.
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
-| `python_strategy_runner.py` | Shared Python implementation for squeeze, exhaustion, basis, liquidation, funding convergence, cross-asset momentum, volatility breakout, options skew, options VRP and options gamma observers | normalized MarketBridge endpoints | Primary strategy implementation; read-only JSON output |
+| `crypto_liquidity_stress_monitor.py` | Target-size book impact, quoted spread and short-horizon EWMA volatility can identify a stressed unwind regime | `/v1/market/order-books`, `/v1/history/candles` | Two-of-three risk context; no direction, routing or sizing decision |
+| `python_strategy_runner.py` | Shared Python implementation for categorized crypto observers, including liquidity stress | normalized MarketBridge endpoints | Primary strategy implementation; read-only JSON output; requests only the selected strategy's inputs |
 | `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
 | `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
 

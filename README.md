@@ -96,6 +96,14 @@ The consumer-facing endpoint map is maintained in
 The full documentation index is maintained in
 [docs/README.md](docs/README.md).
 
+The Python-first crypto strategy index is maintained in
+[examples/README.md](examples/README.md), with bilingual family guides under
+[`examples/crypto/`](examples/crypto/README.md). The categorized entrypoints
+include carry/funding, microstructure/liquidation/liquidity stress,
+options/volatility and cross-asset research. Each runner requests only the
+selected strategy's normalized inputs; the Rust server may still ingest every
+feed enabled in its runtime config.
+
 The large copy-paste query cookbook is maintained in
 [docs/query_examples.md](docs/query_examples.md).
 

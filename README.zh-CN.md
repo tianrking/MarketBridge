@@ -879,6 +879,11 @@ python3 examples/crypto_session_filter.py --exchange binance --market perp --sym
 
 完整案例与限制说明见 [`examples/README.md`](examples/README.md) 和
 [`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md)。
+加密案例按系列整理在 [`examples/crypto/README.md`](examples/crypto/README.md)，
+每个目录都有中英文说明、策略出处、数据接口、限制和命令。当前微结构系列还包括
+`liquidity_stress_monitor.py`：用目标规模盘口冲击、报价点差和短周期 EWMA 波动率
+识别退出压力；它只输出研究观察，不预测方向，也不下单。Python runner 会按选定策略
+请求最小接口集合，但 Rust 服务仍会按运行配置在后台采集已启用的数据源。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 
