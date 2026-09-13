@@ -228,7 +228,8 @@ python3 examples/python_strategy_runner.py \
   --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
 ```
 
-可选策略为 `squeeze`、`exhaustion`、`basis`、`liquidation`、`options_skew`、`options_vrp`。
+可选策略为 `squeeze`、`exhaustion`、`basis`、`liquidation`、`volatility_breakout`、
+`options_skew`、`options_vrp`。
 输出是 JSON 证据和研究
 评分，不是交易指令。复制这个文件增加新策略时，应保留输入、缺失数据、成本假设和
 `research_only_no_orders` 边界。
@@ -242,6 +243,10 @@ python3 examples/python_strategy_runner.py \
 python3 examples/python_strategy_runner.py \
   --strategy options_vrp --currency BTC --options-venue deribit \
   --symbol BTCUSDT --exchange binance --rv-interval 1h --rv-bars 168
+python3 examples/python_strategy_runner.py \
+  --strategy volatility_breakout --symbol BTCUSDT --exchange binance \
+  --breakout-interval 5m --breakout-limit 100 \
+  --range-bars 12 --compression-window 12 --baseline-window 48
 ```
 
 公开讨论中常见的「固定时段 + VWAP/EMA/MACD/成交量确认」也可以先做成可证伪过滤器，

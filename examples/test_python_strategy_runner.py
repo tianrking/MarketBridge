@@ -4,7 +4,7 @@
 import unittest
 from types import SimpleNamespace
 
-from python_strategy_runner import score_options_skew, score_options_vrp
+from python_strategy_runner import score_options_skew, score_options_vrp, score_volatility_breakout
 
 
 def args():
@@ -12,6 +12,9 @@ def args():
         expiry_days=30.0, atm_band=0.03, wing_min=0.85, wing_max=1.15,
         min_skew_iv=3.0, min_term_slope_iv=3.0, rv_interval="1h",
         rv_bars=2, vrp_threshold=5.0,
+        breakout_horizon_bars=6, range_bars=2, compression_window=2,
+        baseline_window=4, max_compression_ratio=0.75, breakout_buffer=0.0,
+        volume_multiplier=1.2,
     )
 
 
@@ -45,6 +48,21 @@ class PythonStrategyRunnerTests(unittest.TestCase):
         self.assertIn(score, (0, 1))
         self.assertIn(verdict, ("implied volatility premium observation", "observe only"))
         self.assertTrue(any("ATM IV" in item for item in evidence) or evidence == ["missing option ATM IV or realized-volatility window"])
+
+    def test_volatility_breakout_dispatch_preserves_live_evidence(self):
+        candles = []
+        for index in range(9):
+            close = 100.0 + (index % 2) * 0.5
+            candles.append({"open_time_ms": index, "high": close + 0.2,
+                            "low": close - 0.2, "close": close, "volume": 100.0})
+        candles[-1] = {"open_time_ms": 8, "high": 101.5, "low": 100.8,
+                       "close": 101.2, "volume": 200.0}
+        score, maximum, verdict, evidence = score_volatility_breakout(
+            {"breakout_klines": {"candles": candles}}, args(), {}
+        )
+        self.assertEqual(maximum, 3)
+        self.assertIn(verdict, ("volatility breakout observation", "observe only"))
+        self.assertTrue(any("breakout" in item for item in evidence))
 
 
 if __name__ == "__main__":

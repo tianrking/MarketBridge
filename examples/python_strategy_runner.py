@@ -21,6 +21,7 @@ from crypto_options_skew_monitor import (
     summarize_expiry,
 )
 from crypto_options_vrp_monitor import annualized_realized_vol_pct
+from crypto_volatility_breakout_replay import breakout_features
 
 
 def fetch(base_url, path, params, timeout=30.0):
@@ -82,6 +83,15 @@ def fetch_core(client, args):
             "market": "perp",
             "interval": args.rv_interval,
             "limit": args.rv_bars + 1,
+        })
+    if args.strategy == "volatility_breakout":
+        data["breakout_klines"] = client("/v1/history/candles", {
+            "exchange": args.exchange or "binance",
+            "symbol": symbol,
+            "market": "perp",
+            "candle_type": "perp",
+            "interval": args.breakout_interval,
+            "limit": args.breakout_limit,
         })
     return data
 
@@ -269,10 +279,52 @@ def score_options_vrp(data, args, _previous):
     return int(vrp >= args.vrp_threshold), 1, verdict, evidence
 
 
+def score_volatility_breakout(data, args, _previous):
+    bars = []
+    for row in rows(data["breakout_klines"], "candles"):
+        open_time = row.get("open_time_ms")
+        high = number(row, "high")
+        low = number(row, "low")
+        close = number(row, "close")
+        if isinstance(open_time, int) and high is not None and low is not None and close is not None:
+            bars.append({
+                "ts_ms": open_time,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": number(row, "volume"),
+            })
+    if len(bars) <= args.breakout_horizon_bars:
+        return 0, 3, "observe only", ["insufficient historical candle window"]
+    features = breakout_features(
+        bars, len(bars) - 1, args.range_bars, args.compression_window,
+        args.baseline_window, args.max_compression_ratio,
+        args.breakout_buffer, args.volume_multiplier,
+    )
+    if features is None:
+        return 0, 3, "observe only", ["insufficient warm-up bars for breakout features"]
+    evidence = []
+    if features["regime"].get("ratio") is not None:
+        evidence.append(f"compression ratio={features['regime']['ratio']:.3f}")
+    else:
+        evidence.append("compression ratio missing")
+    if features["direction"]:
+        evidence.append(f"range breakout={'up' if features['direction'] > 0 else 'down'}")
+    else:
+        evidence.append("no range breakout")
+    if features["volume_ratio"] is not None:
+        evidence.append(f"volume ratio={features['volume_ratio']:.2f}")
+    else:
+        evidence.append("volume ratio missing")
+    score = int(features["compressed"]) + int(features["direction"] != 0) + int(features["volume_confirmed"])
+    verdict = "volatility breakout observation" if score >= 2 else "observe only"
+    return score, 3, verdict, evidence
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "options_skew", "options_vrp"), required=True)
+    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "options_skew", "options_vrp", "volatility_breakout"), required=True)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--interval-secs", type=float, default=30.0)
@@ -289,6 +341,15 @@ def main():
     parser.add_argument("--rv-interval", default="1h")
     parser.add_argument("--rv-bars", type=int, default=168)
     parser.add_argument("--vrp-threshold", type=float, default=5.0)
+    parser.add_argument("--breakout-interval", default="5m")
+    parser.add_argument("--breakout-limit", type=int, default=100)
+    parser.add_argument("--breakout-horizon-bars", type=int, default=6)
+    parser.add_argument("--range-bars", type=int, default=12)
+    parser.add_argument("--compression-window", type=int, default=12)
+    parser.add_argument("--baseline-window", type=int, default=48)
+    parser.add_argument("--max-compression-ratio", type=float, default=0.75)
+    parser.add_argument("--breakout-buffer", type=float, default=0.0)
+    parser.add_argument("--volume-multiplier", type=float, default=1.2)
     args = parser.parse_args()
     if (args.interval_secs < 0 or args.iterations <= 0 or args.expiry_days <= 0
             or args.rv_bars <= 1 or args.min_skew_iv < 0 or args.min_term_slope_iv < 0
@@ -296,6 +357,11 @@ def main():
             or not 0 < args.wing_min < 1 or args.wing_max <= 1
             or args.wing_min >= args.wing_max):
         parser.error("interval must be non-negative and iterations must be positive")
+    if (args.breakout_limit <= 0 or args.breakout_horizon_bars <= 0
+            or args.range_bars <= 0 or args.compression_window <= 1
+            or args.baseline_window <= 1 or not 0 < args.max_compression_ratio < 2
+            or args.breakout_buffer < 0 or args.volume_multiplier < 0):
+        parser.error("invalid volatility breakout windows or thresholds")
 
     strategies = {
         "squeeze": score_squeeze,
@@ -304,6 +370,7 @@ def main():
         "liquidation": score_liquidation,
         "options_skew": score_options_skew,
         "options_vrp": score_options_vrp,
+        "volatility_breakout": score_volatility_breakout,
     }
     previous = {}
 
