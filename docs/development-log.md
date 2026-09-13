@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — after-cost funding convergence sensitivity
+
+Extended the cross-venue funding convergence replay with explicit
+`--paper-cost-bps-per-hour` and `--min-net-spread-bps-per-hour` inputs. Each
+aligned observation now preserves gross and net hourly differentials; the
+candidate verdict uses the after-cost fraction while the gross statistics stay
+visible. The hurdle is deliberately a paper sensitivity parameter, not a venue
+fee, borrow, margin, slippage or hedge-fill model. Added deterministic tests
+for net spread calculation and stale-venue exclusion, plus bilingual guidance.
+
+Provenance: [public cross-venue funding spread discussion on X](https://x.com/leondoteth/status/2012127303850213817),
+treated as an unverified research lead.
+
 ## 2026-09-14 — liquidity-stress recorder and persistence replay
 
 Added the missing temporal lifecycle for the microstructure liquidity-stress

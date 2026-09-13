@@ -5,8 +5,10 @@ This is the historical companion to ``funding_convergence_monitor.py``. It
 aligns the latest known funding observations without filling missing values with
 zero, normalizes each venue by point-in-time intervals inferred from adjacent
 funding timestamps, and
-reports persistence statistics. It is a research replay only: it does not
-simulate hedges, fills, fees, borrow, transfers or liquidation.
+reports persistence statistics. An optional explicit paper hurdle can be
+subtracted from the hourly differential; it is a sensitivity input, not a
+venue fee schedule. It is a research replay only: it does not simulate hedges,
+fills, borrow, transfers or liquidation.
 """
 
 import argparse
@@ -58,7 +60,7 @@ def history_points(payload):
     return sorted(set(points))
 
 
-def aligned_spreads(series, max_age_multiplier):
+def aligned_spreads(series, max_age_multiplier, paper_cost_bps_per_hour=0.0):
     exchanges = sorted(series)
     timeline = sorted({point[0] for points in series.values() for point in points})
     cursors = {exchange: 0 for exchange in exchanges}
@@ -87,6 +89,8 @@ def aligned_spreads(series, max_age_multiplier):
         observations.append({
             "ts_ms": ts_ms,
             "spread_bps_per_hour": spread_bps,
+            "paper_cost_bps_per_hour": paper_cost_bps_per_hour,
+            "net_spread_bps_per_hour": spread_bps - paper_cost_bps_per_hour,
             "low_exchange": low_exchange,
             "high_exchange": high_exchange,
             "hourly_rates": hourly,
@@ -102,6 +106,10 @@ def main():
     parser.add_argument("--days", type=float, default=7.0)
     parser.add_argument("--limit", type=int, default=200)
     parser.add_argument("--min-spread-bps-per-hour", type=float, default=0.5)
+    parser.add_argument("--paper-cost-bps-per-hour", type=float, default=0.0,
+                        help="Explicit non-venue paper hurdle subtracted from gross spread.")
+    parser.add_argument("--min-net-spread-bps-per-hour", type=float, default=0.0,
+                        help="Net hourly threshold used for persistence qualification.")
     parser.add_argument("--max-age-multiplier", type=float, default=2.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     options = parser.parse_args()
@@ -110,8 +118,9 @@ def main():
         raise SystemExit("--exchanges must contain at least two unique venues")
     if options.days <= 0 or options.limit <= 0 or options.max_age_multiplier <= 0:
         raise SystemExit("days, limit and max-age-multiplier must be positive")
-    if options.min_spread_bps_per_hour < 0:
-        raise SystemExit("min-spread-bps-per-hour cannot be negative")
+    if (options.min_spread_bps_per_hour < 0 or options.paper_cost_bps_per_hour < 0
+            or options.min_net_spread_bps_per_hour < 0):
+        raise SystemExit("spread thresholds and paper cost cannot be negative")
 
     now_ms = int(time.time() * 1000)
     start_ms = now_ms - int(options.days * 86_400_000)
@@ -143,23 +152,38 @@ def main():
         for exchange, points in series.items()
     }
     missing_schedule = [exchange for exchange in exchanges if not series.get(exchange)]
-    observations = aligned_spreads(series, options.max_age_multiplier)
+    observations = aligned_spreads(
+        series, options.max_age_multiplier, options.paper_cost_bps_per_hour
+    )
     spreads = [item["spread_bps_per_hour"] for item in observations]
+    net_spreads = [item["net_spread_bps_per_hour"] for item in observations]
     qualifying = [value for value in spreads if value >= options.min_spread_bps_per_hour]
+    net_qualifying = [
+        value for value in net_spreads if value >= options.min_net_spread_bps_per_hour
+    ]
     if spreads:
         summary = {
             "observations": len(spreads),
             "qualifying_observations": len(qualifying),
             "qualifying_fraction": len(qualifying) / len(spreads),
+            "net_qualifying_observations": len(net_qualifying),
+            "net_qualifying_fraction": len(net_qualifying) / len(net_spreads),
             "median_spread_bps_per_hour": statistics.median(spreads),
             "max_spread_bps_per_hour": max(spreads),
+            "median_net_spread_bps_per_hour": statistics.median(net_spreads),
+            "max_net_spread_bps_per_hour": max(net_spreads),
             "gross_annualized_bps_proxy_from_median": statistics.median(spreads) * 24.0 * 365.0,
+            "net_annualized_bps_proxy_from_median": statistics.median(net_spreads) * 24.0 * 365.0,
+            "paper_cost_bps_per_hour": options.paper_cost_bps_per_hour,
+            "min_net_spread_bps_per_hour": options.min_net_spread_bps_per_hour,
             "current_intervals_ms": current_intervals,
             "point_in_time_intervals_ms": point_in_time_intervals,
         }
         evidence = ["historical_overlap_available"]
         if qualifying:
             evidence.append("spread_threshold_observed")
+        if net_qualifying:
+            evidence.append("after_cost_spread_threshold_observed")
     else:
         summary = {
             "observations": 0,
@@ -170,21 +194,27 @@ def main():
     if missing_schedule:
         evidence.append("point_in_time_schedule_missing")
 
-    persistent = bool(spreads) and len(qualifying) / len(spreads) >= 0.5
+    persistent = bool(net_spreads) and len(net_qualifying) / len(net_spreads) >= 0.5
     print(json.dumps({
         "strategy": "funding_convergence_replay",
         "symbol": options.symbol,
         "exchanges": exchanges,
         "window": {"start_ms": start_ms, "end_ms": now_ms, "days": options.days},
         "summary": summary,
-        "verdict": "persistent differential candidate" if persistent else "observe only",
+        "filters": {
+            "min_spread_bps_per_hour": options.min_spread_bps_per_hour,
+            "paper_cost_bps_per_hour": options.paper_cost_bps_per_hour,
+            "min_net_spread_bps_per_hour": options.min_net_spread_bps_per_hour,
+        },
+        "verdict": "persistent after-cost differential candidate" if persistent else "observe only",
         "evidence": evidence,
         "upstream_errors": errors,
         "execution": "research_only_no_orders",
         "limitations": [
             "the replay uses adjacent historical funding timestamps as point-in-time intervals",
             "latest-observation alignment is not a fill or hedge simulation",
-            "fees, borrow, margin, transfer latency, mark/index divergence, slippage and liquidation are excluded",
+            "paper cost is a user-supplied sensitivity hurdle, not a venue fee, borrow, margin or slippage estimate",
+            "fees, borrow, margin, transfer latency, mark/index divergence, slippage and liquidation remain unmodeled",
         ],
     }, ensure_ascii=False, sort_keys=True))
 

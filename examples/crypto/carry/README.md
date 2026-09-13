@@ -10,6 +10,11 @@ monitor/replay compares the same symbol across venues using explicit
 point-in-time intervals. Missing intervals, borrow, transfer latency, margin,
 fees and slippage remain evidence gaps, never zeros.
 
+The convergence replay accepts `--paper-cost-bps-per-hour` and
+`--min-net-spread-bps-per-hour`. These are explicit sensitivity hurdles: the
+replay reports gross and after-cost differential persistence, but does not claim
+they are exchange fees, borrow rates or executable hedge PnL.
+
 The basis recorder/replay is a separate falsifiable test: after a same-venue
 basis observation is at least `min_z` standard deviations from its trailing
 mean, does the absolute basis contract over the next `horizon` snapshots? It
@@ -32,6 +37,8 @@ funding-rate strategy explanation](https://www.kraken.com/learn/futures-trading-
 which describes funding as a positioning/crowding measure, and MarketBridge's
 explicit funding schedule. These are research leads, not verified performance
 claims.
+The cross-venue differential lead is also informed by this public [funding
+spread discussion on X](https://x.com/leondoteth/status/2012127303850213817).
 
 Useful inputs:
 
@@ -45,6 +52,10 @@ Useful inputs:
 对冲。基差监控只有在快照新鲜、资金费率结算间隔已知时才报告研究候选；跨交易所收敛
 监控/回放使用逐点时间间隔比较同一标的。缺失间隔、借币、转账延迟、保证金、手续费和
 滑点都保持为证据缺口，绝不会当成零值。
+
+收敛回放支持 `--paper-cost-bps-per-hour` 和 `--min-net-spread-bps-per-hour`，用于显式纸面敏感性
+门槛。它会同时输出 gross 与扣除该门槛后的差异持续性，但不会把门槛冒充交易所手续费、借贷成本或
+可成交对冲 PnL。
 
 基差录制/回放是独立的可证伪测试：当同一交易所的基差相对滚动均值偏离至少
 `min_z` 个标准差后，未来 `horizon` 个快照的绝对基差是否收缩？输出的是收缩频率，
@@ -60,6 +71,7 @@ Useful inputs:
 和 [CME 与现货基差示例](https://x.com/0xscarlettw/status/1944584946670276938)。资金费率持续性线索
 另外对照了一级资料 [Kraken 资金费率策略说明](https://www.kraken.com/learn/futures-trading-funding-rate-strategy)，
 以及 MarketBridge 返回的明确结算间隔。它们都是研究线索，不是已经验证的收益声明。
+跨交易所差异线索也参考了公开的 [资金费率价差讨论](https://x.com/leondoteth/status/2012127303850213817)。
 
 主要接口：
 
@@ -75,7 +87,8 @@ python3 examples/crypto/carry/basis_carry_monitor.py \
 python3 examples/crypto/carry/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit --iterations 3
 python3 examples/crypto/carry/funding_convergence_replay.py \
-  --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200
+  --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200 \
+  --paper-cost-bps-per-hour 0.25 --min-net-spread-bps-per-hour 0.5
 python3 examples/crypto/carry/crypto_basis_recorder.py \
   --symbol BTCUSDT --exchanges binance,okx --iterations 120 --interval-secs 30 \
   --output work/crypto-basis.jsonl
