@@ -89,6 +89,7 @@ categorized command is the recommended one.
 | `crypto/macro/crypto_macro_context_recorder.py` / `crypto_macro_context_replay.py` | Elevated VIX/macro context and funding crowding can be compared with later BTC return and absolute-move distributions | `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Snapshot response study; macro timestamps, causality, costs and execution remain explicit gaps |
 | `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
 | `crypto/sentiment/crypto_news_attention_monitor.py` / recorder / replay | A burst of high-score CryptoPanic items may precede larger absolute BTC movement than ordinary windows | `/v1/external/signals?sources=cryptopanic&categories=news`, `/v1/market/quotes` and JSONL archive | Non-directional attention replay; feed coverage, vote semantics and timing remain explicit |
+| `crypto/sentiment/crypto_social_signal_response_recorder.py` / `crypto_social_signal_response_replay.py` | A change in a keyed LunarCrush/Santiment metric may be followed by a different absolute BTC response than ordinary snapshots | `/v1/external/signals`, `/v1/market/quotes`, JSONL archive | Provider-specific social-score response study; API key, metric scale, coverage and execution remain explicit gaps |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure gross and after-cost differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Explicit paper cost hurdle is a sensitivity input; no fill, borrow or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -385,6 +386,14 @@ python3 examples/crypto/sentiment/crypto_news_attention_recorder.py \
 python3 examples/crypto/sentiment/crypto_news_attention_replay.py \
   --input work/crypto-news-attention.jsonl --horizon-records 6 \
   --min-observations 5
+python3 examples/crypto/sentiment/crypto_social_signal_response_recorder.py \
+  --source lunarcrush --metric lunarcrush_social_score \
+  --signal-symbol BTC --price-symbol BTCUSDT --exchange binance \
+  --iterations 30 --interval-secs 3600 --min-change 1 \
+  --output work/crypto-social-response.jsonl
+python3 examples/crypto/sentiment/crypto_social_signal_response_replay.py \
+  --input work/crypto-social-response.jsonl --horizon-records 6 \
+  --min-change 1 --min-observations 5
 python3 examples/python_strategy_runner.py \
   --strategy options_gamma --currency BTC --options-venue deribit \
   --expiry-days 30 --gamma-min-near-share 0.50 \

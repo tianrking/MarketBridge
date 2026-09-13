@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — keyed social-signal response replay
+
+Added `crypto_social_signal_response_recorder.py` and
+`crypto_social_signal_response_replay.py` under the sentiment family. The
+recorder freezes one configured LunarCrush or Santiment metric beside a
+MarketBridge BTC quote; replay compares social-rise/social-fall changes with
+later absolute movement at a fixed record-count horizon. It keeps the provider
+metric name and scale, keyed coverage, model revisions, timestamp alignment and
+the no-order boundary explicit. Provenance: [LunarCrush's public X post on
+social activity and BTC highs](https://x.com/LunarCrush/status/1864875012051865680),
+cross-checked against the [LunarCrush API field documentation](https://github.com/lunarcrush/api)
+and [social-intelligence methodology](https://lunarcrush.com/faq).
+
 ## 2026-09-14 — Bollinger BandWidth squeeze replay
 
 Added `crypto_bollinger_squeeze_replay.py` under the microstructure family.

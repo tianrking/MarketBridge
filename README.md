@@ -190,6 +190,9 @@ price snapshots without turning public sentiment into an execution signal.
 Its optional CryptoPanic path now preserves each returned news URL as a distinct
 external-signal instance, with a Python attention-burst recorder/replay over
 the bounded feed.
+The sentiment family also includes a keyed LunarCrush/Santiment social-signal
+recorder/replay that compares provider-metric changes with later absolute BTC
+movement while preserving metric scale, API-key and coverage limitations.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.
