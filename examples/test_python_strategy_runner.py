@@ -5,6 +5,7 @@ import unittest
 from types import SimpleNamespace
 
 from python_strategy_runner import (
+    score_cross_asset_momentum,
     score_funding_convergence,
     score_options_skew,
     score_options_vrp,
@@ -38,6 +39,28 @@ def options_payload():
 
 
 class PythonStrategyRunnerTests(unittest.TestCase):
+    def test_cross_asset_momentum_dispatch_reports_gross_evidence(self):
+        settings = args()
+        settings.cross_asset_lookback = 2
+        settings.cross_asset_horizon = 1
+        settings.cross_asset_top_k = 1
+        settings.cross_asset_min_edge_bps = 0.0
+        settings.cross_asset_min_observations = 3
+        candles = {
+            "BTCUSDT": {"candles": [{"open_time_ms": index, "close": value}
+                                     for index, value in enumerate([100, 101, 102, 104, 106, 108, 110])]},
+            "ETHUSDT": {"candles": [{"open_time_ms": index, "close": 100.0}
+                                     for index in range(7)]},
+            "SOLUSDT": {"candles": [{"open_time_ms": index, "close": value}
+                                     for index, value in enumerate([100, 99, 98, 97, 96, 95, 94])]},
+        }
+        score, maximum, verdict, evidence = score_cross_asset_momentum(
+            {"cross_asset_klines": candles}, settings, {}
+        )
+        self.assertEqual((score, maximum), (1, 1))
+        self.assertEqual(verdict, "cross-asset momentum observation")
+        self.assertTrue(any("mean top-basket edge" in item for item in evidence))
+
     def test_options_skew_dispatch_keeps_evidence(self):
         score, maximum, verdict, evidence = score_options_skew(
             {"options": options_payload()}, args(), {}

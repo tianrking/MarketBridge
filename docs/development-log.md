@@ -1,5 +1,19 @@
 # Development log
 
+## 2026-09-14 — cross-asset momentum replay
+
+Converted the public adaptive BTC/ETH/SOL perp-vault narrative into a
+falsifiable, read-only case: at a fixed rebalance cadence, the strongest
+trailing-return assets should beat an equal-weight basket over the next fixed
+horizon. Added `examples/crypto_cross_asset_momentum_replay.py` and a
+`cross_asset_momentum` mode in the Python strategy runner. The replay joins
+only exact timestamps from `/v1/history/candles`, reports the selected basket,
+forward edge and hit rate, and keeps missing assets visible. It deliberately
+excludes fees, funding, borrow, slippage, weight drift, leverage and execution;
+this is a research hypothesis, not a portfolio allocator or order path.
+
+Provenance: [RoboNet adaptive horizon-aligned perp strategy discussion](https://x.com/RoboNetHQ/status/2024893544520143012).
+
 ## 2026-09-12 — weighted public-provider quota controls
 
 Added optional `aggregates.provider_quotas` shared windows for custom public

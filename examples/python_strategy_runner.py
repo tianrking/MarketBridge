@@ -21,6 +21,7 @@ from crypto_options_skew_monitor import (
     summarize_expiry,
 )
 from crypto_options_vrp_monitor import annualized_realized_vol_pct
+from crypto_cross_asset_momentum_replay import candle_points, evaluate_momentum
 from crypto_volatility_breakout_replay import breakout_features
 from funding_convergence_monitor import observe as observe_funding_convergence
 
@@ -101,6 +102,17 @@ def fetch_core(client, args):
             "active_only": "true",
             "limit": 100,
         })
+    if args.strategy == "cross_asset_momentum":
+        data["cross_asset_klines"] = {
+            symbol: client("/v1/history/candles", {
+                "exchange": args.exchange or "binance",
+                "market": "perp",
+                "symbol": symbol,
+                "interval": args.cross_asset_interval,
+                "limit": args.cross_asset_limit,
+            })
+            for symbol in args.cross_asset_symbols
+        }
     return data
 
 
@@ -341,10 +353,29 @@ def score_funding_convergence(data, args, _previous):
     return int(candidate), 1, "funding differential observation" if candidate else "observe only", evidence
 
 
+def score_cross_asset_momentum(data, args, _previous):
+    series = {
+        symbol: candle_points(payload)
+        for symbol, payload in data.get("cross_asset_klines", {}).items()
+    }
+    result = evaluate_momentum(
+        series, args.cross_asset_lookback, args.cross_asset_horizon,
+        args.cross_asset_top_k, args.cross_asset_min_edge_bps,
+        args.cross_asset_min_observations,
+    )
+    evidence = list(result.get("evidence", []))
+    if result.get("mean_edge_bps") is not None:
+        evidence.append(f"mean top-basket edge={result['mean_edge_bps']:.2f} bps")
+    if result.get("positive_edge_hit_rate") is not None:
+        evidence.append(f"positive-edge hit rate={result['positive_edge_hit_rate']:.2%}")
+    candidate = result.get("verdict") == "momentum_candidate"
+    return int(candidate), 1, "cross-asset momentum observation" if candidate else "observe only", evidence
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "options_skew", "options_vrp", "volatility_breakout"), required=True)
+    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "cross_asset_momentum", "options_skew", "options_vrp", "volatility_breakout"), required=True)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--interval-secs", type=float, default=30.0)
@@ -363,6 +394,14 @@ def main():
     parser.add_argument("--vrp-threshold", type=float, default=5.0)
     parser.add_argument("--funding-exchanges", default="binance,okx,bybit")
     parser.add_argument("--min-spread-bps-per-hour", type=float, default=0.5)
+    parser.add_argument("--cross-asset-symbols", default="BTCUSDT,ETHUSDT,SOLUSDT")
+    parser.add_argument("--cross-asset-interval", default="1h")
+    parser.add_argument("--cross-asset-limit", type=int, default=240)
+    parser.add_argument("--cross-asset-lookback", type=int, default=8)
+    parser.add_argument("--cross-asset-horizon", type=int, default=8)
+    parser.add_argument("--cross-asset-top-k", type=int, default=1)
+    parser.add_argument("--cross-asset-min-edge-bps", type=float, default=0.0)
+    parser.add_argument("--cross-asset-min-observations", type=int, default=5)
     parser.add_argument("--breakout-interval", default="5m")
     parser.add_argument("--breakout-limit", type=int, default=100)
     parser.add_argument("--breakout-horizon-bars", type=int, default=6)
@@ -386,6 +425,16 @@ def main():
         parser.error("invalid volatility breakout windows or thresholds")
     if args.min_spread_bps_per_hour < 0:
         parser.error("min-spread-bps-per-hour cannot be negative")
+    args.cross_asset_symbols = [
+        item.strip().upper() for item in args.cross_asset_symbols.split(",") if item.strip()
+    ]
+    if (len(set(args.cross_asset_symbols)) < 2 or args.cross_asset_limit <= 0
+            or args.cross_asset_lookback <= 0 or args.cross_asset_horizon <= 0
+            or args.cross_asset_top_k <= 0
+            or args.cross_asset_top_k > len(set(args.cross_asset_symbols))
+            or args.cross_asset_min_edge_bps < 0
+            or args.cross_asset_min_observations <= 0):
+        parser.error("invalid cross-asset symbols, windows, top-k, edge or observation arguments")
 
     strategies = {
         "squeeze": score_squeeze,
@@ -396,6 +445,7 @@ def main():
         "options_vrp": score_options_vrp,
         "volatility_breakout": score_volatility_breakout,
         "funding_convergence": score_funding_convergence,
+        "cross_asset_momentum": score_cross_asset_momentum,
     }
     previous = {}
 

@@ -35,12 +35,13 @@ experiments should start from `python_strategy_runner.py`.
 | `crypto_options_skew_replay.py` | Measure skew persistence and term-state runs from recorded snapshots | explicit JSONL from recorder | Descriptive persistence replay; no option PnL or hedge simulation |
 | `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
 | `crypto_universe_opportunity_scan.py` | Rank a bounded perp universe by stored-kline liquidity/realized volatility plus current funding magnitude | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding` | Candidate discovery only; missing joins and unknown funding intervals remain explicit |
+| `crypto_cross_asset_momentum_replay.py` | Test whether the strongest trailing BTC/ETH/SOL (or caller-selected) assets beat an equal-weight basket over the next fixed horizon | `/v1/history/candles` for each symbol, exact timestamp intersection | Gross close-to-close replay; no fees, funding, slippage, weight drift or execution model |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Uses point-in-time adjacent timestamp intervals; no fill, cost or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
-| `python_strategy_runner.py` | Python-first versions of squeeze, exhaustion, basis, liquidation, funding convergence, volatility breakout, options skew and options VRP observers | normalized MarketBridge endpoints | Primary strategy entry point; read-only JSON output |
+| `python_strategy_runner.py` | Python-first versions of squeeze, exhaustion, basis, liquidation, funding convergence, cross-asset momentum, volatility breakout, options skew and options VRP observers | normalized MarketBridge endpoints | Primary strategy entry point; read-only JSON output |
 | `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
 | `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
 
@@ -127,6 +128,10 @@ python3 examples/crypto_universe_opportunity_scan.py \
   --exchange binance --market perp --interval 5m \
   --min-quote-volume 1000000 --min-realized-vol 0.2 \
   --min-abs-funding-hourly-pct 0.01 --min-score 2
+python3 examples/crypto_cross_asset_momentum_replay.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance \
+  --interval 1h --lookback-bars 8 --horizon-bars 8 \
+  --top-k 1 --min-observations 5
 python3 examples/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit \
   --iterations 3 --interval-secs 30
@@ -158,6 +163,11 @@ python3 examples/python_strategy_runner.py \
   --strategy funding_convergence --symbol BTCUSDT \
   --funding-exchanges binance,okx,bybit \
   --min-spread-bps-per-hour 0.5
+python3 examples/python_strategy_runner.py \
+  --strategy cross_asset_momentum --exchange binance \
+  --cross-asset-symbols BTCUSDT,ETHUSDT,SOLUSDT \
+  --cross-asset-interval 1h --cross-asset-lookback 8 \
+  --cross-asset-horizon 8 --cross-asset-top-k 1
 python3 examples/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
 ```
 
