@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — strategy catalog consistency guard
+
+Added `examples/test_strategy_catalog.py` to keep the Python-first strategy
+library maintainable as new cases arrive. CI now verifies every categorized
+family has an English/中文 README and command section, every categorized Python
+entrypoint is referenced by the root or family index, and no Rust strategy file
+appears under `examples/`. This is a documentation/organization guard only; it
+does not broaden the execution boundary.
+
 ## 2026-09-14 — cross-venue same-asset price-gap replay
 
 Added `crypto_cross_venue_price_gap_replay.py` to separate same-asset venue
