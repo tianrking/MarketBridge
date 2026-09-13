@@ -145,6 +145,10 @@ The microstructure family now also includes a quarter-hour flow replay: it
 tests whether a UTC quarter-hour opening taker-flow imbalance aligns with a
 fixed-horizon perp return, while keeping bounded trade history and clock-phase
 causality explicit.
+It also includes a short-squeeze response recorder/replay that freezes the
+existing funding/OI/spot-perp-flow confluence beside a quote and compares
+score-qualified snapshots with later fixed-record BTC responses. The first OI
+poll, venue-side semantics, paper costs and no-order boundary remain explicit.
 It also includes a timezone-aware session VWAP/EMA/MACD/volume replay, so the
 older snapshot filter can be tested against fixed-horizon candle returns instead
 of being mistaken for historical evidence.

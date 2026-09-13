@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — short-squeeze fixed-record response replay
+
+Added `crypto_short_squeeze_response_recorder.py` and
+`crypto_short_squeeze_response_replay.py` under the microstructure family.
+The recorder freezes the existing funding/OI/spot-perp-flow confluence score
+beside a MarketBridge quote; replay compares score-qualified snapshots with
+`observe_only` snapshots at a caller-selected record-count horizon. It keeps
+the first-poll OI cold start, venue-side semantics, bounded history, paper-cost
+sensitivity and the no-order boundary explicit. Provenance: the unverified
+[public L2 imbalance plus funding-extreme perp lead on X](https://x.com/instaclaws/status/2038363051213181035).
+
 ## 2026-09-14 — aggregate crowding fixed-window response replay
 
 Added a separate Python recorder/replay lifecycle for the public crowded-side

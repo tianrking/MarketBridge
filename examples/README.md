@@ -30,6 +30,7 @@ categorized command is the recommended one.
 | Demo | Strategy hypothesis | MarketBridge inputs | Status |
 |---|---|---|---|
 | `crypto/microstructure/short_squeeze_monitor.py` | Negative funding + rising OI + spot/perp flow divergence can identify a squeeze candidate | funding, OI, order flow, liquidations, external liquidation signal | Python research observer |
+| `crypto/microstructure/crypto_short_squeeze_response_recorder.py` / `crypto_short_squeeze_response_replay.py` | The short-squeeze confluence score can be compared with a later fixed-record BTC response instead of being treated as a one-shot signal | `/v1/market/funding`, `/v1/market/open-interest`, `/v1/market/order-flow`, `/v1/market/quotes`, JSONL archive | Score-response study; OI cold start, venue semantics, costs and execution remain explicit gaps |
 | `crypto/microstructure/exhaustion_short_monitor.py` | Positive funding + failed highs + falling OI + weak bids can identify long exhaustion | funding, OI, klines, order flow, L2, optional on-chain transfers | Python research observer |
 | `crypto/carry/basis_carry_monitor.py` | Positive spot/perp basis + positive funding can justify a delta-neutral carry investigation | basis, funding, observed funding interval when available | Python research observer; withholds annualization when interval is unknown |
 | `crypto/carry/crypto_basis_recorder.py` / `crypto_basis_replay.py` | An unusually wide same-venue basis may contract over the next fixed snapshot horizon | `/v1/market/basis`, `/v1/market/perpetual-funding` JSONL archive | Descriptive contraction replay; no carry PnL, hedge, borrow or execution model |
@@ -193,6 +194,12 @@ python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py 
   --output work/crypto-derivatives-sentiment.jsonl
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
   --input work/crypto-derivatives-sentiment.jsonl --min-run 3
+python3 examples/crypto/microstructure/crypto_short_squeeze_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 30 \
+  --output work/crypto-short-squeeze-response.jsonl
+python3 examples/crypto/microstructure/crypto_short_squeeze_response_replay.py \
+  --input work/crypto-short-squeeze-response.jsonl --horizon-records 7 \
+  --min-score 3 --min-observations 5 --paper-cost-bps 10
 python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_recorder.py \
   --symbol BTC --price-symbol BTCUSDT --exchange binance --product-type perp \
   --iterations 30 --interval-secs 30 \

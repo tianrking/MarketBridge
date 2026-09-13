@@ -11,6 +11,7 @@ and coverage metadata visible and downgrades missing data to `observe_only`.
 Cases:
 
 - `short_squeeze_monitor.py`: negative funding + rising OI + spot/perp flow divergence.
+- `crypto_short_squeeze_response_recorder.py` / `crypto_short_squeeze_response_replay.py`: freeze that four-component score beside a quote and compare score-qualified snapshots with later fixed-record BTC responses.
 - `exhaustion_short_monitor.py`: positive funding + failed highs + falling OI + weak bids.
 - `liquidation_reversal_monitor.py`: sell-side liquidation + falling OI + positive CVD + recovery.
 - `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
@@ -87,6 +88,14 @@ The CVD semantics and single-venue coverage boundary are cross-checked against
 [a public CVD indicator explanation](https://mindpillar.com/cvd/); that source
 is indicator context, not a performance claim.
 
+The short-squeeze response recorder/replay is the temporal companion to the
+compatibility monitor. It reuses the runner's four observable components
+(funding, OI change, spot/perp flow and optional liquidation context), preserves
+the first-poll OI cold start, and compares score-qualified snapshots with
+`observe_only` snapshots at a fixed record-count horizon. Provenance: the
+unverified public [L2 imbalance plus funding-extreme perp lead on X](https://x.com/instaclaws/status/2038363051213181035).
+This is a response study, not a claim that a squeeze score predicts direction.
+
 The quarter-hour case is a stricter replay of a public [order-book imbalance and
 funding-rate strategy lead on X](https://x.com/instaclaws/status/2038363051213181035),
 not an endorsement of its automated-trading claims. It is cross-checked against
@@ -143,6 +152,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 案例包括：
 
 - `short_squeeze_monitor.py`：负资金费率 + OI 上升 + 现货/永续订单流背离。
+- `crypto_short_squeeze_response_recorder.py` / `crypto_short_squeeze_response_replay.py`：把四项共振分数与报价一起冻结，比较达到分数门槛与 `observe_only` 快照之后的固定记录窗口 BTC 响应。
 - `exhaustion_short_monitor.py`：正资金费率 + 冲高失败 + OI 下降 + 买盘变弱。
 - `liquidation_reversal_monitor.py`：卖方清算 + OI 下降 + CVD 转正 + 价格恢复。
 - `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
@@ -229,6 +239,11 @@ CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有�
 再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
 [CVD 说明](https://mindpillar.com/cvd/)。
 
+short-squeeze response recorder/replay 是兼容性监控的时间维度 companion：复用资金费率、OI 变化、现货/永续
+流量和可选清算上下文四项可观测证据，保留第一次轮询没有 OI 基线的冷启动，并在固定记录数窗口比较达到分数门槛
+与 `observe_only` 快照之后的 BTC 响应。出处是未经验证的[公开 X 上 L2 不平衡与极端资金费率线索](https://x.com/instaclaws/status/2038363051213181035)。
+它是响应研究，不是对逼空方向预测能力的声明。
+
 `crypto_derivatives_sentiment_monitor.py` 使用可选的 CoinGlass aggregate signal，把资金费率、OI、
 long/short ratio、basis 和 liquidation 放在同一上下文中；API key 缺失或指标缺失会保持为 observe-only，
 不会把 aggregate ratio 解释成真实持仓归属。
@@ -311,6 +326,12 @@ python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_reco
 python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_replay.py \
   --input work/crypto-derivatives-crowding-response.jsonl \
   --horizon-records 7 --min-observations 5 --paper-cost-bps 10
+python3 examples/crypto/microstructure/crypto_short_squeeze_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 30 \
+  --output work/crypto-short-squeeze-response.jsonl
+python3 examples/crypto/microstructure/crypto_short_squeeze_response_replay.py \
+  --input work/crypto-short-squeeze-response.jsonl --horizon-records 7 \
+  --min-score 3 --paper-cost-bps 10
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
