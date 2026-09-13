@@ -43,6 +43,11 @@ universe cases. It surfaces historical markets whose current quote is missing
 or stale, but deliberately does not call that proof of delisting or perform an
 automatic exclusion.
 
+`crypto_market_regime_monitor.py` exposes the aggregate Rust research-regime
+snapshot (fragmented, high-volatility, leveraged or normal) as Python JSON
+context. Its guidance only tells a researcher which evidence checks deserve
+attention; it does not choose or execute a strategy.
+
 Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
 motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
@@ -97,6 +102,9 @@ performance or execution guarantee for MarketBridge.
 `crypto_universe_delist_risk_monitor.py` 是其他 universe 案例前的数据质量护栏：它显示历史市场当前报价缺失或
 过期，但不把这直接解释为退市证明，也不自动排除标的。
 
+`crypto_market_regime_monitor.py` 将 Rust 聚合研究状态（fragmented、high_volatility、leveraged、normal）
+作为 Python JSON 上下文输出。提示只告诉研究者应该检查哪些证据，不选择策略，也不执行交易。
+
 ## Commands / 命令
 
 ```bash
@@ -130,4 +138,6 @@ python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
 python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
   --exchange binance --market perp --interval 1d \
   --stale-after-ms 86400000 --limit 100
+python3 examples/crypto/universe/crypto_market_regime_monitor.py \
+  --symbols BTCUSDT,ETHUSDT --intervals 1h,4h,1d
 ```

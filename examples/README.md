@@ -70,6 +70,7 @@ categorized command is the recommended one.
 | `crypto_volatility_adjusted_momentum_walkforward.py` | Evaluate one fixed risk-adjusted momentum parameter set on a later chronological holdout | `/v1/history/candles` for each symbol, exact timestamp intersection | Holdout paper diagnostic; one split is not proof of stable alpha |
 | `crypto/universe/crypto_pairs_mean_reversion_replay.py` | An extreme two-asset log-price spread may shrink toward its frozen trailing mean over a fixed horizon | `/v1/history/candles` for two selected symbols, exact timestamp intersection | Relative-price convergence diagnostic; fixed hedge ratio, costs and paired execution remain explicit gaps |
 | `crypto/universe/crypto_universe_delist_risk_monitor.py` | Missing or stale current quotes should be reviewed before treating a historical market as a research candidate | `/v1/universe/delist-risk` | Data-quality guard only; not a delisting forecast and no automatic exclusion |
+| `crypto/universe/crypto_market_regime_monitor.py` | Aggregate fragmentation, volatility and leverage context should remain visible before a strategy case is interpreted | `/v1/research/market-regime` | Context monitor only; current snapshot, not historical point-in-time data, and no strategy selection |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure gross and after-cost differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Explicit paper cost hurdle is a sensitivity input; no fill, borrow or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -270,6 +271,8 @@ python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
 python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
   --exchange binance --market perp --interval 1d \
   --stale-after-ms 86400000 --limit 100
+python3 examples/crypto/universe/crypto_market_regime_monitor.py \
+  --symbols BTCUSDT,ETHUSDT --intervals 1h,4h,1d
 python3 examples/python_strategy_runner.py \
   --strategy options_gamma --currency BTC --options-venue deribit \
   --expiry-days 30 --gamma-min-near-share 0.50 \

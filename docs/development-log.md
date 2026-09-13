@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — Python aggregate market-regime context monitor
+
+Added `crypto_market_regime_monitor.py` under the universe family for the
+existing `/v1/research/market-regime` feature bundle. It exposes fragmented,
+high-volatility, leveraged and normal context to Python researchers while
+keeping the current-only/non-point-in-time limitation explicit. The monitor
+does not select, size or execute a strategy; added bilingual docs and
+deterministic tests.
+
 ## 2026-09-14 — universe stale-quote risk guard
 
 Added `crypto_universe_delist_risk_monitor.py` for the existing
