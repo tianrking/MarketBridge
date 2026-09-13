@@ -118,6 +118,8 @@ evidence.
 Funding convergence replay also supports an explicit paper cost-per-hour
 hurdle and reports gross versus after-cost persistence without pretending to
 model venue fees, borrow or hedge fills.
+The universe scanner also has a recorder/replay pair that tests candidate-set
+persistence without turning current rankings into portfolio weights.
 
 The large copy-paste query cookbook is maintained in
 [docs/query_examples.md](docs/query_examples.md).

@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — universe candidate persistence recorder
+
+Added a recorder/replay lifecycle for the bounded universe opportunity scanner.
+The recorder freezes joined volume/realized-volatility/funding candidate sets;
+the replay reports top-k candidate persistence, symbol snapshot fractions and
+empty-set coverage. Missing joins remain explicit, and persistence never
+becomes an allocation, sizing or execution decision. Added categorized Python
+launchers, bilingual usage and deterministic tests.
+
 ## 2026-09-14 — after-cost funding convergence sensitivity
 
 Extended the cross-venue funding convergence replay with explicit
