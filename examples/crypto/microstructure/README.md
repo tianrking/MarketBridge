@@ -69,6 +69,11 @@ The spot/perp depth-gap monitor is an execution-risk observation motivated by
 It tests the claim with a target-size snapshot and current basis context; it
 does not assume that deeper perp liquidity makes a hedge executable.
 
+The volatility-breakout replay accepts `--roundtrip-cost-bps` and reports gross
+versus cost-adjusted aligned returns. Its candidate verdict requires the
+after-cost mean to clear `--min-cost-adjusted-edge-bps` with enough observations;
+the hurdle is a transparent sensitivity input, not a venue-specific fill model.
+
 ## 中文
 
 这些观察器组合资金费率、OI 变化、现货/永续订单流、盘口深度、价格上下文和清算事件，
@@ -120,6 +125,9 @@ MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺�
 现货/永续深度差监控的研究线索来自[公开 X 讨论](https://x.com/ciaobelindazhou/status/2031929849850273955)。
 它用目标规模盘口和当前 basis 做执行风险观察，不假设永续深度更深就代表对冲一定可成交。
 
+波动率突破回放支持 `--roundtrip-cost-bps`，同时输出 gross 与扣除纸面成本后的方向收益、命中率和 verdict；
+候选必须满足 after-cost 平均 edge 与最小样本数。这个门槛是透明敏感性输入，不是交易所成交模型。
+
 ## Commands / 命令
 
 ```bash
@@ -153,7 +161,8 @@ python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_recorder.py \
 python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_replay.py \
   --input work/crypto-spot-perp-depth.jsonl --min-depth-ratio 2.0 --min-run 3
 python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
-  --exchange binance --symbol BTCUSDT --interval 5m --days 7
+  --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
+  --roundtrip-cost-bps 20 --min-cost-adjusted-edge-bps 0
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/liquidation_reversal_replay.py \

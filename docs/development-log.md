@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — cost-aware volatility breakout replay
+
+Extended the compression-to-expansion breakout replay with a fixed
+`--roundtrip-cost-bps` paper hurdle and `--min-cost-adjusted-edge-bps`
+qualification threshold. Events now preserve gross and cost-adjusted aligned
+returns, hit rates and an explicit observe-only verdict when the hurdle or
+sample count is not met. The hurdle is a transparent sensitivity parameter,
+not a venue fee, fill, funding or latency model. Added deterministic regression
+coverage and bilingual usage guidance.
+
 ## 2026-09-14 — universe candidate persistence recorder
 
 Added a recorder/replay lifecycle for the bounded universe opportunity scanner.

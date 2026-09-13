@@ -133,15 +133,31 @@ def classify_event(features, flow, flow_threshold):
     return "breakout_weak_flow"
 
 
-def summarize(events):
+def summarize(events, roundtrip_cost_bps=0.0, min_cost_adjusted_edge_bps=0.0,
+              min_observations=1):
     valid = [event for event in events if event["forward_return_pct"] is not None]
     aligned = [event["direction_sign"] * event["forward_return_pct"] for event in valid]
+    cost_pct = roundtrip_cost_bps / 100.0
+    cost_adjusted = [value - cost_pct for value in aligned]
+    mean_cost_adjusted = statistics.mean(cost_adjusted) if cost_adjusted else None
+    candidate = (len(cost_adjusted) >= min_observations
+                 and mean_cost_adjusted is not None
+                 and mean_cost_adjusted * 100.0 >= min_cost_adjusted_edge_bps)
     return {
         "events": len(events),
         "forward_observations": len(valid),
         "mean_aligned_return_pct": statistics.mean(aligned) if aligned else None,
         "median_aligned_return_pct": statistics.median(aligned) if aligned else None,
         "directional_hit_rate": (sum(value > 0 for value in aligned) / len(aligned)) if aligned else None,
+        "roundtrip_cost_bps": roundtrip_cost_bps,
+        "mean_cost_adjusted_aligned_return_pct": mean_cost_adjusted,
+        "median_cost_adjusted_aligned_return_pct": statistics.median(cost_adjusted) if cost_adjusted else None,
+        "cost_adjusted_hit_rate": (
+            sum(value > 0 for value in cost_adjusted) / len(cost_adjusted)
+            if cost_adjusted else None
+        ),
+        "min_cost_adjusted_edge_bps": min_cost_adjusted_edge_bps,
+        "verdict": "cost_adjusted_breakout_candidate" if candidate else "observe_only",
         "by_class": {
             state: sum(event["classification"] == state for event in events)
             for state in sorted({event["classification"] for event in events})
@@ -170,6 +186,11 @@ def main():
                         help="historical trade pages/windows requested from MarketBridge")
     parser.add_argument("--flow-window-ms", type=int, default=300_000)
     parser.add_argument("--flow-threshold", type=float, default=0.20)
+    parser.add_argument("--roundtrip-cost-bps", type=float, default=0.0,
+                        help="fixed paper hurdle subtracted from each aligned return")
+    parser.add_argument("--min-cost-adjusted-edge-bps", type=float, default=0.0,
+                        help="minimum mean after-cost aligned edge")
+    parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)
     options = parser.parse_args()
     if (options.days <= 0 or not 0 < options.limit <= 1500 or options.range_bars <= 0
@@ -177,7 +198,8 @@ def main():
             or not 0 < options.max_compression_ratio < 2 or options.breakout_buffer < 0
             or options.volume_multiplier < 0 or options.horizon_bars <= 0
             or not 1 <= options.flow_pages <= 48 or options.flow_window_ms <= 0
-            or not 0 < options.flow_threshold < 1):
+            or not 0 < options.flow_threshold < 1 or options.roundtrip_cost_bps < 0
+            or options.min_cost_adjusted_edge_bps < 0 or options.min_observations <= 0):
         parser.error("invalid replay windows, thresholds or limits")
 
     end_ms = int(time.time() * 1000)
@@ -244,7 +266,10 @@ def main():
                        "flow_window_ms": options.flow_window_ms,
                        "flow_threshold": options.flow_threshold},
         "bars_available": len(rows),
-        "summary": summarize(events),
+        "summary": summarize(
+            events, options.roundtrip_cost_bps, options.min_cost_adjusted_edge_bps,
+            options.min_observations,
+        ),
         "events": events,
         "flow_coverage": flow_coverage,
         "evidence": evidence,
@@ -252,7 +277,7 @@ def main():
         "execution": "research_only_no_orders",
         "limitations": [
             "compression and breakout thresholds are research parameters, not universal constants",
-            "forward return is close-to-close and excludes fees, spread, slippage, funding and latency",
+            "forward return is close-to-close; the paper hurdle is a sensitivity input, not a venue fee or fill model",
             "historical trade endpoints are bounded; inspect flow_coverage before treating flow as complete",
             "public trade history does not reconstruct every private or block execution",
             "a missing volume or flow confirmation is an evidence gap, not a zero",

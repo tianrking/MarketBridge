@@ -908,6 +908,7 @@ options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状
 资金费率收敛回放还支持显式的每小时纸面成本门槛，同时报告 gross 与扣除门槛后的持续性，
 但不会伪装成交易所手续费、借贷成本或对冲成交模型。
 Universe scanner 也新增 recorder/replay，用于检验候选集合是否跨快照持续，不会把当前排名变成组合权重。
+volatility-breakout 回放也支持显式纸面成本门槛，并分开保留 gross 与 after-cost 的突破延续证据。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 

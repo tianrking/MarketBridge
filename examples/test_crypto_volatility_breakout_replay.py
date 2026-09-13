@@ -51,6 +51,14 @@ class VolatilityBreakoutTests(unittest.TestCase):
         self.assertEqual(result["directional_hit_rate"], 1.0)
         self.assertEqual(result["mean_aligned_return_pct"], 2.0)
 
+    def test_summary_applies_paper_cost_hurdle(self):
+        result = summarize([{"direction_sign": 1, "forward_return_pct": 2.0,
+                             "classification": "breakout_confirmed"}],
+                           roundtrip_cost_bps=250.0, min_cost_adjusted_edge_bps=0.0,
+                           min_observations=1)
+        self.assertAlmostEqual(result["mean_cost_adjusted_aligned_return_pct"], -0.5)
+        self.assertEqual(result["verdict"], "observe_only")
+
 
 if __name__ == "__main__":
     unittest.main()
