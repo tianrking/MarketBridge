@@ -113,6 +113,10 @@ The carry family now also includes an OI-impulse recorder/replay: it compares
 unusually expanding, contracting and ordinary OI snapshots with later absolute
 BTC movement as liquidation-risk context. It only requests current OI and a
 perpetual quote, and does not infer position ownership or direction.
+The options family also includes a gamma-response recorder/replay: it joins
+unsigned near-spot gamma concentration with a BTC quote and compares later
+signed/absolute movement against other snapshots. The result is a fixed-record
+research comparison, not dealer-sign inference, option PnL or execution.
 The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes

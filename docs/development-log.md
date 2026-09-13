@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — unsigned options gamma response study
+
+Added `crypto_options_gamma_response_recorder.py` and
+`crypto_options_gamma_response_replay.py` under the options family. The
+recorder joins the existing bounded Deribit gamma-map observation to a
+MarketBridge BTC quote; replay compares signed and absolute forward spot
+responses after near-spot, single-strike gamma concentration versus other
+states. Missing quotes are excluded, record-count horizons are explicit, and
+the output never infers dealer gamma sign, option PnL, hedge demand or
+execution. Provenance: the public [gamma-wall discussion on X](https://x.com/david_eng_mba/status/2042265877488533758),
+cross-checked with [Deribit's public option-book documentation](https://docs.deribit.com/api-reference/market-data/public-get-order-book).
+
 ## 2026-09-14 — session VWAP-deviation reversion replay
 
 Added `crypto_vwap_deviation_reversion_replay.py` under microstructure. It

@@ -75,6 +75,7 @@ categorized command is the recommended one.
 | `crypto/options/crypto_options_vrp_recorder.py` / `crypto_options_vrp_replay.py` | Test whether an IV-minus-RV premium regime persists for one option expiry | `/v1/options/chains`, `/v1/history/candles`, JSONL archive | Descriptive VRP persistence; no option PnL, delta hedge or short-vol execution model |
 | `crypto_options_gamma_monitor.py` | Map unsigned gamma concentration near spot and dominant strikes without inferring dealer long/short gamma | `/v1/options/chains` plus bounded `/options/deribit/book` enrichment | Snapshot gamma map; relative mass only, partial coverage is reported, not USD exposure or a directional signal |
 | `crypto_options_gamma_recorder.py` / `crypto_options_gamma_replay.py` | Test whether unsigned near-spot gamma concentration persists across snapshots | `/v1/options/chains` JSONL archive | Descriptive persistence replay; no dealer sign, realized-volatility response or hedge PnL |
+| `crypto/options/crypto_options_gamma_response_recorder.py` / `crypto_options_gamma_response_replay.py` | Compare later BTC absolute and signed movement after unsigned near-spot gamma concentration versus other snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no dealer sign, option PnL, hedge, causality or execution |
 | `crypto_universe_opportunity_scan.py` | Rank a bounded perp universe by stored-kline liquidity/realized volatility plus current funding magnitude | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding` | Candidate discovery only; missing joins and unknown funding intervals remain explicit |
 | `crypto/universe/crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py` | Test whether top-k universe candidates persist across snapshots | JSONL from universe and funding endpoints | Persistence diagnostic; no allocation, sizing or execution model |
 | `crypto_cross_asset_momentum_replay.py` | Test whether the strongest trailing BTC/ETH/SOL (or caller-selected) assets beat an equal-weight basket over the next fixed horizon | `/v1/history/candles` for each symbol, exact timestamp intersection | Gross close-to-close replay; no fees, funding, slippage, weight drift or execution model |
@@ -265,6 +266,13 @@ python3 examples/crypto_options_gamma_recorder.py \
 python3 examples/crypto_options_gamma_replay.py \
   --input work/crypto-options-gamma.jsonl --min-near-share 0.50 \
   --min-concentration 0.10 --min-run 3
+python3 examples/crypto/options/crypto_options_gamma_response_recorder.py \
+  --currency BTC --venue deribit --price-symbol BTCUSDT --exchange binance \
+  --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-gamma-response.jsonl
+python3 examples/crypto/options/crypto_options_gamma_response_replay.py \
+  --input work/crypto-options-gamma-response.jsonl --horizon-records 3 \
+  --min-near-share 0.50 --min-concentration 0.10 --min-observations 5
 python3 examples/crypto_universe_opportunity_scan.py \
   --exchange binance --market perp --interval 5m \
   --min-quote-volume 1000000 --min-realized-vol 0.2 \

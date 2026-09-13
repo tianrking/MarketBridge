@@ -31,6 +31,13 @@ identity remains observable for a consecutive run. This is a quote-structure
 hypothesis, not a recommendation: it does not model settlement, margin,
 exercise, fills, fees, slippage, hedging or forward returns.
 
+The gamma-response recorder joins each unsigned gamma snapshot to a
+MarketBridge BTC quote. Its replay asks a falsifiable, non-directional question:
+does a near-spot, concentrated gamma map have a different fixed-record forward
+return or absolute-move distribution than other snapshots? It measures signed
+and absolute spot responses only; it does not infer dealer gamma sign, option
+PnL, hedge demand or a volatility-capture trade.
+
 Provenance: the public [IV-minus-realized-volatility discussion on
 X](https://x.com/isellpremium/status/2072350364385349678) is treated as a
 research lead and cross-checked against the [Bitcoin-options risk-premia
@@ -45,6 +52,11 @@ The spread case preserves the public [Deribit bull-call-spread/options-flow
 observation on X](https://x.com/laevitas1/status/1985373005644476891) as an
 unverified research lead; the monitor makes leg-selection and quote-quality
 assumptions explicit instead of inferring a profitable trade.
+The gamma response lead preserves a public [gamma-wall discussion on X](https://x.com/david_eng_mba/status/2042265877488533758)
+and cross-checks the observable option-book fields against [Deribit's public
+market-data documentation](https://docs.deribit.com/api-reference/market-data/public-get-order-book).
+Those sources motivate a testable concentration/response comparison, not a
+claim that gamma walls predict direction or volatility.
 
 ## 中文
 
@@ -67,6 +79,11 @@ VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到
 盈亏平衡点和封顶的纸面收益几何；recorder/replay 检验相同到期日/执行价组合是否连续出现。
 这只是报价结构假设，不是交易建议：没有伪装成已建模的结算、保证金、行权、成交、手续费、滑点、对冲或未来收益。
 
+Gamma-response recorder 会把每次无符号 Gamma 快照和 MarketBridge 的 BTC 行情同时冻结。
+Replay 检验一个可证伪的非方向性问题：近现货且集中于单一执行价的 Gamma map，未来固定记录窗口的
+有符号收益或绝对波动分布，是否不同于其他快照。它只测现货响应，不推断做市商 Gamma 多空、期权
+PnL、对冲需求或波动率交易。
+
 出处：公开的 [IV 减已实现波动率 X 讨论](https://x.com/isellpremium/status/2072350364385349678)
 只是研究线索，并对照了 [Bitcoin options 风险溢价论文](https://papers.ssrn.com/sol3/Delivery.cfm/98257442-0b56-4c20-8b8f-c91befac0b1b-MECA.pdf?abstractid=6771170)。
 两者都不被当作收益保证。
@@ -75,6 +92,9 @@ VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到
 不声称已经完成全曲面插值。
 价差案例保留公开的 [Deribit 牛市看涨价差/期权流 X 观察](https://x.com/laevitas1/status/1985373005644476891)
 作为未经验证的研究线索；实现会把选腿规则和报价质量写入输出，不把它推断成可获利交易。
+Gamma 响应案例保留公开的 [X 上 gamma wall 讨论](https://x.com/david_eng_mba/status/2042265877488533758)，
+并对照 [Deribit 公开市场数据文档](https://docs.deribit.com/api-reference/market-data/public-get-order-book)
+中的期权盘口字段。出处只用于提出“集中度与后续响应是否有关”的可验证假设，不表示 Gamma wall 能预测方向或波动率。
 
 ## Commands / 命令
 
@@ -87,6 +107,13 @@ python3 examples/crypto/options/crypto_options_gamma_recorder.py \
   --output work/crypto-options-gamma.jsonl
 python3 examples/crypto/options/crypto_options_gamma_replay.py \
   --input work/crypto-options-gamma.jsonl --min-run 3
+python3 examples/crypto/options/crypto_options_gamma_response_recorder.py \
+  --currency BTC --venue deribit --price-symbol BTCUSDT --exchange binance \
+  --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-gamma-response.jsonl
+python3 examples/crypto/options/crypto_options_gamma_response_replay.py \
+  --input work/crypto-options-gamma-response.jsonl --horizon-records 3 \
+  --min-near-share 0.50 --min-concentration 0.10 --min-observations 5
 python3 examples/crypto/options/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30
 python3 examples/crypto/options/crypto_options_skew_recorder.py \

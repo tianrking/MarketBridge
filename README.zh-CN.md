@@ -893,6 +893,11 @@ carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，unive
 收益除以已实现波动率后的跨资产排名，二者都只做回放，不构成资金分配或实盘指令。
 microstructure 系列还新增 `crypto_liquidation_burst_replay.py`，把滚动清算总额阈值与
 未来绝对波动做非方向性比较，并保留交易所清算覆盖和 side 语义的不确定性。
+options 系列新增 `crypto_options_gamma_response_recorder.py` /
+`crypto_options_gamma_response_replay.py`：把无符号的近现货 Gamma 集中度与 BTC 行情快照配对，
+比较集中状态和其他状态在固定记录窗口后的有符号收益与绝对波动。它不推断做市商 Gamma 多空，
+不计算期权 PnL 或对冲，也不下单；完整命令、限制和出处见
+[`examples/crypto/options/README.md`](examples/crypto/options/README.md)。
 同系列的 `crypto_spot_perp_depth_gap_monitor.py` 比较同交易所现货/永续目标规模深度与冲击，
 只输出执行风险观察，不执行路由或对冲。
 并提供 recorder/replay 版本检验深度优势是否持续，避免单个盘口快照被误当成稳定结构。
