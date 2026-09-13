@@ -15,6 +15,7 @@ HTTP 接口；目录里的案例只观察、回放和评分假设，不下单、
 | [`carry/`](carry/README.md) | Basis, funding and convergence / 基差、资金费率与收敛 | `basis_carry_monitor.py`, funding replays |
 | [`microstructure/`](microstructure/README.md) | Squeeze, exhaustion, order flow, liquidation and liquidity stress / 逼空、衰竭、订单流、清算与流动性压力 | `short_squeeze_monitor.py`, `liquidity_stress_monitor.py` |
 | [`options/`](options/README.md) | IV, skew, VRP, gamma and volatility / IV、偏斜、VRP、Gamma 与波动率 | options monitors and recorders |
+| [`defi/`](defi/README.md) | DEX pool flow, liquidity and turnover pressure / DEX 池流量、流动性与换手压力 | `crypto_defi_pool_flow_monitor.py`, recorder/replay |
 | [`universe/`](universe/README.md) | Cross-asset ranking, volatility adjustment, parameter sweeps, holdouts and opportunity discovery / 跨资产排名、波动率调整、参数扫描、样本外切分与机会发现 | momentum replays, sweep, walk-forward and universe scan |
 
 The categorised entrypoints are thin Python launchers around the shared

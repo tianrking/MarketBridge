@@ -54,6 +54,8 @@ categorized command is the recommended one.
 | `crypto_options_skew_recorder.py` | Freeze repeated options skew snapshots so persistence can be tested rather than inferred from one quote | `/v1/options/chains` | Append-only JSONL observation archive; no private ledger or order data |
 | `crypto_options_skew_replay.py` | Measure skew persistence and term-state runs from recorded snapshots | explicit JSONL from recorder | Descriptive persistence replay; no option PnL or hedge simulation |
 | `crypto/options/crypto_options_term_structure_replay.py` | Test whether the near/far ATM-IV slope stays in contango or backwardation for a minimum run | JSONL from `crypto_options_skew_recorder.py` | Term-structure persistence diagnostic; expiry roll, quotes, costs and calendar-spread execution remain explicit gaps |
+| `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
+| `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
 | `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
 | `crypto/options/crypto_options_vrp_recorder.py` / `crypto_options_vrp_replay.py` | Test whether an IV-minus-RV premium regime persists for one option expiry | `/v1/options/chains`, `/v1/history/candles`, JSONL archive | Descriptive VRP persistence; no option PnL, delta hedge or short-vol execution model |
 | `crypto_options_gamma_monitor.py` | Map unsigned gamma concentration near spot and dominant strikes without inferring dealer long/short gamma | `/v1/options/chains` plus bounded `/options/deribit/book` enrichment | Snapshot gamma map; relative mass only, partial coverage is reported, not USD exposure or a directional signal |
@@ -161,6 +163,14 @@ python3 examples/crypto_options_skew_replay.py \
   --input work/crypto-options-skew.jsonl --min-skew-iv 3 --min-run 3
 python3 examples/crypto/options/crypto_options_term_structure_replay.py \
   --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
+python3 examples/crypto/defi/crypto_defi_pool_flow_monitor.py \
+  --sources uniswap_v3,meteora --min-liquidity-usd 100000 \
+  --min-turnover-h1 0.25
+python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
+  --sources uniswap_v3,meteora --iterations 30 --interval-secs 30 \
+  --output work/crypto-defi-pool-flow.jsonl
+python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
+  --input work/crypto-defi-pool-flow.jsonl --min-run 3
 python3 examples/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \

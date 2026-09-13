@@ -884,6 +884,8 @@ python3 examples/crypto_session_filter.py --exchange binance --market perp --sym
 `liquidity_stress_monitor.py`：用目标规模盘口冲击、报价点差和短周期 EWMA 波动率
 识别退出压力；它只输出研究观察，不预测方向，也不下单。Python runner 会按选定策略
 请求最小接口集合，但 Rust 服务仍会按运行配置在后台采集已启用的数据源。
+defi 系列新增 `crypto_defi_pool_flow_monitor.py` 及 recorder/replay：用 DEX 池报告的
+swap volume、流动性和买卖笔数识别高换手/薄流动性压力状态，不执行路由、估算 LP 收益或钱包操作。
 carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，universe 系列新增
 `crypto_volatility_adjusted_momentum_replay.py`；前者检验基差异常后的收缩，后者检验
 收益除以已实现波动率后的跨资产排名，二者都只做回放，不构成资金分配或实盘指令。

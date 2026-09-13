@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — DeFi pool flow and liquidity-pressure examples
+
+Added the categorized `examples/crypto/defi/` family. The monitor joins
+MarketBridge's `defi_native_state` signals with `dex_pool` quotes and classifies
+one-hour swap-volume-to-liquidity pressure; the recorder and replay require
+consecutive snapshots before reporting a persistent pool-pressure candidate.
+This uses existing normalized data and does not add routing, gas, LP PnL,
+wallet signing or swap execution. Added bilingual documentation and
+deterministic tests, with the hypothesis grounded in [Uniswap's explanation of
+pool liquidity and price impact](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works).
+
 ## 2026-09-14 — options IV term-structure persistence replay
 
 Added `crypto_options_term_structure_replay.py` under the categorized options
