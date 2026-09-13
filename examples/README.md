@@ -30,6 +30,7 @@ experiments should start from `python_strategy_runner.py`.
 | `weather_market_calibration.py` | Compare archived weather buckets with verified closed-market outcomes and optional YES prices | `/v1/external/weather` + explicit JSONL manifest | Descriptive calibration; identity and resolution rules are caller-owned |
 | `crypto_session_filter.py` | Test a short session-window hypothesis with VWAP, EMA(9/21), MACD and volume confirmation | `/v1/market/klines` | Research filter; no universal timing edge or fill model |
 | `crypto_volatility_breakout_replay.py` | A range break after compressed realized volatility may continue when candle volume and optional taker flow confirm | `/v1/history/candles`, optional `/v1/history/trades` | Bounded close-to-close replay; no execution, funding or fee model |
+| `crypto_options_skew_monitor.py` | Put-wing IV minus call-wing IV and near/far ATM IV term structure expose options hedging demand and volatility regime | `/v1/options/chains` | Snapshot observer using transparent moneyness buckets; no delta-hedge or execution model |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Uses point-in-time adjacent timestamp intervals; no fill, cost or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -105,6 +106,9 @@ python3 examples/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --days 3 --range-bars 12 --compression-window 12 \
   --baseline-window 48 --flow-exchange binance --flow-pages 12
+python3 examples/crypto_options_skew_monitor.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --min-skew-iv 3 --min-term-slope-iv 3
 python3 examples/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit \
   --iterations 3 --interval-secs 30
@@ -149,6 +153,8 @@ rewritten as falsifiable hypotheses:
 - [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
 - [Realized-volatility compression context (unverified public claim)](https://x.com/glassnode/status/1955218957490594099)
 - [Breakout confirmation / hold-above-level context (unverified public claim)](https://x.com/rektcapital/status/1893996786173259958)
+- [BTC/ETH ATM IV and 25D skew options brief (unverified public claim)](https://x.com/Gate_Launch/status/2063810805552845140)
+- [Deribit bull-call-spread / options-flow observation (unverified public claim)](https://x.com/laevitas1/status/1985373005644476891)
 - [Compression-to-expansion / low-volume-node context (unverified public claim)](https://x.com/Stoiiic/status/1796078958674628714)
 
 Next additions are ordered by evidence value: deeper venue-specific public

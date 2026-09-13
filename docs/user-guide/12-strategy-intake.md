@@ -263,6 +263,22 @@ python3 examples/crypto_volatility_breakout_replay.py \
 交易费用、funding、盘口冲击、延迟、排队和止损路径，因此需要更长样本及样本外
 区间后才能判断假设是否值得继续研究。
 
+期权是另一条独立的 crypto 研究线。使用 `config.options-research.example.yaml` 开启只读
+Deribit chain cache 后，可以把“保护性 put 需求／IV skew”和“近月—远月 ATM IV 期限结构”
+拆成快照假设。由于 chain summary 不保证每个 venue 都提供可比的 25-delta，demo 明确使用
+strike/underlying 的 moneyness bucket，并把它标为 proxy：
+
+```bash
+MARKETBRIDGE_CONFIG=./config.options-research.example.yaml cargo run
+python3 examples/crypto_options_skew_monitor.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --min-skew-iv 3 --min-term-slope-iv 3
+```
+
+`downside_protection_demand` 只说明 put-wing 的 mark IV 高于 call-wing 阈值；它不是方向
+预测，也不模拟 delta hedge、margin、spread、交易费用或波动率曲面插值。缺少第二个 expiry、
+可比 moneyness bucket 或 stale rows 时，输出保持 observe-only。
+
 跨交易所 funding 也先做差异监控，不直接把 APR 当成收益：
 
 ```bash

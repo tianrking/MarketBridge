@@ -1,0 +1,45 @@
+# Read-only crypto options research configuration.
+# Enables public Deribit option summaries; no account, wallet, or order access.
+runtime:
+  api_addr: "127.0.0.1:8080"
+  queue_capacity: 4096
+  broadcast_capacity: 4096
+  backpressure: block
+  report_interval_ms: 1000
+  stale_ttl_ms: 1500
+  api_key_env: MARKETBRIDGE_API_KEY
+  api_rate_limit_per_minute: 120
+
+strategy:
+  min_profit_usdt: 0
+  min_profit_bps: 0
+  min_signal_hold_ms: 1000
+  slippage_bps: 0
+  book_signal_notional_usdt: 1000
+
+symbols: [BTCUSDT, ETHUSDT]
+perp_symbols: [BTCUSDT, ETHUSDT]
+exchanges:
+  binance:
+    enabled: true
+    fee: {mode: fixed, maker_bps: 10, taker_bps: 10}
+
+deribit:
+  enabled: true
+  base_url: "https://www.deribit.com/api/v2/"
+  currencies: [BTC, ETH]
+  refresh_secs: 10
+  stale_ttl_ms: 30000
+
+okx_options:
+  enabled: false
+bybit_options:
+  enabled: false
+binance_options:
+  enabled: false
+
+polymarket:
+  enabled: false
+
+klines:
+  enabled: false

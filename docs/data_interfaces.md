@@ -420,7 +420,7 @@ Important boundaries:
 
 | Data | Endpoint | Notes |
 |---|---|---|
-| Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache. |
+| Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache; rows are v1 envelopes with mark IV, strike, expiry, underlying and optional greeks/open interest. |
 | Option books | `/options/deribit/book`, `/options/okx/book`, `/options/bybit/book`, `/options/binance/book` | Keyless per-instrument option depth. |
 | Polymarket Gamma discovery | `/polymarket/markets`, `/polymarket/crypto-markets` | General active Gamma markets plus the BTC/ETH crypto parser; `/polymarket/markets?include_closed=true` includes closed markets and a best-effort resolved outcome. `order` and `ascending` are passed through for reproducible pagination. |
 | Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
