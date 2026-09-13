@@ -719,7 +719,11 @@ mod tests {
 
     #[test]
     fn persist_klines_writes_arrow_ipc_manifest() -> Result<()> {
-        let root = std::env::temp_dir().join(format!("marketbridge-lake-test-{}", now_ms()));
+        let root = std::env::temp_dir().join(format!(
+            "marketbridge-lake-test-{}-{}",
+            std::process::id(),
+            now_ms()
+        ));
         let manifest = root.join("manifest.sqlite");
         let rows = vec![bar(0, 59_999), bar(60_000, 119_999)];
 

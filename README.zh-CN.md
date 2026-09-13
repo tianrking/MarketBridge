@@ -377,11 +377,12 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | Basis | spot-perp basis、basis bps | `GET /v1/market/basis` | 暂无直接流 | 从最新 quote cache 派生 | 否 |
 | Order flow | buy/sell pressure、delta、CVD、大单数量 | `GET /v1/market/order-flow` | 暂无直接流 | 从 live trades 派生 | 否 |
 | Options 期权链 | strike、expiry、bid/ask/mark、IV 类字段、OI | `GET /v1/options/chains` | `WS /v1/stream?domains=options_chain` snapshot | REST cache，默认 10 秒 | 否 |
-| Polymarket | YES/NO CLOB book、spread、midpoint、可执行价格、price history | `GET /v1/prediction/books`、`/polymarket/*` | `WS /v1/stream?domains=prediction_book` snapshot | REST seed + CLOB WS patch | 否 |
+| Polymarket | YES/NO CLOB book、spread、midpoint、可执行价格、price history、公开 trade history | `GET /v1/prediction/books`、`/v1/prediction/trades`、`/polymarket/*` | `WS /v1/stream?domains=prediction_book` snapshot | REST seed + CLOB WS patch + Data API history | 否 |
 | DeFi | Jupiter/Raydium/Uniswap/ParaSwap/1inch/DexScreener quote 或 pool price | `GET /v1/market/quotes?exchanges=...` | 启用后走 `market_quote` | `poll_secs`，默认 10 秒 | 通常否，取决于 gateway |
 | TradFi / Macro | DXY、VIX、US10Y | `GET /v1/market/quotes?exchanges=dxy,vix,us10y` | 启用后走 `market_quote` | 通常 60 秒或更慢 | US10Y 需要 FRED key |
 | 聚合行情/衍生品信号 | CoinGecko/CoinCap/CMC price、CoinGlass derivatives metrics | `GET /v1/external/signals`，价格源也走 quote surface | `external_signal` | 通常 60 秒或更慢 | 部分需要 |
 | 情绪/新闻 | Fear & Greed、CryptoPanic、Santiment、LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | source-specific poll | Fear & Greed 不需要，其余多需要 |
+| 天气观察 | Open-Meteo forecast/archive | `GET /v1/external/weather` | 按需只读 | keyless；坐标、模型、市场 bucket 与结算规则需调用者明确 |
 | 链上大额转账 | Whale Alert、mempool.space BTC、Etherscan watched addresses | `GET /v1/onchain/transfers` | 暂无直接流 | 默认 60 秒 | Whale Alert/Etherscan 需要 |
 | Catalog / Health | 数据源状态、key 状态、domain、instrument、freshness | `/v1/catalog/*`、`/coverage`、`/metrics` | 暂无 | 来自 runtime cache/metrics | 否 |
 | Redis Stream | 标准化事件流导出 | `runtime.redis_url` | Redis Streams | batched XADD + JSONL dead letter | 需要 Redis |
@@ -489,7 +490,10 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow/windows` | 多窗口 order-flow 和 CVD。 |
 | GET | `/v1/market/footprint` | footprint / orderflow profile。 |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV。 |
-| GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles。 |
+| GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles；Binance、OKX、Bybit 支持 funding history，历史 funding response 会附带逐点 schedule。 |
+| GET | `/v1/history/liquidations` | OKX/CoinEx bounded recent public liquidation history，供回放使用；其他 venue 缺口保持显式。 |
+| GET | `/v1/history/open-interest` | Binance/Bybit 公开历史 OI 观察，保留 provider unit；不代表多空方向。 |
+| GET | `/v1/history/trades` | Binance/OKX bounded public trades，保留 taker side，供 CVD/order-flow 回放。 |
 | GET | `/v1/storage/manifest` | 本地 Arrow IPC lake manifest 和质量元数据。 |
 | DELETE | `/v1/storage/partitions` | 按过滤条件删除本地 lake partitions。 |
 | GET | `/v1/universe/top-volume` | 按成交量筛选 universe。 |
@@ -670,8 +674,9 @@ curl -s "http://127.0.0.1:8080/v1/catalog/perpetuals?exchanges=binance,bybit,bit
 
 - 顶层字段：`version`、`domain`、`supported_exchanges`、`funding`、`errors`。
 - `funding[]`：`exchange`、`symbol`、`native_symbol`、`funding_rate`、
-  `funding_rate_pct`、`next_funding_time_ms`、`mark_price`、`index_price`、
+  `funding_rate_pct`、`next_funding_time_ms`、`funding_interval_ms`、`mark_price`、`index_price`、
   `active`、`source`、`ts_ms`。
+- `funding_interval_ms` 只在 provider 明确提供结算周期时出现；缺失时客户端必须暂停跨周期年化比较。
 - `funding_rate` 是小数，例如 `-0.001`。
 - `funding_rate_pct` 已经是百分比，例如 `-0.1` 表示 `-0.1%`。
 
@@ -864,6 +869,16 @@ data/redis_dead_letters.jsonl
 ## 边界说明
 
 MarketBridge 是数据层。它可以给策略系统提供实时、统一、可检查的数据，但不代表任何因子已经有效，也不代表可以直接实盘交易。
+
+策略层采用 Python-first：Rust 负责连接器、标准化、缓存、历史、回放基础和稳定 API；量化研究者可以直接在 `examples/` 中用 Python 编写策略、参数扫描、纸面验证和校准报告，不需要修改 Rust。可直接从以下入口开始：
+
+```bash
+python3 examples/python_strategy_runner.py --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
+python3 examples/crypto_session_filter.py --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
+```
+
+完整案例与限制说明见 [`examples/README.md`](examples/README.md) 和
+[`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md)。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 

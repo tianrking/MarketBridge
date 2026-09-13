@@ -24,6 +24,148 @@ pub struct HistoryCandlesQuery {
     persist: Option<bool>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct HistoryLiquidationsQuery {
+    exchange: String,
+    symbol: String,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct HistoryOpenInterestQuery {
+    exchange: String,
+    symbol: String,
+    interval: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct HistoryTradesQuery {
+    exchange: String,
+    symbol: String,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+pub async fn trades(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryTradesQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "binance" => fetch_binance_trades(&state.http, &q).await,
+        "okx" => fetch_okx_trades(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported historical trades exchange: {other}; public history is currently available for binance and okx"
+        )),
+    };
+    match result {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_trade",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "coverage": "bounded_public_trade_history",
+            "rows": rows,
+            "limitations": [
+                "provider retention and pagination limits apply",
+                "CVD is a taker-side proxy derived from public trade side",
+                "this endpoint does not reconstruct every private or block execution"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_trade",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+pub async fn open_interest(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryOpenInterestQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "binance" => fetch_binance_open_interest(&state.http, &q).await,
+        "bybit" => fetch_bybit_open_interest(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported historical open-interest exchange: {other}; public history is currently available for binance and bybit"
+        )),
+    };
+    match result {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_open_interest",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "interval": q.interval.unwrap_or_else(|| "5m".to_string()),
+            "rows": rows,
+            "limitations": [
+                "open interest units remain provider-specific and are returned explicitly",
+                "history retention and pagination are provider-controlled",
+                "open interest is aggregate positioning, not long/short direction"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_open_interest",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+pub async fn liquidations(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryLiquidationsQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "okx" => fetch_okx_liquidations(&state.http, &q).await,
+        "coinex" => fetch_coinex_liquidations(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported liquidation history exchange: {other}; public history is currently available for okx and coinex"
+        )),
+    };
+    match result {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_liquidation",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "coverage": "bounded_recent_public_feed",
+            "rows": rows,
+            "limitations": [
+                "public history coverage and retention are provider-controlled",
+                "this endpoint does not reconstruct every venue or every liquidation child fill",
+                "OI, CVD, price impact and queue timing must be joined independently"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_liquidation",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
 pub async fn candles(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<HistoryCandlesQuery>,
@@ -37,12 +179,14 @@ pub async fn candles(
     let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
         "binance" => fetch_binance_history(&state.http, &q, &candle_type).await,
         "okx" => fetch_okx_history(&state.http, &q, &candle_type).await,
+        "bybit" => fetch_bybit_history(&state.http, &q, &candle_type).await,
         other => Err(anyhow::anyhow!("unsupported history exchange: {other}")),
     };
 
     match result {
         Ok(mut rows) => {
             rows.sort_by_key(|row| row.open_time_ms);
+            let funding_schedule = (candle_type == "funding_rate").then(|| funding_schedule(&rows));
             let persist_result = if q.persist.unwrap_or(false) {
                 match state
                     .data_lake_store
@@ -62,6 +206,7 @@ pub async fn candles(
                 "symbol": q.symbol,
                 "candle_type": candle_type,
                 "persist": persist_result,
+                "funding_schedule": funding_schedule,
                 "candles": rows
             }))
         }
@@ -72,6 +217,35 @@ pub async fn candles(
             "candles": []
         })),
     }
+}
+
+fn funding_schedule(rows: &[KlineBar]) -> Value {
+    let mut points = Vec::new();
+    let mut observed = std::collections::BTreeSet::new();
+    for window in rows.windows(2) {
+        let current = &window[0];
+        let next = &window[1];
+        let Some(interval_ms) = next.open_time_ms.checked_sub(current.open_time_ms) else {
+            continue;
+        };
+        if interval_ms == 0 {
+            continue;
+        }
+        observed.insert(interval_ms);
+        points.push(serde_json::json!({
+            "funding_time_ms": current.open_time_ms,
+            "next_funding_time_ms": next.open_time_ms,
+            "interval_ms": interval_ms,
+            "applies_to_rate_at_funding_time": true
+        }));
+    }
+    serde_json::json!({
+        "version": "adjacent_funding_timestamps/v1",
+        "method": "next_observed_funding_timestamp_minus_current",
+        "point_in_time": true,
+        "points": points,
+        "observed_intervals_ms": observed.into_iter().collect::<Vec<_>>()
+    })
 }
 
 async fn fetch_binance_history(
@@ -308,6 +482,423 @@ async fn fetch_okx_funding_rate(
         .collect()
 }
 
+async fn fetch_bybit_history(
+    http: &reqwest::Client,
+    q: &HistoryCandlesQuery,
+    candle_type: &str,
+) -> Result<Vec<KlineBar>> {
+    if candle_type != "funding_rate" {
+        bail!("unsupported bybit candle_type: {candle_type}");
+    }
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let limit = q.limit.unwrap_or(200).clamp(1, 200).to_string();
+    let mut request = http
+        .get("https://api.bybit.com/v5/market/funding/history")
+        .query(&[
+            ("category", "linear"),
+            ("symbol", symbol.as_str()),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse bybit funding history")?;
+    let rows = payload
+        .pointer("/result/list")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    rows.into_iter()
+        .map(|row| {
+            let open_time_ms = value_u64(row.get("fundingRateTimestamp"))
+                .context("missing fundingRateTimestamp")?;
+            let funding_rate = value_f64(row.get("fundingRate")).context("missing fundingRate")?;
+            Ok(KlineBar {
+                exchange: "bybit".to_string(),
+                market: "perp".to_string(),
+                symbol: symbol.clone(),
+                interval: q.interval.clone().unwrap_or_else(|| "provider".to_string()),
+                close_time_ms: open_time_ms,
+                open_time_ms,
+                open: funding_rate,
+                high: funding_rate,
+                low: funding_rate,
+                close: funding_rate,
+                volume: None,
+                source: "bybit_funding_rate_history".to_string(),
+                updated_at_ms: now_ms(),
+            })
+        })
+        .collect()
+}
+
+async fn fetch_okx_liquidations(
+    http: &reqwest::Client,
+    q: &HistoryLiquidationsQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let inst_family = okx_inst_family(&symbol);
+    let limit = q.limit.unwrap_or(100).clamp(1, 100).to_string();
+    let payload = http
+        .get("https://www.okx.com/api/v5/public/liquidation-orders")
+        .query(&[
+            ("instType", "SWAP"),
+            ("instFamily", inst_family.as_str()),
+            ("state", "filled"),
+            ("limit", limit.as_str()),
+        ])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse okx liquidation history")?;
+    if payload.get("code").and_then(Value::as_str) != Some("0") {
+        bail!(
+            "okx liquidation history error: {}",
+            payload
+                .get("msg")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let mut rows = Vec::new();
+    for group in payload
+        .get("data")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let group_symbol = group
+            .get("instId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        for detail in group
+            .get("details")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let ts_ms = value_u64(detail.get("ts").or_else(|| detail.get("time")))
+                .context("missing okx liquidation timestamp")?;
+            if q.start_ms.is_some_and(|start| ts_ms < start)
+                || q.end_ms.is_some_and(|end| ts_ms > end)
+            {
+                continue;
+            }
+            let price = value_f64(detail.get("bkPx")).context("missing okx liquidation price")?;
+            let qty = value_f64(detail.get("sz")).context("missing okx liquidation size")?;
+            rows.push(serde_json::json!({
+                "exchange": "okx",
+                "symbol": group_symbol,
+                "inst_family": group.get("instFamily"),
+                "side": detail.get("side").or_else(|| group.get("side")),
+                "position_side": detail.get("posSide"),
+                "price": price,
+                "qty": qty,
+                "notional": price * qty,
+                "ts_ms": ts_ms,
+                "source": "okx_public_liquidation_orders"
+            }));
+        }
+    }
+    rows.sort_by_key(|row| row.get("ts_ms").and_then(Value::as_u64).unwrap_or_default());
+    Ok(rows)
+}
+
+async fn fetch_coinex_liquidations(
+    http: &reqwest::Client,
+    q: &HistoryLiquidationsQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let limit = q.limit.unwrap_or(100).clamp(1, 100).to_string();
+    let payload = http
+        .get("https://api.coinex.com/v2/futures/liquidation-history")
+        .query(&[("market", symbol.as_str()), ("limit", limit.as_str())])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse coinex liquidation history")?;
+    if payload.get("code").and_then(Value::as_i64) != Some(0) {
+        bail!(
+            "coinex liquidation history error: {}",
+            payload
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let rows = payload
+        .get("data")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let rows = rows
+        .into_iter()
+        .filter_map(|row| {
+            let ts_ms = value_u64(row.get("created_at"))?;
+            if q.start_ms.is_some_and(|start| ts_ms < start)
+                || q.end_ms.is_some_and(|end| ts_ms > end)
+            {
+                return None;
+            }
+            let raw_side = row.get("side").and_then(Value::as_str).unwrap_or("unknown");
+            let side = coinex_liquidation_side(raw_side);
+            let price = value_f64(row.get("liq_price"))?;
+            let qty = value_f64(row.get("liq_amount"))?;
+            Some(serde_json::json!({
+                "exchange": "coinex",
+                "symbol": symbol,
+                "side": side,
+                "position_side": raw_side,
+                "price": price,
+                "qty": qty,
+                "notional": price * qty,
+                "ts_ms": ts_ms,
+                "source": "coinex_public_liquidation_history"
+            }))
+        })
+        .collect::<Vec<_>>();
+    Ok(rows)
+}
+
+async fn fetch_binance_open_interest(
+    http: &reqwest::Client,
+    q: &HistoryOpenInterestQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let interval = q.interval.as_deref().unwrap_or("5m");
+    let limit = q.limit.unwrap_or(100).clamp(1, 500).to_string();
+    let mut request = http
+        .get("https://fapi.binance.com/futures/data/openInterestHist")
+        .query(&[
+            ("symbol", symbol.as_str()),
+            ("period", interval),
+            ("contractType", "PERPETUAL"),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Value>>()
+        .await
+        .context("failed to parse binance open-interest history")?;
+    payload
+        .into_iter()
+        .map(|row| {
+            let ts_ms = value_u64(row.get("timestamp")).context("missing binance OI timestamp")?;
+            let open_interest =
+                value_f64(row.get("sumOpenInterest")).context("missing binance open interest")?;
+            Ok(serde_json::json!({
+                "exchange": "binance",
+                "symbol": symbol,
+                "open_interest": open_interest,
+                "open_interest_value": value_f64(row.get("sumOpenInterestValue")),
+                "unit": "provider_contracts",
+                "ts_ms": ts_ms,
+                "source": "binance_open_interest_hist"
+            }))
+        })
+        .collect()
+}
+
+async fn fetch_bybit_open_interest(
+    http: &reqwest::Client,
+    q: &HistoryOpenInterestQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let interval = bybit_oi_interval(q.interval.as_deref().unwrap_or("5m"))?;
+    let limit = q.limit.unwrap_or(100).clamp(1, 200).to_string();
+    let mut request = http
+        .get("https://api.bybit.com/v5/market/open-interest")
+        .query(&[
+            ("category", "linear"),
+            ("symbol", symbol.as_str()),
+            ("intervalTime", interval),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse bybit open-interest history")?;
+    if payload.get("retCode").and_then(Value::as_i64) != Some(0) {
+        bail!(
+            "bybit open-interest history error: {}",
+            payload
+                .get("retMsg")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let rows = payload
+        .pointer("/result/list")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    rows.into_iter()
+        .map(|row| {
+            let ts_ms = value_u64(row.get("timestamp")).context("missing bybit OI timestamp")?;
+            let open_interest =
+                value_f64(row.get("openInterest")).context("missing bybit open interest")?;
+            Ok(serde_json::json!({
+                "exchange": "bybit",
+                "symbol": symbol,
+                "open_interest": open_interest,
+                "open_interest_value": null,
+                "unit": "base_asset",
+                "ts_ms": ts_ms,
+                "source": "bybit_open_interest_history"
+            }))
+        })
+        .collect()
+}
+
+async fn fetch_binance_trades(
+    http: &reqwest::Client,
+    q: &HistoryTradesQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let limit = q.limit.unwrap_or(500).clamp(1, 1000).to_string();
+    let mut request = http
+        .get("https://fapi.binance.com/fapi/v1/aggTrades")
+        .query(&[("symbol", symbol.as_str()), ("limit", limit.as_str())]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Value>>()
+        .await
+        .context("failed to parse binance aggregate trades")?;
+    payload
+        .into_iter()
+        .map(|row| {
+            let ts_ms = value_u64(row.get("T")).context("missing binance trade timestamp")?;
+            let price = value_f64(row.get("p")).context("missing binance trade price")?;
+            let qty = value_f64(row.get("q")).context("missing binance trade quantity")?;
+            let is_buyer_maker = row.get("m").and_then(Value::as_bool).unwrap_or(false);
+            Ok(serde_json::json!({
+                "exchange": "binance",
+                "symbol": symbol,
+                "trade_id": row.get("a"),
+                "side": if is_buyer_maker { "sell" } else { "buy" },
+                "price": price,
+                "qty": qty,
+                "notional": price * qty,
+                "ts_ms": ts_ms,
+                "source": "binance_futures_agg_trades"
+            }))
+        })
+        .collect()
+}
+
+async fn fetch_okx_trades(http: &reqwest::Client, q: &HistoryTradesQuery) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let inst_id = okx_inst_id(&symbol, "perp");
+    let limit = q.limit.unwrap_or(100).clamp(1, 100).to_string();
+    let mut request = http
+        .get("https://www.okx.com/api/v5/market/history-trades")
+        .query(&[
+            ("instId", inst_id.as_str()),
+            ("type", "2"),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("after", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse okx history trades")?;
+    if payload.get("code").and_then(Value::as_str) != Some("0") {
+        bail!(
+            "okx history trades error: {}",
+            payload
+                .get("msg")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let rows = payload
+        .get("data")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let rows = rows
+        .into_iter()
+        .filter_map(|row| {
+            let ts_ms = value_u64(row.get("ts"))?;
+            if q.start_ms.is_some_and(|start| ts_ms < start)
+                || q.end_ms.is_some_and(|end| ts_ms > end)
+            {
+                return None;
+            }
+            let price = value_f64(row.get("px"))?;
+            let qty = value_f64(row.get("sz"))?;
+            let side = row.get("side").and_then(Value::as_str).unwrap_or("unknown");
+            Some(serde_json::json!({
+                "exchange": "okx",
+                "symbol": symbol,
+                "trade_id": row.get("tradeId"),
+                "side": side,
+                "price": price,
+                "qty": qty,
+                "notional": price * qty,
+                "ts_ms": ts_ms,
+                "source": "okx_history_trades"
+            }))
+        })
+        .collect::<Vec<_>>();
+    Ok(rows)
+}
+
+fn bybit_oi_interval(value: &str) -> Result<&'static str> {
+    match value {
+        "5m" | "5min" => Ok("5min"),
+        "15m" | "15min" => Ok("15min"),
+        "30m" | "30min" => Ok("30min"),
+        "1h" => Ok("1h"),
+        "4h" => Ok("4h"),
+        "1d" | "1day" => Ok("1d"),
+        other => bail!("unsupported bybit open-interest interval: {other}"),
+    }
+}
+
 fn parse_binance_array_row(
     exchange: &str,
     market: &str,
@@ -394,6 +985,14 @@ fn okx_inst_id(symbol: &str, market: &str) -> String {
     }
 }
 
+fn okx_inst_family(symbol: &str) -> String {
+    let inst_id = okx_inst_id(symbol, "perp");
+    inst_id
+        .strip_suffix("-SWAP")
+        .unwrap_or(&inst_id)
+        .to_string()
+}
+
 fn value_f64(value: Option<&Value>) -> Option<f64> {
     value.and_then(|value| {
         value
@@ -410,6 +1009,14 @@ fn value_u64(value: Option<&Value>) -> Option<u64> {
             .and_then(|x| x.parse().ok())
             .or_else(|| value.as_u64())
     })
+}
+
+fn coinex_liquidation_side(raw_side: &str) -> &'static str {
+    match raw_side {
+        "long" => "sell",
+        "short" => "buy",
+        _ => "unknown",
+    }
 }
 
 #[cfg(test)]
@@ -432,5 +1039,50 @@ mod tests {
     fn okx_symbol_maps_perp_swap() {
         assert_eq!(okx_inst_id("BTCUSDT", "perp"), "BTC-USDT-SWAP");
         assert_eq!(okx_inst_id("BTCUSDT", "spot"), "BTC-USDT");
+        assert_eq!(okx_inst_family("BTCUSDT"), "BTC-USDT");
+    }
+
+    #[test]
+    fn maps_supported_bybit_open_interest_intervals() {
+        assert_eq!(bybit_oi_interval("5m").unwrap(), "5min");
+        assert_eq!(bybit_oi_interval("1h").unwrap(), "1h");
+        assert!(bybit_oi_interval("2h").is_err());
+    }
+
+    #[test]
+    fn maps_coinex_liquidation_position_to_aggressor_side() {
+        assert_eq!(coinex_liquidation_side("long"), "sell");
+        assert_eq!(coinex_liquidation_side("short"), "buy");
+        assert_eq!(coinex_liquidation_side("other"), "unknown");
+    }
+
+    #[test]
+    fn funding_schedule_exposes_point_in_time_adjacent_intervals() {
+        let rows = [1000_u64, 28_801_000, 43_201_000]
+            .into_iter()
+            .map(|open_time_ms| KlineBar {
+                exchange: "test".to_string(),
+                market: "perp".to_string(),
+                symbol: "BTCUSDT".to_string(),
+                interval: "provider".to_string(),
+                open_time_ms,
+                close_time_ms: open_time_ms,
+                open: 0.0,
+                high: 0.0,
+                low: 0.0,
+                close: 0.0,
+                volume: None,
+                source: "test".to_string(),
+                updated_at_ms: 1,
+            })
+            .collect::<Vec<_>>();
+        let schedule = funding_schedule(&rows);
+        assert_eq!(
+            schedule["observed_intervals_ms"],
+            serde_json::json!([14_400_000, 28_800_000])
+        );
+        assert_eq!(schedule["points"][0]["interval_ms"], 28_800_000);
+        assert_eq!(schedule["points"][1]["interval_ms"], 14_400_000);
+        assert_eq!(schedule["point_in_time"], true);
     }
 }

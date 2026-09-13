@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use super::polymarket_parser::{GammaMarket, parse_crypto_market};
 
 const CLOB_BASE_URL: &str = "https://clob.polymarket.com";
+const DATA_API_BASE_URL: &str = "https://data-api.polymarket.com";
 pub const POLYMARKET_BATCH_TOKEN_LIMIT: usize = 500;
 pub const POLYMARKET_HISTORY_BATCH_LIMIT: usize = 20;
 const POLYMARKET_BOOK_FETCH_CONCURRENCY: usize = 16;
@@ -50,6 +51,7 @@ pub struct PolymarketMarketSummary {
     pub clob_token_ids: Vec<String>,
     pub outcomes: Vec<String>,
     pub outcome_prices: Vec<String>,
+    pub resolved_outcome: Option<String>,
     pub volume: Option<f64>,
     pub volume_24h: Option<f64>,
     pub volume_1wk: Option<f64>,
@@ -143,6 +145,70 @@ pub struct PolymarketBatchPriceHistoryRequest {
     pub fidelity: Option<u32>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
+pub struct PolymarketDataTrade {
+    pub proxy_wallet: Option<String>,
+    pub side: Option<String>,
+    pub asset: Option<String>,
+    pub condition_id: Option<String>,
+    pub size: Option<f64>,
+    pub price: Option<f64>,
+    pub timestamp: Option<u64>,
+    pub title: Option<String>,
+    pub slug: Option<String>,
+    pub event_slug: Option<String>,
+    pub outcome: Option<String>,
+    pub outcome_index: Option<u32>,
+    pub transaction_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PolymarketTradesQuery<'a> {
+    pub market: Option<&'a str>,
+    pub event_id: Option<u64>,
+    pub asset: Option<&'a str>,
+    pub limit: usize,
+    pub offset: usize,
+    pub taker_only: Option<bool>,
+    pub side: Option<&'a str>,
+}
+
+pub async fn fetch_polymarket_data_trades(
+    client: &reqwest::Client,
+    query: &PolymarketTradesQuery<'_>,
+) -> Result<Vec<PolymarketDataTrade>> {
+    let mut url = Url::parse(DATA_API_BASE_URL)?.join("trades")?;
+    {
+        let mut params = url.query_pairs_mut();
+        params.append_pair("limit", &query.limit.to_string());
+        params.append_pair("offset", &query.offset.to_string());
+        if let Some(market) = query.market.filter(|value| !value.is_empty()) {
+            params.append_pair("market", market);
+        }
+        if let Some(event_id) = query.event_id {
+            params.append_pair("eventId", &event_id.to_string());
+        }
+        if let Some(asset) = query.asset.filter(|value| !value.is_empty()) {
+            params.append_pair("asset", asset);
+        }
+        if let Some(taker_only) = query.taker_only {
+            params.append_pair("takerOnly", if taker_only { "true" } else { "false" });
+        }
+        if let Some(side) = query.side.filter(|value| !value.is_empty()) {
+            params.append_pair("side", side);
+        }
+    }
+    client
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<PolymarketDataTrade>>()
+        .await
+        .context("failed to decode Polymarket Data API trades")
+}
+
 pub async fn fetch_polymarket_crypto_markets(
     client: &reqwest::Client,
     gamma_base_url: &str,
@@ -152,7 +218,7 @@ pub async fn fetch_polymarket_crypto_markets(
     let mut markets = Vec::new();
     let mut offset = 0usize;
     while offset <= max_offset {
-        let batch = fetch_gamma_markets(client, gamma_base_url, limit, offset).await?;
+        let batch = fetch_gamma_markets(client, gamma_base_url, limit, offset, false).await?;
         if batch.is_empty() {
             break;
         }
@@ -180,15 +246,21 @@ pub async fn fetch_polymarket_markets(
     gamma_base_url: &str,
     limit: usize,
     max_offset: usize,
+    include_closed: bool,
 ) -> Result<PolymarketMarketsResponse> {
     let mut markets = Vec::new();
     let mut offset = 0usize;
     while offset <= max_offset {
-        let batch = fetch_gamma_markets(client, gamma_base_url, limit, offset).await?;
+        let batch =
+            fetch_gamma_markets(client, gamma_base_url, limit, offset, include_closed).await?;
         if batch.is_empty() {
             break;
         }
-        markets.extend(batch.iter().filter_map(parse_market_summary));
+        markets.extend(
+            batch
+                .iter()
+                .filter_map(|market| parse_market_summary(market, include_closed)),
+        );
         offset += limit;
     }
 
@@ -206,7 +278,10 @@ pub async fn fetch_polymarket_markets(
     })
 }
 
-fn parse_market_summary(market: &GammaMarket) -> Option<PolymarketMarketSummary> {
+fn parse_market_summary(
+    market: &GammaMarket,
+    include_closed: bool,
+) -> Option<PolymarketMarketSummary> {
     let status = if market.closed == Some(true) {
         "closed"
     } else if market.active == Some(true) {
@@ -214,7 +289,7 @@ fn parse_market_summary(market: &GammaMarket) -> Option<PolymarketMarketSummary>
     } else {
         "unknown"
     };
-    if status != "active" {
+    if status == "unknown" || (status == "closed" && !include_closed) {
         return None;
     }
     let market_id = market
@@ -222,6 +297,8 @@ fn parse_market_summary(market: &GammaMarket) -> Option<PolymarketMarketSummary>
         .clone()
         .or_else(|| market.slug.clone())
         .or_else(|| market.event_slug.clone())?;
+    let outcomes = string_vec(market.outcomes.as_ref());
+    let outcome_prices = string_vec(market.outcome_prices.as_ref());
     Some(PolymarketMarketSummary {
         market_id,
         condition_id: market.condition_id.clone(),
@@ -232,8 +309,9 @@ fn parse_market_summary(market: &GammaMarket) -> Option<PolymarketMarketSummary>
         status: status.to_string(),
         expiry_time: market.end_date.clone(),
         clob_token_ids: string_vec(market.clob_token_ids.as_ref()),
-        outcomes: string_vec(market.outcomes.as_ref()),
-        outcome_prices: string_vec(market.outcome_prices.as_ref()),
+        resolved_outcome: resolved_outcome(&outcomes, &outcome_prices),
+        outcomes,
+        outcome_prices,
         volume: market
             .volume_clob
             .or(market.volume_num)
@@ -513,13 +591,27 @@ async fn fetch_gamma_markets(
     base_url: &str,
     limit: usize,
     offset: usize,
+    include_closed: bool,
 ) -> Result<Vec<GammaMarket>> {
-    let mut url = Url::parse(base_url)?.join("markets")?;
-    url.query_pairs_mut()
-        .append_pair("limit", &limit.to_string())
-        .append_pair("offset", &offset.to_string())
-        .append_pair("active", "true")
-        .append_pair("closed", "false");
+    let url = {
+        let mut url = Url::parse(base_url)?.join("markets")?;
+        {
+            let mut params = url.query_pairs_mut();
+            params
+                .append_pair("limit", &limit.to_string())
+                .append_pair("offset", &offset.to_string());
+            if include_closed {
+                params
+                    .append_pair("active", "false")
+                    .append_pair("closed", "true");
+            } else {
+                params
+                    .append_pair("active", "true")
+                    .append_pair("closed", "false");
+            }
+        }
+        url
+    };
     client
         .get(url)
         .send()
@@ -528,6 +620,19 @@ async fn fetch_gamma_markets(
         .json::<Vec<GammaMarket>>()
         .await
         .context("failed to decode gamma markets")
+}
+
+fn resolved_outcome(outcomes: &[String], prices: &[String]) -> Option<String> {
+    outcomes
+        .iter()
+        .zip(prices.iter())
+        .find_map(|(outcome, price)| {
+            price
+                .parse::<f64>()
+                .ok()
+                .filter(|value| *value >= 0.99)
+                .map(|_| outcome.clone())
+        })
 }
 
 #[cfg(test)]
@@ -607,7 +712,7 @@ mod tests {
             outcomes: Some(serde_json::json!("[\"Yes\",\"No\"]")),
         };
 
-        let summary = parse_market_summary(&market).expect("summary");
+        let summary = parse_market_summary(&market, false).expect("summary");
         assert_eq!(summary.category.as_deref(), Some("sports"));
         assert_eq!(summary.clob_token_ids, vec!["yes-token", "no-token"]);
         assert_eq!(summary.outcomes, vec!["Yes", "No"]);
@@ -615,5 +720,64 @@ mod tests {
         assert_eq!(summary.volume_24h, Some(2.0));
         assert_eq!(summary.liquidity, Some(13.0));
         assert_eq!(summary.open_interest, Some(123.45));
+        assert_eq!(summary.resolved_outcome, None);
+    }
+
+    #[test]
+    fn closed_market_requires_opt_in_and_resolves_outcome() {
+        let market = GammaMarket {
+            condition_id: Some("0xclosed".to_string()),
+            slug: Some("closed-market".to_string()),
+            event_slug: None,
+            category: None,
+            question: Some("Did it happen?".to_string()),
+            end_date: None,
+            active: Some(false),
+            closed: Some(true),
+            liquidity: None,
+            liquidity_num: None,
+            liquidity_clob: None,
+            volume: None,
+            volume_num: None,
+            volume_clob: None,
+            volume_24hr: None,
+            volume_24hr_clob: None,
+            volume_1wk: None,
+            volume_1mo: None,
+            open_interest: None,
+            accepting_orders: Some(false),
+            outcome_prices: Some(serde_json::json!(["0", "1"])),
+            events: None,
+            clob_token_ids: Some(serde_json::json!(["yes", "no"])),
+            outcomes: Some(serde_json::json!(["Yes", "No"])),
+        };
+
+        assert!(parse_market_summary(&market, false).is_none());
+        let summary = parse_market_summary(&market, true).expect("closed summary");
+        assert_eq!(summary.status, "closed");
+        assert_eq!(summary.resolved_outcome, Some("No".to_string()));
+    }
+
+    #[test]
+    fn data_trade_normalizes_camel_case_input_to_snake_case_output() {
+        let trade: PolymarketDataTrade = serde_json::from_value(serde_json::json!({
+            "proxyWallet": "0xabc",
+            "conditionId": "0xcondition",
+            "eventSlug": "event",
+            "outcomeIndex": 1,
+            "transactionHash": "0xtx",
+            "side": "BUY",
+            "size": 2.0,
+            "price": 0.4,
+            "timestamp": 123
+        }))
+        .expect("trade should decode");
+        let value = serde_json::to_value(trade).expect("trade should serialize");
+
+        assert_eq!(value["proxy_wallet"], "0xabc");
+        assert_eq!(value["condition_id"], "0xcondition");
+        assert_eq!(value["event_slug"], "event");
+        assert_eq!(value["outcome_index"], 1);
+        assert_eq!(value["transaction_hash"], "0xtx");
     }
 }

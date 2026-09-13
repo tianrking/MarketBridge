@@ -69,6 +69,9 @@ Primary endpoints:
 | On-demand perp funding | `/v1/market/perpetual-funding` | none | Keyless where public REST exists |
 | Open interest | `/v1/market/open-interest` | `open_interest` | Mixed by source, mostly keyless |
 | Liquidations | `/v1/market/liquidations` | `liquidation` | Keyless where public feeds exist |
+| Historical liquidations | `/v1/history/liquidations` | none | Keyless bounded OKX/CoinEx public filled-liquidation history; provider retention and other venue gaps remain explicit |
+| Historical open interest | `/v1/history/open-interest` | none | Keyless Binance/Bybit public OI history where provider retention allows |
+| Historical trades | `/v1/history/trades` | none | Keyless bounded Binance/OKX public trade history; Bybit recent-trade is not advertised as arbitrary history |
 
 Implemented keyless CEX/perp sources include:
 

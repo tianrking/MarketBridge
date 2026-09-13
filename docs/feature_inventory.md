@@ -60,9 +60,12 @@ Status labels:
 | Perpetual discovery | `/v1/catalog/perpetuals` | implemented | keyless | Grouped perpetual contract discovery by exchange for client-side universe selection. |
 | Spot-perp basis | `/v1/market/basis` | implemented | keyless | Derived from current spot/perp quote snapshots per exchange/symbol. |
 | Funding rates | `/v1/market/funding` | implemented | mixed | Native CEX feeds plus future aggregate feeds. |
-| On-demand perpetual funding | `/v1/market/perpetual-funding` | implemented | keyless | Current public REST funding rows for supported perpetual venues; not limited to configured symbols. |
+| On-demand perpetual funding | `/v1/market/perpetual-funding` | implemented | keyless | Current public REST funding rows for supported perpetual venues; includes explicit provider intervals for Binance, Bybit and OKX when available; not limited to configured symbols. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
+| Historical liquidations | `/v1/history/liquidations` | implemented | keyless | Bounded recent OKX/CoinEx public liquidation history; not a complete cross-venue ledger. |
+| Historical open interest | `/v1/history/open-interest` | implemented | keyless | Binance/Bybit public time-bounded OI history with explicit provider units; not directional positioning. |
+| Historical trades | `/v1/history/trades` | implemented | keyless | Bounded Binance/OKX public trades normalized with taker side for CVD research; retention is provider-controlled. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |
 | Order flow | `/v1/market/order-flow` | implemented | keyless | Derived buy/sell volume, delta, notional, CVD, and large-trade count from live trades. |
@@ -70,6 +73,7 @@ Status labels:
 | Options chains | `/v1/options/chains` | implemented | keyless | Deribit/OKX/Bybit/Binance REST cache. |
 | Prediction books | `/v1/prediction/books` | implemented | keyless | Polymarket live CLOB cache. |
 | External signals | `/v1/external/signals` | implemented | mixed | CoinGlass, news, social, sentiment. |
+| Weather observations | `/v1/external/weather` | implemented | keyless | Open-Meteo forecast/archive, explicit coordinates and date mode; not a probability model or market resolver. |
 | Onchain transfers | `/v1/onchain/transfers` | implemented | mixed | Whale Alert, mempool.space, and Etherscan large-transfer collectors. |
 
 ## CEX Connector Coverage

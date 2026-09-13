@@ -354,6 +354,21 @@ pub fn domain_catalog() -> Vec<CatalogDomain> {
             status: "implemented",
         },
         CatalogDomain {
+            domain: "history_liquidation",
+            endpoint: "/v1/history/liquidations",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "history_open_interest",
+            endpoint: "/v1/history/open-interest",
+            status: "implemented",
+        },
+        CatalogDomain {
+            domain: "history_trade",
+            endpoint: "/v1/history/trades",
+            status: "implemented",
+        },
+        CatalogDomain {
             domain: "market_order_book",
             endpoint: "/v1/market/order-books",
             status: "implemented",
@@ -409,6 +424,9 @@ mod tests {
             .map(|domain| domain.domain)
             .collect::<Vec<_>>();
         assert!(domains.contains(&"market_quote"));
+        assert!(domains.contains(&"history_liquidation"));
+        assert!(domains.contains(&"history_open_interest"));
+        assert!(domains.contains(&"history_trade"));
         assert!(domains.contains(&"options_chain"));
         assert!(domains.contains(&"prediction_book"));
         assert!(domains.contains(&"external_signal"));

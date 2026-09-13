@@ -24,6 +24,21 @@ MarketBridge does not own:
 - Live-account PnL reconciliation or claims of guaranteed research profitability.
 - Wallet signing, authenticated trading, order placement, or execution routing.
 
+## Python-first Strategy Boundary
+
+MarketBridge is intentionally Rust-first for infrastructure and Python-first
+for strategy work. Rust owns connector reliability, normalization, freshness,
+cache/history, bounded replay primitives, and stable HTTP/WebSocket interfaces.
+Practitioners can therefore write strategies, research notebooks, parameter
+sweeps, paper scenarios, and calibration reports in Python against the same
+normalized API without needing to modify the Rust runtime. Python examples in
+`examples/` are the primary strategy entry points; Rust examples are reserved
+for compatibility and low-level integration references.
+
+Every strategy example must remain research-only: it may collect evidence,
+score a hypothesis, replay historical data, or emit a paper observation, but
+it must not place orders, sign transactions, or imply guaranteed returns.
+
 ## Documentation Map
 
 - [`data_sources.md`](data_sources.md): operator-facing source inventory,

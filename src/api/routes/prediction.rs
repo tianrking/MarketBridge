@@ -10,8 +10,9 @@ use crate::api::ApiState;
 use crate::api::error::{multi_status, upstream_error};
 use crate::api::utils::parse_csv_vec;
 use crate::connectors::prediction::polymarket::{
-    PolymarketBatchPriceHistoryRequest, fetch_polymarket_batch_prices_history,
-    fetch_polymarket_book, fetch_polymarket_books, fetch_polymarket_crypto_markets,
+    PolymarketBatchPriceHistoryRequest, PolymarketTradesQuery,
+    fetch_polymarket_batch_prices_history, fetch_polymarket_book, fetch_polymarket_books,
+    fetch_polymarket_crypto_markets, fetch_polymarket_data_trades,
     fetch_polymarket_last_trade_prices, fetch_polymarket_market_prices, fetch_polymarket_markets,
     fetch_polymarket_midpoints, fetch_polymarket_prices_history, fetch_polymarket_spreads,
 };
@@ -22,6 +23,7 @@ pub struct PolymarketCryptoMarketsQuery {
     gamma_base_url: Option<String>,
     limit: Option<usize>,
     max_offset: Option<usize>,
+    include_closed: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,6 +58,46 @@ pub struct PredictionBooksQuery {
     include_stale: Option<bool>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct PredictionTradesQuery {
+    market: Option<String>,
+    event_id: Option<u64>,
+    asset: Option<String>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    taker_only: Option<bool>,
+    side: Option<String>,
+}
+
+pub async fn v1_prediction_trades(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PredictionTradesQuery>,
+) -> impl IntoResponse {
+    let limit = q.limit.unwrap_or(100).clamp(1, 10_000);
+    let offset = q.offset.unwrap_or(0).min(10_000);
+    let query = PolymarketTradesQuery {
+        market: q.market.as_deref(),
+        event_id: q.event_id,
+        asset: q.asset.as_deref(),
+        limit,
+        offset,
+        taker_only: q.taker_only,
+        side: q.side.as_deref(),
+    };
+    match fetch_polymarket_data_trades(&state.http, &query).await {
+        Ok(trades) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "prediction_trade",
+            "source": "polymarket_data_api",
+            "limit": limit,
+            "offset": offset,
+            "trades": trades
+        }))
+        .into_response(),
+        Err(error) => upstream_error("polymarket_data_api", error),
+    }
+}
+
 pub async fn polymarket_crypto_markets(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<PolymarketCryptoMarketsQuery>,
@@ -87,8 +129,19 @@ pub async fn polymarket_markets(
         .gamma_base_url
         .unwrap_or_else(|| "https://gamma-api.polymarket.com/".to_string());
     let limit = q.limit.unwrap_or(500);
-    let max_offset = q.max_offset.unwrap_or(5000);
-    match fetch_polymarket_markets(&state.http, &gamma_base_url, limit, max_offset).await {
+    let include_closed = q.include_closed.unwrap_or(false);
+    let max_offset = q
+        .max_offset
+        .unwrap_or(if include_closed { 0 } else { 5000 });
+    match fetch_polymarket_markets(
+        &state.http,
+        &gamma_base_url,
+        limit,
+        max_offset,
+        include_closed,
+    )
+    .await
+    {
         Ok(response) => Json(serde_json::json!({
             "source": "polymarket_gamma",
             "gamma_base_url": gamma_base_url,

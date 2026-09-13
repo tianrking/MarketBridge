@@ -155,6 +155,10 @@ Supported candle types:
 - Binance: `spot`, `futures`, `perp`, `mark`, `index`, `premiumIndex`,
   `funding_rate`
 - OKX: `spot`, `perp`, `mark`, `index`, `funding_rate`
+- Bybit: `funding_rate`
+
+Funding-history responses include `funding_schedule.points[]`, whose adjacent
+timestamps provide point-in-time intervals for historical normalization.
 
 Examples:
 
@@ -168,6 +172,10 @@ curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSD
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
+```
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=bybit&symbol=BTCUSDT&candle_type=funding_rate&limit=200" | jq
 ```
 
 ## Local Lake Manifest And Delete

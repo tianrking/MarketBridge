@@ -15,6 +15,9 @@
 9. [运行、备份、排障和发布验收](09-operations.md)
 10. [扩展市场、策略和研究业务](10-extending.md)
 11. [用 MarketBridge 寻找永续合约逼空结构](11-squeeze-radar.md)
+12. [将外部策略观点变成可验证实验](12-strategy-intake.md)
+
+可运行策略案例的索引见 [examples/README.md](../../examples/README.md)。
 
 现有实时采集配置、成本曲线、扫描、回放和模拟账本的完整字段说明另见
 [研究 API](../research-api.md)。开发验证记录见[开发日志](../development-log.md)。

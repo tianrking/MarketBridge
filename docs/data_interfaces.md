@@ -154,13 +154,16 @@ Short version:
 |---|---|---|---|---|
 | Quotes | `/v1/market/quotes` | CEX/DeFi/TradFi/aggregates | raw normalized | Current latest quote snapshots. |
 | Funding | `/v1/market/funding` | CEX perp feeds | raw normalized | Latest funding-rate rows. |
-| Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; not limited to configured symbols. |
+| Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; includes `funding_interval_ms` when the provider exposes an explicit schedule. |
 | Open interest | `/v1/market/open-interest` | CEX perp feeds | raw normalized | Latest OI rows. |
 | Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
 | Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |
 | Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to the local Arrow IPC lake. |
-| History candles | `/v1/history/candles` | Binance/OKX public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles. |
+| History candles | `/v1/history/candles` | Binance/OKX/Bybit public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; Bybit currently adds funding history. Funding history also returns point-in-time adjacent timestamp intervals. |
+| Historical liquidations | `/v1/history/liquidations` | OKX/CoinEx public liquidation history | raw normalized | Bounded recent liquidation details with normalized side, position side, price, quantity and timestamp; provider retention and other venue gaps remain explicit. |
+| Historical open interest | `/v1/history/open-interest` | Binance/Bybit public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value and timestamp; not a long/short split. |
+| Historical trades | `/v1/history/trades` | Binance aggregate trades / OKX history-trades | raw normalized | Bounded public trades with taker side, price, quantity, notional and timestamp for CVD research. |
 | Basis | `/v1/market/basis` | quote snapshots | derived | Spot-perp basis per exchange/symbol. |
 | Order flow | `/v1/market/order-flow` | trade events | derived | Buy/sell pressure buckets and CVD. |
 | Order-flow windows | `/v1/market/order-flow/windows` | trade events | derived | Multi-window order-flow and CVD query. |
@@ -281,6 +284,14 @@ Supported public history:
 - Binance: `spot`, `futures`, `perp`, `mark`, `index`, `premiumIndex`,
   `funding_rate`
 - OKX: `spot`, `perp`, `mark`, `index`, `funding_rate`
+- Bybit: `funding_rate`
+
+For `candle_type=funding_rate`, the response also includes
+`funding_schedule.points[]`. Each point records the current funding timestamp,
+the next observed funding timestamp, and the interval that applies to that
+rate. This is the preferred input for point-in-time funding normalization;
+the final candle in a page has no forward interval and is omitted from that
+schedule.
 
 Examples:
 
@@ -411,11 +422,13 @@ Important boundaries:
 |---|---|---|
 | Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache. |
 | Option books | `/options/deribit/book`, `/options/okx/book`, `/options/bybit/book`, `/options/binance/book` | Keyless per-instrument option depth. |
-| Polymarket Gamma discovery | `/polymarket/markets`, `/polymarket/crypto-markets` | General active Gamma markets plus the BTC/ETH crypto parser. |
+| Polymarket Gamma discovery | `/polymarket/markets`, `/polymarket/crypto-markets` | General active Gamma markets plus the BTC/ETH crypto parser; `/polymarket/markets?include_closed=true` includes closed markets and a best-effort resolved outcome. |
 | Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
+| Polymarket trades | `/v1/prediction/trades` | Public Data API trade history filtered by market, event, asset, side, limit and offset; no authenticated user ledger. |
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
 | External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush, and DeFi native-state metrics emitted by pool connectors. |
+| Weather observations | `/v1/external/weather` | On-demand Open-Meteo forecast or historical archive response with explicit coordinates, mode, dates and requested variables. |
 
 Known non-Polymarket gaps are centralized in
 [`feature_inventory.md`](feature_inventory.md#remaining-non-polymarket-data-gaps).
@@ -472,6 +485,9 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/footprint` | Footprint/orderflow profile. |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars with optional Arrow IPC persistence. |
 | GET | `/v1/history/candles` | On-demand special candle history. |
+| GET | `/v1/history/liquidations` | Bounded public OKX/CoinEx liquidation history for research replay. |
+| GET | `/v1/history/open-interest` | Binance/Bybit historical open-interest observations. |
+| GET | `/v1/history/trades` | Binance/OKX historical public trades for order-flow/CVD research. |
 | GET | `/v1/storage/manifest` | Local Arrow IPC lake manifest and quality metadata. |
 | DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter. |
 | GET | `/v1/universe/top-volume` | Universe by volume. |
@@ -494,7 +510,9 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/integration/capabilities` | Read-only integration capability inventory. |
 | GET | `/v1/options/chains` | Cached option chains. |
 | GET | `/v1/prediction/books` | Cached Polymarket books. |
+| GET | `/v1/prediction/trades` | Normalized public Polymarket trade history for research and replay input. |
 | GET | `/v1/external/signals` | Aggregates, macro, news, and sentiment. |
+| GET | `/v1/external/weather` | Read-only weather forecast/archive input for event studies and prediction-market calibration. |
 | GET | `/v1/onchain/transfers` | Large transfer feed. |
 | GET | `/snapshot` | Legacy latest quote tick snapshot. |
 | GET | `/funding` | Legacy unified funding view. |
@@ -657,6 +675,7 @@ Response fields:
 | `funding_rate` | Decimal funding rate, e.g. `-0.001`. |
 | `funding_rate_pct` | Percent funding rate, e.g. `-0.1` means `-0.1%`. |
 | `next_funding_time_ms` | Next funding timestamp in Unix milliseconds when available. |
+| `funding_interval_ms` | Observed interval between the venue's current and next funding timestamps when both are supplied; otherwise `null`. Never inferred from a default. |
 | `mark_price`, `index_price` | Venue mark/index price when available. |
 | `active` | Whether the venue reports the contract as active/trading when available. |
 | `source` | Public REST URL used by the adapter. |

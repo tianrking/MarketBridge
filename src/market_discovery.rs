@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow};
 use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -81,6 +81,7 @@ pub struct PerpetualFundingRow {
     pub funding_rate: f64,
     pub funding_rate_pct: f64,
     pub next_funding_time_ms: Option<u64>,
+    pub funding_interval_ms: Option<u64>,
     pub mark_price: Option<f64>,
     pub index_price: Option<f64>,
     pub active: Option<bool>,
@@ -556,6 +557,10 @@ async fn binance_markets(http: &reqwest::Client, market: &str) -> Result<Vec<Mar
 
 async fn binance_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow>> {
     let url = "https://fapi.binance.com/fapi/v1/premiumIndex";
+    let funding_intervals = get_json(http, "https://fapi.binance.com/fapi/v1/fundingInfo")
+        .await
+        .map(|value| funding_interval_hours_map(&value))
+        .unwrap_or_default();
     let value = get_json(http, url).await?;
     Ok(value
         .as_array()
@@ -564,7 +569,7 @@ async fn binance_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingR
         .filter_map(|row| {
             let native = text(row, "symbol")?;
             let funding_rate = number(row, "lastFundingRate")?;
-            Some(funding_row(
+            let mut result = funding_row(
                 "binance",
                 native,
                 native,
@@ -575,7 +580,10 @@ async fn binance_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingR
                 Some(true),
                 url,
                 u64_value(row, "time"),
-            ))
+            );
+            result.funding_interval_ms =
+                funding_intervals.get(&native.to_ascii_uppercase()).copied();
+            Some(result)
         })
         .collect())
 }
@@ -629,18 +637,24 @@ async fn okx_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow>>
                 .and_then(|rows| rows.first())
                 .context("okx funding data missing")?;
             let funding_rate = number(row, "fundingRate").context("okx fundingRate missing")?;
-            Ok::<_, anyhow::Error>(funding_row(
+            let funding_time_ms = time_ms(row, "fundingTime");
+            let next_funding_time_ms = time_ms(row, "nextFundingTime");
+            let mut result = funding_row(
                 "okx",
                 &market.symbol,
                 &market.native_symbol,
                 funding_rate,
-                time_ms(row, "fundingTime").or_else(|| time_ms(row, "nextFundingTime")),
+                next_funding_time_ms,
                 None,
                 None,
                 Some(market.active),
                 &url,
                 u64_value(row, "ts"),
-            ))
+            );
+            result.funding_interval_ms = funding_time_ms
+                .zip(next_funding_time_ms)
+                .and_then(|(current, next)| next.checked_sub(current));
+            Ok::<_, anyhow::Error>(result)
         })
         .buffer_unordered(12)
         .filter_map(|result| async move { result.ok() })
@@ -709,6 +723,7 @@ async fn bybit_markets(http: &reqwest::Client, market: &str) -> Result<Vec<Marke
 
 async fn bybit_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow>> {
     let url = "https://api.bybit.com/v5/market/tickers?category=linear";
+    let funding_intervals = bybit_funding_interval_map(http).await;
     let value = get_json(http, url).await?;
     Ok(value
         .pointer("/result/list")
@@ -718,7 +733,7 @@ async fn bybit_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow
         .filter_map(|row| {
             let native = text(row, "symbol")?;
             let funding_rate = number(row, "fundingRate")?;
-            Some(funding_row(
+            let mut result = funding_row(
                 "bybit",
                 native,
                 native,
@@ -729,9 +744,73 @@ async fn bybit_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow
                 Some(true),
                 url,
                 None,
-            ))
+            );
+            result.funding_interval_ms =
+                funding_intervals.get(&native.to_ascii_uppercase()).copied();
+            Some(result)
         })
         .collect())
+}
+
+fn funding_interval_hours_map(value: &Value) -> HashMap<String, u64> {
+    value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|row| {
+            let symbol = text(row, "symbol")?.to_ascii_uppercase();
+            let hours = number(row, "fundingIntervalHours")?;
+            if hours <= 0.0 {
+                return None;
+            }
+            Some((symbol, (hours * 3_600_000.0).round() as u64))
+        })
+        .collect()
+}
+
+async fn bybit_funding_interval_map(http: &reqwest::Client) -> HashMap<String, u64> {
+    let mut cursor = String::new();
+    let mut intervals = HashMap::new();
+    loop {
+        let url = if cursor.is_empty() {
+            "https://api.bybit.com/v5/market/instruments-info?category=linear&limit=1000"
+                .to_string()
+        } else {
+            format!(
+                "https://api.bybit.com/v5/market/instruments-info?category=linear&limit=1000&cursor={cursor}"
+            )
+        };
+        let Ok(value) = get_json(http, &url).await else {
+            break;
+        };
+        let Some(result) = value.get("result") else {
+            break;
+        };
+        intervals.extend(bybit_funding_intervals_from_value(value.get("result")));
+        cursor = result
+            .get("nextPageCursor")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        if cursor.is_empty() {
+            break;
+        }
+    }
+    intervals
+}
+
+fn bybit_funding_intervals_from_value(value: Option<&Value>) -> HashMap<String, u64> {
+    value
+        .and_then(|result| result.get("list"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|row| {
+            let symbol = text(row, "symbol")?.to_ascii_uppercase();
+            let minutes = number(row, "fundingInterval")?;
+            (minutes > 0.0).then(|| (symbol, (minutes * 60_000.0).round() as u64))
+        })
+        .collect()
 }
 
 async fn bitget_spot_markets(http: &reqwest::Client) -> Result<Vec<MarketListing>> {
@@ -1277,6 +1356,7 @@ fn funding_row(
         funding_rate,
         funding_rate_pct: funding_rate * 100.0,
         next_funding_time_ms,
+        funding_interval_ms: None,
         mark_price,
         index_price,
         active,
@@ -1423,5 +1503,31 @@ mod tests {
         );
         assert_eq!(normalize_pair(None, None, "BTC-USDT-SWAP"), "BTCUSDT");
         assert_eq!(normalize_pair(None, None, "BTC_USDT"), "BTCUSDT");
+    }
+
+    #[test]
+    fn parses_provider_funding_intervals_without_inference() {
+        let value = serde_json::json!([
+            {"symbol":"BTCUSDT", "fundingIntervalHours":8},
+            {"symbol":"ETHUSDT", "fundingIntervalHours":"4"},
+            {"symbol":"UNKNOWN", "fundingIntervalHours":0}
+        ]);
+        let intervals = funding_interval_hours_map(&value);
+        assert_eq!(intervals.get("BTCUSDT"), Some(&28_800_000));
+        assert_eq!(intervals.get("ETHUSDT"), Some(&14_400_000));
+        assert!(!intervals.contains_key("UNKNOWN"));
+
+        let bybit = serde_json::json!({
+            "result": {
+                "list": [
+                    {"symbol":"BTCUSDT", "fundingInterval":480},
+                    {"symbol":"ETHUSDT", "fundingInterval":"240"}
+                ],
+                "nextPageCursor":""
+            }
+        });
+        let parsed = bybit_funding_intervals_from_value(bybit.get("result"));
+        assert_eq!(parsed.get("BTCUSDT"), Some(&28_800_000));
+        assert_eq!(parsed.get("ETHUSDT"), Some(&14_400_000));
     }
 }

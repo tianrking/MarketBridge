@@ -28,6 +28,10 @@ curl -H "x-api-key: $MARKETBRIDGE_API_KEY" -s "$MB/health" | jq
 `funding_rate_pct` is already expressed in percent. For example, `-0.2` means
 `-0.2%`, and `1.5` means `1.5%`.
 
+Rows may also include `funding_interval_ms`. This is copied from an explicit
+provider schedule (currently Binance, Bybit and OKX when available); do not
+infer a missing interval or annualize a cross-venue comparison without it.
+
 ## 1. Discover Perpetual Contracts On One Exchange
 
 List the first 20 Binance USDT perpetual contracts:

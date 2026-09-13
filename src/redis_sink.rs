@@ -389,8 +389,12 @@ mod tests {
 
     #[tokio::test]
     async fn redis_dead_letters_are_written_to_jsonl() {
-        let path = "data/test_redis_dead_letters.jsonl";
-        let _ = std::fs::remove_file(path);
+        let root = std::env::temp_dir().join(format!(
+            "marketbridge-redis-test-{}-{}",
+            std::process::id(),
+            crate::types::now_ms()
+        ));
+        let path = root.join("dead_letters.jsonl");
         let row = RedisEventRow {
             stream: "ticks:funding:binance:BTCUSDT".into(),
             source: "binance",
@@ -400,13 +404,13 @@ mod tests {
             payload: "{}".into(),
         };
 
-        write_dead_letter_file(&[row], "boom", path)
+        write_dead_letter_file(&[row], "boom", path.to_string_lossy().as_ref())
             .await
             .expect("dead-letter file should be writable in test workspace");
 
-        let content = std::fs::read_to_string(path).expect("dead-letter file should exist");
+        let content = std::fs::read_to_string(&path).expect("dead-letter file should exist");
         assert!(content.contains("\"reason\":\"redis_xadd_failed\""));
         assert!(content.contains("\"error\":\"boom\""));
-        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_dir_all(root);
     }
 }

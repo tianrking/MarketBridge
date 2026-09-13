@@ -1,0 +1,2 @@
+{"market_id":"replace-with-verified-closed-market-id-1","question":"Example only: Berlin daily high in the 15-25C bucket","latitude":52.52,"longitude":13.41,"date":"2025-01-01","min_temp":15,"max_temp":25,"resolved_outcome":"Yes","yes_price":0.55}
+{"market_id":"replace-with-verified-closed-market-id-2","question":"Example only: Berlin daily high in the 0-10C bucket","latitude":52.52,"longitude":13.41,"date":"2025-01-02","min_temp":0,"max_temp":10,"resolved_outcome":"No","yes_price":0.35}
