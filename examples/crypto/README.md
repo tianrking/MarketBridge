@@ -19,12 +19,15 @@ HTTP 接口；目录里的案例只观察、回放和评分假设，不下单、
 | [`onchain/`](onchain/README.md) | Large-transfer bursts and bounded price-response replay / 大额链上转账 burst 与有限价格响应回放 | `crypto_onchain_transfer_burst_replay.py` |
 | [`universe/`](universe/README.md) | Cross-asset ranking, pair mean reversion, stale-quote risk, volatility adjustment, parameter sweeps, holdouts and opportunity discovery / 跨资产排名、配对均值回归、过期报价风险、波动率调整、参数扫描、样本外切分与机会发现 | momentum, pair, risk, sweep, walk-forward and universe scan |
 
-The categorised entrypoints are thin Python launchers around the shared
-`../python_strategy_runner.py`; this keeps one implementation and avoids
-drifting copies while preserving simple commands for researchers.
+The categorised entrypoints are thin Python launchers around shared Python
+implementations. Some older snapshot observers also route through the shared
+`../python_strategy_runner.py`; recorder/replay cases keep their own explicit
+parameters and JSONL contract. This avoids drifting copies while preserving
+simple commands for researchers.
 
-分类入口是调用共享 `../python_strategy_runner.py` 的轻量 Python 启动器，避免多份实现
-逐渐分叉，同时让研究者可以用直观的目录和命令运行。
+分类入口都是调用共享 Python 实现的轻量启动器；部分较早的快照观察器仍经由共享
+`../python_strategy_runner.py`，而 recorder/replay 案例保留自己的参数和 JSONL 契约。
+这样可以避免多份实现逐渐分叉，同时让研究者用直观目录和命令运行。
 
 ## Common setup / 通用启动
 
