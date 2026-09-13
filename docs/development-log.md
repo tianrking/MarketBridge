@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — open-interest impulse response study
+
+Added the carry-family Python `crypto_oi_impulse_response_recorder.py` and
+`crypto_oi_impulse_response_replay.py`. The recorder freezes current perpetual
+OI beside a MarketBridge quote; replay compares OI expansion, contraction and
+ordinary snapshots with later absolute price movement at a fixed record-count
+horizon. This turns the public claim that aggressive OI growth can provide fuel
+for another liquidation wave into a non-directional, falsifiable risk-context
+test. It keeps OI ownership, elapsed-time alignment, causality, fees and
+execution outside the result. Provenance: [XWIN's public OI/liquidation-risk
+discussion on X](https://x.com/xwinfinance/status/2023155692916646257),
+cross-checked against [Binance's derivatives market-data documentation](https://developers.binance.com/zh-CN/docs/catalog/core-trading-derivatives-trading-coin-futures/api/rest-api/market-data).
+
 ## 2026-09-14 — short-squeeze fixed-record response replay
 
 Added `crypto_short_squeeze_response_recorder.py` and

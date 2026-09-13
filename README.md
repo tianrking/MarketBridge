@@ -109,6 +109,10 @@ keeping schedule gaps and the no-order boundary explicit.
 It also includes a cross-sectional funding replay that compares fresh
 low-funding and high-funding asset groups at exact price timestamps with an
 optional paper cost hurdle; it does not allocate or hedge.
+The carry family now also includes an OI-impulse recorder/replay: it compares
+unusually expanding, contracting and ordinary OI snapshots with later absolute
+BTC movement as liquidation-risk context. It only requests current OI and a
+perpetual quote, and does not infer position ownership or direction.
 The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes

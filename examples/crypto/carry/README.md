@@ -37,6 +37,14 @@ at point-in-time timestamps, then reports the forward-return distribution for
 each `price × OI × funding` regime. It is a state-matrix diagnostic, not a
 long/short classifier: OI ownership, fills and hedge PnL remain unknown.
 
+`crypto_oi_impulse_response_recorder.py` / `crypto_oi_impulse_response_replay.py`
+are a separate temporal test of the narrower claim that an unusually large OI
+expansion can be followed by larger absolute price movement (liquidation-risk
+context), regardless of direction. The recorder only requests current OI and a
+perpetual quote, while replay compares expansion, contraction and ordinary
+snapshots at a fixed record-count horizon. It does not infer who is long or
+short and does not turn expansion into a trade signal.
+
 `crypto_funding_cross_section_replay.py` is a different case: it ranks a
 caller-selected asset universe by point-in-time funding, keeps only fresh
 funding observations, and compares the next-window returns of the lowest- and
@@ -76,6 +84,11 @@ The cross-venue differential lead is also informed by this public [funding
 spread discussion on X](https://x.com/leondoteth/status/2012127303850213817).
 The regime-matrix lead is informed by the public [OI/funding/price context
 brief on X](https://x.com/ImCryptOpus/status/1949195275903410571).
+The OI-impulse decomposition is informed by the public [XWIN note that
+aggressive OI growth during rebounds can become fuel for another liquidation](https://x.com/xwinfinance/status/2023155692916646257)
+and cross-checked against [Binance's open-interest history documentation](https://developers.binance.com/zh-CN/docs/catalog/core-trading-derivatives-trading-coin-futures/api/rest-api/market-data).
+These sources motivate a volatility-response test, not a directional or
+liquidation forecast.
 The cross-sectional funding lead is also informed by the public [cross-venue
 funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
 and cross-checked against [Binance's official funding-history API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
@@ -192,6 +205,12 @@ python3 examples/crypto/carry/crypto_positioning_regime_replay.py \
   --symbol BTCUSDT --funding-exchange binance --oi-exchange binance \
   --price-exchange binance --days 7 --price-interval 5m \
   --lookback-bars 3 --horizon-bars 3 --min-observations 3
+python3 examples/crypto/carry/crypto_oi_impulse_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 60 --interval-secs 30 \
+  --min-oi-change-pct 0.25 --output work/crypto-oi-impulse-response.jsonl
+python3 examples/crypto/carry/crypto_oi_impulse_response_replay.py \
+  --input work/crypto-oi-impulse-response.jsonl --horizon-records 7 \
+  --min-oi-change-pct 0.25 --min-observations 5
 python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
   --price-exchange binance --interval 1h --days 14 --top-k 1 \

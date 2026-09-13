@@ -97,6 +97,7 @@ categorized command is the recommended one.
 | `crypto/carry/crypto_cross_venue_orderbook_monitor.py` / recorder / replay | A synchronized target-notional ask/bid VWAP gap may persist after a paper round-trip cost hurdle | `/v1/market/order-books` and JSONL archive | Snapshot depth diagnostic; timestamp skew, inventory, settlement, transfer and execution remain explicit gaps |
 | `crypto/carry/crypto_triangular_arbitrage_monitor.py` / recorder / replay | A synchronized single-venue three-leg top-of-book conversion edge may persist after paper per-leg costs | `/v1/market/quotes?product_type=spot` for `BTCUSDT`, `ETHBTC`, `ETHUSDT`, plus JSONL archive | Quote-consistency persistence diagnostic; depth, atomicity, latency, inventory and execution remain explicit gaps |
 | `crypto/carry/crypto_positioning_regime_replay.py` | Price trend, OI change and funding sign may separate forward-return distributions | `/v1/history/candles`, `/v1/history/open-interest` | Point-in-time regime matrix; OI is aggregate and no long/short ownership is inferred |
+| `crypto/carry/crypto_oi_impulse_response_recorder.py` / `crypto_oi_impulse_response_replay.py` | An unusually large OI expansion may be followed by larger absolute price movement, as liquidation-risk context rather than direction | `/v1/market/open-interest`, `/v1/market/quotes`, JSONL archive | Expansion/contraction response study; OI ownership, elapsed-time alignment and execution remain explicit gaps |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
 | `crypto_spot_perp_depth_gap_monitor.py` | Same-venue perp depth may exceed spot depth for a target notional, creating an execution-risk asymmetry | `/v1/market/order-books` for spot/perp, `/v1/market/basis` | Snapshot observation; books are not synchronized fills and no hedge route is inferred |
@@ -276,6 +277,12 @@ python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
   --price-exchange binance --interval 1h --days 14 --top-k 1 \
   --min-dispersion-bps 1 --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/carry/crypto_oi_impulse_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 60 --interval-secs 30 \
+  --min-oi-change-pct 0.25 --output work/crypto-oi-impulse-response.jsonl
+python3 examples/crypto/carry/crypto_oi_impulse_response_replay.py \
+  --input work/crypto-oi-impulse-response.jsonl --horizon-records 7 \
+  --min-oi-change-pct 0.25 --min-observations 5
 python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
   --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
   --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \

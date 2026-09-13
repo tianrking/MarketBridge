@@ -969,6 +969,10 @@ options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状
 Universe scanner 也新增 recorder/replay，用于检验候选集合是否跨快照持续，不会把当前排名变成组合权重。
 volatility-breakout 回放也支持显式纸面成本门槛，并分开保留 gross 与 after-cost 的突破延续证据。
 carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状态报告分布，不推断持仓多空归属。
+同系列还新增 OI impulse recorder/replay：把 OI 扩张、收缩和普通快照与之后的绝对 BTC 波动做比较，
+将“激进 OI 增长可能成为清算燃料”拆成风险上下文假设；它只请求当前 OI 和永续报价，不推断持仓归属、
+方向或可执行清算路径。出处参考 [XWIN 的公开 OI/清算风险讨论](https://x.com/xwinfinance/status/2023155692916646257)，
+并对照 [Binance 官方 OI 历史接口说明](https://developers.binance.com/zh-CN/docs/catalog/core-trading-derivatives-trading-coin-futures/api/rest-api/market-data)。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 
