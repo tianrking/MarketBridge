@@ -1,5 +1,13 @@
 # Development log
 
+## 2026-09-14 — historical candle coverage metadata
+
+Extended `GET /v1/history/candles` with the same bounded `coverage_detail`
+contract as historical OI, liquidations and trades. Candle consumers now see
+requested/covered timestamps, returned rows, page limit and possible provider
+truncation; funding schedules remain a separate point-in-time interval artifact.
+Added route-level tests and kept the no-completeness-claim boundary explicit.
+
 ## 2026-09-14 — open-interest history coverage metadata
 
 Extended `GET /v1/history/open-interest` with bounded `coverage` and

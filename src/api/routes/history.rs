@@ -299,6 +299,8 @@ pub async fn candles(
                 "symbol": q.symbol,
                 "candle_type": candle_type,
                 "persist": persist_result,
+                "coverage": "bounded_public_history",
+                "coverage_detail": candle_coverage_detail(&rows, &q),
                 "funding_schedule": funding_schedule,
                 "candles": rows
             }))
@@ -309,6 +311,27 @@ pub async fn candles(
             "error": error.to_string(),
             "candles": []
         })),
+    }
+}
+
+fn candle_coverage_detail(rows: &[KlineBar], q: &HistoryCandlesQuery) -> Value {
+    let page_limit = q.limit.unwrap_or(500);
+    serde_json::json!({
+        "status": candle_coverage_status(rows.len(), page_limit),
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().map(|row| row.open_time_ms).min(),
+        "covered_end_ms": rows.iter().map(|row| row.open_time_ms).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+    })
+}
+
+fn candle_coverage_status(returned_rows: usize, page_limit: usize) -> &'static str {
+    if returned_rows >= page_limit {
+        "provider_page_may_be_truncated"
+    } else {
+        "bounded_single_page"
     }
 }
 
@@ -1298,6 +1321,55 @@ mod tests {
         let detail = open_interest_coverage_detail(&rows, &query);
         assert_eq!(detail["covered_start_ms"], serde_json::json!(1));
         assert_eq!(detail["covered_end_ms"], serde_json::json!(3));
+        assert_eq!(
+            detail["status"],
+            serde_json::json!("provider_page_may_be_truncated")
+        );
+    }
+
+    #[test]
+    fn candle_coverage_reports_requested_and_observed_bounds() {
+        assert_eq!(candle_coverage_status(2, 100), "bounded_single_page");
+        assert_eq!(
+            candle_coverage_status(100, 100),
+            "provider_page_may_be_truncated"
+        );
+        let query = HistoryCandlesQuery {
+            exchange: "binance".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            interval: Some("5m".to_string()),
+            market: Some("perp".to_string()),
+            candle_type: Some("perp".to_string()),
+            start_ms: Some(10),
+            end_ms: Some(30),
+            limit: Some(2),
+            persist: None,
+        };
+        let first = KlineBar {
+            exchange: "binance".to_string(),
+            market: "perp".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            interval: "5m".to_string(),
+            open_time_ms: 10,
+            close_time_ms: 1,
+            open: 1.0,
+            high: 1.0,
+            low: 1.0,
+            close: 1.0,
+            volume: None,
+            source: "test".to_string(),
+            updated_at_ms: 1,
+        };
+        let rows = vec![
+            first.clone(),
+            KlineBar {
+                open_time_ms: 30,
+                ..first
+            },
+        ];
+        let detail = candle_coverage_detail(&rows, &query);
+        assert_eq!(detail["covered_start_ms"], serde_json::json!(10));
+        assert_eq!(detail["covered_end_ms"], serde_json::json!(30));
         assert_eq!(
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")
