@@ -25,6 +25,7 @@ Cases:
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
+- `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
@@ -99,6 +100,14 @@ uses MarketBridge candle semantics cross-checked against [Binance's official
 kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 The result reports aligned close-to-close returns after a paper hurdle; it is
 not a universal session edge or an execution instruction.
+
+The volume-profile case is motivated by the public [compression-to-expansion /
+low-volume-node discussion on X](https://x.com/Stoiiic/status/1796078958674628714)
+and cross-checked against the research [Liquidity-Driven Breakout Reliability
+paper](https://papers.ssrn.com/sol3/Delivery.cfm/5962358.pdf?abstractid=5962358&mirid=1).
+Because MarketBridge's historical candle surface does not expose tick-level
+volume-at-price, the implementation assigns each candle's volume to its typical
+price and labels that approximation explicitly.
 
 The volatility-breakout replay accepts `--roundtrip-cost-bps` and reports gross
 versus cost-adjusted aligned returns. Its candidate verdict requires the
@@ -179,6 +188,12 @@ session VWAP、EMA(9/21)、MACD 加成交量确认，并测量固定未来 K 线
 K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
 输出是纸面 close-to-close 统计，不是普适时段优势或执行指令。
 
+`crypto_volume_profile_breakout_replay.py` 检验低成交量节点（LVN）突破：用历史 OHLCV 近似 volume-at-price，
+从滚动 profile 计算 value area，要求价格离开 value area、进入低量 bin 并有成交量确认，再测量固定未来窗口。
+研究线索来自公开 [X 上的压缩到扩张/低量节点讨论](https://x.com/Stoiiic/status/1796078958674628714)，并对照
+[Liquidity-Driven Breakout Reliability 研究](https://papers.ssrn.com/sol3/Delivery.cfm/5962358.pdf?abstractid=5962358&mirid=1)。
+由于接口没有 tick 级 volume-at-price，这里明确把每根 K 线成交量分配到 typical price，只是近似，不是订单簿事实。
+
 CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有足够幅度、但单交易所主动买卖差值指向相反，
 再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
 [CVD 说明](https://mindpillar.com/cvd/)。
@@ -257,6 +272,12 @@ python3 examples/crypto/microstructure/crypto_session_momentum_replay.py \
   --exchange binance --symbol BTCUSDT --interval 1m --days 3 \
   --timezone America/New_York --session-start 09:00 --session-end 09:15 \
   --volume-multiplier 1.0 --horizon-bars 15 --min-score 4 \
+  --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/microstructure/crypto_volume_profile_breakout_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1m --days 3 \
+  --lookback-bars 120 --bins 24 --value-area-fraction 0.70 \
+  --low-volume-quantile 0.25 --breakout-buffer-bps 2 \
+  --volume-multiplier 1.2 --horizon-bars 30 \
   --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange binance --symbol BTCUSDT --limit 100 \

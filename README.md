@@ -139,6 +139,9 @@ causality explicit.
 It also includes a timezone-aware session VWAP/EMA/MACD/volume replay, so the
 older snapshot filter can be tested against fixed-horizon candle returns instead
 of being mistaken for historical evidence.
+The same family now includes an explicitly approximate volume-profile/LVN
+breakout replay; it keeps the lack of tick-level volume-at-price visible rather
+than presenting candle-volume bins as an order-book map.
 The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or

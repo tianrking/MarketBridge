@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — volume-profile low-volume-node replay
+
+Added the microstructure-family `crypto_volume_profile_breakout_replay.py`.
+It builds a rolling value area from historical OHLCV, requires a close to leave
+that area into a low-volume bin with volume confirmation, and measures a fixed
+forward horizon after an explicit paper-cost hurdle. The implementation labels
+its important approximation: candle volume is assigned to typical price because
+the current history interface does not expose tick-level volume-at-price.
+Provenance: the public [compression-to-expansion / LVN lead on X](https://x.com/Stoiiic/status/1796078958674628714)
+and the research [Liquidity-Driven Breakout Reliability paper](https://papers.ssrn.com/sol3/Delivery.cfm/5962358.pdf?abstractid=5962358&mirid=1).
+No execution path was added.
+
 ## 2026-09-14 — session confluence historical replay
 
 Added the microstructure-family `crypto_session_momentum_replay.py` to turn
