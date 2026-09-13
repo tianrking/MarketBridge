@@ -124,6 +124,8 @@ replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.
 It also includes a CVD divergence replay that measures fixed-horizon reversal
 after a price/taker-flow disagreement on one venue.
+The microstructure family also exposes optional CoinGlass aggregate derivatives
+context while preserving missing-key and missing-metric evidence.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.

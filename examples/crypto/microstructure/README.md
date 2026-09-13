@@ -18,6 +18,7 @@ Cases:
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
 - `crypto_cvd_divergence_replay.py`: tests whether a price move that disagrees with single-venue taker-flow delta is followed by a fixed-horizon reversal.
+- `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
@@ -102,6 +103,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
 - `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否反转。
+- `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short 与清算上下文，不把聚合指标解释成持仓归属。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
@@ -145,6 +147,10 @@ CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有�
 再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
 [CVD 说明](https://mindpillar.com/cvd/)。
 
+`crypto_derivatives_sentiment_monitor.py` 使用可选的 CoinGlass aggregate signal，把资金费率、OI、
+long/short ratio、basis 和 liquidation 放在同一上下文中；API key 缺失或指标缺失会保持为 observe-only，
+不会把 aggregate ratio 解释成真实持仓归属。
+
 ## Commands / 命令
 
 ```bash
@@ -180,6 +186,8 @@ python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_replay.py \
 python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
   --roundtrip-cost-bps 20 --min-cost-adjusted-edge-bps 0
+python3 examples/crypto/microstructure/crypto_derivatives_sentiment_monitor.py \
+  --symbol BTC --long-short-high 1.2 --long-short-low 0.8
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/liquidation_reversal_replay.py \

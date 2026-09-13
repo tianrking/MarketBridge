@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — aggregate derivatives sentiment context monitor
+
+Added `crypto_derivatives_sentiment_monitor.py` for the existing optional
+CoinGlass external-signal surface. It groups funding, OI, long/short ratio,
+basis, liquidation and options OI metrics into an explicit crowding context;
+missing API keys or metrics stay observe-only. It does not infer trader
+ownership or add a historical or execution path. Added bilingual microstructure
+docs and deterministic tests.
+
 ## 2026-09-14 — crypto macro context monitor
 
 Added the categorized `examples/crypto/macro/` family. The Python monitor
