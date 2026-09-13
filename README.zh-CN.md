@@ -890,7 +890,8 @@ carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，unive
 microstructure 系列还新增 `crypto_liquidation_burst_replay.py`，把滚动清算总额阈值与
 未来绝对波动做非方向性比较，并保留交易所清算覆盖和 side 语义的不确定性。
 universe 系列还提供 `crypto_volatility_adjusted_momentum_sweep.py`，用于比较多个窗口的
-样本内敏感性；它不会自动挑选或发布实盘参数。
+样本内敏感性；回放和扫描可用 `--roundtrip-cost-bps` 加入固定纸面成本门槛，但不会自动
+挑选或发布实盘参数。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 

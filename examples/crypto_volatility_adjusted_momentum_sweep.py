@@ -37,7 +37,7 @@ def parse_int_grid(value, name):
 
 
 def run_grid(series, lookbacks, volatility_windows, horizons, top_k,
-             min_edge_bps, min_observations):
+             min_edge_bps, min_observations, roundtrip_cost_bps=0.0):
     rows = []
     for lookback in lookbacks:
         for volatility in volatility_windows:
@@ -45,6 +45,7 @@ def run_grid(series, lookbacks, volatility_windows, horizons, top_k,
                 result = evaluate_volatility_adjusted_momentum(
                     series, lookback, horizon, volatility, top_k,
                     min_edge_bps, min_observations,
+                    roundtrip_cost_bps=roundtrip_cost_bps,
                 )
                 rows.append({
                     "lookback_bars": lookback,
@@ -53,7 +54,11 @@ def run_grid(series, lookbacks, volatility_windows, horizons, top_k,
                     "observations": result["observations"],
                     "mean_edge_bps": result["mean_edge_bps"],
                     "median_edge_bps": result["median_edge_bps"],
+                    "paper_cost_bps": result["paper_cost_bps"],
+                    "mean_cost_adjusted_edge_bps": result["mean_cost_adjusted_edge_bps"],
+                    "median_cost_adjusted_edge_bps": result["median_cost_adjusted_edge_bps"],
                     "positive_edge_hit_rate": result["positive_edge_hit_rate"],
+                    "cost_adjusted_positive_edge_hit_rate": result["cost_adjusted_positive_edge_hit_rate"],
                     "verdict": result["verdict"],
                     "evidence": result["evidence"],
                 })
@@ -87,12 +92,15 @@ def main():
     parser.add_argument("--horizon-bars", type=lambda value: parse_int_grid(value, "horizon-bars"), default=[4, 8, 12])
     parser.add_argument("--top-k", type=int, default=1)
     parser.add_argument("--min-edge-bps", type=float, default=0.0)
+    parser.add_argument("--roundtrip-cost-bps", type=float, default=0.0,
+                        help="paper hurdle subtracted from each relative edge")
     parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     symbols = [item.strip().upper() for item in args.symbols.split(",") if item.strip()]
     if (len(set(symbols)) < 2 or args.limit <= 0 or args.top_k <= 0
             or args.top_k > len(set(symbols)) or args.min_edge_bps < 0
+            or args.roundtrip_cost_bps < 0
             or args.min_observations <= 0):
         parser.error("invalid symbols, limit, top-k, edge or observation arguments")
     if args.input:
@@ -112,6 +120,7 @@ def main():
     grid = run_grid(
         series, args.lookback_bars, args.volatility_bars, args.horizon_bars,
         args.top_k, args.min_edge_bps, args.min_observations,
+        args.roundtrip_cost_bps,
     )
     print(json.dumps({
         "strategy": "crypto_volatility_adjusted_momentum_sweep",
@@ -123,6 +132,7 @@ def main():
             "horizon_bars": args.horizon_bars,
             "min_edge_bps": args.min_edge_bps,
             "min_observations": args.min_observations,
+            "roundtrip_cost_bps": args.roundtrip_cost_bps,
         },
         "assets_with_data": sorted(symbol for symbol, points in series.items() if points),
         "missing_assets": sorted(symbol for symbol in symbols if not series.get(symbol)),
@@ -131,7 +141,8 @@ def main():
         "limitations": [
             "all rows reuse one sample and are in-sample comparisons",
             "no multiple-testing correction or time-held-out validation is claimed",
-            "no fees, funding, borrow, slippage, turnover, weight drift or leverage model",
+            "roundtrip_cost_bps is a relative paper hurdle, not a fill or venue-fee model",
+            "no funding, borrow, turnover, weight drift or leverage model",
         ],
         "execution": "research_only_no_orders",
     }, ensure_ascii=False, sort_keys=True))

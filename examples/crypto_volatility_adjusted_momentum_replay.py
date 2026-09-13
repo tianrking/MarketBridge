@@ -4,7 +4,9 @@
 The falsifiable hypothesis is deliberately distinct from raw momentum: rank
 assets by trailing return divided by their trailing realized volatility, then
 compare the selected basket's next-window return with an equal-weight basket.
-This is a gross close-to-close research replay, not a portfolio allocator.
+This is a close-to-close research replay, not a portfolio allocator. An
+optional round-trip cost hurdle can be applied to the relative edge; it is a
+paper sensitivity, not a fill model.
 """
 
 import argparse
@@ -29,7 +31,7 @@ def realized_vol_pct(values):
 
 
 def volatility_adjusted_observation(aligned, index, lookback_bars, horizon_bars,
-                                    volatility_bars, top_k):
+                                    volatility_bars, top_k, roundtrip_cost_bps=0.0):
     if (index < max(lookback_bars, volatility_bars)
             or index + horizon_bars >= len(aligned)
             or lookback_bars <= 0 or horizon_bars <= 0
@@ -66,6 +68,7 @@ def volatility_adjusted_observation(aligned, index, lookback_bars, horizon_bars,
         return None
     basket_return = statistics.mean(basket)
     benchmark_return = statistics.mean(forward_returns.values())
+    gross_edge_bps = (basket_return - benchmark_return) * 100.0
     return {
         "ts_ms": aligned[index][0],
         "forward_ts_ms": aligned[index + horizon_bars][0],
@@ -76,36 +79,53 @@ def volatility_adjusted_observation(aligned, index, lookback_bars, horizon_bars,
         "forward_returns_pct": forward_returns,
         "basket_forward_return_pct": basket_return,
         "equal_weight_forward_return_pct": benchmark_return,
-        "edge_bps": (basket_return - benchmark_return) * 100.0,
+        "gross_edge_bps": gross_edge_bps,
+        "paper_cost_bps": roundtrip_cost_bps,
+        "cost_adjusted_edge_bps": gross_edge_bps - roundtrip_cost_bps,
+        "edge_bps": gross_edge_bps,
     }
 
 
 def evaluate_volatility_adjusted_momentum(series, lookback_bars, horizon_bars,
                                           volatility_bars, top_k, min_edge_bps=0.0,
-                                          min_observations=1, include_observations=False):
+                                          min_observations=1, include_observations=False,
+                                          roundtrip_cost_bps=0.0):
     aligned = aligned_points(series)
     requested_assets = sorted(str(symbol).upper() for symbol in series)
     assets_with_data = sorted(str(symbol).upper() for symbol, points in series.items() if points)
     observations = [
         item for index in range(len(aligned))
         if (item := volatility_adjusted_observation(
-            aligned, index, lookback_bars, horizon_bars, volatility_bars, top_k
+            aligned, index, lookback_bars, horizon_bars, volatility_bars, top_k,
+            roundtrip_cost_bps,
         )) is not None
     ]
     edges = [item["edge_bps"] for item in observations]
+    cost_adjusted_edges = [item["cost_adjusted_edge_bps"] for item in observations]
     mean_edge = statistics.mean(edges) if edges else None
+    mean_cost_adjusted_edge = statistics.mean(cost_adjusted_edges) if cost_adjusted_edges else None
     enough = len(observations) >= min_observations
-    candidate = enough and mean_edge is not None and mean_edge >= min_edge_bps
+    candidate = (enough and mean_cost_adjusted_edge is not None
+                 and mean_cost_adjusted_edge >= min_edge_bps)
     result = {
         "assets": requested_assets,
         "assets_with_data": assets_with_data,
         "missing_assets": [symbol for symbol in requested_assets if symbol not in assets_with_data],
         "aligned_points": len(aligned),
         "observations": len(observations),
-        "qualifying_observations": sum(edge >= min_edge_bps for edge in edges),
+        "qualifying_observations": sum(edge >= min_edge_bps for edge in cost_adjusted_edges),
         "mean_edge_bps": mean_edge,
         "median_edge_bps": statistics.median(edges) if edges else None,
         "positive_edge_hit_rate": (sum(edge > 0 for edge in edges) / len(edges)) if edges else None,
+        "paper_cost_bps": roundtrip_cost_bps,
+        "mean_cost_adjusted_edge_bps": mean_cost_adjusted_edge,
+        "median_cost_adjusted_edge_bps": (
+            statistics.median(cost_adjusted_edges) if cost_adjusted_edges else None
+        ),
+        "cost_adjusted_positive_edge_hit_rate": (
+            sum(edge > 0 for edge in cost_adjusted_edges) / len(cost_adjusted_edges)
+            if cost_adjusted_edges else None
+        ),
         "latest": observations[-1] if observations else None,
         "verdict": "volatility_adjusted_momentum_candidate" if candidate else "observe_only",
         "evidence": [
@@ -114,13 +134,14 @@ def evaluate_volatility_adjusted_momentum(series, lookback_bars, horizon_bars,
             "missing_asset_history" if len(assets_with_data) < len(requested_assets)
             else "all_requested_asset_histories_available",
             "cross_asset_forward_window_available" if observations else "missing_cross_asset_window_or_volatility",
-            "mean_volatility_adjusted_basket_edge_above_threshold"
+            "mean_cost_adjusted_edge_above_threshold"
             if candidate else "mean_edge_below_threshold_or_insufficient_observations",
         ],
         "limitations": [
             "volatility is close-to-close per-bar population dispersion and is not annualized",
             "zero-volatility assets are excluded rather than assigned infinite score",
-            "no fees, funding, borrow, slippage, turnover, weight drift or leverage model",
+            "paper_cost_bps is a conservative relative hurdle, not a fill, queue or venue-fee model",
+            "no funding, borrow, turnover, weight drift or leverage model",
             "a candidate is not a forecast, allocation or order instruction",
         ],
     }
@@ -143,6 +164,8 @@ def main():
     parser.add_argument("--volatility-bars", type=int, default=8)
     parser.add_argument("--top-k", type=int, default=1)
     parser.add_argument("--min-edge-bps", type=float, default=0.0)
+    parser.add_argument("--roundtrip-cost-bps", type=float, default=0.0,
+                        help="paper hurdle subtracted from each relative edge")
     parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--include-observations", action="store_true")
     parser.add_argument("--timeout", type=float, default=30.0)
@@ -151,6 +174,7 @@ def main():
     if (len(set(symbols)) < 2 or args.limit <= 0 or args.lookback_bars <= 0
             or args.horizon_bars <= 0 or args.volatility_bars <= 1 or args.top_k <= 0
             or args.top_k > len(set(symbols)) or args.min_edge_bps < 0
+            or args.roundtrip_cost_bps < 0
             or args.min_observations <= 0):
         parser.error("invalid symbols, windows, top-k, edge or observation arguments")
     if args.input:
@@ -170,6 +194,7 @@ def main():
     result = evaluate_volatility_adjusted_momentum(
         series, args.lookback_bars, args.horizon_bars, args.volatility_bars,
         args.top_k, args.min_edge_bps, args.min_observations, args.include_observations,
+        args.roundtrip_cost_bps,
     )
     result.update({
         "strategy": "crypto_volatility_adjusted_momentum",
@@ -178,6 +203,7 @@ def main():
             "lookback_bars": args.lookback_bars, "horizon_bars": args.horizon_bars,
             "volatility_bars": args.volatility_bars, "top_k": args.top_k,
             "min_edge_bps": args.min_edge_bps, "min_observations": args.min_observations,
+            "roundtrip_cost_bps": args.roundtrip_cost_bps,
         },
         "upstream_errors": errors,
         "execution": "research_only_no_orders",

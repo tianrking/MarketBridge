@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — cost-aware paper hurdle for volatility momentum
+
+Extended the volatility-adjusted replay and parameter sweep with an explicit
+`--roundtrip-cost-bps` paper hurdle. Each observation now retains gross edge,
+paper cost and cost-adjusted edge; candidate qualification and grid diagnostics
+use the cost-adjusted mean while preserving the gross comparison. The hurdle is
+deliberately a transparent relative sensitivity, not a venue fee, fill, queue,
+capacity or paper-ledger claim. Added tests proving costs reduce reported edge
+without changing the gross sample and updated bilingual usage guidance.
+
 ## 2026-09-14 — bounded volatility-adjusted momentum parameter sweep
 
 Added a universe-family grid runner that fetches each symbol's historical

@@ -49,8 +49,8 @@ launcher or `python_strategy_runner.py`; Rust remains the data/runtime layer.
 | `crypto_options_gamma_recorder.py` / `crypto_options_gamma_replay.py` | Test whether unsigned near-spot gamma concentration persists across snapshots | `/v1/options/chains` JSONL archive | Descriptive persistence replay; no dealer sign, realized-volatility response or hedge PnL |
 | `crypto_universe_opportunity_scan.py` | Rank a bounded perp universe by stored-kline liquidity/realized volatility plus current funding magnitude | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding` | Candidate discovery only; missing joins and unknown funding intervals remain explicit |
 | `crypto_cross_asset_momentum_replay.py` | Test whether the strongest trailing BTC/ETH/SOL (or caller-selected) assets beat an equal-weight basket over the next fixed horizon | `/v1/history/candles` for each symbol, exact timestamp intersection | Gross close-to-close replay; no fees, funding, slippage, weight drift or execution model |
-| `crypto_volatility_adjusted_momentum_replay.py` | Test whether trailing return divided by per-bar realized volatility improves cross-asset ranking versus an equal-weight basket | `/v1/history/candles` for each symbol, exact timestamp intersection | Risk-adjusted ranking replay; zero-volatility assets are excluded and no allocation/PnL model is implied |
-| `crypto_volatility_adjusted_momentum_sweep.py` | Expose sensitivity across lookback, volatility and forward-horizon windows without selecting a live parameter | `/v1/history/candles` fetched once per symbol, bounded parameter grid | In-sample diagnostic only; best row requires time-held-out and cost-aware validation |
+| `crypto_volatility_adjusted_momentum_replay.py` | Test whether trailing return divided by per-bar realized volatility improves cross-asset ranking versus an equal-weight basket | `/v1/history/candles` for each symbol, exact timestamp intersection | Risk-adjusted ranking replay; optional fixed paper cost hurdle, no allocation/fill model |
+| `crypto_volatility_adjusted_momentum_sweep.py` | Expose sensitivity across lookback, volatility and forward-horizon windows without selecting a live parameter | `/v1/history/candles` fetched once per symbol, bounded parameter grid | In-sample diagnostic with optional paper cost hurdle; best row requires time-held-out validation |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Uses point-in-time adjacent timestamp intervals; no fill, cost or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -201,7 +201,8 @@ python3 examples/python_strategy_runner.py \
   --cross-asset-horizon 8 --cross-asset-top-k 1
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
-  --lookback-bars 4,8,12 --volatility-bars 4,8,12 --horizon-bars 4,8
+  --lookback-bars 4,8,12 --volatility-bars 4,8,12 --horizon-bars 4,8 \
+  --roundtrip-cost-bps 20
 python3 examples/python_strategy_runner.py \
   --strategy options_gamma --currency BTC --options-venue deribit \
   --expiry-days 30 --gamma-min-near-share 0.50 \

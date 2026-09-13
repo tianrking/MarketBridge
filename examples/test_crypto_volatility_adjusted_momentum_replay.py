@@ -41,6 +41,19 @@ class VolatilityAdjustedMomentumTests(unittest.TestCase):
         self.assertEqual(result["verdict"], "observe_only")
         self.assertIn("missing_cross_asset_window_or_volatility", result["evidence"])
 
+    def test_paper_cost_hurdle_reduces_edge_without_claiming_a_fill(self):
+        gross = evaluate_volatility_adjusted_momentum(
+            self.series, 2, 1, 2, 1, 0.0, 1, False, 0.0,
+        )
+        costed = evaluate_volatility_adjusted_momentum(
+            self.series, 2, 1, 2, 1, 0.0, 1, False, 25.0,
+        )
+        self.assertAlmostEqual(costed["mean_edge_bps"], gross["mean_edge_bps"])
+        self.assertAlmostEqual(
+            costed["mean_cost_adjusted_edge_bps"], gross["mean_edge_bps"] - 25.0
+        )
+        self.assertEqual(costed["paper_cost_bps"], 25.0)
+
 
 if __name__ == "__main__":
     unittest.main()

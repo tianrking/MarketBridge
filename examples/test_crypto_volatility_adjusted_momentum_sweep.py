@@ -17,11 +17,12 @@ class MomentumSweepTests(unittest.TestCase):
             "BTCUSDT": [(index, 100.0 + index) for index in range(12)],
             "ETHUSDT": [(index, 100.0 + index * 0.5) for index in range(12)],
         }
-        result = run_grid(series, [2, 4], [2], [1, 2], 1, 0.0, 1)
+        result = run_grid(series, [2, 4], [2], [1, 2], 1, 0.0, 1, 10.0)
         self.assertEqual(result["grid_size"], 4)
         self.assertEqual(len(result["rows"]), 4)
         self.assertIn("time-held-out", result["selection_warning"])
         self.assertIsNotNone(result["best_in_sample"])
+        self.assertEqual(result["best_in_sample"]["paper_cost_bps"], 10.0)
 
 
 if __name__ == "__main__":

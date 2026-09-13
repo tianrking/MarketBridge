@@ -14,6 +14,10 @@ selecting the top basket. Zero-volatility assets are excluded rather than
 assigned an infinite score. This tests risk-adjusted ranking; it does not
 allocate capital or promise a Sharpe ratio.
 
+Both the replay and sweep accept `--roundtrip-cost-bps` as a transparent paper
+hurdle. It subtracts a fixed relative cost from the basket edge; it is not a
+venue-specific fee, queue, fill or capacity model.
+
 `crypto_volatility_adjusted_momentum_sweep.py` runs a bounded grid over the
 lookback, volatility and forward-horizon windows after fetching each symbol
 once. It exposes in-sample sensitivity and explicitly labels the best row as
@@ -35,6 +39,9 @@ are inputs to a falsifiable replay, not evidence of a guaranteed edge.
 的篮子。零波动标的会被排除，而不是赋予无穷大分数。它测试风险调整后的排名，不分配资金，
 也不承诺 Sharpe 比率。
 
+回放和扫描都支持 `--roundtrip-cost-bps` 透明纸面成本门槛：它从篮子 edge 中扣除固定相对
+成本，但不是交易所费率、队列、成交或容量模型。
+
 `crypto_volatility_adjusted_momentum_sweep.py` 在只请求一次每个标的历史数据后，扫描回看、
 波动率和前瞻窗口的有限网格。它用于暴露样本内敏感性，并明确把最佳行标记为描述性结果；
 仍需时间切分、成本感知的样本外回放。
@@ -53,9 +60,10 @@ python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --lookback-bars 8 --horizon-bars 8 --top-k 1
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
-  --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 --top-k 1
+  --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 --top-k 1 \
+  --roundtrip-cost-bps 20
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 4,8,12 --volatility-bars 4,8,12 \
-  --horizon-bars 4,8 --top-k 1
+  --horizon-bars 4,8 --top-k 1 --roundtrip-cost-bps 20
 ```
