@@ -1,5 +1,19 @@
 # Development log
 
+## 2026-09-14 — aggregate crowding fixed-window response replay
+
+Added a separate Python recorder/replay lifecycle for the public crowded-side
+and liquidation-reversal narrative. The recorder freezes optional CoinGlass
+funding/OI/long-short/liquidation context beside a MarketBridge quote; replay
+uses a caller-selected record-count horizon and reports signed responses for
+long crowding, short crowding, and liquidation-qualified subsets. The sign is
+an explicit descriptive transform (negative next return for long crowding and
+positive next return for short crowding), not a direction or execution rule.
+Missing metrics, provider semantics, elapsed-time irregularity, paper costs and
+no-order boundaries are preserved in output and the bilingual microstructure
+guide. Provenance: [CryptoData's public liquidation-threshold discussion on
+X](https://x.com/TheCryptoData/status/1948466627365769584).
+
 ## 2026-09-14 — footprint imbalance persistence monitor
 
 Added Python monitor/recorder/replay entrypoints for the existing

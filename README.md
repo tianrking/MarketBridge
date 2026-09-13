@@ -155,6 +155,11 @@ It now includes a Python recorder/replay pair that tests whether aggregate
 long/short crowding states persist across snapshots; ratios remain provider
 context, not position ownership, and the replay has no allocation or execution
 path.
+The microstructure family also includes a separate crowding-response
+recorder/replay: it freezes CoinGlass context beside a MarketBridge price
+snapshot and reports signed fixed-record responses, including a
+liquidation-qualified bucket, without turning aggregate ratios into ownership
+or a trade signal.
 The sentiment family also includes a Fear & Greed extreme-state recorder/replay
 that measures fixed-horizon forward-response distributions from MarketBridge
 price snapshots without turning public sentiment into an execution signal.

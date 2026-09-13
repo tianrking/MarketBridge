@@ -44,6 +44,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_footprint_imbalance_monitor.py` / recorder / replay | Price-bin bid/ask delta and stacked imbalance may persist across rolling trade-buffer snapshots | `/v1/market/footprint` and JSONL archive | Persistence diagnostic; rolling retention, bin semantics, resting liquidity and forward returns remain explicit gaps |
 | `crypto/microstructure/crypto_derivatives_sentiment_monitor.py` | Aggregate funding/OI/long-short/liquidation context should remain visible without inferring position ownership | `/v1/external/signals?sources=coinglass` | Optional keyed snapshot context; missing metrics remain observe-only and no execution model |
 | `crypto/microstructure/crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py` | Repeated aggregate derivatives crowding states should be tested for persistence rather than promoted from one snapshot | `/v1/external/signals?sources=coinglass`, JSONL archive | Consecutive-state diagnostic; aggregate ratios are not ownership and no price, allocation or execution model |
+| `crypto/microstructure/crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py` | Long/short crowding plus optional liquidation activity can be compared with a later fixed-record price response | `/v1/external/signals?sources=coinglass`, `/v1/market/quotes`, JSONL archive | Signed response study; record-count horizon, provider semantics, costs and execution remain explicit gaps |
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
 | `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
 | `polymarket_price_shock_replay.py` | A sharp public probability update may continue over the next few history points | `/polymarket/markets`, `/polymarket/prices-history` | Descriptive continuation replay; the causal evidence timestamp and execution costs remain explicit |
@@ -184,6 +185,13 @@ python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py 
   --output work/crypto-derivatives-sentiment.jsonl
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
   --input work/crypto-derivatives-sentiment.jsonl --min-run 3
+python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_recorder.py \
+  --symbol BTC --price-symbol BTCUSDT --exchange binance --product-type perp \
+  --iterations 30 --interval-secs 30 \
+  --output work/crypto-derivatives-crowding-response.jsonl
+python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_replay.py \
+  --input work/crypto-derivatives-crowding-response.jsonl \
+  --horizon-records 7 --min-observations 5 --paper-cost-bps 10
 python3 examples/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --min-skew-iv 3 --min-term-slope-iv 3
@@ -358,6 +366,7 @@ rewritten as falsifiable hypotheses:
 - [15-minute session, VWAP/EMA/MACD/volume narrative (unverified public claim)](https://x.com/Gustafssonkotte/status/2030566353178882122)
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
 - [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
+- [Crowded positioning and liquidation-to-reversal context (unverified public claim)](https://x.com/TheCryptoData/status/1948466627365769584)
 - [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
 - [Realized-volatility compression context (unverified public claim)](https://x.com/glassnode/status/1955218957490594099)
 - [Breakout confirmation / hold-above-level context (unverified public claim)](https://x.com/rektcapital/status/1893996786173259958)

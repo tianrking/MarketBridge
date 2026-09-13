@@ -20,6 +20,7 @@ Cases:
 - `crypto_cvd_divergence_replay.py`: tests whether a price move that disagrees with single-venue taker-flow delta is followed by a fixed-horizon reversal.
 - `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`: freeze aggregate CoinGlass context and require consecutive crowding states before promoting persistence.
+- `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`: freeze the same context beside a price snapshot and compare signed fixed-record responses after long/short crowding, with a separate liquidation-qualified bucket.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
@@ -141,6 +142,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否反转。
 - `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short 与清算上下文，不把聚合指标解释成持仓归属。
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`：记录 CoinGlass 聚合情绪并要求连续拥挤状态后才报告持续性。
+- `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`：把同一聚合上下文和价格快照一起冻结，比较多头/空头拥挤后的固定记录窗口签名收益，并单独统计伴随清算的样本。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
@@ -220,9 +222,20 @@ reports a persistent long/short crowding candidate after `--min-run` consecutive
 states. A provider ratio is not position ownership; the replay has no price,
 funding-income, allocation or execution model.
 
+The crowding-response recorder/replay is a separate fixed-window study. It
+freezes the aggregate context beside a MarketBridge quote, scores long crowding
+as the negative of the next return and short crowding as the positive return,
+and keeps liquidation-qualified observations in separate buckets. This signed
+transform is descriptive rather than a directional recommendation. The research
+lead is [CryptoData's public liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584).
+
 情绪 recorder/replay 把单次快照变成可证伪的时间检验：将聚合状态追加到 JSONL，按采集时间排序，
 只有连续 `--min-run` 次多头/空头拥挤状态才报告持续候选。提供方 ratio 不是持仓归属；回放不含价格、
 资金费收入、资金分配或执行模型。
+
+拥挤响应 recorder/replay 与上述持续性回放不同：它把“拥挤一侧叠加大量清算后可能出现反转”拆成固定记录窗口的
+签名响应研究。多头拥挤取下一段收益的负值，空头拥挤取正值，并单独保留伴随清算的样本；这只是描述性变换，
+不是方向建议。研究线索来自 [CryptoData 在 X 的清算阈值讨论](https://x.com/TheCryptoData/status/1948466627365769584)。
 
 Provenance: the decomposition follows the public [CoinGlass aggregate
 positioning discussion on X](https://x.com/ImCryptOpus/status/1949195275903410571),
@@ -274,6 +287,13 @@ python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py 
   --output work/crypto-derivatives-sentiment.jsonl
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
   --input work/crypto-derivatives-sentiment.jsonl --min-run 3
+python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_recorder.py \
+  --symbol BTC --price-symbol BTCUSDT --exchange binance --product-type perp \
+  --iterations 30 --interval-secs 30 \
+  --output work/crypto-derivatives-crowding-response.jsonl
+python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_replay.py \
+  --input work/crypto-derivatives-crowding-response.jsonl \
+  --horizon-records 7 --min-observations 5 --paper-cost-bps 10
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
