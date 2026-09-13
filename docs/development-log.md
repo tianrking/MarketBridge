@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — triangular quote response replay
+
+Added `crypto_triangular_arbitrage_response_recorder.py` and
+`crypto_triangular_arbitrage_response_replay.py` under the carry family. The
+recorder joins the existing BTCUSDT/ETHBTC/ETHUSDT quote-consistency snapshot
+with a synchronized BTC quote; replay compares signed and absolute responses
+after qualifying versus unqualified three-leg edges. Provenance: the public
+[triangular-arbitrage example on X](https://x.com/AntCaveClub/status/1919359974456897634),
+cross-checked with [Binance's official spot market-data API](https://developers.binance.com/en/docs/products/spot/rest-api)
+and the peer-reviewed [triangular-arbitrage exploitability study](https://www.sciencedirect.com/science/article/pii/S154461232401537X).
+No atomic routing, wallet or execution path is added.
+
 ## 2026-09-14 — directional USDC/USDT rotation replay
 
 Added `crypto_stablecoin_rotation_response_replay.py` under the DeFi family.

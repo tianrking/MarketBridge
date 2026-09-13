@@ -928,6 +928,8 @@ carry 系列还新增 `crypto_cross_venue_price_gap_replay.py`：检验同一资
 carry 系列现在还新增单交易所三角报价一致性 monitor/recorder/replay：对 `BTCUSDT`、`ETHBTC`、`ETHUSDT`
 两个换算方向应用每腿纸面成本，并要求连续快照证据；深度、原子性、延迟、库存和执行仍然不属于
 MarketBridge 的研究接口。
+现在还提供 triangular quote response recorder/replay：把三腿 edge 状态与 BTC 报价配对，比较 qualifying 与普通快照之后的
+固定窗口行情变化，不推断原子成交或三角套利 PnL。
 universe 系列还新增 `crypto_pairs_mean_reversion_replay.py`：用冻结的滚动价差均值和标准差检验两种
 资产的相对价格是否收敛，不声称协整成立，也不模拟配对成交。
 同系列还新增 `crypto_universe_delist_risk_monitor.py`：在研究候选进入分析前提示当前报价缺失或过期，

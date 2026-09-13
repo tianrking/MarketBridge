@@ -77,6 +77,11 @@ recorder/replay pair asks whether a net edge survives consecutive snapshots.
 This is a quote-consistency experiment, not a triangular-arbitrage execution
 claim: depth, atomicity, fees, latency, inventory and partial fills are absent.
 
+The triangular response recorder adds a synchronized MarketBridge BTC quote;
+its replay compares later signed and absolute BTC returns after qualifying
+three-leg edges versus unqualified snapshots. This is a response study, not a
+route, atomic-fill, triangular PnL or execution model.
+
 Provenance: the basis tests are motivated by the public [CryptoCred basis-trade
 discussion on X](https://x.com/CryptoCred/status/1777720296297975952) and the
 [CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
@@ -164,6 +169,9 @@ orderbook response recorder 还会记录同步的 MarketBridge BTC 报价；repl
 `BTCUSDT`、`ETHBTC`、`ETHUSDT` 现货盘口，分别计算两个 USDT 换算方向，并扣除每腿纸面成本。
 recorder/replay 再检验净 edge 是否连续出现。它只是可证伪的报价实验，不是三角套利成交声明；深度、原子性、
 手续费、延迟、库存和部分成交都没有被假设为已知。
+
+triangular response recorder 还会记录同步的 MarketBridge BTC 报价；replay 比较 qualifying 三腿 edge 与普通快照之后
+固定记录窗口的 BTC 有符号/绝对收益。这是响应研究，不是路由、原子成交、三角 PnL 或执行模型。
 
 出处：基差测试思路来自公开的 [CryptoCred 基差交易讨论](https://x.com/CryptoCred/status/1777720296297975952)
 和 [CME 与现货基差示例](https://x.com/0xscarlettw/status/1944584946670276938)。资金费率持续性线索
@@ -254,6 +262,12 @@ python3 examples/crypto/carry/crypto_triangular_arbitrage_recorder.py \
 python3 examples/crypto/carry/crypto_triangular_arbitrage_replay.py \
   --input work/crypto-triangular-arbitrage.jsonl --min-run 3 \
   --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_triangular_arbitrage_response_recorder.py \
+  --exchange binance --price-symbol BTCUSDT --iterations 120 --interval-secs 2 \
+  --min-net-edge-bps 0 --output work/crypto-triangular-arbitrage-response.jsonl
+python3 examples/crypto/carry/crypto_triangular_arbitrage_response_replay.py \
+  --input work/crypto-triangular-arbitrage-response.jsonl \
+  --horizon-records 3 --min-net-edge-bps 0 --min-observations 5
 python3 examples/crypto/carry/funding_extremes.py \
   --exchange binance --min-pct -2 --max-pct -0.1
 python3 examples/crypto/carry/funding_curve_demo.py \

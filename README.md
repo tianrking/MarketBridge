@@ -138,6 +138,9 @@ monitor/recorder/replay for BTCUSDT, ETHBTC and ETHUSDT. It evaluates both
 conversion directions with a paper per-leg cost and consecutive-snapshot
 evidence; depth, atomicity, latency, inventory and execution remain outside
 MarketBridge.
+It also includes a triangular quote response recorder/replay that joins edge
+states to a BTC quote and compares later movement after qualifying versus
+unqualified snapshots, without inferring atomic fills or triangular PnL.
 The universe family also includes a frozen-spread pair replay that tests
 relative-price convergence without claiming cointegration or paired fills.
 It also includes an altcoin-breadth replay that compares a caller-selected
