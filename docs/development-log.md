@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — spot/perp depth-gap persistence replay
+
+Extended the spot/perpetual target-size depth observer with a JSONL recorder and
+persistence replay. The replay requires both a configurable advantage fraction
+and a consecutive run before reporting a persistent perp-depth advantage;
+missing sides and invalid target-size metrics remain outside the denominator.
+Added categorized launchers, bilingual commands and deterministic tests for
+fraction/run gating and missing-depth behavior. This remains a descriptive
+execution-risk study, not a routing or hedge instruction.
+
 ## 2026-09-14 — spot/perp target-size depth gap monitor
 
 Added a microstructure observer for same-venue spot/perpetual depth asymmetry.
