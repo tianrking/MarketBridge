@@ -112,6 +112,9 @@ to reconstruct latent heatmap levels.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.
+It also has a term-structure replay that tests whether near/far ATM-IV
+contango or backwardation persists, while keeping expiry roll and calendar
+spread execution as explicit gaps.
 The liquidity-stress monitor also has a recorder/replay pair, so a single
 expensive snapshot is not promoted to a persistent regime without consecutive
 evidence.

@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — options IV term-structure persistence replay
+
+Added `crypto_options_term_structure_replay.py` under the categorized options
+family. It replays the near/far ATM-IV slope already captured by the skew
+recorder, classifies upward/inverted/flat states, and requires a configurable
+consecutive run before reporting a research candidate. This closes the gap
+between the existing term-structure snapshot and a reproducible temporal test;
+it does not model a calendar spread, option PnL, expiry roll, hedge, fees or
+execution. Added a bilingual guide, categorized launcher and deterministic
+tests. The definition is cross-checked against [Deribit Insights' options data
+guide](https://insights.deribit.com/industry/genesis-volatility-options-data-guide/).
+
 ## 2026-09-14 — funding convergence coverage propagation
 
 Updated the cross-venue funding convergence replay to preserve each venue's
