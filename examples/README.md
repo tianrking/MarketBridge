@@ -82,6 +82,7 @@ categorized command is the recommended one.
 | `crypto/carry/crypto_funding_regime_replay.py` | Persistent same-direction extreme funding may precede a move against the crowded side | `/v1/history/candles` for funding-rate and perp candles | Funding-only persistence replay; no OI, funding income, hedge or execution model |
 | `crypto/carry/crypto_funding_cross_section_replay.py` | At wide funding dispersion, low-funding assets may have different next-window returns from high-funding assets | `/v1/history/candles` for funding-rate and perp candles across a caller-selected universe | Cross-sectional diagnostic with freshness, exact price intersections and optional paper cost; no allocation or hedge execution |
 | `crypto/carry/crypto_cross_venue_price_gap_replay.py` | An extreme same-asset log-price gap across two venues may contract toward its frozen trailing mean | `/v1/history/candles` for the same symbol on two venues, exact timestamp intersection | Price-fragmentation diagnostic; synchronized fills, inventory, transfers, fees and execution remain explicit gaps |
+| `crypto/carry/crypto_cross_venue_orderbook_monitor.py` / recorder / replay | A synchronized target-notional ask/bid VWAP gap may persist after a paper round-trip cost hurdle | `/v1/market/order-books` and JSONL archive | Snapshot depth diagnostic; timestamp skew, inventory, settlement, transfer and execution remain explicit gaps |
 | `crypto/carry/crypto_positioning_regime_replay.py` | Price trend, OI change and funding sign may separate forward-return distributions | `/v1/history/candles`, `/v1/history/open-interest` | Point-in-time regime matrix; OI is aggregate and no long/short ownership is inferred |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
@@ -241,6 +242,16 @@ python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
   --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
   --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
   --paper-cost-bps 10 --min-contraction-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_monitor.py \
+  --symbol BTCUSDT --exchanges binance,okx,bybit --target-notional 10000 \
+  --max-skew-ms 2000 --paper-cost-bps 20 --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_recorder.py \
+  --symbol BTCUSDT --exchanges binance,okx,bybit --iterations 120 --interval-secs 5 \
+  --target-notional 10000 --paper-cost-bps 20 \
+  --output work/crypto-cross-venue-orderbook.jsonl
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_replay.py \
+  --input work/crypto-cross-venue-orderbook.jsonl --min-run 3 \
+  --min-net-edge-bps 0
 python3 examples/crypto_microstructure_monitor.py \
   --symbol BTCUSDT --exchange binance --top-levels 5 \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01
@@ -340,6 +351,8 @@ rewritten as falsifiable hypotheses:
 - [IV minus realized-volatility dashboard / VRP context (unverified public claim)](https://x.com/isellpremium/status/2072350364385349678)
 - [Volatility-adjusted multi-asset BTC/ETH/SOL strategy context (unverified public claim)](https://x.com/RoboNetHQ/status/2024893544520143012)
 - [Compression-to-expansion / low-volume-node context (unverified public claim)](https://x.com/Stoiiic/status/1796078958674628714)
+- [Binance public order-book API documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
+- [Cross-exchange arbitrage friction and settlement-latency study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)
 
 Next additions are ordered by evidence value: deeper venue-specific public
 liquidation coverage, larger verified weather manifests, and point-in-time

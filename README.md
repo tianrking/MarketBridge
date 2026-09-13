@@ -111,6 +111,9 @@ low-funding and high-funding asset groups at exact price timestamps with an
 optional paper cost hurdle; it does not allocate or hedge.
 The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
+It also has a cross-venue order-book monitor/recorder/replay that computes
+target-notional VWAP edges under timestamp-skew and paper-cost hurdles while
+leaving inventory, settlement and execution outside MarketBridge.
 The universe family also includes a frozen-spread pair replay that tests
 relative-price convergence without claiming cointegration or paired fills.
 It also exposes a stale/missing-quote risk guard before universe candidates

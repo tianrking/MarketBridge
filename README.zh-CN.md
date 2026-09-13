@@ -907,6 +907,8 @@ carry 系列还新增 `crypto_funding_regime_replay.py`：把连续极端资金�
 比较低费率组与高费率组的后续收益，可加入纸面成本门槛，但不分配资金或执行对冲。
 carry 系列还新增 `crypto_cross_venue_price_gap_replay.py`：检验同一资产跨交易所价格 gap 是否收敛，
 但不把异步价差称为可执行套利，也不模拟库存、转账或成交。
+同系列还新增跨交易所盘口 monitor/recorder/replay：按目标名义金额计算两边 VWAP，应用时间偏差和纸面成本门槛，
+但把库存、结算和执行明确留在 MarketBridge 之外。
 universe 系列还新增 `crypto_pairs_mean_reversion_replay.py`：用冻结的滚动价差均值和标准差检验两种
 资产的相对价格是否收敛，不声称协整成立，也不模拟配对成交。
 同系列还新增 `crypto_universe_delist_risk_monitor.py`：在研究候选进入分析前提示当前报价缺失或过期，

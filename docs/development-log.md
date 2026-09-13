@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — cross-venue order-book paper-edge replay
+
+Added the carry-family Python monitor/recorder/replay for synchronized
+cross-venue order-book edges. It computes target-notional VWAP on the buy ask
+and sell bid sides, rejects timestamp skew, subtracts an explicit paper cost,
+and requires consecutive qualifying snapshots before reporting persistence.
+This closes the gap between candle-only price fragmentation and executable-depth
+evidence while preserving the no-order boundary: inventory, transfer/settlement
+latency, queue position, fees and venue risk remain explicit limitations.
+Provenance: [Binance's public order-book documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
+and the [cross-exchange arbitrage-friction study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad).
+
 ## 2026-09-14 — preserve CryptoPanic news instances and add attention replay
 
 Fixed the optional CryptoPanic connector so each returned post uses its

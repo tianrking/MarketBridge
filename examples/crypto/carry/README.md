@@ -50,6 +50,13 @@ The result is intentionally not called an arbitrage opportunity because
 simultaneous bid/ask fills, inventory, transfers and venue solvency are not
 observed by this replay.
 
+`crypto_cross_venue_orderbook_monitor.py` is a narrower snapshot case: it
+consumes both venues' asks and bids, computes target-notional VWAP on each side,
+rejects excessive timestamp skew, and subtracts a caller-supplied paper cost.
+The recorder/replay tests whether a qualifying book edge persists across
+consecutive snapshots. It still does not model prefunded inventory, settlement,
+queue position, transfer fees or execution.
+
 Provenance: the basis tests are motivated by the public [CryptoCred basis-trade
 discussion on X](https://x.com/CryptoCred/status/1777720296297975952) and the
 [CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
@@ -69,6 +76,11 @@ The cross-venue gap decomposition is cross-checked against the academic
 [Trading and Arbitrage in Cryptocurrency Markets](https://www.sciencedirect.com/science/article/pii/S0304405X19301746)
 and [Arbitrage across different Bitcoin exchange venues](https://onlinelibrary.wiley.com/doi/10.1111/acfi.13102).
 They motivate a price-fragmentation test, not an executable arbitrage claim.
+The order-book case is cross-checked against [Binance's public order-book
+documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
+and the [cross-exchange arbitrage-friction study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad).
+Those sources motivate measuring depth and settlement friction, not assuming a
+snapshot edge is executable.
 The data semantics are cross-checked against [Binance's official open-interest
 history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info),
 which describes bounded historical OI observations rather than trader-side ownership.
@@ -111,6 +123,10 @@ Useful inputs:
 排名，只保留新鲜费率，再比较低费率组与高费率组的下一窗口收益。它输出低减高的差异并允许加入纸面
 门槛，但不会把排名变成组合或对冲。
 
+`crypto_cross_venue_orderbook_monitor.py` 是更窄的盘口快照案例：读取两边 ask/bid，按目标名义金额计算
+两边 VWAP，拒绝超出时间偏差阈值的快照，并扣除调用者提供的纸面双边成本。recorder/replay 再检验盘口
+edge 是否连续出现。它仍不模拟预存库存、结算、队列位置、转账费或执行。
+
 出处：基差测试思路来自公开的 [CryptoCred 基差交易讨论](https://x.com/CryptoCred/status/1777720296297975952)
 和 [CME 与现货基差示例](https://x.com/0xscarlettw/status/1944584946670276938)。资金费率持续性线索
 另外对照了一级资料 [Kraken 资金费率策略说明](https://www.kraken.com/learn/futures-trading-funding-rate-strategy)，
@@ -119,6 +135,10 @@ Useful inputs:
 状态矩阵线索也参考了公开的 [OI/资金费率/价格上下文简报](https://x.com/ImCryptOpus/status/1949195275903410571)。
 横截面资金费率线索也参考了公开的 [跨交易所资金费率差异讨论](https://x.com/leondoteth/status/2012127303850213817)，
 并对照 [Binance 官方资金费率历史 API 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
+
+盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
+以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
+这些资料支持测量深度和结算摩擦，不支持把单次快照 edge 当成可执行机会。
 
 主要接口：
 
@@ -160,6 +180,16 @@ python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
   --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
   --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
   --paper-cost-bps 10 --min-contraction-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_monitor.py \
+  --symbol BTCUSDT --exchanges binance,okx,bybit --target-notional 10000 \
+  --max-skew-ms 2000 --paper-cost-bps 20 --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_recorder.py \
+  --symbol BTCUSDT --exchanges binance,okx,bybit --iterations 120 --interval-secs 5 \
+  --target-notional 10000 --paper-cost-bps 20 \
+  --output work/crypto-cross-venue-orderbook.jsonl
+python3 examples/crypto/carry/crypto_cross_venue_orderbook_replay.py \
+  --input work/crypto-cross-venue-orderbook.jsonl --min-run 3 \
+  --min-net-edge-bps 0
 python3 examples/crypto/carry/funding_extremes.py \
   --exchange binance --min-pct -2 --max-pct -0.1
 python3 examples/crypto/carry/funding_curve_demo.py \
