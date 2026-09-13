@@ -49,6 +49,9 @@ brief on X](https://x.com/ImCryptOpus/status/1949195275903410571).
 The data semantics are cross-checked against [Binance's official open-interest
 history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info),
 which describes bounded historical OI observations rather than trader-side ownership.
+The funding/OI replay now forwards coverage metadata for funding, OI and price
+history into its evidence output, so sparse timestamp overlap is visible in the
+case result.
 
 Useful inputs:
 

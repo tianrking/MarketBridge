@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — propagate history coverage into strategy evidence
+
+Updated the funding/OI replay, volatility-breakout replay and options VRP
+monitor to forward MarketBridge `coverage_detail` into their JSON evidence.
+Funding, OI, price-candle and realized-volatility windows now expose provider
+page truncation at the strategy layer instead of silently treating a bounded
+response as complete. Added bilingual guidance; no signal or execution logic
+changed.
+
 ## 2026-09-14 — historical candle coverage metadata
 
 Extended `GET /v1/history/candles` with the same bounded `coverage_detail`

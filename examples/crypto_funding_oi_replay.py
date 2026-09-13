@@ -205,6 +205,14 @@ def main():
         evidence.append("open_interest_history_available")
     if prices:
         evidence.append("forward_price_history_available")
+    coverage = {
+        "funding": funding_payload.get("coverage_detail"),
+        "open_interest": oi_payload.get("coverage_detail"),
+        "price": price_payload.get("coverage_detail"),
+    }
+    for source, detail in coverage.items():
+        if isinstance(detail, dict) and detail.get("status"):
+            evidence.append(f"{source}_coverage_{detail['status']}")
     if not qualifying:
         evidence.append("no_crowded_events_with_forward_returns")
     print(json.dumps({
@@ -225,6 +233,7 @@ def main():
         "source_counts": {"funding": len(funding), "open_interest": len(oi), "price_bars": len(prices)},
         "observations": rows,
         "summary": summary,
+        "coverage": coverage,
         "verdict": "crowding replay candidate" if len(qualifying) >= options.min_observations else "observe only",
         "evidence": evidence,
         "upstream_errors": errors,

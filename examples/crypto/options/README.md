@@ -14,6 +14,8 @@ The VRP recorder/replay freezes the IV-minus-RV snapshot before testing whether
 an implied-volatility-premium state persists for one expiry. It is a regime
 diagnostic, not a short-volatility recommendation: maturities, RV windows,
 delta hedging, fills and costs are not matched.
+The VRP monitor also preserves historical-candle coverage metadata alongside
+the realized-volatility window.
 
 Provenance: the public [IV-minus-realized-volatility discussion on
 X](https://x.com/isellpremium/status/2072350364385349678) is treated as a

@@ -73,6 +73,8 @@ The volatility-breakout replay accepts `--roundtrip-cost-bps` and reports gross
 versus cost-adjusted aligned returns. Its candidate verdict requires the
 after-cost mean to clear `--min-cost-adjusted-edge-bps` with enough observations;
 the hurdle is a transparent sensitivity input, not a venue-specific fill model.
+It also forwards candle `coverage_detail` from MarketBridge, so a short provider
+page cannot silently look like a complete replay window.
 
 ## 中文
 

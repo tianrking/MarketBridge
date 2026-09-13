@@ -75,6 +75,7 @@ def observe_vrp(base_url, currency, venue, expiry_days, price_exchange, symbol,
     candles = candle_closes(candle_payload)
     realized = annualized_realized_vol_pct([close for _, close in candles[-(rv_bars + 1):]], interval)
     spot_close = candles[-1][1] if candles else None
+    candle_coverage = candle_payload.get("coverage_detail")
     target = option_observation.get("target_expiry") or {}
     implied = number(target.get("atm_iv"))
     vrp = implied - realized if implied is not None and realized is not None else None
@@ -96,6 +97,7 @@ def observe_vrp(base_url, currency, venue, expiry_days, price_exchange, symbol,
             "bars_used": min(len(candles), rv_bars + 1),
             "annualized_rv_pct": realized,
             "spot_close": spot_close,
+            "coverage_detail": candle_coverage,
         },
         "vrp": {
             "iv_minus_rv_iv_points": vrp,
@@ -103,7 +105,8 @@ def observe_vrp(base_url, currency, venue, expiry_days, price_exchange, symbol,
         },
         "evidence": option_observation.get("evidence", []) + [
             "realized_volatility_window_available" if realized is not None else "missing_realized_volatility_window",
-        ],
+        ] + ([f"candle_coverage_{candle_coverage['status']}"]
+             if isinstance(candle_coverage, dict) and candle_coverage.get("status") else []),
         "upstream_errors": option_observation.get("upstream_errors", [])
         + ([candle_payload.get("error")] if candle_payload.get("error") else []),
         "limitations": [

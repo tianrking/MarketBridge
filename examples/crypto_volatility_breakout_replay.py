@@ -210,6 +210,7 @@ def main():
         "limit": options.limit,
     }, options.timeout)
     rows = candle_rows(candle_payload)
+    candle_coverage = candle_payload.get("coverage_detail")
     flow_rows = None
     flow_error = None
     flow_coverage = None
@@ -254,6 +255,8 @@ def main():
         evidence.append(f"taker_flow_coverage_{coverage_status}" if coverage_status else "taker_flow_coverage_reported")
     if flow_error:
         evidence.append("taker_flow_provider_error")
+    if isinstance(candle_coverage, dict) and candle_coverage.get("status"):
+        evidence.append(f"candle_coverage_{candle_coverage['status']}")
     print(json.dumps({
         "strategy": "crypto_volatility_breakout_replay",
         "market": {"exchange": options.exchange, "symbol": options.symbol,
@@ -272,6 +275,7 @@ def main():
         ),
         "events": events,
         "flow_coverage": flow_coverage,
+        "candle_coverage": candle_coverage,
         "evidence": evidence,
         "provider_error": flow_error or candle_payload.get("error"),
         "execution": "research_only_no_orders",
