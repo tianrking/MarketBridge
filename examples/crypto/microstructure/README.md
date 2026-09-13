@@ -37,6 +37,7 @@ Cases:
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
+- `crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py`: freeze stress states beside a quote and compare later BTC movement with watch/normal states.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
@@ -48,6 +49,18 @@ The recorder/replay makes this a temporal test instead of treating one stressed
 book as a regime. It counts only snapshots with impact, spread and volatility
 available, and requires a configurable consecutive run before reporting a
 persistent-stress candidate.
+
+The stress-response recorder/replay is a separate fixed-window study. It adds
+a synchronized MarketBridge perpetual quote to each stress observation, then
+compares signed and absolute BTC movement after `liquidity_stress`,
+`liquidity_watch` and `normal_liquidity` snapshots. The response layer does
+not claim that expensive execution predicts direction; it exists to test
+whether the risk context is followed by a different movement distribution.
+
+Provenance: the decomposition follows the public [Pine Analytics / FlyingTulip
+execution-risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994)
+and keeps the displayed-depth caveat aligned with [Binance's public order-book
+API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).
 
 Provenance: the decomposition follows the public [Pine Analytics / FlyingTulip
 execution-aware risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994),
@@ -226,6 +239,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_anchored_vwap_replay.py`：以前置窗口 swing low/high 为锚点，检验 VWAP 夺回/跌破后的固定窗口响应。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`：检验两项以上压力条件是否在多个快照中持续。
+- `crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py`：把压力状态与同步行情冻结，比较 `liquidity_stress`、`liquidity_watch` 和普通状态之后的 BTC 响应。
 
 流动性压力案例是风险上下文观察器：它回答“现在以指定名义金额退出是否昂贵”，
 而不是预测涨跌。冲击、点差、波动率三项中至少两项达到阈值才报告
@@ -233,6 +247,14 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 
 recorder/replay 把它变成时间维度的检验，避免把一个压力盘口误当成持续状态。只有冲击、点差和
 波动率都可用的快照进入有效覆盖率；连续达到可配置 run 后才报告持续压力候选。
+
+stress-response recorder/replay 是单独的固定窗口研究：为每个压力快照补充同步的 MarketBridge 永续报价，
+再比较 `liquidity_stress`、`liquidity_watch` 和 `normal_liquidity` 之后的有符号/绝对 BTC 波动。
+它不声称昂贵的成交环境可以预测方向，只检验风险上下文后面的收益分布是否不同。
+
+出处：拆解自公开 [Pine Analytics / FlyingTulip 的执行风险讨论](https://x.com/PineAnalytics/status/1974474638093590994)，
+并参考 [Binance 官方盘口 API 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)，
+同时保留“展示深度不等于可成交容量”的限制。
 
 出处：实现拆解自 [Pine Analytics / FlyingTulip 在 X 的执行风险讨论](https://x.com/PineAnalytics/status/1974474638093590994)，
 原文强调真实盘口深度、目标规模滑点和短周期 EWMA 波动率。这里是独立、可证伪的
@@ -380,6 +402,13 @@ python3 examples/crypto/microstructure/crypto_liquidity_stress_recorder.py \
   --iterations 60 --interval-secs 30 --output work/crypto-liquidity-stress.jsonl
 python3 examples/crypto/microstructure/crypto_liquidity_stress_replay.py \
   --input work/crypto-liquidity-stress.jsonl --min-run 3
+python3 examples/crypto/microstructure/crypto_liquidity_stress_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --target-notional 10000 \
+  --iterations 60 --interval-secs 30 \
+  --output work/crypto-liquidity-stress-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidity_stress_response_replay.py \
+  --input work/crypto-liquidity-stress-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --window-hours 24 --horizon-bars 12

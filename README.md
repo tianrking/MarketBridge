@@ -270,6 +270,10 @@ execution left explicit.
 The liquidity-stress monitor also has a recorder/replay pair, so a single
 expensive snapshot is not promoted to a persistent regime without consecutive
 evidence.
+It now also has a stress-response recorder/replay that joins each risk-context
+snapshot to a perpetual quote and compares later BTC movement after stress,
+watch and normal states; it does not turn execution cost into a directional or
+routing signal.
 Funding convergence replay also supports an explicit paper cost-per-hour
 hurdle and reports gross versus after-cost persistence without pretending to
 model venue fees, borrow or hedge fills.

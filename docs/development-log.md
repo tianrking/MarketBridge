@@ -1023,3 +1023,17 @@ execution path was introduced.
 
 Provenance: the family guide keeps the unverified public [IV-minus-realized-volatility discussion on X](https://x.com/isellpremium/status/2072350364385349678)
 and cross-checks the concept against [Deribit Insights' options data guide](https://insights.deribit.com/industry/genesis-volatility-options-data-guide/).
+
+## 2026-09-14 — liquidity-stress response recorder and replay
+
+Added a response lifecycle for the existing two-of-three liquidity-stress
+context. The new recorder appends a synchronized perpetual quote alongside
+book impact, spread and EWMA-volatility observations. The replay compares
+fixed-record signed and absolute BTC movement after `liquidity_stress`,
+`liquidity_watch` and `normal_liquidity` states, while excluding missing quotes
+and retaining the snapshot-depth caveat. It is a risk-context response study,
+not a directional, routing or execution strategy.
+
+Provenance: the decomposition follows the unverified public [Pine Analytics /
+FlyingTulip execution-risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994)
+and the primary [Binance order-book API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).
