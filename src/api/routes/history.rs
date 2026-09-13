@@ -192,9 +192,11 @@ pub async fn liquidations(
             "exchange": q.exchange,
             "symbol": q.symbol,
             "coverage": "bounded_recent_public_feed",
+            "coverage_detail": liquidation_coverage_detail(&rows, &q),
             "rows": rows,
             "limitations": [
                 "public history coverage and retention are provider-controlled",
+                "coverage_detail describes one bounded provider page; it is not a completeness proof",
                 "this endpoint does not reconstruct every venue or every liquidation child fill",
                 "OI, CVD, price impact and queue timing must be joined independently"
             ]
@@ -209,6 +211,27 @@ pub async fn liquidations(
             "rows": []
         }))
         .into_response(),
+    }
+}
+
+fn liquidation_coverage_detail(rows: &[Value], q: &HistoryLiquidationsQuery) -> Value {
+    let limit = q.limit.unwrap_or(100).clamp(1, 100);
+    serde_json::json!({
+        "status": liquidation_coverage_status(rows.len(), limit),
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": limit,
+    })
+}
+
+fn liquidation_coverage_status(returned_rows: usize, page_limit: usize) -> &'static str {
+    if returned_rows >= page_limit {
+        "provider_page_may_be_truncated"
+    } else {
+        "bounded_single_page"
     }
 }
 
@@ -1218,6 +1241,15 @@ mod tests {
         assert_eq!(coinex_liquidation_side("long"), "sell");
         assert_eq!(coinex_liquidation_side("short"), "buy");
         assert_eq!(coinex_liquidation_side("other"), "unknown");
+    }
+
+    #[test]
+    fn liquidation_coverage_never_claims_completeness() {
+        assert_eq!(liquidation_coverage_status(5, 100), "bounded_single_page");
+        assert_eq!(
+            liquidation_coverage_status(100, 100),
+            "provider_page_may_be_truncated"
+        );
     }
 
     #[test]

@@ -187,6 +187,9 @@ def main():
         evidence.append("sell_side_liquidation_events_available")
     else:
         evidence.append("no_sell_side_liquidation_above_threshold")
+    liquidation_coverage = liquidation_payload.get("coverage_detail")
+    if liquidation_coverage:
+        evidence.append(f"liquidation_coverage_{liquidation_coverage.get('status', 'reported')}")
     if recoveries:
         evidence.append("forward_price_window_available")
     else:
@@ -205,6 +208,7 @@ def main():
             "cvd_window_ms": options.cvd_window_ms,
         },
         "events_scanned": len(events),
+        "liquidation_coverage": liquidation_coverage,
         "recovery_observations": len(recoveries),
         "candidates": candidates,
         "summary": {
