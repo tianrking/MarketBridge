@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — bounded volatility-adjusted momentum parameter sweep
+
+Added a universe-family grid runner that fetches each symbol's historical
+candles once and evaluates a bounded set of lookback, volatility and forward
+horizon windows. It reports every row's sample count, edge, hit rate and
+evidence, but labels the highest in-sample row as descriptive only and warns
+that time-held-out, cost-aware validation is still required. Added a
+categorized launcher, bilingual documentation and deterministic tests for grid
+parsing, combination coverage and selection warnings.
+
 ## 2026-09-14 — categorized launchers completed for remaining Python cases
 
 Added categorized Python launchers for the remaining maintained examples:

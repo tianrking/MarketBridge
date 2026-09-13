@@ -14,6 +14,11 @@ selecting the top basket. Zero-volatility assets are excluded rather than
 assigned an infinite score. This tests risk-adjusted ranking; it does not
 allocate capital or promise a Sharpe ratio.
 
+`crypto_volatility_adjusted_momentum_sweep.py` runs a bounded grid over the
+lookback, volatility and forward-horizon windows after fetching each symbol
+once. It exposes in-sample sensitivity and explicitly labels the best row as
+descriptive only; a time-held-out, cost-aware replay is still required.
+
 Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
 motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
@@ -30,6 +35,10 @@ are inputs to a falsifiable replay, not evidence of a guaranteed edge.
 的篮子。零波动标的会被排除，而不是赋予无穷大分数。它测试风险调整后的排名，不分配资金，
 也不承诺 Sharpe 比率。
 
+`crypto_volatility_adjusted_momentum_sweep.py` 在只请求一次每个标的历史数据后，扫描回看、
+波动率和前瞻窗口的有限网格。它用于暴露样本内敏感性，并明确把最佳行标记为描述性结果；
+仍需时间切分、成本感知的样本外回放。
+
 出处：[RoboNet 在 X 的多资产策略讨论](https://x.com/RoboNetHQ/status/2024893544520143012)
 提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
@@ -45,4 +54,8 @@ python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 --top-k 1
+python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
+  --lookback-bars 4,8,12 --volatility-bars 4,8,12 \
+  --horizon-bars 4,8 --top-k 1
 ```
