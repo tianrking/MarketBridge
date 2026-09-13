@@ -14,6 +14,7 @@
 8. [Python SDK 和研究工作台](08-sdk-workbench.md)
 9. [运行、备份、排障和发布验收](09-operations.md)
 10. [扩展市场、策略和研究业务](10-extending.md)
+11. [用 MarketBridge 寻找永续合约逼空结构](11-squeeze-radar.md)
 
 现有实时采集配置、成本曲线、扫描、回放和模拟账本的完整字段说明另见
 [研究 API](../research-api.md)。开发验证记录见[开发日志](../development-log.md)。
