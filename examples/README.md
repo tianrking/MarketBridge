@@ -46,6 +46,13 @@ export MARKETBRIDGE_CONFIG=./config.squeeze-radar.local.yaml
 cargo run
 ```
 
+For the BTC microstructure monitor specifically, the bounded
+`config.research-live.yaml` enables both spot and BTC perpetual public feeds:
+
+```bash
+MARKETBRIDGE_CONFIG=./config.research-live.yaml cargo run
+```
+
 ```bash
 cargo run --example short_squeeze_monitor -- \
   --symbol BTCUSDT --exchange binance --iterations 3

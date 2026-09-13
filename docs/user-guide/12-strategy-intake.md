@@ -296,7 +296,8 @@ python3 examples/crypto_microstructure_monitor.py \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01
 ```
 
-这只是盘口快照观察器；队列、成交、滑点和下一次更新前的撤单都没有被假设为可执行。
+运行前使用只读的 `config.research-live.yaml`（它已显式启用 `BTCUSDT` 的 spot 和 perp
+feed）。这只是盘口快照观察器；队列、成交、滑点和下一次更新前的撤单都没有被假设为可执行。
 
 Liquidation reversal 目前先提供一个边界清晰的 OKX/CoinEx partial replay：
 

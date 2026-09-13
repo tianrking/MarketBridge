@@ -1,4 +1,4 @@
-# Opt-in public BTC spot feeds. Uses network; never supplies account/order access.
+# Opt-in public BTC spot/perpetual feeds. Uses network; never supplies account/order access.
 # Research fees/identity are supplied explicitly to the research API, NOT inferred
 # from the legacy fee defaults below. Respect venue availability and local rules.
 runtime:
@@ -17,7 +17,7 @@ strategy:
   slippage_bps: 0
   book_signal_notional_usdt: 1000
 symbols: [BTCUSDT]
-perp_symbols: []
+perp_symbols: [BTCUSDT]
 exchanges:
   binance:
     enabled: true
