@@ -522,7 +522,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/options/okx/book` | OKX 单 instrument option book。 |
 | GET | `/options/bybit/book` | Bybit 单 instrument option book。 |
 | GET | `/options/binance/book` | Binance 单 instrument option book。 |
-| GET | `/polymarket/markets` | Polymarket Gamma 全量 active market discovery。 |
+| GET | `/polymarket/markets` | Polymarket Gamma active/closed market discovery；`include_closed=true` 可取结算市场，`order`/`ascending` 可复现分页顺序。 |
 | GET | `/polymarket/crypto-markets` | Polymarket BTC/ETH crypto market discovery。 |
 | GET | `/polymarket/book` | 单个 Polymarket token order book。 |
 | GET | `/polymarket/books` | 批量 Polymarket token order books。 |

@@ -422,7 +422,7 @@ Important boundaries:
 |---|---|---|
 | Options chains | `/v1/options/chains` | Deribit/OKX/Bybit/Binance REST cache. |
 | Option books | `/options/deribit/book`, `/options/okx/book`, `/options/bybit/book`, `/options/binance/book` | Keyless per-instrument option depth. |
-| Polymarket Gamma discovery | `/polymarket/markets`, `/polymarket/crypto-markets` | General active Gamma markets plus the BTC/ETH crypto parser; `/polymarket/markets?include_closed=true` includes closed markets and a best-effort resolved outcome. |
+| Polymarket Gamma discovery | `/polymarket/markets`, `/polymarket/crypto-markets` | General active Gamma markets plus the BTC/ETH crypto parser; `/polymarket/markets?include_closed=true` includes closed markets and a best-effort resolved outcome. `order` and `ascending` are passed through for reproducible pagination. |
 | Polymarket books | `/v1/prediction/books` | Live CLOB cache. |
 | Polymarket trades | `/v1/prediction/trades` | Public Data API trade history filtered by market, event, asset, side, limit and offset; no authenticated user ledger. |
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
@@ -522,7 +522,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/options/okx/book` | OKX per-instrument option book. |
 | GET | `/options/bybit/book` | Bybit per-instrument option book. |
 | GET | `/options/binance/book` | Binance per-instrument option book. |
-| GET | `/polymarket/markets` | General active Polymarket Gamma markets with CLOB ids and outcomes. |
+| GET | `/polymarket/markets` | General active/closed Polymarket Gamma markets with CLOB ids and outcomes; `include_closed=true&order=createdAt&ascending=false` is useful for recent closed-market research. |
 | GET | `/polymarket/crypto-markets` | Parsed BTC/ETH Polymarket crypto markets. |
 | GET | `/polymarket/book` | Single Polymarket token order book. |
 | GET | `/polymarket/books` | Batch Polymarket token order books. |

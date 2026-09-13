@@ -100,6 +100,19 @@ python3 examples/polymarket_price_shock_replay.py \
 队列与结算身份核验后，才有资格进入更严格的研究阶段。没有足够 history points 时，脚本
 返回 `observe only`，不会把缺口当成零收益或交易信号。
 
+另一类公开研究把 15 分钟市场拆成 early price discovery、middle transition 和 late
+conviction 三段。MarketBridge 现在支持 Gamma closed-market 的 `order` / `ascending`
+排序，方便按创建时间抓取近期已结算样本，再用公开 BUY 记录做固定纸面仓位比较：
+
+```bash
+python3 examples/polymarket_timing_replay.py \
+  --market-query "Bitcoin above" --market-limit 100 \
+  --min-bucket-observations 5 --position-size-usd 10 --fee-bps 30
+```
+
+这里的 start anchor 是最早观察到的 public trade，不等同于市场真实开盘；输出只比较
+分桶后的描述性 win rate 与 paper PnL，不把 maker/taker、容量或队列缺失伪装成收益。
+
 公开成交历史现在也可通过 MarketBridge 查询：
 
 ```bash

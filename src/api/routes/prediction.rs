@@ -24,6 +24,8 @@ pub struct PolymarketCryptoMarketsQuery {
     limit: Option<usize>,
     max_offset: Option<usize>,
     include_closed: Option<bool>,
+    order: Option<String>,
+    ascending: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -139,6 +141,8 @@ pub async fn polymarket_markets(
         limit,
         max_offset,
         include_closed,
+        q.order.as_deref(),
+        q.ascending,
     )
     .await
     {
@@ -147,6 +151,8 @@ pub async fn polymarket_markets(
             "gamma_base_url": gamma_base_url,
             "limit": limit,
             "max_offset": max_offset,
+            "order": q.order,
+            "ascending": q.ascending,
             "markets": response.markets,
             "clob_asset_ids": response.clob_asset_ids
         }))

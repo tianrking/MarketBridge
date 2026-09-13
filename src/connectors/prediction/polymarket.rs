@@ -218,7 +218,8 @@ pub async fn fetch_polymarket_crypto_markets(
     let mut markets = Vec::new();
     let mut offset = 0usize;
     while offset <= max_offset {
-        let batch = fetch_gamma_markets(client, gamma_base_url, limit, offset, false).await?;
+        let batch =
+            fetch_gamma_markets(client, gamma_base_url, limit, offset, false, None, None).await?;
         if batch.is_empty() {
             break;
         }
@@ -247,12 +248,22 @@ pub async fn fetch_polymarket_markets(
     limit: usize,
     max_offset: usize,
     include_closed: bool,
+    order: Option<&str>,
+    ascending: Option<bool>,
 ) -> Result<PolymarketMarketsResponse> {
     let mut markets = Vec::new();
     let mut offset = 0usize;
     while offset <= max_offset {
-        let batch =
-            fetch_gamma_markets(client, gamma_base_url, limit, offset, include_closed).await?;
+        let batch = fetch_gamma_markets(
+            client,
+            gamma_base_url,
+            limit,
+            offset,
+            include_closed,
+            order,
+            ascending,
+        )
+        .await?;
         if batch.is_empty() {
             break;
         }
@@ -592,6 +603,8 @@ async fn fetch_gamma_markets(
     limit: usize,
     offset: usize,
     include_closed: bool,
+    order: Option<&str>,
+    ascending: Option<bool>,
 ) -> Result<Vec<GammaMarket>> {
     let url = {
         let mut url = Url::parse(base_url)?.join("markets")?;
@@ -600,6 +613,12 @@ async fn fetch_gamma_markets(
             params
                 .append_pair("limit", &limit.to_string())
                 .append_pair("offset", &offset.to_string());
+            if let Some(order) = order.filter(|value| !value.trim().is_empty()) {
+                params.append_pair("order", order);
+            }
+            if let Some(ascending) = ascending {
+                params.append_pair("ascending", if ascending { "true" } else { "false" });
+            }
             if include_closed {
                 params
                     .append_pair("active", "false")

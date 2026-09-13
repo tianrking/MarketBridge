@@ -20,6 +20,7 @@ experiments should start from `python_strategy_runner.py`.
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
 | `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
 | `polymarket_price_shock_replay.py` | A sharp public probability update may continue over the next few history points | `/polymarket/markets`, `/polymarket/prices-history` | Descriptive continuation replay; the causal evidence timestamp and execution costs remain explicit |
+| `polymarket_timing_replay.py` | Early price discovery and late conviction entries may have different resolution-adjusted outcomes | `/polymarket/markets?include_closed=true&order=createdAt`, `/v1/prediction/trades` | Bounded paper replay; earliest observed trade is only a start-time proxy |
 | `prediction_trade_flow.py` | Public trade history can be summarized into side flow and replay inputs | `/v1/prediction/trades` | Descriptive trade-flow summary; not a profitability backtest |
 | `polymarket_settlement_replay.py` | Buy-under-price-cap entries can be scored against a closed market's resolved outcome | closed Gamma metadata + public trades | Bounded paper replay; no fill completeness or queue model |
 | `polymarket_trade_recorder.py` | Bounded pages of public trades can be frozen into a deduplicated research sample | `/v1/prediction/trades` | JSONL observation archive; no private ledger claim |
@@ -64,6 +65,9 @@ python3 examples/polymarket_complement_monitor.py --min-edge-bps 10
 python3 examples/polymarket_price_shock_replay.py \
   --market-query "temperature" --outcome Yes --interval 1m \
   --shock-bps 100 --horizon-points 3 --min-observations 5
+python3 examples/polymarket_timing_replay.py \
+  --market-query "Bitcoin above" --market-limit 100 \
+  --min-bucket-observations 5 --position-size-usd 10 --fee-bps 30
 python3 examples/prediction_trade_flow.py --market 0x... --limit 1000
 python3 examples/polymarket_settlement_replay.py \
   --market 0x... --max-entry-price 0.80 --fee-bps 30
@@ -113,6 +117,7 @@ rewritten as falsifiable hypotheses:
 - [Resolved-market replay and calibration-arbitrage discussion](https://x.com/AlterEgo_eth/status/2040417268656644512)
 - [Weather pressure-differential narrative (unverified public claim)](https://x.com/kiruwaaaaaa/status/2032525403320160313)
 - [Bayesian event-arb / faster evidence update narrative (unverified public claim)](https://x.com/0xRicker/status/2035334040216113631)
+- [15-minute Polymarket timing, early price discovery vs late conviction narrative (unverified public claim)](https://x.com/telonex/status/2022251717270573513)
 - [15-minute session, VWAP/EMA/MACD/volume narrative (unverified public claim)](https://x.com/Gustafssonkotte/status/2030566353178882122)
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
 
