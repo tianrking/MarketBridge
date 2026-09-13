@@ -279,6 +279,20 @@ python3 examples/crypto_options_skew_monitor.py \
 预测，也不模拟 delta hedge、margin、spread、交易费用或波动率曲面插值。缺少第二个 expiry、
 可比 moneyness bucket 或 stale rows 时，输出保持 observe-only。
 
+为了验证 skew 是否持续，可以把只读快照追加到 JSONL，再按 expiry 做 persistence replay：
+
+```bash
+python3 examples/crypto_options_skew_recorder.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-skew.jsonl
+python3 examples/crypto_options_skew_replay.py \
+  --input work/crypto-options-skew.jsonl --min-skew-iv 3 --min-run 3
+```
+
+replay 只统计同一 expiry 的 skew 观测比例、最长连续状态和期限结构状态；它不会把
+`persistent_downside_skew_candidate` 转换成方向交易，也不会填补缺失或无效 JSONL 行。
+
 跨交易所 funding 也先做差异监控，不直接把 APR 当成收益：
 
 ```bash

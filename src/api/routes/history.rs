@@ -54,6 +54,8 @@ pub struct HistoryTradesQuery {
 }
 
 const BINANCE_AGG_TRADE_WINDOW_MS: u64 = 60 * 60 * 1000;
+type TradeWindow = (Option<u64>, Option<u64>);
+type TradeWindowPlan = (Vec<TradeWindow>, usize);
 
 struct HistoricalTradesResult {
     rows: Vec<Value>,
@@ -1018,7 +1020,7 @@ fn binance_trade_windows(
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     pages: usize,
-) -> (Vec<(Option<u64>, Option<u64>)>, usize) {
+) -> TradeWindowPlan {
     if start_ms.is_none() && end_ms.is_none() && pages == 1 {
         return (vec![(None, None)], 1);
     }
