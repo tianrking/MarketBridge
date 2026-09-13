@@ -946,6 +946,9 @@ microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检�
 允许 after-cost 结果为负，不把均值回归假设包装成收益保证。
 同系列还新增匹配时钟的 weekday/hour 回放：默认把周二 05:00 UTC 的事件 K 线、下一小时反弹和后续固定窗口响应，
 与其他星期同一 UTC 小时做对照。它只用 OHLCV 检验公开的日历效应说法，不识别原因、不证明因果，也不提供择时指令。
+universe 系列还新增自适应跨资产回放：把历史收益除以已实现波动率形成有符号分数，BTC/ETH/SOL 信号冲突时
+可按阈值把纸面指数收缩到 neutral，并与等权篮子比较。它只测试 8 小时波动率标准化策略描述中可观察的部分，
+不接入外部预测模型或执行层。
 同系列还新增明确标注近似的 volume profile/LVN 突破回放；由于没有 tick 级 volume-at-price，程序不会把 K 线成交量
 分箱冒充订单簿热图，而是把这一数据缺口保留在结果中。
 同系列还提供 Python footprint imbalance monitor/recorder/replay，使用已有滚动成交缓存检验价格分桶压力是否持续，

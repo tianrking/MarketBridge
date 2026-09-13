@@ -26,6 +26,12 @@ selecting the top basket. Zero-volatility assets are excluded rather than
 assigned an infinite score. This tests risk-adjusted ranking; it does not
 allocate capital or promise a Sharpe ratio.
 
+`crypto_adaptive_cross_asset_replay.py` is the complementary signed-exposure
+case. It keeps every asset's volatility-normalized score, scales signed weights
+to a transparent gross cap, and sets the paper index to neutral when signals
+conflict below a caller threshold. It compares that adaptive paper return with
+an equal-weight basket; it is not a portfolio allocator or a prediction model.
+
 Both the replay and sweep accept `--roundtrip-cost-bps` as a transparent paper
 hurdle. It subtracts a fixed relative cost from the basket edge; it is not a
 venue-specific fee, queue, fill or capacity model.
@@ -66,6 +72,9 @@ motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 documents that major crypto assets have materially different volatility. Both
 are inputs to a falsifiable replay, not evidence of a guaranteed edge.
+The adaptive case tests the post's observable claims about volatility-normalized
+BTC/ETH/SOL signals, confidence-scaled exposure and an 8-hour horizon without
+importing Allora predictions or Paradex execution.
 
 The candidate-discovery framing is also informed by the public [multi-asset
 perpetuals discussion by RoboNet](https://x.com/RoboNetHQ/status/2024893544520143012);
@@ -102,6 +111,10 @@ regime labels.
 的篮子。零波动标的会被排除，而不是赋予无穷大分数。它测试风险调整后的排名，不分配资金，
 也不承诺 Sharpe 比率。
 
+`crypto_adaptive_cross_asset_replay.py` 是配套的有符号敞口案例：保留每个资产的波动率标准化分数，
+把有符号权重缩放到透明的总敞口上限；当信号冲突低于调用者阈值时，纸面指数收缩到 neutral。它将
+这个自适应纸面收益与等权篮子对照，不是组合分配器或预测模型。
+
 回放和扫描都支持 `--roundtrip-cost-bps` 透明纸面成本门槛：它从篮子 edge 中扣除固定相对
 成本，但不是交易所费率、队列、成交或容量模型。
 
@@ -122,6 +135,8 @@ regime labels.
 出处：[RoboNet 在 X 的多资产策略讨论](https://x.com/RoboNetHQ/status/2024893544520143012)
 提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
+自适应案例只测试该帖子关于波动率标准化 BTC/ETH/SOL 信号、置信度调整敞口和 8 小时窗口的可观察部分，
+不接入 Allora 预测，也不接入 Paradex 执行。
 
 breadth 定义对照 [BlockchainCenter 的 Altcoin Season Index 说明](https://www.blockchaincenter.net/altcoin-season-index/)，
 该说明使用 Top-50 中跑赢 Bitcoin 的比例和 90 天窗口。MarketBridge 将币篮子、回看窗口和阈值都交给调用者，
@@ -167,6 +182,11 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 --top-k 1 \
   --roundtrip-cost-bps 20
+python3 examples/crypto/universe/crypto_adaptive_cross_asset_replay.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
+  --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 \
+  --min-net-exposure 0.10 --max-gross-exposure 1.0 \
+  --roundtrip-cost-bps 20 --min-observations 5
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 4,8,12 --volatility-bars 4,8,12 \

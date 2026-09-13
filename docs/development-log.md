@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — adaptive cross-asset paper-index replay
+
+Added `crypto_adaptive_cross_asset_replay.py` under the universe family. It
+keeps volatility-normalized signed scores for every asset, applies a caller-
+visible gross cap, shrinks conflicting signals to a neutral paper index, and
+compares the fixed-horizon result with an equal-weight basket. Provenance: the
+public [RoboNet multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012),
+cross-checked with [CME's crypto diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html).
+No Allora prediction, wallet, order or execution path is used.
+
 ## 2026-09-14 — matched-clock weekday/hour effect replay
 
 Added `crypto_weekday_hour_effect_replay.py` under microstructure. The replay

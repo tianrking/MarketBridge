@@ -167,6 +167,11 @@ of being mistaken for historical evidence.
 The same family now includes a UTC-session VWAP-deviation cross-back replay,
 which tests a deliberately narrow mean-reversion hypothesis and preserves the
 possibility of a negative after-cost result.
+The universe family also includes a signed adaptive cross-asset replay: trailing
+returns are divided by realized volatility, conflicting BTC/ETH/SOL scores can
+shrink a paper index to neutral, and the result is compared with equal weight.
+It tests the observable part of an 8-hour volatility-normalized strategy
+description without importing an external prediction model or execution layer.
 It also includes a matched-clock weekday/hour replay: the default Tuesday
 05:00 UTC event, next-hour bounce and later response are compared with other
 weekdays at the same UTC hour. This tests a public calendar-effect claim with
