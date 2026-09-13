@@ -82,6 +82,7 @@ categorized command is the recommended one.
 | `crypto/universe/crypto_pairs_mean_reversion_replay.py` | An extreme two-asset log-price spread may shrink toward its frozen trailing mean over a fixed horizon | `/v1/history/candles` for two selected symbols, exact timestamp intersection | Relative-price convergence diagnostic; fixed hedge ratio, costs and paired execution remain explicit gaps |
 | `crypto/universe/crypto_universe_delist_risk_monitor.py` | Missing or stale current quotes should be reviewed before treating a historical market as a research candidate | `/v1/universe/delist-risk` | Data-quality guard only; not a delisting forecast and no automatic exclusion |
 | `crypto/universe/crypto_market_regime_monitor.py` | Aggregate fragmentation, volatility and leverage context should remain visible before a strategy case is interpreted | `/v1/research/market-regime` | Context monitor only; current snapshot, not historical point-in-time data, and no strategy selection |
+| `crypto/universe/crypto_market_regime_recorder.py` / `crypto_market_regime_replay.py` | Fragmented, high-volatility, leveraged and normal aggregate states can be compared with later BTC response distributions | `/v1/research/market-regime`, `/v1/market/quotes`, JSONL archive | Context-response study; current-feature freshness, causality, costs and execution remain explicit gaps |
 | `crypto/macro/crypto_macro_context_monitor.py` | Macro reference snapshots should remain visible beside crypto funding before interpreting a market case | `/v1/market/quotes?exchanges=dxy,vix,us10y`, `/v1/market/perpetual-funding` | Context monitor only; no macro forecast or execution model |
 | `crypto/macro/crypto_macro_context_recorder.py` / `crypto_macro_context_replay.py` | Elevated VIX/macro context and funding crowding can be compared with later BTC return and absolute-move distributions | `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Snapshot response study; macro timestamps, causality, costs and execution remain explicit gaps |
 | `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
@@ -331,6 +332,13 @@ python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
   --stale-after-ms 86400000 --limit 100
 python3 examples/crypto/universe/crypto_market_regime_monitor.py \
   --symbols BTCUSDT,ETHUSDT --intervals 1h,4h,1d
+python3 examples/crypto/universe/crypto_market_regime_recorder.py \
+  --symbols BTCUSDT,ETHUSDT --exchange binance --market perp \
+  --intervals 1h,4h,1d --price-symbol BTCUSDT --iterations 30 \
+  --interval-secs 30 --output work/crypto-market-regime.jsonl
+python3 examples/crypto/universe/crypto_market_regime_replay.py \
+  --input work/crypto-market-regime.jsonl --horizon-records 7 \
+  --min-observations 5 --paper-cost-bps 10
 python3 examples/crypto/macro/crypto_macro_context_monitor.py \
   --symbol BTCUSDT --exchange binance --vix-risk-threshold 25 \
   --funding-extreme-pct 0.01

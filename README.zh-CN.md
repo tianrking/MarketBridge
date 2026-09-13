@@ -918,6 +918,8 @@ universe 系列还新增 `crypto_pairs_mean_reversion_replay.py`：用冻结的�
 但不预测退市，也不自动排除资产。
 同系列还提供 `crypto_market_regime_monitor.py`：把 Rust 聚合市场状态作为 Python JSON 上下文输出，
 但不把当前快照变成策略选择器。
+Universe 系列还新增 market-regime recorder/replay：比较 fragmented、high-volatility、leveraged、normal 状态
+下的后续 BTC 响应分布，并保留它只是当前快照的限制。
 新增 `macro` 系列把已配置的 DXY、VIX、US10Y 与资金费率放在同一研究上下文中，但不把宏观快照变成
 crypto 收益预测。
 宏观系列还新增 context recorder/replay：按 VIX 状态和资金费率拥挤分桶报告 BTC 响应分布，

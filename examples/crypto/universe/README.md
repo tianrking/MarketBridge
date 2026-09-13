@@ -55,6 +55,12 @@ snapshot (fragmented, high-volatility, leveraged or normal) as Python JSON
 context. Its guidance only tells a researcher which evidence checks deserve
 attention; it does not choose or execute a strategy.
 
+`crypto_market_regime_recorder.py` / `crypto_market_regime_replay.py` turn that
+current context into a temporal study: the recorder freezes the regime beside a
+BTC quote, and replay reports forward-return, absolute-move and downside
+distributions by regime. The feature is still a current aggregate snapshot,
+not a point-in-time historical factor or a strategy selector.
+
 Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
 motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
@@ -76,6 +82,11 @@ The pair-reversion decomposition is cross-checked against the peer-reviewed
 and the public [Pairs Trading in Crypto paper](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2).
 Those sources motivate a testable relative-price hypothesis; they are not a
 performance or execution guarantee for MarketBridge.
+
+The aggregate-regime framing is motivated by the unverified [XWIN trend and
+positioning discussion on X](https://x.com/xwinfinance/status/2023155692916646257);
+MarketBridge only measures the response distribution of its own explicit Rust
+regime labels.
 
 ## 中文
 
@@ -126,6 +137,13 @@ breadth 定义对照 [BlockchainCenter 的 Altcoin Season Index 说明](https://
 `crypto_market_regime_monitor.py` 将 Rust 聚合研究状态（fragmented、high_volatility、leveraged、normal）
 作为 Python JSON 上下文输出。提示只告诉研究者应该检查哪些证据，不选择策略，也不执行交易。
 
+`crypto_market_regime_recorder.py` / `crypto_market_regime_replay.py` 把当前上下文扩展成时间研究：记录状态和 BTC
+报价，再按 regime 报告未来收益、绝对波动和下行比例。该特征仍是当前聚合快照，不是 point-in-time 历史因子，
+也不是策略选择器。
+
+聚合状态研究线索参考未经验证的 [XWIN 趋势与持仓讨论](https://x.com/xwinfinance/status/2023155692916646257)；
+MarketBridge 只检验自己明确输出的 Rust regime 标签的响应分布。
+
 ## Commands / 命令
 
 ```bash
@@ -166,4 +184,11 @@ python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
   --stale-after-ms 86400000 --limit 100
 python3 examples/crypto/universe/crypto_market_regime_monitor.py \
   --symbols BTCUSDT,ETHUSDT --intervals 1h,4h,1d
+python3 examples/crypto/universe/crypto_market_regime_recorder.py \
+  --symbols BTCUSDT,ETHUSDT --exchange binance --market perp \
+  --intervals 1h,4h,1d --price-symbol BTCUSDT --iterations 30 \
+  --interval-secs 30 --output work/crypto-market-regime.jsonl
+python3 examples/crypto/universe/crypto_market_regime_replay.py \
+  --input work/crypto-market-regime.jsonl --horizon-records 7 \
+  --min-observations 5 --paper-cost-bps 10
 ```

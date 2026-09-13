@@ -128,6 +128,9 @@ It also exposes a stale/missing-quote risk guard before universe candidates
 enter research, without forecasting delistings or automatically excluding assets.
 The same family exposes the aggregate Rust market-regime context as Python
 JSON without turning that snapshot into a strategy selector.
+It now also includes a market-regime recorder/replay comparing fragmented,
+high-volatility, leveraged and normal states with later BTC response
+distributions while retaining the current-snapshot limitation.
 The macro family also exposes configured DXY, VIX and US10Y references beside
 funding context, without turning them into a crypto return forecast.
 It now also has a macro-context recorder/replay that reports BTC response

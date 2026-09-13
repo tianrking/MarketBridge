@@ -769,3 +769,13 @@ provider snapshots rather than synchronized historical index bars. Provenance:
 [Wintermute's public macro/liquidity discussion on X](https://x.com/wintermute_t/status/1985631560021000352),
 with VIX and dollar-index semantics cross-checked against the existing Cboe and
 Federal Reserve references in the bilingual macro guide.
+
+## 2026-09-14 — aggregate market-regime response lifecycle
+
+Added a recorder/replay pair for `/v1/research/market-regime`. The recorder
+freezes the Rust aggregate regime label beside a MarketBridge BTC quote; replay
+reports forward return, absolute return and downside fractions for fragmented,
+high-volatility, leveraged and normal states. It keeps the current-feature,
+non-point-in-time limitation explicit and does not turn the label into a
+strategy selector. Provenance: the unverified [XWIN trend and positioning
+discussion on X](https://x.com/xwinfinance/status/2023155692916646257).
