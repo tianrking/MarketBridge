@@ -38,6 +38,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_liquidation_burst_replay.py` | A rolling liquidation-notional burst may precede larger absolute price movement than ordinary windows | `/v1/history/liquidations`, `/v1/history/candles` | Non-directional burst replay; bounded provider history and side semantics remain explicit |
 | `crypto/microstructure/crypto_liquidation_price_cluster_replay.py` | A concentrated band of observed liquidation prints may precede larger absolute movement | `/v1/history/liquidations`, `/v1/history/candles` | Observed-print cluster only; no latent liquidation heatmap, direction or execution model |
 | `crypto/microstructure/crypto_volatility_breakout_replay.py` | A compressed range break with volume/flow confirmation may continue after a fixed horizon | `/v1/history/candles`, optional `/v1/history/trades` | Gross and optional after-cost replay; no execution or fill model |
+| `crypto/microstructure/crypto_bollinger_squeeze_replay.py` | A trailing close-only BandWidth squeeze followed by an upper/lower-band break may continue over a fixed horizon | `/v1/history/candles` | Separate Bollinger response study; parameter sensitivity, bounded candles, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
 | `crypto/microstructure/crypto_quarter_hour_flow_replay.py` | UTC quarter-hour opening taker-flow imbalance may align with a fixed-horizon perp return | `/v1/history/candles` at 1m and `/v1/history/trades` | Phase-aligned single-venue replay; bounded history, clock-phase causality, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_session_momentum_replay.py` | Session VWAP/EMA(9/21)/MACD/volume confluence may align with a fixed-horizon return | `/v1/history/candles` | Timezone-aware close-to-close replay; session definition, missing bars, costs and execution remain explicit gaps |
@@ -195,6 +196,11 @@ python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py 
   --output work/crypto-derivatives-sentiment.jsonl
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
   --input work/crypto-derivatives-sentiment.jsonl --min-run 3
+python3 examples/crypto/microstructure/crypto_bollinger_squeeze_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
+  --period 20 --deviations 2 --bandwidth-lookback 96 \
+  --max-bandwidth-quantile 0.20 --horizon-bars 12 \
+  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
 python3 examples/crypto/microstructure/crypto_short_squeeze_response_recorder.py \
   --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 30 \
   --output work/crypto-short-squeeze-response.jsonl

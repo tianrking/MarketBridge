@@ -149,6 +149,10 @@ The microstructure family now also includes a quarter-hour flow replay: it
 tests whether a UTC quarter-hour opening taker-flow imbalance aligns with a
 fixed-horizon perp return, while keeping bounded trade history and clock-phase
 causality explicit.
+It also includes a standalone Bollinger BandWidth squeeze replay: a trailing
+close-only squeeze quantile followed by an upper/lower-band break is compared
+with fixed-horizon continuation, separate from the existing realized-volatility
+range-breakout case. No ATR stops, leverage or execution are included.
 It also includes a short-squeeze response recorder/replay that freezes the
 existing funding/OI/spot-perp-flow confluence beside a quote and compares
 score-qualified snapshots with later fixed-record BTC responses. The first OI

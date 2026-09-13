@@ -13,7 +13,7 @@ HTTP 接口；目录里的案例只观察、回放和评分假设，不下单、
 | Directory / 目录 | Focus / 主题 | Start here / 入口 |
 |---|---|---|
 | [`carry/`](carry/README.md) | Basis, funding, OI impulse/positioning, cross-sectional funding, cross-venue gaps, order-book and triangular quote edges / 基差、资金费率、OI 冲击/持仓上下文、横截面资金费率、跨交易所价差、盘口与三角报价 edge | `basis_carry_monitor.py`, funding and OI replays |
-| [`microstructure/`](microstructure/README.md) | Squeeze, exhaustion, CVD divergence, quarter-hour/session/LVN/footprint confluence, aggregate derivatives sentiment, liquidation and liquidity stress / 逼空、衰竭、CVD 背离、季度小时/时段/LVN/footprint 共振、衍生品聚合情绪、清算与流动性压力 | `short_squeeze_monitor.py`, `crypto_cvd_divergence_replay.py` |
+| [`microstructure/`](microstructure/README.md) | Squeeze, exhaustion, Bollinger/volatility breakouts, CVD divergence, quarter-hour/session/LVN/footprint confluence, aggregate derivatives sentiment, liquidation and liquidity stress / 逼空、衰竭、Bollinger/波动率突破、CVD 背离、季度小时/时段/LVN/footprint 共振、衍生品聚合情绪、清算与流动性压力 | `short_squeeze_monitor.py`, `crypto_bollinger_squeeze_replay.py` |
 | [`options/`](options/README.md) | IV, skew, VRP, gamma, bull-call spreads and volatility / IV、偏斜、VRP、Gamma、牛市看涨价差与波动率 | options monitors, recorders and replays |
 | [`defi/`](defi/README.md) | DEX pool flow, liquidity, turnover and stablecoin depeg risk / DEX 池流量、流动性、换手与稳定币脱锚风险 | `crypto_defi_pool_flow_monitor.py`, stablecoin replay |
 | [`onchain/`](onchain/README.md) | Large-transfer bursts and bounded price-response replay / 大额链上转账 burst 与有限价格响应回放 | `crypto_onchain_transfer_burst_replay.py` |

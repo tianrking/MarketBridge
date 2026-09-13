@@ -930,6 +930,8 @@ microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：�
 反向移动；它不代表全市场 CVD，也不构成执行信号。
 microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检验 UTC 每 15 分钟开盘后的主动买卖
 差值是否与固定窗口的永续收益方向一致，同时明确公开成交历史、时钟阶段因果性、成本和执行缺口。
+同系列还新增独立的 Bollinger BandWidth squeeze 回放：用前置 close-only BandWidth 历史分位识别压缩，
+再检验上下轨突破后的固定窗口延续；它与已有 realized-volatility 区间突破案例分开，也不加入 ATR 止损、杠杆或执行。
 同系列还新增 short-squeeze response recorder/replay：把已有资金费率、OI、现货/永续流量共振与报价一起冻结，
 比较达到分数门槛与 `observe_only` 快照之后的固定记录窗口 BTC 响应；第一次 OI 冷启动、交易所 side 语义、
 纸面成本和不下单边界都会保留。

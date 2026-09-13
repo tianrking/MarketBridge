@@ -25,6 +25,7 @@ Cases:
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
+- `crypto_bollinger_squeeze_replay.py`: a trailing BandWidth squeeze followed by an upper/lower-band break versus fixed-horizon continuation.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
@@ -96,6 +97,13 @@ the first-poll OI cold start, and compares score-qualified snapshots with
 unverified public [L2 imbalance plus funding-extreme perp lead on X](https://x.com/instaclaws/status/2038363051213181035).
 This is a response study, not a claim that a squeeze score predicts direction.
 
+The Bollinger case is intentionally separate from the realized-volatility/range
+breakout replay: it uses the prior candle's close-only BandWidth quantile and
+tests only a subsequent upper/lower-band break. It does not add the public
+post's ATR stops, leverage or automated execution. Provenance: the public
+[Bollinger BandWidth/Squeeze explanation](https://www.bollingerbands.com/bollinger-band-rules)
+and the unverified [VWAP + Bollinger squeeze lead on X](https://x.com/instaclaws/status/2038363051213181035).
+
 The quarter-hour case is a stricter replay of a public [order-book imbalance and
 funding-rate strategy lead on X](https://x.com/instaclaws/status/2038363051213181035),
 not an endorsement of its automated-trading claims. It is cross-checked against
@@ -166,6 +174,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
+- `crypto_bollinger_squeeze_replay.py`：用前一根 K 线的 BandWidth 历史分位识别压缩，再检验上下轨突破后的固定窗口延续。
 - `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
 - `crypto_anchored_vwap_replay.py`：以前置窗口 swing low/high 为锚点，检验 VWAP 夺回/跌破后的固定窗口响应。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
@@ -243,6 +252,11 @@ short-squeeze response recorder/replay 是兼容性监控的时间维度 compani
 流量和可选清算上下文四项可观测证据，保留第一次轮询没有 OI 基线的冷启动，并在固定记录数窗口比较达到分数门槛
 与 `observe_only` 快照之后的 BTC 响应。出处是未经验证的[公开 X 上 L2 不平衡与极端资金费率线索](https://x.com/instaclaws/status/2038363051213181035)。
 它是响应研究，不是对逼空方向预测能力的声明。
+
+Bollinger 案例与已有 realized-volatility/区间突破回放分开：它只用前置 K 线的 close 计算 BandWidth 历史分位，
+再检验随后突破上轨或下轨后的固定窗口延续，不加入公开帖子里的 ATR 止损、杠杆或自动执行。出处是公开的
+[Bollinger BandWidth/Squeeze 说明](https://www.bollingerbands.com/bollinger-band-rules)，以及未经验证的
+[X 上 VWAP + Bollinger squeeze 线索](https://x.com/instaclaws/status/2038363051213181035)。
 
 `crypto_derivatives_sentiment_monitor.py` 使用可选的 CoinGlass aggregate signal，把资金费率、OI、
 long/short ratio、basis 和 liquidation 放在同一上下文中；API key 缺失或指标缺失会保持为 observe-only，
@@ -332,6 +346,11 @@ python3 examples/crypto/microstructure/crypto_short_squeeze_response_recorder.py
 python3 examples/crypto/microstructure/crypto_short_squeeze_response_replay.py \
   --input work/crypto-short-squeeze-response.jsonl --horizon-records 7 \
   --min-score 3 --paper-cost-bps 10
+python3 examples/crypto/microstructure/crypto_bollinger_squeeze_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
+  --period 20 --deviations 2 --bandwidth-lookback 96 \
+  --max-bandwidth-quantile 0.20 --horizon-bars 12 \
+  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \

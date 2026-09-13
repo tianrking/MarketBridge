@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Bollinger BandWidth squeeze replay
+
+Added `crypto_bollinger_squeeze_replay.py` under the microstructure family.
+It uses only candles known before the trigger: a trailing empirical BandWidth
+quantile identifies a squeeze, the next close breaking the prior upper/lower
+band defines the event, and a fixed forward candle window reports gross and
+paper-cost-adjusted continuation. This is deliberately separate from the
+existing realized-volatility/range breakout replay and omits ATR stops,
+leverage, fills and execution. Provenance: [John Bollinger's BandWidth/Squeeze
+rules](https://www.bollingerbands.com/bollinger-band-rules) and the unverified
+[VWAP + Bollinger squeeze lead on X](https://x.com/instaclaws/status/2038363051213181035).
+
 ## 2026-09-14 — open-interest impulse response study
 
 Added the carry-family Python `crypto_oi_impulse_response_recorder.py` and
