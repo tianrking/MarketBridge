@@ -17,7 +17,7 @@ HTTP 接口；目录里的案例只观察、回放和评分假设，不下单、
 | [`options/`](options/README.md) | IV, skew, VRP, gamma and volatility / IV、偏斜、VRP、Gamma 与波动率 | options monitors and recorders |
 | [`defi/`](defi/README.md) | DEX pool flow, liquidity and turnover pressure / DEX 池流量、流动性与换手压力 | `crypto_defi_pool_flow_monitor.py`, recorder/replay |
 | [`onchain/`](onchain/README.md) | Large-transfer bursts and bounded price-response replay / 大额链上转账 burst 与有限价格响应回放 | `crypto_onchain_transfer_burst_replay.py` |
-| [`universe/`](universe/README.md) | Cross-asset ranking, volatility adjustment, parameter sweeps, holdouts and opportunity discovery / 跨资产排名、波动率调整、参数扫描、样本外切分与机会发现 | momentum replays, sweep, walk-forward and universe scan |
+| [`universe/`](universe/README.md) | Cross-asset ranking, pair mean reversion, stale-quote risk, volatility adjustment, parameter sweeps, holdouts and opportunity discovery / 跨资产排名、配对均值回归、过期报价风险、波动率调整、参数扫描、样本外切分与机会发现 | momentum, pair, risk, sweep, walk-forward and universe scan |
 
 The categorised entrypoints are thin Python launchers around the shared
 `../python_strategy_runner.py`; this keeps one implementation and avoids

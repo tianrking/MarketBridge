@@ -38,6 +38,11 @@ standard deviation at each signal, and tests whether an extreme deviation
 shrinks over a fixed future horizon. A fixed hedge ratio is a transparent
 diagnostic parameter, not a cointegration certification or paired execution.
 
+`crypto_universe_delist_risk_monitor.py` is a data-quality guard for all other
+universe cases. It surfaces historical markets whose current quote is missing
+or stale, but deliberately does not call that proof of delisting or perform an
+automatic exclusion.
+
 Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
 motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
@@ -89,6 +94,9 @@ performance or execution guarantee for MarketBridge.
 和公开的 [Pairs Trading in Crypto 论文](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2)。
 这些资料只提供可测试的相对价格假设，不是 MarketBridge 的收益或执行保证。
 
+`crypto_universe_delist_risk_monitor.py` 是其他 universe 案例前的数据质量护栏：它显示历史市场当前报价缺失或
+过期，但不把这直接解释为退市证明，也不自动排除标的。
+
 ## Commands / 命令
 
 ```bash
@@ -119,4 +127,7 @@ python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
   --symbol-a BTCUSDT --symbol-b ETHUSDT --exchange binance --market perp \
   --interval 1h --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
   --paper-cost-bps 10 --min-convergence-bps 0
+python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
+  --exchange binance --market perp --interval 1d \
+  --stale-after-ms 86400000 --limit 100
 ```

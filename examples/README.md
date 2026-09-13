@@ -69,6 +69,7 @@ categorized command is the recommended one.
 | `crypto_volatility_adjusted_momentum_sweep.py` | Expose sensitivity across lookback, volatility and forward-horizon windows without selecting a live parameter | `/v1/history/candles` fetched once per symbol, bounded parameter grid | In-sample diagnostic with optional paper cost hurdle; best row requires time-held-out validation |
 | `crypto_volatility_adjusted_momentum_walkforward.py` | Evaluate one fixed risk-adjusted momentum parameter set on a later chronological holdout | `/v1/history/candles` for each symbol, exact timestamp intersection | Holdout paper diagnostic; one split is not proof of stable alpha |
 | `crypto/universe/crypto_pairs_mean_reversion_replay.py` | An extreme two-asset log-price spread may shrink toward its frozen trailing mean over a fixed horizon | `/v1/history/candles` for two selected symbols, exact timestamp intersection | Relative-price convergence diagnostic; fixed hedge ratio, costs and paired execution remain explicit gaps |
+| `crypto/universe/crypto_universe_delist_risk_monitor.py` | Missing or stale current quotes should be reviewed before treating a historical market as a research candidate | `/v1/universe/delist-risk` | Data-quality guard only; not a delisting forecast and no automatic exclusion |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure gross and after-cost differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Explicit paper cost hurdle is a sensitivity input; no fill, borrow or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -262,6 +263,13 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 \
   --train-fraction 0.7 --roundtrip-cost-bps 20
+python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
+  --symbol-a BTCUSDT --symbol-b ETHUSDT --exchange binance --market perp \
+  --interval 1h --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
+  --paper-cost-bps 10 --min-convergence-bps 0
+python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
+  --exchange binance --market perp --interval 1d \
+  --stale-after-ms 86400000 --limit 100
 python3 examples/python_strategy_runner.py \
   --strategy options_gamma --currency BTC --options-venue deribit \
   --expiry-days 30 --gamma-min-near-share 0.50 \

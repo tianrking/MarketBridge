@@ -113,6 +113,8 @@ The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
 The universe family also includes a frozen-spread pair replay that tests
 relative-price convergence without claiming cointegration or paired fills.
+It also exposes a stale/missing-quote risk guard before universe candidates
+enter research, without forecasting delistings or automatically excluding assets.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.

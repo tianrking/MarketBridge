@@ -1,5 +1,14 @@
 # Development log
 
+## 2026-09-14 — universe stale-quote risk guard
+
+Added `crypto_universe_delist_risk_monitor.py` for the existing
+`/v1/universe/delist-risk` API. It reports missing and stale current quotes for
+historically seen markets before a universe strategy treats them as candidates;
+it deliberately labels the result as data-quality review, not a delisting
+forecast, and has no automatic exclusion or execution side effect. Added
+bilingual universe docs and deterministic tests.
+
 ## 2026-09-14 — strategy catalog consistency guard
 
 Added `examples/test_strategy_catalog.py` to keep the Python-first strategy
