@@ -15,7 +15,7 @@ HTTP 接口；目录里的案例只观察、回放和评分假设，不下单、
 | [`carry/`](carry/README.md) | Basis, funding and convergence / 基差、资金费率与收敛 | `basis_carry_monitor.py`, funding replays |
 | [`microstructure/`](microstructure/README.md) | Squeeze, exhaustion, order flow, liquidation and liquidity stress / 逼空、衰竭、订单流、清算与流动性压力 | `short_squeeze_monitor.py`, `liquidity_stress_monitor.py` |
 | [`options/`](options/README.md) | IV, skew, VRP, gamma and volatility / IV、偏斜、VRP、Gamma 与波动率 | options monitors and recorders |
-| [`universe/`](universe/README.md) | Cross-asset ranking and opportunity discovery / 跨资产排名与机会发现 | momentum replay and universe scan |
+| [`universe/`](universe/README.md) | Cross-asset ranking, volatility adjustment and opportunity discovery / 跨资产排名、波动率调整与机会发现 | momentum replays and universe scan |
 
 The categorised entrypoints are thin Python launchers around the shared
 `../python_strategy_runner.py`; this keeps one implementation and avoids

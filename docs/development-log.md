@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — volatility-adjusted cross-asset momentum replay
+
+Added a universe-family replay that ranks assets by trailing return divided by
+per-bar realized volatility, then compares the selected basket with an
+equal-weight benchmark over the next fixed horizon. It reuses exact timestamp
+intersections, excludes zero-volatility assets instead of manufacturing an
+infinite score, preserves missing history, and explicitly excludes fees,
+funding, borrow, slippage, turnover, leverage and allocation execution. Added
+a categorized launcher, bilingual universe documentation and deterministic
+tests for volatility calculation, ranking evidence and insufficient forward
+windows.
+
+Provenance: [RoboNet's multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
+and [CME's crypto diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html).
+
 ## 2026-09-14 — basis contraction recorder and replay
 
 Added a carry-family recorder/replay pair that preserves spot/perpetual basis

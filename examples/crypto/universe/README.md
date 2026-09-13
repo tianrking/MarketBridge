@@ -8,11 +8,31 @@ cross-asset replay ranks trailing returns across exact timestamp intersections
 and compares the selected basket with an equal-weight benchmark over a fixed
 horizon. Missing symbols and insufficient history remain visible.
 
+The volatility-adjusted replay is a separate ranking test: it divides each
+asset's trailing return by its trailing per-bar realized volatility before
+selecting the top basket. Zero-volatility assets are excluded rather than
+assigned an infinite score. This tests risk-adjusted ranking; it does not
+allocate capital or promise a Sharpe ratio.
+
+Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
+motivates the volatility-adjusted comparison, while [CME's crypto
+diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
+documents that major crypto assets have materially different volatility. Both
+are inputs to a falsifiable replay, not evidence of a guaranteed edge.
+
 ## 中文
 
 这些案例用于发现候选，不负责分配资金。Universe scanner 连接流动性、已实现波动率和当前
 资金费率；跨资产回放在共同 timestamp 上排名历史收益，并将选中篮子与固定窗口的等权基准
 比较。缺失标的和历史长度不足都会保留在结果里。
+
+波动率调整回放是独立的排名测试：先用历史收益除以逐 K 线已实现波动率，再选择排名靠前
+的篮子。零波动标的会被排除，而不是赋予无穷大分数。它测试风险调整后的排名，不分配资金，
+也不承诺 Sharpe 比率。
+
+出处：[RoboNet 在 X 的多资产策略讨论](https://x.com/RoboNetHQ/status/2024893544520143012)
+提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
+说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
 
 ## Commands / 命令
 
@@ -22,4 +42,7 @@ python3 examples/crypto/universe/crypto_universe_opportunity_scan.py \
 python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --horizon-bars 8 --top-k 1
+python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_replay.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
+  --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 --top-k 1
 ```
