@@ -1,5 +1,12 @@
 # Development log
 
+## 2026-09-14 — funding convergence coverage propagation
+
+Updated the cross-venue funding convergence replay to preserve each venue's
+historical candle `coverage_detail` and add provider coverage statuses to its
+evidence. Gross/after-cost differential statistics are unchanged; only the
+completeness audit is stronger.
+
 ## 2026-09-14 — propagate history coverage into strategy evidence
 
 Updated the funding/OI replay, volatility-breakout replay and options VRP

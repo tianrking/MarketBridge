@@ -133,6 +133,7 @@ def main():
     current_intervals = interval_map(metadata, options.symbol)
 
     series = {}
+    coverage = {}
     errors = list(metadata.get("errors", []))
     for exchange in exchanges:
         payload = fetch(options.base_url, "/v1/history/candles", {
@@ -145,6 +146,7 @@ def main():
         }, options.timeout)
         if payload.get("error"):
             errors.append({"exchange": exchange, "error": payload["error"]})
+        coverage[exchange] = payload.get("coverage_detail")
         series[exchange] = history_points(payload)
 
     point_in_time_intervals = {
@@ -193,6 +195,9 @@ def main():
         evidence = ["no_aligned_history"]
     if missing_schedule:
         evidence.append("point_in_time_schedule_missing")
+    for exchange, detail in coverage.items():
+        if isinstance(detail, dict) and detail.get("status"):
+            evidence.append(f"{exchange}_coverage_{detail['status']}")
 
     persistent = bool(net_spreads) and len(net_qualifying) / len(net_spreads) >= 0.5
     print(json.dumps({
@@ -201,6 +206,7 @@ def main():
         "exchanges": exchanges,
         "window": {"start_ms": start_ms, "end_ms": now_ms, "days": options.days},
         "summary": summary,
+        "coverage": coverage,
         "filters": {
             "min_spread_bps_per_hour": options.min_spread_bps_per_hour,
             "paper_cost_bps_per_hour": options.paper_cost_bps_per_hour,

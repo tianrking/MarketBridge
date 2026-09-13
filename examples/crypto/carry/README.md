@@ -14,6 +14,9 @@ The convergence replay accepts `--paper-cost-bps-per-hour` and
 `--min-net-spread-bps-per-hour`. These are explicit sensitivity hurdles: the
 replay reports gross and after-cost differential persistence, but does not claim
 they are exchange fees, borrow rates or executable hedge PnL.
+It also carries each venue's historical funding `coverage_detail` into the
+result, so a short provider page cannot be mistaken for a complete differential
+window.
 
 The basis recorder/replay is a separate falsifiable test: after a same-venue
 basis observation is at least `min_z` standard deviations from its trailing
