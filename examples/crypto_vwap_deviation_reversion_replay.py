@@ -5,7 +5,7 @@ import argparse
 import json
 import statistics
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -35,7 +35,10 @@ def candle_rows(payload):
 
 
 def session_date(timestamp):
-    return datetime.fromtimestamp(timestamp / 1000.0, tz=timezone.utc).date()
+    # Avoid platform-specific C-runtime handling of Unix epoch timestamps on
+    # Windows (the deterministic tests intentionally include timestamp=0).
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return (epoch + timedelta(milliseconds=timestamp)).date()
 
 
 def update_session(state, row):
