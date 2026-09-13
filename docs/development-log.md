@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — options VRP recorder and persistence replay
+
+Completed the options-family VRP lifecycle with a JSONL recorder and replay.
+The monitor now retains the latest spot close for auditability; the recorder
+freezes ATM IV, annualized perp RV, expiry identity and state, while the replay
+tests whether an implied-volatility-premium state persists for the same expiry.
+Missing IV/RV, rolling expiry identity, maturity mismatch and the absence of a
+delta-hedge/PnL model remain explicit. Added bilingual guidance and
+deterministic tests; no option order, hedge or wallet path was added.
+
+Provenance: [public IV-minus-RV discussion on X](https://x.com/isellpremium/status/2072350364385349678)
+and the [Bitcoin-options risk-premia paper](https://papers.ssrn.com/sol3/Delivery.cfm/98257442-0b56-4c20-8b8f-c91befac0b1b-MECA.pdf?abstractid=6771170).
+
 ## 2026-09-14 — observed liquidation price-cluster replay
 
 Added a microstructure replay inspired by public liquidation-heatmap

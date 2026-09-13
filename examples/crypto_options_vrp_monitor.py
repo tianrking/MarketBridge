@@ -74,6 +74,7 @@ def observe_vrp(base_url, currency, venue, expiry_days, price_exchange, symbol,
     }, timeout)
     candles = candle_closes(candle_payload)
     realized = annualized_realized_vol_pct([close for _, close in candles[-(rv_bars + 1):]], interval)
+    spot_close = candles[-1][1] if candles else None
     target = option_observation.get("target_expiry") or {}
     implied = number(target.get("atm_iv"))
     vrp = implied - realized if implied is not None and realized is not None else None
@@ -94,6 +95,7 @@ def observe_vrp(base_url, currency, venue, expiry_days, price_exchange, symbol,
             "bars_available": len(candles),
             "bars_used": min(len(candles), rv_bars + 1),
             "annualized_rv_pct": realized,
+            "spot_close": spot_close,
         },
         "vrp": {
             "iv_minus_rv_iv_points": vrp,

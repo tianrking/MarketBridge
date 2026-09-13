@@ -109,6 +109,9 @@ keeping schedule gaps and the no-order boundary explicit.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.
+The options family now also has a VRP recorder/replay pair that tests
+IV-minus-realized-volatility regime persistence without turning it into a
+short-volatility or hedging instruction.
 
 The large copy-paste query cookbook is maintained in
 [docs/query_examples.md](docs/query_examples.md).

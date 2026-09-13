@@ -901,6 +901,8 @@ carry 系列还新增 `crypto_funding_regime_replay.py`：把连续极端资金�
 检验后续永续价格方向，同时保留结算间隔缺口；它不计算资金费收入、不对冲、不下单。
 microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：只对接口返回的已发生清算成交
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
+options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、
+对冲或实盘执行指令。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 
