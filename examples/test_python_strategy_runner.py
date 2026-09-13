@@ -4,7 +4,12 @@
 import unittest
 from types import SimpleNamespace
 
-from python_strategy_runner import score_options_skew, score_options_vrp, score_volatility_breakout
+from python_strategy_runner import (
+    score_funding_convergence,
+    score_options_skew,
+    score_options_vrp,
+    score_volatility_breakout,
+)
 
 
 def args():
@@ -15,6 +20,8 @@ def args():
         breakout_horizon_bars=6, range_bars=2, compression_window=2,
         baseline_window=4, max_compression_ratio=0.75, breakout_buffer=0.0,
         volume_multiplier=1.2,
+        min_spread_bps_per_hour=0.5,
+        symbol="BTCUSDT",
     )
 
 
@@ -63,6 +70,18 @@ class PythonStrategyRunnerTests(unittest.TestCase):
         self.assertEqual(maximum, 3)
         self.assertIn(verdict, ("volatility breakout observation", "observe only"))
         self.assertTrue(any("breakout" in item for item in evidence))
+
+    def test_funding_convergence_requires_comparable_intervals(self):
+        data = {"funding_cross": {"funding": [
+            {"symbol": "BTCUSDT", "exchange": "binance", "funding_rate": 0.001,
+             "funding_interval_ms": 28_800_000},
+            {"symbol": "BTCUSDT", "exchange": "okx", "funding_rate": -0.0005,
+             "funding_interval_ms": 28_800_000},
+        ]}}
+        score, maximum, verdict, evidence = score_funding_convergence(data, args(), {})
+        self.assertEqual((score, maximum), (1, 1))
+        self.assertEqual(verdict, "funding differential observation")
+        self.assertTrue(any("gross spread" in item for item in evidence))
 
 
 if __name__ == "__main__":

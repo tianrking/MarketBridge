@@ -22,6 +22,7 @@ from crypto_options_skew_monitor import (
 )
 from crypto_options_vrp_monitor import annualized_realized_vol_pct
 from crypto_volatility_breakout_replay import breakout_features
+from funding_convergence_monitor import observe as observe_funding_convergence
 
 
 def fetch(base_url, path, params, timeout=30.0):
@@ -92,6 +93,13 @@ def fetch_core(client, args):
             "candle_type": "perp",
             "interval": args.breakout_interval,
             "limit": args.breakout_limit,
+        })
+    if args.strategy == "funding_convergence":
+        data["funding_cross"] = client("/v1/market/perpetual-funding", {
+            "symbols": symbol,
+            "exchanges": args.funding_exchanges,
+            "active_only": "true",
+            "limit": 100,
         })
     return data
 
@@ -321,10 +329,22 @@ def score_volatility_breakout(data, args, _previous):
     return score, 3, verdict, evidence
 
 
+def score_funding_convergence(data, args, _previous):
+    result = observe_funding_convergence(
+        data["funding_cross"], args.symbol, args.min_spread_bps_per_hour,
+    )
+    evidence = list(result.get("evidence", []))
+    spread = result.get("spread") or {}
+    if spread.get("spread_bps_per_hour") is not None:
+        evidence.append(f"gross spread={spread['spread_bps_per_hour']:.2f} bps/hour")
+    candidate = result.get("candidate") is not None
+    return int(candidate), 1, "funding differential observation" if candidate else "observe only", evidence
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "options_skew", "options_vrp", "volatility_breakout"), required=True)
+    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "options_skew", "options_vrp", "volatility_breakout"), required=True)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--interval-secs", type=float, default=30.0)
@@ -341,6 +361,8 @@ def main():
     parser.add_argument("--rv-interval", default="1h")
     parser.add_argument("--rv-bars", type=int, default=168)
     parser.add_argument("--vrp-threshold", type=float, default=5.0)
+    parser.add_argument("--funding-exchanges", default="binance,okx,bybit")
+    parser.add_argument("--min-spread-bps-per-hour", type=float, default=0.5)
     parser.add_argument("--breakout-interval", default="5m")
     parser.add_argument("--breakout-limit", type=int, default=100)
     parser.add_argument("--breakout-horizon-bars", type=int, default=6)
@@ -362,6 +384,8 @@ def main():
             or args.baseline_window <= 1 or not 0 < args.max_compression_ratio < 2
             or args.breakout_buffer < 0 or args.volume_multiplier < 0):
         parser.error("invalid volatility breakout windows or thresholds")
+    if args.min_spread_bps_per_hour < 0:
+        parser.error("min-spread-bps-per-hour cannot be negative")
 
     strategies = {
         "squeeze": score_squeeze,
@@ -371,6 +395,7 @@ def main():
         "options_skew": score_options_skew,
         "options_vrp": score_options_vrp,
         "volatility_breakout": score_volatility_breakout,
+        "funding_convergence": score_funding_convergence,
     }
     previous = {}
 
