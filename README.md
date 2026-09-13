@@ -109,6 +109,8 @@ keeping schedule gaps and the no-order boundary explicit.
 It also includes a cross-sectional funding replay that compares fresh
 low-funding and high-funding asset groups at exact price timestamps with an
 optional paper cost hurdle; it does not allocate or hedge.
+The carry family also has a cross-venue same-asset price-gap replay, which
+tests contraction without calling an asynchronous spread executable.
 The universe family also includes a frozen-spread pair replay that tests
 relative-price convergence without claiming cointegration or paired fills.
 The microstructure family also includes an observed liquidation-price-cluster

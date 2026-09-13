@@ -43,6 +43,13 @@ funding observations, and compares the next-window returns of the lowest- and
 highest-funding groups. It reports the low-minus-high spread with an optional
 paper hurdle; it does not turn the ranking into a portfolio or hedge.
 
+`crypto_cross_venue_price_gap_replay.py` isolates same-asset price
+fragmentation: it aligns two venue candle series, detects an extreme log-price
+gap relative to a frozen trailing mean, and measures subsequent contraction.
+The result is intentionally not called an arbitrage opportunity because
+simultaneous bid/ask fills, inventory, transfers and venue solvency are not
+observed by this replay.
+
 Provenance: the basis tests are motivated by the public [CryptoCred basis-trade
 discussion on X](https://x.com/CryptoCred/status/1777720296297975952) and the
 [CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
@@ -58,6 +65,10 @@ brief on X](https://x.com/ImCryptOpus/status/1949195275903410571).
 The cross-sectional funding lead is also informed by the public [cross-venue
 funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
 and cross-checked against [Binance's official funding-history API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+The cross-venue gap decomposition is cross-checked against the academic
+[Trading and Arbitrage in Cryptocurrency Markets](https://www.sciencedirect.com/science/article/pii/S0304405X19301746)
+and [Arbitrage across different Bitcoin exchange venues](https://onlinelibrary.wiley.com/doi/10.1111/acfi.13102).
+They motivate a price-fragmentation test, not an executable arbitrage claim.
 The data semantics are cross-checked against [Binance's official open-interest
 history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info),
 which describes bounded historical OI observations rather than trader-side ownership.
@@ -145,6 +156,10 @@ python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
   --price-exchange binance --interval 1h --days 14 --top-k 1 \
   --min-dispersion-bps 1 --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
+  --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
+  --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
+  --paper-cost-bps 10 --min-contraction-bps 0
 python3 examples/crypto/carry/funding_extremes.py \
   --exchange binance --min-pct -2 --max-pct -0.1
 python3 examples/crypto/carry/funding_curve_demo.py \

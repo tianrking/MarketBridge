@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — cross-venue same-asset price-gap replay
+
+Added `crypto_cross_venue_price_gap_replay.py` to separate same-asset venue
+fragmentation from same-venue basis, cross-venue funding and two-asset pairs.
+It uses exact timestamp candle intersections, a frozen trailing log-gap mean,
+z-score signals and an optional paper hurdle. It deliberately does not call a
+gap an arbitrage opportunity: fills, inventory, transfers, fees, latency and
+venue risk are missing. Added bilingual carry docs and deterministic tests,
+with provenance from [Trading and Arbitrage in Cryptocurrency Markets](https://www.sciencedirect.com/science/article/pii/S0304405X19301746)
+and [Arbitrage across different Bitcoin exchange venues](https://onlinelibrary.wiley.com/doi/10.1111/acfi.13102).
+
 ## 2026-09-14 — CVD divergence reversal replay
 
 Added `crypto_cvd_divergence_replay.py` to separate historical price/taker-flow
