@@ -1010,3 +1010,16 @@ Provenance: [CryptoData's liquidation-threshold discussion on X](https://x.com/T
 is an unverified lead, while [Binance's liquidation-order stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams)
 defines the primary event-semantic boundary. This round adds no trading,
 wallet or signing path.
+
+## 2026-09-14 — options VRP response replay
+
+Added the missing response layer for the existing options IV-minus-realized-
+volatility recorder. The replay reuses its JSONL archive, classifies each
+snapshot as implied-volatility premium, realized-volatility-above-implied or
+aligned, and compares the next fixed-record BTC signed and absolute responses.
+It retains selected-expiry roll, the different IV/RV horizons, candle coverage
+and missing prices as evidence gaps; no option position, hedge, margin, fee or
+execution path was introduced.
+
+Provenance: the family guide keeps the unverified public [IV-minus-realized-volatility discussion on X](https://x.com/isellpremium/status/2072350364385349678)
+and cross-checks the concept against [Deribit Insights' options data guide](https://insights.deribit.com/industry/genesis-volatility-options-data-guide/).

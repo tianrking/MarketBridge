@@ -997,6 +997,8 @@ sentiment 系列还新增 keyed LunarCrush/Santiment 社交指标 recorder/repla
 绝对波动做比较，并保留指标量纲、API key 和覆盖限制，不把专有分数解释成通用情绪或交易信号。
 options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、
 对冲或实盘执行指令。
+现在还提供 VRP response replay：复用这些快照，比较隐含溢价、已实现波动率高于隐含和对齐状态之后固定记录窗口的
+BTC 有符号/绝对响应，并明确保留到期滚动与 IV/RV 窗口不匹配的限制。
 同系列还新增期限结构回放：检验近端/远端 ATM IV 升水或倒挂是否持续，并明确保留到期滚动和日历价差
 执行作为证据缺口。
 期权系列还新增牛市看涨价差 monitor/recorder/replay：把同一到期日的低执行价 ask 与高执行价 bid

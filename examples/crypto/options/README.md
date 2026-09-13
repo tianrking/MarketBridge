@@ -17,6 +17,13 @@ delta hedging, fills and costs are not matched.
 The VRP monitor also preserves historical-candle coverage metadata alongside
 the realized-volatility window.
 
+`crypto_options_vrp_response_replay.py` reuses the VRP recorder archive and
+compares the next fixed-record BTC response after implied-volatility-premium,
+realized-volatility-above-implied and aligned states. It reports signed and
+absolute movement without turning an IV-RV spread into a short-volatility
+position. The selected option expiry may roll between snapshots, so expiry
+identity is retained as metadata rather than treated as a matched contract.
+
 `crypto_options_term_structure_replay.py` is the separate time-series case for
 the near/far ATM-IV slope already emitted by the skew recorder. It tests
 whether an upward (contango) or inverted term-structure state persists for a
@@ -88,6 +95,10 @@ moneyness 分桶；VRP 比较期权 ATM IV 与永续已实现波动率；Gamma m
 VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到期标识下“隐含波动率溢价”
 状态是否持续。它只是波动率状态诊断，不是卖波动率建议；到期、RV 窗口、动态对冲、成交和成本
 都没有被伪装成已匹配。
+
+`crypto_options_vrp_response_replay.py` 复用 VRP recorder 归档，比较隐含波动率溢价、已实现波动率高于隐含和
+两者接近状态之后固定记录窗口的 BTC 有符号/绝对响应。它不会把 IV-RV 差值转成卖波动率仓位；采样期间目标期权到期日
+可能滚动，因此只把到期标识作为审计元数据，不假设合约已经匹配。
 
 `crypto_options_term_structure_replay.py` 单独检验 skew recorder 已输出的近端/远端 ATM IV
 斜率是否持续为升水（contango）或倒挂。到期标识会滚动，因此“持续”只是值得继续研究的
@@ -187,4 +198,7 @@ python3 examples/crypto/options/crypto_options_vrp_recorder.py \
   --iterations 20 --interval-secs 30 --output work/crypto-options-vrp.jsonl
 python3 examples/crypto/options/crypto_options_vrp_replay.py \
   --input work/crypto-options-vrp.jsonl --vrp-threshold 5 --min-run 3
+python3 examples/crypto/options/crypto_options_vrp_response_replay.py \
+  --input work/crypto-options-vrp.jsonl --vrp-threshold 5 \
+  --horizon-records 3 --min-observations 5
 ```

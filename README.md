@@ -257,6 +257,9 @@ movement while preserving metric scale, API-key and coverage limitations.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.
+It also has a VRP response replay that reuses those snapshots to compare later
+BTC signed and absolute movement after IV-premium, RV-above-IV and aligned
+states, while retaining expiry roll and horizon mismatch as explicit gaps.
 It also has a term-structure replay that tests whether near/far ATM-IV
 contango or backwardation persists, while keeping expiry roll and calendar
 spread execution as explicit gaps.
