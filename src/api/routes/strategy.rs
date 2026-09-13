@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -10,6 +11,7 @@ use serde_json::json;
 
 use crate::api::ApiState;
 use crate::types::now_ms;
+use tracing::warn;
 
 static SQUEEZE_ARCHIVE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -58,7 +60,8 @@ pub async fn symbol_state(
 
 /// Current read-only squeeze research ranking. It consumes only symbols that
 /// this running process has already observed; it never expands subscriptions
-/// or calls an execution endpoint.
+/// or calls an execution endpoint. Optional supply references are refreshed
+/// only for the observed symbols in this request.
 pub async fn squeeze_scan(
     State(state): State<Arc<ApiState>>,
     Query(query): Query<SqueezeScanQuery>,
@@ -74,7 +77,8 @@ pub async fn squeeze_scan(
     let rows = rows
         .into_iter()
         .filter(|row| exchange.is_none_or(|wanted| row.exchange.eq_ignore_ascii_case(wanted)))
-        .collect();
+        .collect::<Vec<_>>();
+    refresh_requested_supply(&state, &rows).await;
     let supplies = state.supply_store.all().await;
     let statuses = state.venue_status_store.query(None, None).await;
     Ok(Json(crate::squeeze_radar::scan_with_references(
@@ -102,12 +106,15 @@ pub async fn archive_squeeze_scan(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
+    let rows = rows
+        .into_iter()
+        .filter(|row| exchange.is_none_or(|wanted| row.exchange.eq_ignore_ascii_case(wanted)))
+        .collect::<Vec<_>>();
+    refresh_requested_supply(&state, &rows).await;
     let supplies = state.supply_store.all().await;
     let statuses = state.venue_status_store.query(None, None).await;
     let report = crate::squeeze_radar::scan_with_references(
-        rows.into_iter()
-            .filter(|row| exchange.is_none_or(|wanted| row.exchange.eq_ignore_ascii_case(wanted)))
-            .collect(),
+        rows,
         now_ms(),
         max_data_age_ms,
         query.minimum_score.clamp(0, 10),
@@ -140,4 +147,22 @@ pub async fn archive_squeeze_scan(
         "model_version": crate::squeeze_radar::MODEL_VERSION,
         "execution_boundary": "read_only_research_no_orders_or_wallet_signing"
     })))
+}
+
+async fn refresh_requested_supply(
+    state: &ApiState,
+    rows: &[crate::strategy_state::StrategySymbolState],
+) {
+    let symbols = rows
+        .iter()
+        .map(|row| row.symbol.trim().to_ascii_uppercase())
+        .collect::<HashSet<_>>();
+    for symbol in symbols {
+        if let Err(error) = state.supply_service.ensure_for_perp_symbol(&symbol).await {
+            // Market data remains useful if an optional reference provider is
+            // unavailable. The resulting candidate explicitly has no supply
+            // context rather than silently using a stale or guessed value.
+            warn!(%symbol, %error, "optional supply reference refresh failed");
+        }
+    }
 }

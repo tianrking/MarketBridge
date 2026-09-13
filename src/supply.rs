@@ -6,16 +6,13 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use reqwest::Url;
 use serde::Serialize;
 use serde_json::Value;
+use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
-use tokio_util::sync::CancellationToken;
-use tracing::warn;
 
 use crate::config::{SupplyAssetConfig, SupplyConfig};
 use crate::types::now_ms;
@@ -71,36 +68,77 @@ impl SupplySnapshotStore {
             })
             .cloned()
     }
+
+    pub async fn replace_for_assets(&self, rows: Vec<SupplySnapshot>) {
+        let mut snapshots = self.0.write().await;
+        for row in rows {
+            snapshots.insert(row.asset_id.clone(), row);
+        }
+    }
 }
 
-pub fn spawn_supply_collector(
+/// Fetches supply reference data only when a caller asks for a configured
+/// identity.  It intentionally has no background polling loop: enabling a
+/// mapping authorizes the provider, but does not consume its quota.
+#[derive(Clone)]
+pub struct SupplyReferenceService {
     config: SupplyConfig,
     store: SupplySnapshotStore,
-    shutdown: CancellationToken,
-) -> Option<JoinHandle<()>> {
-    config.enabled.then(|| {
-        tokio::spawn(async move {
-            let client = reqwest::Client::new();
-            loop {
-                match fetch_coingecko(&client, &config).await {
-                    Ok(rows) => store.replace_all(rows).await,
-                    Err(error) => warn!(%error, "supply reference refresh failed"),
-                }
-                tokio::select! {
-                    _ = shutdown.cancelled() => break,
-                    _ = tokio::time::sleep(Duration::from_secs(config.poll_secs.max(10))) => {}
-                }
-            }
-        })
-    })
+    client: reqwest::Client,
+    refresh_lock: Arc<Mutex<()>>,
+}
+
+impl SupplyReferenceService {
+    pub fn new(config: SupplyConfig, store: SupplySnapshotStore, client: reqwest::Client) -> Self {
+        Self {
+            config,
+            store,
+            client,
+            refresh_lock: Arc::new(Mutex::new(())),
+        }
+    }
+
+    pub async fn ensure_for_perp_symbol(&self, symbol: &str) -> Result<Option<SupplySnapshot>> {
+        if !self.config.enabled {
+            return Ok(None);
+        }
+        let wanted = symbol.trim().to_ascii_uppercase();
+        let Some(asset) = self.config.assets.iter().find(|asset| {
+            asset
+                .perp_symbols
+                .iter()
+                .any(|item| item.eq_ignore_ascii_case(&wanted))
+        }) else {
+            return Ok(None);
+        };
+        if let Some(snapshot) = self.store.for_perp_symbol(&wanted).await
+            && now_ms().saturating_sub(snapshot.retrieved_at_ms)
+                < self.config.poll_secs.max(10).saturating_mul(1_000)
+        {
+            return Ok(Some(snapshot));
+        }
+
+        // A single lock prevents a burst of API readers from each spending a
+        // provider request for the same stale mapping.
+        let _guard = self.refresh_lock.lock().await;
+        if let Some(snapshot) = self.store.for_perp_symbol(&wanted).await
+            && now_ms().saturating_sub(snapshot.retrieved_at_ms)
+                < self.config.poll_secs.max(10).saturating_mul(1_000)
+        {
+            return Ok(Some(snapshot));
+        }
+        let rows = fetch_coingecko(&self.client, &self.config, std::slice::from_ref(asset)).await?;
+        self.store.replace_for_assets(rows).await;
+        Ok(self.store.for_perp_symbol(&wanted).await)
+    }
 }
 
 async fn fetch_coingecko(
     client: &reqwest::Client,
     config: &SupplyConfig,
+    assets: &[SupplyAssetConfig],
 ) -> Result<Vec<SupplySnapshot>> {
-    let provider_ids = config
-        .assets
+    let provider_ids = assets
         .iter()
         .map(|asset| asset.provider_asset_id.as_str())
         .collect::<HashSet<_>>()
@@ -139,8 +177,7 @@ async fn fetch_coingecko(
         .filter_map(|row| row.get("id").and_then(Value::as_str).map(|id| (id, row)))
         .collect::<HashMap<_, _>>();
     let retrieved_at_ms = now_ms();
-    Ok(config
-        .assets
+    Ok(assets
         .iter()
         .map(|asset| {
             snapshot_from_provider(
@@ -228,5 +265,49 @@ mod tests {
             .await;
         assert!(store.for_perp_symbol("LSKUSDT").await.is_some());
         assert!(store.for_perp_symbol("LSKUSD").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn disabled_service_never_attempts_a_provider_request() {
+        let store = SupplySnapshotStore::default();
+        let service =
+            SupplyReferenceService::new(SupplyConfig::default(), store, reqwest::Client::new());
+        assert!(
+            service
+                .ensure_for_perp_symbol("LSKUSDT")
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn fresh_configured_snapshot_is_reused_without_network() {
+        let store = SupplySnapshotStore::default();
+        store
+            .replace_all(vec![snapshot_from_provider(
+                &asset(),
+                Some(&serde_json::json!({"market_cap": 20.0})),
+                now_ms(),
+            )])
+            .await;
+        let service = SupplyReferenceService::new(
+            SupplyConfig {
+                enabled: true,
+                assets: vec![asset()],
+                ..SupplyConfig::default()
+            },
+            store,
+            reqwest::Client::new(),
+        );
+        assert_eq!(
+            service
+                .ensure_for_perp_symbol("LSKUSDT")
+                .await
+                .unwrap()
+                .unwrap()
+                .asset_id,
+            "lisk-v2"
+        );
     }
 }

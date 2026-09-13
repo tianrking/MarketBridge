@@ -69,7 +69,7 @@ use redis_sink::spawn_redis_sink;
 use router::EventRouter;
 use runtime::SourceRuntime;
 use strategy_state::{StrategyStateStore, spawn_strategy_state_service};
-use supply::{SupplySnapshotStore, spawn_supply_collector};
+use supply::{SupplyReferenceService, SupplySnapshotStore};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{error, info};
@@ -194,6 +194,11 @@ async fn main() -> anyhow::Result<()> {
     let venue_status_store = VenueAssetStatusStore::default();
     let source_catalog = catalog::source_catalog_for_config(&cfg);
     let http = reqwest::Client::new();
+    let supply_service = SupplyReferenceService::new(
+        cfg.reference_data.supply.clone(),
+        supply_store.clone(),
+        http.clone(),
+    );
 
     let research_store = research_store::ResearchStore::open(std::path::Path::new(
         &std::env::var("MARKETBRIDGE_RESEARCH_DB")
@@ -222,6 +227,7 @@ async fn main() -> anyhow::Result<()> {
         onchain_store: onchain_store.clone(),
         strategy_state_store: strategy_state_store.clone(),
         supply_store: supply_store.clone(),
+        supply_service,
         venue_status_store,
         snapshot_stream_hub: snapshot_stream_hub.clone(),
         api_access_guard: ApiState::api_access_guard_from_runtime(&cfg.runtime),
@@ -364,11 +370,6 @@ async fn main() -> anyhow::Result<()> {
         spawn_order_flow_service(bus.clone(), order_flow_store.clone(), shutdown.clone());
     let strategy_state_task =
         spawn_strategy_state_service(bus.clone(), strategy_state_store.clone(), shutdown.clone());
-    let supply_task = spawn_supply_collector(
-        cfg.reference_data.supply.clone(),
-        supply_store,
-        shutdown.clone(),
-    );
     log_onchain_start(&cfg.onchain);
     let onchain_tasks = spawn_onchain_collectors(
         cfg.onchain.clone(),
@@ -407,7 +408,6 @@ async fn main() -> anyhow::Result<()> {
     background_tasks.optional("kline_service", kline_task);
     background_tasks.required("order_flow", order_flow_task);
     background_tasks.required("strategy_state", strategy_state_task);
-    background_tasks.optional("supply_reference", supply_task);
     background_tasks.required("snapshot_stream", snapshot_stream_task);
     background_tasks.extend("onchain_collector", onchain_tasks);
     background_tasks.extend("source", tasks);

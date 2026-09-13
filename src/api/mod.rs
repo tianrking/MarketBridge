@@ -15,7 +15,7 @@ use crate::onchain::OnchainTransferStore;
 use crate::order_flow::OrderFlowStore;
 use crate::polymarket_ws::PolymarketBookCache;
 use crate::strategy_state::StrategyStateStore;
-use crate::supply::SupplySnapshotStore;
+use crate::supply::{SupplyReferenceService, SupplySnapshotStore};
 use crate::venue_status::VenueAssetStatusStore;
 
 pub mod cors;
@@ -47,6 +47,7 @@ pub struct ApiState {
     pub onchain_store: OnchainTransferStore,
     pub strategy_state_store: StrategyStateStore,
     pub supply_store: SupplySnapshotStore,
+    pub supply_service: SupplyReferenceService,
     pub venue_status_store: VenueAssetStatusStore,
     pub snapshot_stream_hub: snapshot_stream::SnapshotStreamHub,
     pub api_access_guard: guard::ApiAccessGuard,

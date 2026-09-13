@@ -299,6 +299,12 @@ MarketBridge 可以从 CoinGecko 获取供应参考快照，但默认关闭。�
 `LSKUSDT` 的字符串自动猜测 CoinGecko 的 `lisk` 条目；必须在配置里提供稳定
 `asset_id`、供应商 ID、明确绑定的永续 symbol，以及身份依据。
 
+这是**按请求采集**，不是启动后定时抓全表：只有调用带
+`perp_symbol` 的供应接口、且该 symbol 有显式映射时，MarketBridge 才会请求该
+单个 CoinGecko 条目。之后在 `poll_secs` 的缓存窗口内复用同一快照；未被请求的
+资产不会消耗供应商请求额度。`poll_secs` 在这里表示缓存新鲜度 TTL，而非后台轮询
+频率。
+
 ```yaml
 reference_data:
   supply:

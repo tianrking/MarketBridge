@@ -18,7 +18,22 @@ pub struct SupplyQuery {
 pub async fn supply(
     State(state): State<Arc<ApiState>>,
     Query(query): Query<SupplyQuery>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    // This is deliberately demand-driven. A configured identity does not
+    // cause background provider polling; the first caller for a symbol warms
+    // only that mapping, then the configured TTL serves cache hits.
+    if let Some(symbol) = query.perp_symbol.as_deref() {
+        state
+            .supply_service
+            .ensure_for_perp_symbol(symbol)
+            .await
+            .map_err(|error| {
+                (
+                    StatusCode::BAD_GATEWAY,
+                    Json(json!({"error":"supply provider refresh failed", "detail": error.to_string()})),
+                )
+            })?;
+    }
     let rows = if let Some(symbol) = query.perp_symbol.as_deref() {
         state
             .supply_store
@@ -34,15 +49,16 @@ pub async fn supply(
         .into_iter()
         .filter(|row| wanted.is_none_or(|asset_id| row.asset_id == asset_id))
         .collect::<Vec<_>>();
-    Json(json!({
+    Ok(Json(json!({
         "version":"v1",
         "domain":"supply_snapshot_reference",
         "rows": rows,
         "limitations":[
             "provider-reported circulating market cap is reference data, not a free-float or settlement guarantee",
-            "rows exist only for explicit configured identity mappings; tickers are never auto-mapped"
+            "rows exist only for explicit configured identity mappings; tickers are never auto-mapped",
+            "a perp_symbol query refreshes only its configured mapping on cache miss or expiry; unrequested mappings are not polled"
         ]
-    }))
+    })))
 }
 
 #[derive(Debug, Deserialize, Default)]
