@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — footprint pressure response replay
+
+Added `crypto_footprint_response_recorder.py` and
+`crypto_footprint_response_replay.py` under microstructure. The recorder joins
+the existing bounded `/v1/market/footprint` state to a MarketBridge quote;
+replay compares bid-pressure, ask-pressure and ordinary snapshots at a fixed
+record-count horizon, reporting signed and absolute responses. Provenance: the
+unverified [OI/flow confirmation discussion on X](https://x.com/xwinfinance/status/2023155692916646257).
+No resting-book, ownership, fill or execution claim is added.
+
 ## 2026-09-14 — external BTC ETF-flow response replay
 
 Added `crypto_etf_flow_response_replay.py` under macro. It parses a

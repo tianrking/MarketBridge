@@ -33,6 +33,7 @@ Cases:
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
+- `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
@@ -123,6 +124,14 @@ which studies phase-aligned order flow and later futures returns, and against
 [Binance's official funding/order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
 MarketBridge only tests the observable single-venue flow/return association;
 it does not infer a causal clock effect or provide a timing instruction.
+
+The footprint-response case is the temporal companion to the persistence replay.
+It uses the same `/v1/market/footprint` state, joins a MarketBridge quote, and
+tests whether bid pressure, ask pressure and ordinary snapshots have different
+fixed-record forward distributions. Provenance: the unverified public [OI/flow
+confirmation discussion on X](https://x.com/xwinfinance/status/2023155692916646257),
+cross-checked against the bounded footprint contract. It does not interpret
+footprint bins as resting liquidity, liquidation levels or ownership.
 
 The session-momentum replay turns the existing snapshot filter into a historical
 event study. It is motivated by the unverified [15-minute VWAP/EMA/MACD/volume
@@ -271,6 +280,10 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 imbalance，并由 recorder/replay 检验压力状态是否连续出现。研究线索参考公开的
 [OI/订单流确认讨论](https://x.com/xwinfinance/status/2023155692916646257)；这里不把它解释成挂单流动性、清算墙、
 持仓归属或未来收益优势。
+
+footprint response 案例是持续性回放的时间 companion：使用相同的 `/v1/market/footprint` 状态，
+和 MarketBridge 行情配对，检验 bid pressure、ask pressure 与普通状态在固定记录窗口后的有符号和绝对响应是否不同。
+出处仍是未经验证的 [X 上 OI/订单流确认讨论](https://x.com/xwinfinance/status/2023155692916646257)；不把分桶压力解释成挂单流动性、清算价位或持仓归属。
 
 CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有足够幅度、但单交易所主动买卖差值指向相反，
 再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
@@ -423,6 +436,12 @@ python3 examples/crypto/microstructure/crypto_footprint_imbalance_recorder.py \
   --interval-secs 30 --output work/crypto-footprint-imbalance.jsonl
 python3 examples/crypto/microstructure/crypto_footprint_imbalance_replay.py \
   --input work/crypto-footprint-imbalance.jsonl --min-run 3
+python3 examples/crypto/microstructure/crypto_footprint_response_recorder.py \
+  --exchange binance --market perp --symbol BTCUSDT --iterations 60 \
+  --interval-secs 30 --output work/crypto-footprint-response.jsonl
+python3 examples/crypto/microstructure/crypto_footprint_response_replay.py \
+  --input work/crypto-footprint-response.jsonl --horizon-records 3 \
+  --min-observations 5
 python3 examples/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange binance --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000
