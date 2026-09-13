@@ -26,6 +26,7 @@ Cases:
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
+- `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
 notional is expensive to unwind right now, rather than predicting direction.
@@ -80,6 +81,15 @@ the requested venue, so it does not represent global flow or a causal signal.
 The CVD semantics and single-venue coverage boundary are cross-checked against
 [a public CVD indicator explanation](https://mindpillar.com/cvd/); that source
 is indicator context, not a performance claim.
+
+The quarter-hour case is a stricter replay of a public [order-book imbalance and
+funding-rate strategy lead on X](https://x.com/instaclaws/status/2038363051213181035),
+not an endorsement of its automated-trading claims. It is cross-checked against
+the primary [Quarter-Hour Effect research paper](https://arxiv.org/abs/2607.09426),
+which studies phase-aligned order flow and later futures returns, and against
+[Binance's official funding/order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+MarketBridge only tests the observable single-venue flow/return association;
+it does not infer a causal clock effect or provide a timing instruction.
 
 The volatility-breakout replay accepts `--roundtrip-cost-bps` and reports gross
 versus cost-adjusted aligned returns. Its candidate verdict requires the
@@ -144,6 +154,15 @@ MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺�
 
 波动率突破回放支持 `--roundtrip-cost-bps`，同时输出 gross 与扣除纸面成本后的方向收益、命中率和 verdict；
 候选必须满足 after-cost 平均 edge 与最小样本数。这个门槛是透明敏感性输入，不是交易所成交模型。
+
+`crypto_quarter_hour_flow_replay.py` 是对公开“订单簿不平衡 + 资金费率”线索的更严格回放：取 UTC 每 15 分钟开盘后
+的短窗口主动买卖差值，检验其是否与固定未来永续收益方向一致。它不是自动交易策略，也不把时钟阶段当作因果因素；
+公开成交历史的覆盖、交易所 side 语义、手续费、排队、延迟和成交都保持为缺口。
+
+出处：公开 [X 上的订单簿不平衡/资金费率策略线索](https://x.com/instaclaws/status/2038363051213181035)
+只作为未经验证的研究线索；实现对照一级研究 [Quarter-Hour Effect](https://arxiv.org/abs/2607.09426)，
+并对照 [Binance 官方资金费率与盘口文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
+MarketBridge 只检验单交易所可观测的流量与收益关联，不提供择时指令。
 
 CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有足够幅度、但单交易所主动买卖差值指向相反，
 再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
@@ -215,6 +234,10 @@ python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
   --input work/crypto-derivatives-sentiment.jsonl --min-run 3
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
+python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
+  --exchange binance --symbol BTCUSDT --days 3 --window-minutes 5 \
+  --horizon-bars 240 --min-flow-ratio 0.20 --paper-cost-bps 10 \
+  --min-edge-bps 0 --min-observations 5
 python3 examples/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange binance --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000

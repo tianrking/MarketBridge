@@ -924,6 +924,8 @@ microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：�
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
 同系列还新增 `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否
 反向移动；它不代表全市场 CVD，也不构成执行信号。
+microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检验 UTC 每 15 分钟开盘后的主动买卖
+差值是否与固定窗口的永续收益方向一致，同时明确公开成交历史、时钟阶段因果性、成本和执行缺口。
 同系列还提供 `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short、
 清算和 basis 上下文，但不把聚合比率解释成真实持仓归属。
 现在还提供 Python recorder/replay：把聚合拥挤状态写入 JSONL，并要求连续快照后才报告持续候选；

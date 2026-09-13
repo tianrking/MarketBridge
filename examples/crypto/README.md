@@ -13,7 +13,7 @@ HTTP 接口；目录里的案例只观察、回放和评分假设，不下单、
 | Directory / 目录 | Focus / 主题 | Start here / 入口 |
 |---|---|---|
 | [`carry/`](carry/README.md) | Basis, funding, cross-sectional funding, cross-venue gaps, order-book and triangular quote edges / 基差、资金费率、横截面资金费率、跨交易所价差、盘口与三角报价 edge | `basis_carry_monitor.py`, funding replays |
-| [`microstructure/`](microstructure/README.md) | Squeeze, exhaustion, CVD divergence, aggregate derivatives sentiment, order flow, liquidation and liquidity stress / 逼空、衰竭、CVD 背离、衍生品聚合情绪、订单流、清算与流动性压力 | `short_squeeze_monitor.py`, `crypto_cvd_divergence_replay.py` |
+| [`microstructure/`](microstructure/README.md) | Squeeze, exhaustion, CVD divergence, quarter-hour flow, aggregate derivatives sentiment, liquidation and liquidity stress / 逼空、衰竭、CVD 背离、季度小时订单流、衍生品聚合情绪、清算与流动性压力 | `short_squeeze_monitor.py`, `crypto_cvd_divergence_replay.py` |
 | [`options/`](options/README.md) | IV, skew, VRP, gamma and volatility / IV、偏斜、VRP、Gamma 与波动率 | options monitors and recorders |
 | [`defi/`](defi/README.md) | DEX pool flow, liquidity and turnover pressure / DEX 池流量、流动性与换手压力 | `crypto_defi_pool_flow_monitor.py`, recorder/replay |
 | [`onchain/`](onchain/README.md) | Large-transfer bursts and bounded price-response replay / 大额链上转账 burst 与有限价格响应回放 | `crypto_onchain_transfer_burst_replay.py` |

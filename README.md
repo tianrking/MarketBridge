@@ -132,6 +132,10 @@ replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.
 It also includes a CVD divergence replay that measures fixed-horizon reversal
 after a price/taker-flow disagreement on one venue.
+The microstructure family now also includes a quarter-hour flow replay: it
+tests whether a UTC quarter-hour opening taker-flow imbalance aligns with a
+fixed-horizon perp return, while keeping bounded trade history and clock-phase
+causality explicit.
 The microstructure family also exposes optional CoinGlass aggregate derivatives
 context while preserving missing-key and missing-metric evidence.
 It now includes a Python recorder/replay pair that tests whether aggregate

@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — quarter-hour order-flow replay
+
+Added the microstructure-family Python replay for a phase-aligned order-flow
+hypothesis. It selects UTC quarter-hour openings, measures a short signed
+taker-flow window from `/v1/history/trades`, joins the fixed-horizon return from
+1-minute perp candles, and reports gross versus paper-cost-adjusted alignment.
+The case keeps public-history truncation, provider side semantics and the
+non-causal clock-phase interpretation explicit; it has no execution path.
+Provenance: the unverified [public X order-book/funding lead](https://x.com/instaclaws/status/2038363051213181035),
+the primary [Quarter-Hour Effect research paper](https://arxiv.org/abs/2607.09426),
+and [Binance's official funding/order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+
 ## 2026-09-14 — triangular quote-consistency replay
 
 Added the carry-family Python monitor/recorder/replay for a bounded
