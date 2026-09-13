@@ -85,6 +85,21 @@ python3 examples/polymarket_complement_monitor.py \
 的候选。`ask_depth` 只是当前快照深度，不是可成交容量；要验证 X 上的回测主张，还需要
 逐笔 fills、队列位置、费用、延迟和结算生命周期数据。
 
+公开 X 上也常见“新证据先出现、市场随后几分钟才更新”的 Bayesian event-arb 叙事。
+MarketBridge 不把这类叙事当成已验证 alpha，而是将它拆成一个可证伪的价格冲击延续测试：
+在单一 outcome 的公开价格历史里寻找超过阈值的相邻变动，再观察之后 N 个 history points
+是否同方向延续。该测试不假设已知道新闻来源，也不模拟成交：
+
+```bash
+python3 examples/polymarket_price_shock_replay.py \
+  --market-query "temperature" --outcome Yes --interval 1m \
+  --shock-bps 100 --horizon-points 3 --min-observations 5
+```
+
+输出中的 `continuation_fraction` 只是样本描述；只有跨市场、跨时间并加入费用、延迟、
+队列与结算身份核验后，才有资格进入更严格的研究阶段。没有足够 history points 时，脚本
+返回 `observe only`，不会把缺口当成零收益或交易信号。
+
 公开成交历史现在也可通过 MarketBridge 查询：
 
 ```bash
