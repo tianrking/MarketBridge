@@ -130,6 +130,9 @@ The same family exposes the aggregate Rust market-regime context as Python
 JSON without turning that snapshot into a strategy selector.
 The macro family also exposes configured DXY, VIX and US10Y references beside
 funding context, without turning them into a crypto return forecast.
+It now also has a macro-context recorder/replay that reports BTC response
+distributions by VIX regime and funding crowding, while retaining provider
+timestamp and synchronization limits.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.

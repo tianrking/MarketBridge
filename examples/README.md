@@ -83,6 +83,7 @@ categorized command is the recommended one.
 | `crypto/universe/crypto_universe_delist_risk_monitor.py` | Missing or stale current quotes should be reviewed before treating a historical market as a research candidate | `/v1/universe/delist-risk` | Data-quality guard only; not a delisting forecast and no automatic exclusion |
 | `crypto/universe/crypto_market_regime_monitor.py` | Aggregate fragmentation, volatility and leverage context should remain visible before a strategy case is interpreted | `/v1/research/market-regime` | Context monitor only; current snapshot, not historical point-in-time data, and no strategy selection |
 | `crypto/macro/crypto_macro_context_monitor.py` | Macro reference snapshots should remain visible beside crypto funding before interpreting a market case | `/v1/market/quotes?exchanges=dxy,vix,us10y`, `/v1/market/perpetual-funding` | Context monitor only; no macro forecast or execution model |
+| `crypto/macro/crypto_macro_context_recorder.py` / `crypto_macro_context_replay.py` | Elevated VIX/macro context and funding crowding can be compared with later BTC return and absolute-move distributions | `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Snapshot response study; macro timestamps, causality, costs and execution remain explicit gaps |
 | `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
 | `crypto/sentiment/crypto_news_attention_monitor.py` / recorder / replay | A burst of high-score CryptoPanic items may precede larger absolute BTC movement than ordinary windows | `/v1/external/signals?sources=cryptopanic&categories=news`, `/v1/market/quotes` and JSONL archive | Non-directional attention replay; feed coverage, vote semantics and timing remain explicit |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
@@ -333,6 +334,13 @@ python3 examples/crypto/universe/crypto_market_regime_monitor.py \
 python3 examples/crypto/macro/crypto_macro_context_monitor.py \
   --symbol BTCUSDT --exchange binance --vix-risk-threshold 25 \
   --funding-extreme-pct 0.01
+python3 examples/crypto/macro/crypto_macro_context_recorder.py \
+  --symbol BTCUSDT --exchange binance --product-type perp \
+  --iterations 30 --interval-secs 30 \
+  --output work/crypto-macro-context.jsonl
+python3 examples/crypto/macro/crypto_macro_context_replay.py \
+  --input work/crypto-macro-context.jsonl --horizon-records 7 \
+  --min-observations 5 --paper-cost-bps 10
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_monitor.py \
   --symbol BTCUSDT --exchange binance --fear-max 20 --greed-min 80
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_recorder.py \
@@ -378,6 +386,7 @@ rewritten as falsifiable hypotheses:
 - [Anchored VWAP technical-analysis discussion (unverified public claim)](https://x.com/Jake__Wujastyk/status/1873917626638098894)
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
 - [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
+- [Macro liquidity, ETF-flow and crypto-regime context (unverified public claim)](https://x.com/wintermute_t/status/1985631560021000352)
 - [Crowded positioning and liquidation-to-reversal context (unverified public claim)](https://x.com/TheCryptoData/status/1948466627365769584)
 - [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
 - [Realized-volatility compression context (unverified public claim)](https://x.com/glassnode/status/1955218957490594099)

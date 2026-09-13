@@ -757,3 +757,15 @@ The JSONL recorder and replay test whether the same expiry/strike identity stays
 observable for a consecutive run. No order path, settlement, margin, hedge, cost,
 fill or forward-PnL claim was added; all assumptions are documented bilingually in
 `examples/crypto/options/README.md`.
+
+## 2026-09-14 — macro context response lifecycle
+
+Added a recorder/replay pair for the existing macro context monitor. The
+recorder freezes DXY, VIX, US10Y, funding state and a BTC price snapshot from
+MarketBridge; replay reports forward return, absolute return and downside
+fractions by macro-volatility and funding-crowding bucket. It does not infer
+causality or a direction, and explicitly retains the fact that macro quotes are
+provider snapshots rather than synchronized historical index bars. Provenance:
+[Wintermute's public macro/liquidity discussion on X](https://x.com/wintermute_t/status/1985631560021000352),
+with VIX and dollar-index semantics cross-checked against the existing Cboe and
+Federal Reserve references in the bilingual macro guide.
