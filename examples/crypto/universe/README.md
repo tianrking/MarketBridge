@@ -23,6 +23,10 @@ lookback, volatility and forward-horizon windows after fetching each symbol
 once. It exposes in-sample sensitivity and explicitly labels the best row as
 descriptive only; a time-held-out, cost-aware replay is still required.
 
+`crypto_volatility_adjusted_momentum_walkforward.py` performs that chronological
+holdout for one selected parameter set. Warm-up bars before the split are used
+only to form test features; the test score is never used to choose parameters.
+
 Provenance: [RoboNet's public multi-asset strategy discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012)
 motivates the volatility-adjusted comparison, while [CME's crypto
 diversification study](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
@@ -46,6 +50,9 @@ are inputs to a falsifiable replay, not evidence of a guaranteed edge.
 波动率和前瞻窗口的有限网格。它用于暴露样本内敏感性，并明确把最佳行标记为描述性结果；
 仍需时间切分、成本感知的样本外回放。
 
+`crypto_volatility_adjusted_momentum_walkforward.py` 对选定参数执行按时间排序的训练/测试
+切分。测试段只使用切分前的预热 K 线和切分后的当前数据，测试结果不会反过来挑参数。
+
 出处：[RoboNet 在 X 的多资产策略讨论](https://x.com/RoboNetHQ/status/2024893544520143012)
 提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
@@ -66,4 +73,8 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 4,8,12 --volatility-bars 4,8,12 \
   --horizon-bars 4,8 --top-k 1 --roundtrip-cost-bps 20
+python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
+  --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 \
+  --train-fraction 0.7 --roundtrip-cost-bps 20
 ```

@@ -892,6 +892,8 @@ microstructure 系列还新增 `crypto_liquidation_burst_replay.py`，把滚动�
 universe 系列还提供 `crypto_volatility_adjusted_momentum_sweep.py`，用于比较多个窗口的
 样本内敏感性；回放和扫描可用 `--roundtrip-cost-bps` 加入固定纸面成本门槛，但不会自动
 挑选或发布实盘参数。
+同系列的 `crypto_volatility_adjusted_momentum_walkforward.py` 会把固定参数放到后续时间段
+做样本外检查，并保留切分前预热数据与测试段边界。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 

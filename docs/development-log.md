@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — chronological holdout replay
+
+Added `crypto_volatility_adjusted_momentum_walkforward.py` to separate
+in-sample observations from a later chronological holdout for one fixed
+parameter set. Test features may use only pre-split warm-up bars plus current
+post-split data; test observations are never used for parameter selection. The
+result includes train/test sample counts, cost-adjusted edges and explicit
+`observe_only` behavior when a split is too short. Added a categorized launcher,
+bilingual guidance and deterministic boundary tests. This is a paper research
+diagnostic, not a claim of persistent alpha or a live execution path.
+
 ## 2026-09-14 — cost-aware paper hurdle for volatility momentum
 
 Extended the volatility-adjusted replay and parameter sweep with an explicit
