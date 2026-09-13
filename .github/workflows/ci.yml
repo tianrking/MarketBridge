@@ -59,7 +59,7 @@ jobs:
         run: python -B -m unittest discover -s sdk/python -p "test_*.py"
 
       - name: Test Python strategy examples
-        run: python -B -m unittest discover -s examples -p "test_*.py"
+        run: python -B scripts/run_python_example_tests.py
 
       - name: Local HTTP research smoke test
         if: runner.os == 'Windows'
