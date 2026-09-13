@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — liquidity-stress recorder and persistence replay
+
+Added the missing temporal lifecycle for the microstructure liquidity-stress
+observer. The recorder archives target-size impact, spread, EWMA volatility,
+state and upstream evidence; the replay counts only snapshots with all three
+inputs available and requires a consecutive `liquidity_stress` run before
+reporting a candidate. Missing depth/candles remain outside coverage. Added
+categorized launchers, bilingual usage and deterministic tests; no routing,
+order, hedge or sizing path was added.
+
 ## 2026-09-14 — options VRP recorder and persistence replay
 
 Completed the options-family VRP lifecycle with a JSONL recorder and replay.

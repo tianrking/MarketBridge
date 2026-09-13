@@ -903,6 +903,8 @@ microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：�
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
 options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、
 对冲或实盘执行指令。
+流动性压力监控也新增 recorder/replay：只有连续快照证据才会报告持续压力候选，不会把单个昂贵盘口
+升级成稳定状态。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 

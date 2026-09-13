@@ -22,11 +22,17 @@ Cases:
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
+- `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
 notional is expensive to unwind right now, rather than predicting direction.
 It requires two of three stress components (impact, spread, volatility) before
 reporting `liquidity_stress`; missing depth or candles remains explicit.
+
+The recorder/replay makes this a temporal test instead of treating one stressed
+book as a regime. It counts only snapshots with impact, spread and volatility
+available, and requires a configurable consecutive run before reporting a
+persistent-stress candidate.
 
 Provenance: the decomposition follows the public [Pine Analytics / FlyingTulip
 execution-aware risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994),
@@ -83,10 +89,14 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
 - `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
+- `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`：检验两项以上压力条件是否在多个快照中持续。
 
 流动性压力案例是风险上下文观察器：它回答“现在以指定名义金额退出是否昂贵”，
 而不是预测涨跌。冲击、点差、波动率三项中至少两项达到阈值才报告
 `liquidity_stress`；盘口或 K 线缺失会明确保留，不会填成零。
+
+recorder/replay 把它变成时间维度的检验，避免把一个压力盘口误当成持续状态。只有冲击、点差和
+波动率都可用的快照进入有效覆盖率；连续达到可配置 run 后才报告持续压力候选。
 
 出处：实现拆解自 [Pine Analytics / FlyingTulip 在 X 的执行风险讨论](https://x.com/PineAnalytics/status/1974474638093590994)，
 原文强调真实盘口深度、目标规模滑点和短周期 EWMA 波动率。这里是独立、可证伪的
@@ -122,6 +132,11 @@ python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
 python3 examples/crypto/microstructure/liquidity_stress_monitor.py \
   --symbol BTCUSDT --exchange binance --liquidity-target-notional 10000 \
   --liquidity-volatility-bars 60 --iterations 3
+python3 examples/crypto/microstructure/crypto_liquidity_stress_recorder.py \
+  --symbol BTCUSDT --exchange binance --target-notional 10000 \
+  --iterations 60 --interval-secs 30 --output work/crypto-liquidity-stress.jsonl
+python3 examples/crypto/microstructure/crypto_liquidity_stress_replay.py \
+  --input work/crypto-liquidity-stress.jsonl --min-run 3
 python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --window-hours 24 --horizon-bars 12
