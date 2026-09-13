@@ -6,7 +6,7 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 不代表全部能力已经实现；请查看[研发路线与验收门槛](docs/platform-roadmap.md)
 和[开发验证记录](docs/development-log.md)，区分已实现、正在验证与后续规划。
 
-当前版本：`v0.0.5`
+当前版本：`v0.0.6`
 
 未发布的研究 API / CLI 增量见[使用与限制](docs/research-api.md)。
 `config.research.yaml` 提供仅监听本机、不启动采集源的研究服务配置。

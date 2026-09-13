@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.0.6 — demand-driven reference data
+
+### Added
+
+- Supply-reference identity mappings now fetch only when an API reader or a
+  squeeze scan requests an observed perpetual symbol; fresh snapshots are
+  reused within the configured TTL.
+- A repository-wide LF text policy prevents Windows, macOS and Linux checkouts
+  from introducing noisy line-ending-only changes.
+
+### Corrected
+
+- Strict CI now excludes test-only squeeze and supply helpers from production
+  dead-code checks.
+
 ## Unreleased — research platform foundation
 
 ### Added

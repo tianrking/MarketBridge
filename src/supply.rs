@@ -39,6 +39,7 @@ pub struct SupplySnapshot {
 pub struct SupplySnapshotStore(Arc<RwLock<HashMap<String, SupplySnapshot>>>);
 
 impl SupplySnapshotStore {
+    #[cfg(test)]
     pub async fn replace_all(&self, rows: Vec<SupplySnapshot>) {
         let mut map = HashMap::with_capacity(rows.len());
         for row in rows {

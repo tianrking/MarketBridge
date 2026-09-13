@@ -92,7 +92,7 @@ jobs:
           pkg="market-bridge-${release_version}-${{ matrix.name }}"
           mkdir -p "dist/${pkg}"
           cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${pkg}/"
-          cp README.md README.zh-CN.md CHANGELOG.md config.yaml config.min.yaml config.all-exchanges.example.yaml config.research.yaml config.research-live.yaml "dist/${pkg}/"
+          cp README.md README.zh-CN.md CHANGELOG.md config.yaml config.min.yaml config.all-exchanges.example.yaml config.research.yaml config.research-live.yaml config.squeeze-radar.example.yaml "dist/${pkg}/"
           if [ -f LICENSE ]; then cp LICENSE "dist/${pkg}/"; fi
           cp -R docs "dist/${pkg}/docs"
           cp -R sdk "dist/${pkg}/sdk"

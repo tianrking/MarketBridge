@@ -1,0 +1,15 @@
+# Keep all human-readable project files byte-stable across Windows, macOS and Linux.
+* text=auto eol=lf
+
+# Release and media artifacts must never undergo text conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.wasm binary
+*.exe binary

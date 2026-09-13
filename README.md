@@ -7,7 +7,7 @@ Infrastructure is shared; each market retains its own asset, contract and model
 semantics. See the [roadmap and acceptance gates](docs/platform-roadmap.md) and
 [development evidence](docs/development-log.md) for implemented versus planned work.
 
-Current version: `v0.0.5`
+Current version: `v0.0.6`
 
 Unreleased research API/CLI: [usage and limitations](docs/research-api.md).
 Start with `config.research.yaml` for a localhost-only, zero-collector service.
