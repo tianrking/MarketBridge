@@ -31,3 +31,18 @@ klines:
   enabled: true
   sqlite_path: "data/squeeze-radar.sqlite"
   lake_root: "data/squeeze-radar-lake"
+
+# Optional, explicit identity-bound circulating-market-cap snapshots for
+# OI/Mcap research. Leave disabled until each mapping has evidence; never map
+# a provider row to a perpetual merely because the ticker looks similar.
+reference_data:
+  supply:
+    enabled: false
+    provider: coingecko
+    poll_secs: 60
+    assets:
+      # - asset_id: "lisk-v2"
+      #   provider_asset_id: "lisk"
+      #   perp_symbols: [LSKUSDT]
+      #   identity_evidence: "URL or internal migration record proving this mapping"
+      #   chain: "ethereum"

@@ -293,6 +293,71 @@ $archive | ConvertTo-Json -Depth 12
 
 这些能力需要专用、可审计的数据源及单独的身份/覆盖率模型。未实现时，正确做法是让它保持未知，而不是用社交媒体叙事填补。
 
+## 11.1 可选数据层：流通市值与 `OI / Mcap`
+
+MarketBridge 可以从 CoinGecko 获取供应参考快照，但默认关闭。系统不会根据
+`LSKUSDT` 的字符串自动猜测 CoinGecko 的 `lisk` 条目；必须在配置里提供稳定
+`asset_id`、供应商 ID、明确绑定的永续 symbol，以及身份依据。
+
+```yaml
+reference_data:
+  supply:
+    enabled: true
+    provider: coingecko
+    poll_secs: 60
+    assets:
+      - asset_id: "lisk-v2"
+        provider_asset_id: "lisk"
+        perp_symbols: [LSKUSDT]
+        identity_evidence: "记录迁移/合约/资产映射依据的 URL 或内部文档"
+        chain: "ethereum"
+```
+
+查看快照：
+
+```powershell
+Invoke-RestMethod -Uri "$mb/v1/reference/supply?perp_symbol=LSKUSDT" |
+  ConvertTo-Json -Depth 12
+```
+
+当且仅当 OI 是可用 USD 名义值、供应快照未过期、且显式身份映射存在时，雷达
+才返回 `supply_context.oi_to_circulating_mcap`。这是供应商报告的流通市值参考，
+不是自由流通盘、可成交容量或收益保证。
+
+## 11.2 可选数据层：充提与网络维护状态
+
+MarketBridge 不接收用户的交易、提现或钱包权限。若有独立的公开公告采集器，或
+隔离的只读账户观察器，可将标准化证据写入本地 API：
+
+```powershell
+$body = @{
+  venue = "binance"
+  asset_id = "lisk-v2"
+  operation = "deposit"
+  status = "disabled"
+  scope = "public_announcement_observed"
+  observed_at_ms = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  source_kind = "venue_announcement"
+  source_url = "https://example.com/public-announcement"
+  network = "ethereum"
+  note = "保留原始公告链接和网络范围"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -ContentType "application/json" `
+  -Uri "$mb/v1/reference/venue-asset-status" -Body $body |
+  ConvertTo-Json -Depth 8
+```
+
+读取当前状态：
+
+```powershell
+Invoke-RestMethod -Uri "$mb/v1/reference/venue-asset-status?venue=binance&asset_id=lisk-v2" |
+  ConvertTo-Json -Depth 10
+```
+
+`scope=account_observed` 表示一个账户观察到的状态，不能解释为全局停充；只有
+`scope=public_announcement_observed` 且来源链接可复核时，才可作为公开事件证据。
+
 ## 12. 一个每日研究节奏
 
 一个保守、可重复的节奏可以是：

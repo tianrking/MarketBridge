@@ -8,6 +8,7 @@ pub mod onchain;
 pub mod opportunities;
 pub mod options;
 pub mod prediction;
+pub mod reference;
 pub mod research;
 pub mod storage;
 pub mod strategy;

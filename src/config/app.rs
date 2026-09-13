@@ -8,8 +8,8 @@ use crate::types::BackpressureMode;
 
 use super::{
     AggregatesConfig, BinanceOptionsConfig, BybitOptionsConfig, DefiConfig, DeribitConfig,
-    ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig, PolymarketConfig, RuntimeConfig,
-    SentimentConfig, StrategyConfig, TradfiConfig,
+    ExchangeConfig, KlineConfig, OkxOptionsConfig, OnchainConfig, PolymarketConfig,
+    ReferenceDataConfig, RuntimeConfig, SentimentConfig, StrategyConfig, TradfiConfig,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -38,6 +38,8 @@ pub struct AppConfig {
     pub klines: KlineConfig,
     #[serde(default)]
     pub onchain: OnchainConfig,
+    #[serde(default)]
+    pub reference_data: ReferenceDataConfig,
     pub symbols: Vec<String>,
     pub perp_symbols: Option<Vec<String>>,
     pub exchanges: HashMap<String, ExchangeConfig>,
@@ -118,6 +120,51 @@ impl AppConfig {
                     .fee
                     .validate()
                     .with_context(|| format!("invalid fees for {name}"))?;
+            }
+        }
+        let supply = &self.reference_data.supply;
+        if supply.enabled {
+            ensure!(
+                supply.provider.eq_ignore_ascii_case("coingecko"),
+                "reference_data.supply currently supports provider=coingecko only"
+            );
+            let url = url::Url::parse(&supply.base_url)
+                .context("invalid reference_data.supply.base_url")?;
+            ensure!(
+                matches!(url.scheme(), "http" | "https")
+                    && url.host_str().is_some()
+                    && url.username().is_empty()
+                    && url.password().is_none(),
+                "reference_data.supply requires a credential-free HTTP(S) base URL"
+            );
+            ensure!(
+                (10..=86_400).contains(&supply.poll_secs),
+                "reference_data.supply.poll_secs must be within 10..86400"
+            );
+            ensure!(
+                !supply.assets.is_empty() && supply.assets.len() <= 512,
+                "enabled reference_data.supply requires 1..512 explicit assets"
+            );
+            let mut asset_ids = std::collections::HashSet::new();
+            let mut symbols = std::collections::HashSet::new();
+            for asset in &supply.assets {
+                ensure!(
+                    crate::research_store::valid_id(&asset.asset_id)
+                        && !asset.provider_asset_id.trim().is_empty()
+                        && !asset.identity_evidence.trim().is_empty()
+                        && !asset.perp_symbols.is_empty(),
+                    "each supply asset requires a stable ID, provider ID, evidence and explicit perp symbols"
+                );
+                ensure!(
+                    asset_ids.insert(&asset.asset_id),
+                    "duplicate supply asset_id"
+                );
+                for symbol in &asset.perp_symbols {
+                    ensure!(
+                        !symbol.trim().is_empty() && symbols.insert(symbol.to_ascii_uppercase()),
+                        "supply perp symbols must be nonempty and uniquely mapped"
+                    );
+                }
             }
         }
         let mut quota_names: std::collections::HashMap<&str, _> = std::collections::HashMap::new();

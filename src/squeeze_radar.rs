@@ -8,6 +8,8 @@
 use serde::Serialize;
 
 use crate::strategy_state::{RollingChange, StrategySymbolState};
+use crate::supply::SupplySnapshot;
+use crate::venue_status::VenueAssetStatusObservation;
 
 pub const MODEL_VERSION: &str = "squeeze-radar/v0";
 const ONE_HOUR_MS: u64 = 60 * 60_000;
@@ -35,9 +37,24 @@ pub struct SqueezeCandidate {
     pub data_quality: SqueezeDataQuality,
     pub evidence: Vec<String>,
     pub missing_evidence: Vec<String>,
+    pub supply_context: Option<SupplyContext>,
+    pub venue_status_evidence: Vec<VenueAssetStatusObservation>,
     /// Raw source-derived state is retained beside the model decision so a
     /// caller can independently reproduce or reject the ranking.
     pub raw: StrategySymbolState,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SupplyContext {
+    pub asset_id: String,
+    pub circulating_market_cap_usd: Option<f64>,
+    pub open_interest_notional_usd: Option<f64>,
+    pub oi_to_circulating_mcap: Option<f64>,
+    pub retrieved_at_ms: u64,
+    pub age_ms: u64,
+    pub fresh: bool,
+    pub identity_evidence: String,
+    pub status: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -62,10 +79,30 @@ pub fn scan(
     minimum_score: i32,
     limit: usize,
 ) -> SqueezeScanResponse {
+    scan_with_references(
+        states,
+        now_ms,
+        max_data_age_ms,
+        minimum_score,
+        limit,
+        &[],
+        &[],
+    )
+}
+
+pub fn scan_with_references(
+    states: Vec<StrategySymbolState>,
+    now_ms: u64,
+    max_data_age_ms: u64,
+    minimum_score: i32,
+    limit: usize,
+    supplies: &[SupplySnapshot],
+    venue_statuses: &[VenueAssetStatusObservation],
+) -> SqueezeScanResponse {
     let observed_symbols = states.len();
     let mut candidates = states
         .into_iter()
-        .map(|state| evaluate(state, now_ms, max_data_age_ms))
+        .map(|state| evaluate(state, now_ms, max_data_age_ms, supplies, venue_statuses))
         .filter(|candidate| candidate.score >= minimum_score || !candidate.data_quality.fresh)
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
@@ -95,7 +132,13 @@ pub fn scan(
     }
 }
 
-fn evaluate(raw: StrategySymbolState, now_ms: u64, max_data_age_ms: u64) -> SqueezeCandidate {
+fn evaluate(
+    raw: StrategySymbolState,
+    now_ms: u64,
+    max_data_age_ms: u64,
+    supplies: &[SupplySnapshot],
+    venue_statuses: &[VenueAssetStatusObservation],
+) -> SqueezeCandidate {
     let metrics = &raw.metrics;
     let age_ms = (raw.observed_at_ms > 0).then(|| now_ms.saturating_sub(raw.observed_at_ms));
     let fresh = age_ms.is_some_and(|age| age <= max_data_age_ms);
@@ -113,6 +156,24 @@ fn evaluate(raw: StrategySymbolState, now_ms: u64, max_data_age_ms: u64) -> Sque
     let mut evidence = Vec::new();
     let mut missing = Vec::new();
     let mut score = 0;
+    let supply = supplies.iter().find(|row| {
+        row.perp_symbols
+            .iter()
+            .any(|symbol| symbol.eq_ignore_ascii_case(&raw.symbol))
+    });
+    let supply_context = supply.map(|row| supply_context(row, metrics.open_interest_value, now_ms));
+    let venue_status_evidence = supply
+        .map(|row| {
+            venue_statuses
+                .iter()
+                .filter(|status| {
+                    status.venue.eq_ignore_ascii_case(&raw.exchange)
+                        && status.asset_id == row.asset_id
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     match metrics.funding_rate {
         Some(rate) if rate <= -0.0005 => {
@@ -195,6 +256,16 @@ fn evaluate(raw: StrategySymbolState, now_ms: u64, max_data_age_ms: u64) -> Sque
     if !order_book_fresh {
         missing.push("order-book observation is stale or has no source timestamp".into());
     }
+    if let Some(context) = &supply_context {
+        if !context.fresh {
+            missing.push("supply reference is stale; OI/Mcap is reference-only".into());
+        } else if context.oi_to_circulating_mcap.is_none() {
+            missing.push("explicit supply mapping exists but OI notional or provider market cap is unavailable".into());
+        }
+    } else {
+        missing
+            .push("no explicit supply identity mapping; OI/Mcap is intentionally omitted".into());
+    }
     let ready_for_trigger = fresh
         && funding_fresh
         && open_interest_fresh
@@ -242,7 +313,30 @@ fn evaluate(raw: StrategySymbolState, now_ms: u64, max_data_age_ms: u64) -> Sque
         },
         evidence,
         missing_evidence: missing,
+        supply_context,
+        venue_status_evidence,
         raw,
+    }
+}
+
+fn supply_context(row: &SupplySnapshot, oi_notional: Option<f64>, now_ms: u64) -> SupplyContext {
+    let age_ms = now_ms.saturating_sub(row.retrieved_at_ms);
+    let fresh = row.retrieved_at_ms > 0 && age_ms <= 15 * 60_000;
+    let oi_to_circulating_mcap = oi_notional
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .zip(row.circulating_market_cap_usd.filter(|value| *value > 0.0))
+        .map(|(oi, market_cap)| oi / market_cap)
+        .filter(|value| value.is_finite());
+    SupplyContext {
+        asset_id: row.asset_id.clone(),
+        circulating_market_cap_usd: row.circulating_market_cap_usd,
+        open_interest_notional_usd: oi_notional,
+        oi_to_circulating_mcap,
+        retrieved_at_ms: row.retrieved_at_ms,
+        age_ms,
+        fresh,
+        identity_evidence: row.identity_evidence.clone(),
+        status: row.status,
     }
 }
 
@@ -325,5 +419,32 @@ mod tests {
         let report = scan(vec![state(10_000_000)], 20_000_000, 3_000, 0, 10);
         assert_eq!(report.candidates[0].state, "stale_data");
         assert!(!report.candidates[0].data_quality.ready_for_trigger);
+    }
+
+    #[test]
+    fn oi_to_market_cap_requires_explicit_supply_symbol_mapping() {
+        let now = 10_000_000;
+        let mut input = state(now);
+        input.metrics.open_interest_value = Some(25.0);
+        let supply = SupplySnapshot {
+            asset_id: "abc-v2".into(),
+            provider: "fixture".into(),
+            provider_asset_id: "abc".into(),
+            perp_symbols: vec!["ABCUSDT".into()],
+            identity_evidence: "fixture mapping".into(),
+            chain: None,
+            contract_address: None,
+            circulating_supply: Some(100.0),
+            price_usd: Some(1.0),
+            circulating_market_cap_usd: Some(100.0),
+            provider_last_updated: None,
+            retrieved_at_ms: now,
+            identity_verified: true,
+            status: "reference_available",
+        };
+        let report = scan_with_references(vec![input], now, 3_000, 0, 10, &[supply], &[]);
+        let context = report.candidates[0].supply_context.as_ref().unwrap();
+        assert_eq!(context.oi_to_circulating_mcap, Some(0.25));
+        assert!(context.fresh);
     }
 }

@@ -37,7 +37,9 @@ mod source;
 mod source_roadmap;
 mod squeeze_radar;
 mod strategy_state;
+mod supply;
 mod types;
+mod venue_status;
 
 pub const BUILD_REVISION: &str = match option_env!("MARKETBRIDGE_BUILD_REVISION") {
     Some(revision) => revision,
@@ -67,11 +69,13 @@ use redis_sink::spawn_redis_sink;
 use router::EventRouter;
 use runtime::SourceRuntime;
 use strategy_state::{StrategyStateStore, spawn_strategy_state_service};
+use supply::{SupplySnapshotStore, spawn_supply_collector};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 use types::DataEvent;
+use venue_status::VenueAssetStatusStore;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -186,6 +190,8 @@ async fn main() -> anyhow::Result<()> {
     let order_flow_store = OrderFlowStore::new(cfg.runtime.order_flow_large_trade_notional_usdt);
     let onchain_store = OnchainTransferStore::default();
     let strategy_state_store = StrategyStateStore::new();
+    let supply_store = SupplySnapshotStore::default();
+    let venue_status_store = VenueAssetStatusStore::default();
     let source_catalog = catalog::source_catalog_for_config(&cfg);
     let http = reqwest::Client::new();
 
@@ -215,6 +221,8 @@ async fn main() -> anyhow::Result<()> {
         order_flow_store: order_flow_store.clone(),
         onchain_store: onchain_store.clone(),
         strategy_state_store: strategy_state_store.clone(),
+        supply_store: supply_store.clone(),
+        venue_status_store,
         snapshot_stream_hub: snapshot_stream_hub.clone(),
         api_access_guard: ApiState::api_access_guard_from_runtime(&cfg.runtime),
         api_cors: ApiState::api_cors_from_runtime(&cfg.runtime),
@@ -356,6 +364,11 @@ async fn main() -> anyhow::Result<()> {
         spawn_order_flow_service(bus.clone(), order_flow_store.clone(), shutdown.clone());
     let strategy_state_task =
         spawn_strategy_state_service(bus.clone(), strategy_state_store.clone(), shutdown.clone());
+    let supply_task = spawn_supply_collector(
+        cfg.reference_data.supply.clone(),
+        supply_store,
+        shutdown.clone(),
+    );
     log_onchain_start(&cfg.onchain);
     let onchain_tasks = spawn_onchain_collectors(
         cfg.onchain.clone(),
@@ -394,6 +407,7 @@ async fn main() -> anyhow::Result<()> {
     background_tasks.optional("kline_service", kline_task);
     background_tasks.required("order_flow", order_flow_task);
     background_tasks.required("strategy_state", strategy_state_task);
+    background_tasks.optional("supply_reference", supply_task);
     background_tasks.required("snapshot_stream", snapshot_stream_task);
     background_tasks.extend("onchain_collector", onchain_tasks);
     background_tasks.extend("source", tasks);

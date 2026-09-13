@@ -75,12 +75,16 @@ pub async fn squeeze_scan(
         .into_iter()
         .filter(|row| exchange.is_none_or(|wanted| row.exchange.eq_ignore_ascii_case(wanted)))
         .collect();
-    Ok(Json(crate::squeeze_radar::scan(
+    let supplies = state.supply_store.all().await;
+    let statuses = state.venue_status_store.query(None, None).await;
+    Ok(Json(crate::squeeze_radar::scan_with_references(
         rows,
         now_ms(),
         max_data_age_ms,
         query.minimum_score.clamp(0, 10),
         query.limit.clamp(1, 500),
+        &supplies,
+        &statuses,
     )))
 }
 
@@ -98,7 +102,9 @@ pub async fn archive_squeeze_scan(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    let report = crate::squeeze_radar::scan(
+    let supplies = state.supply_store.all().await;
+    let statuses = state.venue_status_store.query(None, None).await;
+    let report = crate::squeeze_radar::scan_with_references(
         rows.into_iter()
             .filter(|row| exchange.is_none_or(|wanted| row.exchange.eq_ignore_ascii_case(wanted)))
             .collect(),
@@ -106,6 +112,8 @@ pub async fn archive_squeeze_scan(
         max_data_age_ms,
         query.minimum_score.clamp(0, 10),
         query.limit.clamp(1, 500),
+        &supplies,
+        &statuses,
     );
     let id = format!(
         "squeeze-scan-{}-{}",
