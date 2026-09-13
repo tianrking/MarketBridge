@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — rolling liquidation-burst replay
+
+Added a microstructure replay for the public “large liquidation threshold may
+precede a local move” narrative. It aggregates bounded public liquidation
+notional over a rolling window, applies a cooldown so one burst is not counted
+on every candle, and compares its forward absolute return with ordinary candle
+windows. Side labels stay metadata only; no long/short inference, directional
+trade, fill, fee, slippage or position-sizing model was added. Coverage status,
+missing history and insufficient observations remain visible. Added a
+categorized launcher, bilingual documentation and deterministic tests for
+event filtering, cooldown, forward movement and the observe-only path.
+
+Provenance: [CryptoData liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584),
+treated as an unverified lead rather than a performance claim.
+
 ## 2026-09-14 — volatility-adjusted cross-asset momentum replay
 
 Added a universe-family replay that ranks assets by trailing return divided by

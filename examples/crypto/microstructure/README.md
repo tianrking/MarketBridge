@@ -13,6 +13,7 @@ Cases:
 - `short_squeeze_monitor.py`: negative funding + rising OI + spot/perp flow divergence.
 - `exhaustion_short_monitor.py`: positive funding + failed highs + falling OI + weak bids.
 - `liquidation_reversal_monitor.py`: sell-side liquidation + falling OI + positive CVD + recovery.
+- `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
@@ -28,6 +29,16 @@ which emphasizes real order-book depth, target-size slippage and short-horizon
 EWMA volatility. The implementation is an independently testable hypothesis,
 not an endorsement or a claim that the post's idea is profitable.
 
+The liquidation-burst replay is deliberately different from the single-event
+reversal monitor: it aggregates all public liquidation notional over a rolling
+window, compares the next price movement with ordinary candle windows, and
+keeps side labels as metadata only. It does not assume that a venue's `sell`
+label proves a long liquidation.
+
+Provenance: [CryptoData's public liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
+is treated as an unverified research lead; the replay tests the threshold and
+reports the data-coverage limits instead of repeating the claim.
+
 ## 中文
 
 这些观察器组合资金费率、OI 变化、现货/永续订单流、盘口深度、价格上下文和清算事件，
@@ -39,6 +50,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `short_squeeze_monitor.py`：负资金费率 + OI 上升 + 现货/永续订单流背离。
 - `exhaustion_short_monitor.py`：正资金费率 + 冲高失败 + OI 下降 + 买盘变弱。
 - `liquidation_reversal_monitor.py`：卖方清算 + OI 下降 + CVD 转正 + 价格恢复。
+- `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
@@ -50,6 +62,13 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 出处：实现拆解自 [Pine Analytics / FlyingTulip 在 X 的执行风险讨论](https://x.com/PineAnalytics/status/1974474638093590994)，
 原文强调真实盘口深度、目标规模滑点和短周期 EWMA 波动率。这里是独立、可证伪的
 研究假设，不代表对原文或盈利能力的背书。
+
+清算 burst 回放与单次事件反转监控不同：它在滚动窗口内聚合所有公开清算名义金额，
+再和普通 K 线窗口的未来价格波动比较；side 只作为元数据保留，不假设交易所的
+`sell` 一定代表多头清算。
+
+出处：[CryptoData 在 X 的清算阈值讨论](https://x.com/TheCryptoData/status/1948466627365769584)
+只是未经验证的研究线索；回放会检验阈值，并把覆盖范围限制明确输出，而不是复述结论。
 
 ## Commands / 命令
 
@@ -63,6 +82,9 @@ python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
 python3 examples/crypto/microstructure/liquidity_stress_monitor.py \
   --symbol BTCUSDT --exchange binance --liquidity-target-notional 10000 \
   --liquidity-volatility-bars 60 --iterations 3
+python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
+  --exchange okx --price-exchange okx --symbol BTCUSDT \
+  --threshold-notional 1000000 --window-hours 24 --horizon-bars 12
 python3 examples/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange binance --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000

@@ -887,6 +887,8 @@ python3 examples/crypto_session_filter.py --exchange binance --market perp --sym
 carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，universe 系列新增
 `crypto_volatility_adjusted_momentum_replay.py`；前者检验基差异常后的收缩，后者检验
 收益除以已实现波动率后的跨资产排名，二者都只做回放，不构成资金分配或实盘指令。
+microstructure 系列还新增 `crypto_liquidation_burst_replay.py`，把滚动清算总额阈值与
+未来绝对波动做非方向性比较，并保留交易所清算覆盖和 side 语义的不确定性。
 
 对于 Polymarket 或其他预测市场策略，推荐流程是：
 
