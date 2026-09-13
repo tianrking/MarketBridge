@@ -1,5 +1,13 @@
 # Development log
 
+## 2026-09-14 — open-interest history coverage metadata
+
+Extended `GET /v1/history/open-interest` with bounded `coverage` and
+`coverage_detail`: requested/covered timestamps, returned rows, page limit and
+an explicit truncation status. This mirrors the liquidation-history contract so
+Python regime replays can distinguish sparse OI alignment from a genuinely
+empty feed. Added route-level tests for timestamp bounds and non-completeness.
+
 ## 2026-09-14 — point-in-time positioning regime replay
 
 Added a carry-family regime matrix replay that joins funding history, aggregate

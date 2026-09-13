@@ -223,6 +223,9 @@ def main():
         "open_interest_history_available" if oi else "missing_open_interest_history",
         "price_history_available" if prices else "missing_price_history",
     ]
+    oi_coverage = oi_payload.get("coverage_detail")
+    if isinstance(oi_coverage, dict) and oi_coverage.get("status"):
+        evidence.append(f"open_interest_coverage_{oi_coverage['status']}")
     if any(row["regime"] == "missing_inputs" for row in observations):
         evidence.append("some_regime_inputs_missing")
     print(json.dumps({
@@ -237,6 +240,7 @@ def main():
                     "min_price_move_pct": options.min_price_move_pct,
                     "min_observations": options.min_observations},
         "source_counts": {"funding": len(funding), "open_interest": len(oi), "price_bars": len(prices)},
+        "coverage": {"open_interest": oi_coverage},
         "observations": observations,
         "summary": summarize(observations, options.min_observations),
         "evidence": evidence,

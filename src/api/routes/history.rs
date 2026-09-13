@@ -153,11 +153,14 @@ pub async fn open_interest(
             "domain": "history_open_interest",
             "exchange": q.exchange,
             "symbol": q.symbol,
-            "interval": q.interval.unwrap_or_else(|| "5m".to_string()),
+            "interval": q.interval.clone().unwrap_or_else(|| "5m".to_string()),
+            "coverage": "bounded_public_history",
+            "coverage_detail": open_interest_coverage_detail(&rows, &q),
             "rows": rows,
             "limitations": [
                 "open interest units remain provider-specific and are returned explicitly",
                 "history retention and pagination are provider-controlled",
+                "coverage_detail describes one bounded provider page; it is not a completeness proof",
                 "open interest is aggregate positioning, not long/short direction"
             ]
         }))
@@ -171,6 +174,27 @@ pub async fn open_interest(
             "rows": []
         }))
         .into_response(),
+    }
+}
+
+fn open_interest_coverage_detail(rows: &[Value], q: &HistoryOpenInterestQuery) -> Value {
+    let page_limit = q.limit.unwrap_or(100);
+    serde_json::json!({
+        "status": open_interest_coverage_status(rows.len(), page_limit),
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+    })
+}
+
+fn open_interest_coverage_status(returned_rows: usize, page_limit: usize) -> &'static str {
+    if returned_rows >= page_limit {
+        "provider_page_may_be_truncated"
+    } else {
+        "bounded_single_page"
     }
 }
 
@@ -1249,6 +1273,34 @@ mod tests {
         assert_eq!(
             liquidation_coverage_status(100, 100),
             "provider_page_may_be_truncated"
+        );
+    }
+
+    #[test]
+    fn open_interest_coverage_never_claims_completeness() {
+        assert_eq!(open_interest_coverage_status(2, 100), "bounded_single_page");
+        assert_eq!(
+            open_interest_coverage_status(100, 100),
+            "provider_page_may_be_truncated"
+        );
+        let query = HistoryOpenInterestQuery {
+            exchange: "binance".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            interval: Some("5m".to_string()),
+            start_ms: Some(1),
+            end_ms: Some(3),
+            limit: Some(2),
+        };
+        let rows = vec![
+            serde_json::json!({"ts_ms": 1, "open_interest": 1.0}),
+            serde_json::json!({"ts_ms": 3, "open_interest": 2.0}),
+        ];
+        let detail = open_interest_coverage_detail(&rows, &query);
+        assert_eq!(detail["covered_start_ms"], serde_json::json!(1));
+        assert_eq!(detail["covered_end_ms"], serde_json::json!(3));
+        assert_eq!(
+            detail["status"],
+            serde_json::json!("provider_page_may_be_truncated")
         );
     }
 
