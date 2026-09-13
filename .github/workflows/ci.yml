@@ -54,6 +54,9 @@ jobs:
       - name: Test synchronous and asynchronous research clients
         run: python -B -m unittest discover -s sdk/python -p "test_*.py"
 
+      - name: Test Python strategy examples
+        run: python -B -m unittest discover -s examples -p "test_*.py"
+
       - name: Local HTTP research smoke test
         if: runner.os == 'Windows'
         shell: pwsh
