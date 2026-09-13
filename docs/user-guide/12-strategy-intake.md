@@ -293,6 +293,18 @@ python3 examples/crypto_options_skew_replay.py \
 replay 只统计同一 expiry 的 skew 观测比例、最长连续状态和期限结构状态；它不会把
 `persistent_downside_skew_candidate` 转换成方向交易，也不会填补缺失或无效 JSONL 行。
 
+还可以把 options ATM mark IV 与永续 K 线的年化 realized volatility 做一个显式差值：
+
+```bash
+python3 examples/crypto_options_vrp_monitor.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \
+  --vrp-threshold 5
+```
+
+`implied_volatility_premium` 只表示 IV 高于指定 RV 阈值，且两者期限并不天然匹配；
+它不是卖波动率建议。缺少完整 K 线窗口或 ATM IV 时必须输出 observe-only。
+
 跨交易所 funding 也先做差异监控，不直接把 APR 当成收益：
 
 ```bash
