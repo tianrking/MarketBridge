@@ -243,8 +243,24 @@ python3 examples/crypto_session_filter.py \
 ```
 
 它只读取 `/v1/market/klines`，输出最新 bar 的 VWAP、EMA、MACD、成交量和时段状态；
-需要在不同日期、不同市场状态和样本外区间验证，不能直接转换为 Polymarket 或现货的
-下单信号。
+需要在不同日期、不同市场状态和样本外区间验证，不能直接转换为任何市场的下单信号。
+
+另一个独立的加密货币假设是「波动率压缩后突破」：先用历史 K 线计算压缩窗口相对基准
+窗口的 realized volatility ratio，再检测最近区间高低点的收盘突破；成交量与可选的历史
+taker flow 只作为确认字段。每个事件记录固定 horizon 的 close-to-close forward return，
+不把回放结果包装成可执行收益：
+
+```bash
+python3 examples/crypto_volatility_breakout_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 5m \
+  --days 3 --range-bars 12 --compression-window 12 \
+  --baseline-window 48 --flow-exchange binance
+```
+
+`breakout_confirmed_by_volume_and_flow` 只表示三个数据条件在同一事件窗口相交；
+`breakout_flow_conflict`、缺少成交量或缺少历史成交都保留为失败/不足证据。这个 replay
+仍未建模交易费用、funding、盘口冲击、延迟、排队和止损路径，因此需要更长样本及样本外
+区间后才能判断假设是否值得继续研究。
 
 跨交易所 funding 也先做差异监控，不直接把 APR 当成收益：
 

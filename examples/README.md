@@ -29,6 +29,7 @@ experiments should start from `python_strategy_runner.py`.
 | `weather_pressure_differential.py` | Compare a weather observation with a matching Polymarket YES ask after an external update | `/v1/external/weather`, `/polymarket/markets`, `/polymarket/books` | Investigation candidate only; identity, probability and fill assumptions remain explicit |
 | `weather_market_calibration.py` | Compare archived weather buckets with verified closed-market outcomes and optional YES prices | `/v1/external/weather` + explicit JSONL manifest | Descriptive calibration; identity and resolution rules are caller-owned |
 | `crypto_session_filter.py` | Test a short session-window hypothesis with VWAP, EMA(9/21), MACD and volume confirmation | `/v1/market/klines` | Research filter; no universal timing edge or fill model |
+| `crypto_volatility_breakout_replay.py` | A range break after compressed realized volatility may continue when candle volume and optional taker flow confirm | `/v1/history/candles`, optional `/v1/history/trades` | Bounded close-to-close replay; no execution, funding or fee model |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Uses point-in-time adjacent timestamp intervals; no fill, cost or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -100,6 +101,10 @@ python3 examples/weather_market_calibration.py \
 python3 examples/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT \
   --interval 1m --limit 60 --timezone America/New_York
+python3 examples/crypto_volatility_breakout_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 5m \
+  --days 3 --range-bars 12 --compression-window 12 \
+  --baseline-window 48 --flow-exchange binance
 python3 examples/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit \
   --iterations 3 --interval-secs 30
@@ -142,6 +147,9 @@ rewritten as falsifiable hypotheses:
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
 - [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
 - [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
+- [Realized-volatility compression context (unverified public claim)](https://x.com/glassnode/status/1955218957490594099)
+- [Breakout confirmation / hold-above-level context (unverified public claim)](https://x.com/rektcapital/status/1893996786173259958)
+- [Compression-to-expansion / low-volume-node context (unverified public claim)](https://x.com/Stoiiic/status/1796078958674628714)
 
 Next additions are ordered by evidence value: deeper venue-specific public
 liquidation coverage, larger verified weather manifests, and point-in-time

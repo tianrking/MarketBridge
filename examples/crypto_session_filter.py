@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Evaluate a time-window crypto momentum hypothesis from MarketBridge klines.
 
-The hypothesis comes from public Polymarket strategy discussions: a short
-pre-US-session window may be useful only when VWAP, EMA(9/21), MACD and volume
+The hypothesis comes from public crypto session/momentum discussions: a short
+pre-session window may be useful only when VWAP, EMA(9/21), MACD and volume
 agree. This script makes that claim falsifiable on normalized exchange candles;
 it is an observer, not an entry engine and never places an order.
 """
@@ -159,7 +159,7 @@ def main():
         "execution": "research_only_no_orders",
         "limitations": [
             "session timing is a falsifiable filter, not a universal edge",
-            "OHLCV bars do not model order queue, fees, slippage or Polymarket fill mechanics",
+            "OHLCV bars do not model order queue, fees, slippage, funding or fill mechanics",
             "the public strategy narrative is unverified and must be tested out of sample",
         ],
     }, ensure_ascii=False, indent=2, sort_keys=True))
