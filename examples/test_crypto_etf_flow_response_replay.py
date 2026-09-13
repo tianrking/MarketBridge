@@ -1,6 +1,7 @@
 """Deterministic tests for the ETF-flow response replay."""
 
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,6 +37,18 @@ class EtfFlowResponseReplayTests(unittest.TestCase):
         result = summarize([{"state": "large_inflow", "forward_return_pct": 1.0}], 2, 10.0)
         self.assertEqual(result["verdict"], "observe_only_insufficient_aligned_flow_days")
         self.assertAlmostEqual(result["by_state"]["large_inflow"]["mean_cost_adjusted_forward_return_pct"], 0.9)
+
+    def test_marketbridge_jsonl_flow_is_replayable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "flows.jsonl"
+            path.write_text(json.dumps({
+                "observation": {"flow": {"flow_musd": 125.0,
+                                           "source_time_ms": 1_788_192_000_000,
+                                           "raw": {"date": "2026-09-01"}}}
+            }) + "\n", encoding="utf-8")
+            rows, invalid = load_flows(path)
+        self.assertEqual(invalid, 0)
+        self.assertEqual(rows, [{"date": "2026-09-01", "flow_musd": 125.0}])
 
 
 if __name__ == "__main__":

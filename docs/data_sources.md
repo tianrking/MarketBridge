@@ -193,6 +193,7 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=meteora,orca,uniswap_
 | CoinCap | Crypto reference prices | `/v1/market/quotes?exchanges=coincap` | optional | `COINCAP_API_KEY` |
 | CoinMarketCap | Crypto reference prices | `/v1/market/quotes?exchanges=coinmarketcap` | required | `COINMARKETCAP_API_KEY` |
 | CoinGlass | Funding/OI/liquidation/long-short/basis/options aggregate metrics | `/v1/external/signals?sources=coinglass` | required | `COINGLASS_API_KEY` |
+| Farside Bitcoin ETF flows | Latest aggregate spot-BTC ETF daily flow in USD millions (default all-data table URL) | `/v1/external/signals?sources=farside_etf` | keyless | n/a |
 | Fear & Greed | Crypto sentiment index | `/v1/external/signals?sources=fear_greed` | keyless | n/a |
 | CryptoPanic | News items | `/v1/external/signals?sources=cryptopanic` | required | `CRYPTOPANIC_API_KEY` |
 | Santiment | Social/on-chain metrics | `/v1/external/signals?sources=santiment` | required | `SANTIMENT_API_KEY` |

@@ -72,7 +72,7 @@ Status labels:
 | Klines | `/v1/market/klines` | implemented | keyless | SQLite-backed historical/rest and realtime tick-aggregated OHLCV bars. |
 | Options chains | `/v1/options/chains` | implemented | keyless | Deribit/OKX/Bybit/Binance REST cache. |
 | Prediction books | `/v1/prediction/books` | implemented | keyless | Polymarket live CLOB cache. |
-| External signals | `/v1/external/signals` | implemented | mixed | CoinGlass, news, social, sentiment. |
+| External signals | `/v1/external/signals` | implemented | mixed | CoinGlass, Farside ETF latest flow, news, social, sentiment. Historical ETF flow remains recorder/CSV-backed. |
 | Weather observations | `/v1/external/weather` | implemented | keyless | Open-Meteo forecast/archive, explicit coordinates and date mode; not a probability model or market resolver. |
 | Onchain transfers | `/v1/onchain/transfers` | implemented | mixed | Whale Alert, mempool.space, and Etherscan large-transfer collectors. |
 

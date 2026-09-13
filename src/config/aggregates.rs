@@ -11,6 +11,8 @@ pub struct AggregatesConfig {
     #[serde(default)]
     pub coinglass: CoinGlassConfig,
     #[serde(default)]
+    pub farside_etf: FarsideEtfConfig,
+    #[serde(default)]
     pub custom_apis: Vec<CustomApiConfig>,
     #[serde(default)]
     pub provider_quotas: Vec<ProviderQuotaConfig>,
@@ -87,6 +89,18 @@ pub struct CoinGlassConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct FarsideEtfConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_farside_etf_url")]
+    pub url: String,
+    #[serde(default = "default_farside_etf_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_farside_etf_asset")]
+    pub asset: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct CustomApiConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -144,6 +158,18 @@ fn default_coinmarketcap_base_url() -> String {
 
 fn default_coinglass_base_url() -> String {
     "https://open-api-v4.coinglass.com/".to_string()
+}
+
+fn default_farside_etf_url() -> String {
+    "https://farside.co.uk/bitcoin-etf-flow-all-data/".to_string()
+}
+
+fn default_farside_etf_poll_secs() -> u64 {
+    900
+}
+
+fn default_farside_etf_asset() -> String {
+    "BTC".to_string()
 }
 
 fn default_coingecko_api_key_env() -> String {
@@ -267,6 +293,17 @@ impl Default for CoinGlassConfig {
             api_key_env: default_coinglass_api_key_env(),
             poll_secs: default_coinglass_poll_secs(),
             symbols: default_coinglass_symbols(),
+        }
+    }
+}
+
+impl Default for FarsideEtfConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: default_farside_etf_url(),
+            poll_secs: default_farside_etf_poll_secs(),
+            asset: default_farside_etf_asset(),
         }
     }
 }

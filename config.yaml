@@ -416,6 +416,14 @@ aggregates:
     poll_secs: 60
     symbols: [BTC, ETH]
 
+  # Optional read-only daily spot BTC ETF flow snapshot from Farside.
+  # It emits the latest aggregate row as /v1/external/signals.
+  farside_etf:
+    enabled: false
+    url: "https://farside.co.uk/bitcoin-etf-flow-all-data/"
+    poll_secs: 900
+    asset: BTC
+
   # Generic numeric/JSON external signal pollers. Each row emits one
   # /v1/external/signals item and never touches accounts, wallets, or orders.
   custom_apis: []

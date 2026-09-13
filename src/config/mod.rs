@@ -13,7 +13,7 @@ pub mod tradfi;
 
 pub use aggregates::{
     AggregatesConfig, CoinCapConfig, CoinGeckoConfig, CoinGlassConfig, CoinMarketCapConfig,
-    CoinPriceAsset, CustomApiConfig, ProviderQuotaConfig,
+    CoinPriceAsset, CustomApiConfig, FarsideEtfConfig, ProviderQuotaConfig,
 };
 pub use app::AppConfig;
 pub use defi::{

@@ -707,6 +707,16 @@ const ROADMAP: &[RoadmapSource] = &[
         notes: "Generic numeric/JSON external signal pollers are wired through aggregates.custom_apis.",
     },
     RoadmapSource {
+        source: "farside_etf",
+        source_type: "aggregate_data",
+        product_types: DATA_FEED,
+        domains: &["external_signal"],
+        upstreams: UP_HB_DATA,
+        marketbridge_status: "implemented",
+        priority: "P2",
+        notes: "Read-only latest aggregate spot-BTC ETF flow from the public Farside table; historical replay uses recorder JSONL.",
+    },
+    RoadmapSource {
         source: "binance_liquidations_feed",
         source_type: "data_feed",
         product_types: PERP,

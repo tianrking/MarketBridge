@@ -7,6 +7,7 @@ use crate::connectors::aggregate::coingecko::CoinGeckoPricePoller;
 use crate::connectors::aggregate::coinglass::CoinGlassPoller;
 use crate::connectors::aggregate::coinmarketcap::CoinMarketCapPricePoller;
 use crate::connectors::aggregate::custom_api::CustomApiPoller;
+use crate::connectors::aggregate::farside_etf::FarsideEtfPoller;
 use crate::source::ExchangeSource;
 
 use super::RegistryContext;
@@ -31,6 +32,11 @@ pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &Registr
     if cfg.aggregates.coinglass.enabled {
         out.push(Arc::new(CoinGlassPoller::new(
             cfg.aggregates.coinglass.clone(),
+        )));
+    }
+    if cfg.aggregates.farside_etf.enabled {
+        out.push(Arc::new(FarsideEtfPoller::new(
+            cfg.aggregates.farside_etf.clone(),
         )));
     }
     let provider_quotas = Arc::new(

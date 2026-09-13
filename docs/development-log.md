@@ -10,6 +10,11 @@ timing and no-execution limitation are explicit; no flow value is synthesized.
 Provenance: [Farside's Bitcoin ETF flow table](https://farside.co.uk/btc/) and
 the existing [Wintermute macro/crypto-liquidity research lead on X](https://x.com/wintermute_t/status/1985631560021000352).
 
+The same round adds the optional Rust `farside_etf` connector. When enabled in
+`aggregates.farside_etf`, it publishes the latest dated total as
+`/v1/external/signals?sources=farside_etf` with source timestamp and USD-million
+units. It is a latest-snapshot connector, not a fabricated historical backfill.
+
 ## 2026-09-14 — adaptive cross-asset paper-index replay
 
 Added `crypto_adaptive_cross_asset_replay.py` under the universe family. It

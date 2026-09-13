@@ -173,6 +173,14 @@ pub fn source_catalog() -> Vec<CatalogSource> {
             status: "implemented",
         },
         CatalogSource {
+            source_type: "aggregate_data",
+            source: "farside_etf",
+            venue: Some("farside"),
+            domains: vec!["external_signal"],
+            connector_path: "src/connectors/aggregate/farside_etf.rs",
+            status: "implemented",
+        },
+        CatalogSource {
             source_type: "external_event",
             source: "custom_api",
             venue: None,
@@ -282,6 +290,7 @@ fn source_runtime_status(cfg: &AppConfig, source: &str) -> &'static str {
             cfg.aggregates.coinglass.api_key.as_deref(),
             &cfg.aggregates.coinglass.api_key_env,
         ),
+        "farside_etf" => enabled_status(cfg.aggregates.farside_etf.enabled),
         "custom_api" => enabled_status(cfg.aggregates.custom_apis.iter().any(|api| api.enabled)),
         "fear_greed" => enabled_status(cfg.sentiment.fear_greed.enabled),
         "cryptopanic" => keyed_status(

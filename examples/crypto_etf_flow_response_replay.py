@@ -50,6 +50,8 @@ def _header_key(value):
 
 def load_flows(path):
     """Load date + aggregate flow from a Farside-style CSV in USD millions."""
+    if path.suffix.lower() == ".jsonl":
+        return load_recorded_flows(path)
     rows, invalid_rows = [], 0
     with path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
@@ -75,6 +77,32 @@ def load_flows(path):
                 invalid_rows += 1
                 continue
             rows.append({"date": parsed.isoformat(), "flow_musd": flow})
+    deduped = {row["date"]: row for row in rows}
+    return [deduped[key] for key in sorted(deduped)], invalid_rows
+
+
+def load_recorded_flows(path):
+    rows, invalid_rows = [], 0
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+                observation = record.get("observation") or {}
+                flow = observation.get("flow") or {}
+                value = number(flow.get("flow_musd"))
+                source_time_ms = flow.get("source_time_ms")
+                date = (flow.get("date") or
+                        ((flow.get("raw") or {}).get("date")))
+                if date is None and isinstance(source_time_ms, int):
+                    date = datetime.fromtimestamp(source_time_ms / 1000.0, timezone.utc).date().isoformat()
+                parsed = datetime.strptime(str(date)[:10], "%Y-%m-%d").date()
+                if value is None:
+                    raise ValueError("missing flow_musd")
+                rows.append({"date": parsed.isoformat(), "flow_musd": value})
+            except (ValueError, TypeError, json.JSONDecodeError, AttributeError):
+                invalid_rows += 1
     deduped = {row["date"]: row for row in rows}
     return [deduped[key] for key in sorted(deduped)], invalid_rows
 
@@ -183,7 +211,8 @@ def main():
     print(json.dumps({
         "strategy": "crypto_etf_flow_response_replay",
         "input": str(args.input),
-        "external_flow_source": "caller_supplied_farside_style_csv_usd_millions",
+        "external_flow_source": ("marketbridge_farside_etf_jsonl" if args.input.suffix.lower() == ".jsonl"
+                                  else "caller_supplied_farside_style_csv_usd_millions"),
         "market": {"exchange": args.exchange, "market": args.market, "symbol": args.symbol,
                    "interval": args.interval, "timezone": "UTC"},
         "window": {"start_ms": start_ms, "end_ms": end_ms, "days": args.days},
@@ -198,7 +227,7 @@ def main():
                       "marketbridge_price_history_available" if prices else "missing_marketbridge_price_history"],
         "upstream_errors": [payload["error"]] if payload.get("error") else [],
         "limitations": [
-            "ETF flow is a caller-supplied external CSV and is not yet a MarketBridge native historical endpoint",
+            "MarketBridge's Farside connector emits the latest daily row; historical replay still requires recorder JSONL or an external CSV",
             "Farside-style daily flow dates and MarketBridge candle dates are aligned by UTC calendar day",
             "ETF settlement/NAV timing, revisions, weekend gaps, causality, fees and execution are not modeled",
             "fixed close-to-close response is descriptive and not an ETF or crypto trading instruction",

@@ -60,10 +60,24 @@ pub async fn emit_external_signal(
     value: Option<f64>,
     raw: Option<serde_json::Value>,
 ) -> Result<()> {
+    emit_external_signal_at(ctx, source, category, symbol, metric, value, None, raw).await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn emit_external_signal_at(
+    ctx: &SourceContext,
+    source: &'static str,
+    category: &str,
+    symbol: Option<&str>,
+    metric: &str,
+    value: Option<f64>,
+    source_time_ms: Option<u64>,
+    raw: Option<serde_json::Value>,
+) -> Result<()> {
     ctx.emit(DataEvent::ExternalSignal(ExternalSignalTick {
         source,
         source_instance: None,
-        source_time_ms: None,
+        source_time_ms,
         category: category.to_string().into_boxed_str(),
         symbol: symbol.map(|x| x.to_ascii_uppercase().into_boxed_str()),
         metric: metric.to_string().into_boxed_str(),

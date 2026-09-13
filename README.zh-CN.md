@@ -930,7 +930,8 @@ crypto 收益预测。
 宏观系列还新增 context recorder/replay：按 VIX 状态和资金费率拥挤分桶报告 BTC 响应分布，
 并保留提供方时间戳与同步性限制。
 宏观系列还新增 ETF 流量响应回放：把调用者提供的 Farside 风格 CSV 作为明确的外部输入，
-再通过 MarketBridge 获取对齐的 BTC 日线价格。原生 ETF 历史流量接入仍是数据层缺口，不会用零值伪造。
+再通过 MarketBridge 获取对齐的 BTC 日线价格。现在可选的 `aggregates.farside_etf` connector
+会把 Farside 最新一行暴露到 `/v1/external/signals`；历史 ETF 流量回放仍需要 recorder JSONL 或显式 CSV，绝不会用零值伪造。
 microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：只对接口返回的已发生清算成交
 按价格带聚类并检验后续绝对波动，不声称重建尚未触发的热图清算墙。
 同系列还新增 `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否

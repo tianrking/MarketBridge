@@ -216,6 +216,25 @@ impl AppConfig {
                 );
             }
         }
+        if self.aggregates.farside_etf.enabled {
+            let url = url::Url::parse(&self.aggregates.farside_etf.url)
+                .context("invalid aggregates.farside_etf.url")?;
+            ensure!(
+                matches!(url.scheme(), "http" | "https")
+                    && url.host_str().is_some()
+                    && url.username().is_empty()
+                    && url.password().is_none(),
+                "aggregates.farside_etf requires a credential-free HTTP(S) URL"
+            );
+            ensure!(
+                (60..=86_400).contains(&self.aggregates.farside_etf.poll_secs),
+                "aggregates.farside_etf.poll_secs must be within 60..86400"
+            );
+            ensure!(
+                !self.aggregates.farside_etf.asset.trim().is_empty(),
+                "aggregates.farside_etf.asset must be nonempty"
+            );
+        }
         Ok(())
     }
 
