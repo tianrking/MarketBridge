@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — session confluence historical replay
+
+Added the microstructure-family `crypto_session_momentum_replay.py` to turn
+the existing current snapshot filter into a bounded historical event study. It
+uses a caller-selected timezone/session window, session typical-price VWAP,
+EMA(9/21), MACD acceleration and volume confirmation, then measures the next
+fixed candle horizon with an explicit paper-cost hurdle. Provenance: the
+unverified [15-minute VWAP/EMA/MACD/volume discussion on X](https://x.com/Gustafssonkotte/status/2030566353178882122)
+and [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+No execution path was added.
+
 ## 2026-09-14 — stablecoin depeg-risk event study
 
 Added the DeFi-family Python stablecoin monitor/recorder/replay. The monitor

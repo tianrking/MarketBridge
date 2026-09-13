@@ -24,6 +24,7 @@ Cases:
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
+- `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
@@ -90,6 +91,14 @@ which studies phase-aligned order flow and later futures returns, and against
 [Binance's official funding/order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
 MarketBridge only tests the observable single-venue flow/return association;
 it does not infer a causal clock effect or provide a timing instruction.
+
+The session-momentum replay turns the existing snapshot filter into a historical
+event study. It is motivated by the unverified [15-minute VWAP/EMA/MACD/volume
+discussion on X](https://x.com/Gustafssonkotte/status/2030566353178882122) and
+uses MarketBridge candle semantics cross-checked against [Binance's official
+kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+The result reports aligned close-to-close returns after a paper hurdle; it is
+not a universal session edge or an execution instruction.
 
 The volatility-breakout replay accepts `--roundtrip-cost-bps` and reports gross
 versus cost-adjusted aligned returns. Its candidate verdict requires the
@@ -163,6 +172,12 @@ MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺�
 只作为未经验证的研究线索；实现对照一级研究 [Quarter-Hour Effect](https://arxiv.org/abs/2607.09426)，
 并对照 [Binance 官方资金费率与盘口文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
 MarketBridge 只检验单交易所可观测的流量与收益关联，不提供择时指令。
+
+`crypto_session_momentum_replay.py` 把已有的当前快照筛选升级成历史事件研究：在调用者指定的本地时段内，计算
+session VWAP、EMA(9/21)、MACD 加成交量确认，并测量固定未来 K 线窗口的方向收益。研究线索来自未经验证的
+[X 上 15 分钟 VWAP/EMA/MACD/成交量讨论](https://x.com/Gustafssonkotte/status/2030566353178882122)，
+K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+输出是纸面 close-to-close 统计，不是普适时段优势或执行指令。
 
 CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有足够幅度、但单交易所主动买卖差值指向相反，
 再测量未来窗口是否反向移动。它不代表全市场流量，也不是因果信号；指标语义和单交易所覆盖边界可对照
@@ -238,6 +253,11 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
   --exchange binance --symbol BTCUSDT --days 3 --window-minutes 5 \
   --horizon-bars 240 --min-flow-ratio 0.20 --paper-cost-bps 10 \
   --min-edge-bps 0 --min-observations 5
+python3 examples/crypto/microstructure/crypto_session_momentum_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1m --days 3 \
+  --timezone America/New_York --session-start 09:00 --session-end 09:15 \
+  --volume-multiplier 1.0 --horizon-bars 15 --min-score 4 \
+  --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange binance --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000

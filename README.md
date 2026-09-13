@@ -136,6 +136,9 @@ The microstructure family now also includes a quarter-hour flow replay: it
 tests whether a UTC quarter-hour opening taker-flow imbalance aligns with a
 fixed-horizon perp return, while keeping bounded trade history and clock-phase
 causality explicit.
+It also includes a timezone-aware session VWAP/EMA/MACD/volume replay, so the
+older snapshot filter can be tested against fixed-horizon candle returns instead
+of being mistaken for historical evidence.
 The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or
