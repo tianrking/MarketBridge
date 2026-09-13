@@ -75,6 +75,7 @@ categorized command is the recommended one.
 | `crypto/universe/crypto_market_regime_monitor.py` | Aggregate fragmentation, volatility and leverage context should remain visible before a strategy case is interpreted | `/v1/research/market-regime` | Context monitor only; current snapshot, not historical point-in-time data, and no strategy selection |
 | `crypto/macro/crypto_macro_context_monitor.py` | Macro reference snapshots should remain visible beside crypto funding before interpreting a market case | `/v1/market/quotes?exchanges=dxy,vix,us10y`, `/v1/market/perpetual-funding` | Context monitor only; no macro forecast or execution model |
 | `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
+| `crypto/sentiment/crypto_news_attention_monitor.py` / recorder / replay | A burst of high-score CryptoPanic items may precede larger absolute BTC movement than ordinary windows | `/v1/external/signals?sources=cryptopanic&categories=news`, `/v1/market/quotes` and JSONL archive | Non-directional attention replay; feed coverage, vote semantics and timing remain explicit |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
 | `funding_convergence_replay.py` | Align historical funding observations and measure gross and after-cost differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Explicit paper cost hurdle is a sensitivity input; no fill, borrow or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
@@ -295,6 +296,14 @@ python3 examples/crypto/sentiment/crypto_sentiment_extremes_recorder.py \
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_replay.py \
   --input work/crypto-sentiment-extremes.jsonl --horizon-records 7 \
   --min-observations 5 --paper-cost-bps 20
+python3 examples/crypto/sentiment/crypto_news_attention_monitor.py \
+  --symbol BTCUSDT --exchange binance --min-score 3 --min-items 3
+python3 examples/crypto/sentiment/crypto_news_attention_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 120 --interval-secs 300 \
+  --output work/crypto-news-attention.jsonl
+python3 examples/crypto/sentiment/crypto_news_attention_replay.py \
+  --input work/crypto-news-attention.jsonl --horizon-records 6 \
+  --min-observations 5
 python3 examples/python_strategy_runner.py \
   --strategy options_gamma --currency BTC --options-venue deribit \
   --expiry-days 30 --gamma-min-near-share 0.50 \

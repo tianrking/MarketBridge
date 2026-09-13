@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — preserve CryptoPanic news instances and add attention replay
+
+Fixed the optional CryptoPanic connector so each returned post uses its
+canonical URL as `source_instance`; the in-memory external-signal snapshot no
+longer overwrites the bounded feed's ten `news_item` rows under one key. Added
+a regression test for distinct URLs and RFC3339 `published_at` to
+`source_time_ms` mapping. Added Python sentiment monitor/recorder/
+replay cases that classify high-absolute-vote-score bursts and compare their
+subsequent absolute price movement with ordinary aligned windows. This is a
+non-directional research diagnostic with no allocation, wallet or execution
+path. Provenance: [CryptoPanic's official integration guide](https://cryptopanic.com/guides/how-to-integrate-the-cryptopanic-api)
+and the peer-reviewed [crypto news-headline impact study](https://www.sciencedirect.com/science/article/pii/S0264999323002092).
+
 ## 2026-09-14 — Fear & Greed sentiment-extremes replay
 
 Added the Python-first `examples/crypto/sentiment/` family. The monitor reads

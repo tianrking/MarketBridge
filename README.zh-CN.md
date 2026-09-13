@@ -925,6 +925,8 @@ microstructure 系列还新增 `crypto_liquidation_price_cluster_replay.py`：�
 ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配或执行路径。
 sentiment 系列还新增 Fear & Greed 极值 recorder/replay，用 MarketBridge 价格快照测量固定窗口的未来收益分布，
 但不会把公开情绪转成执行信号。
+可选 CryptoPanic 路径现在会按每条新闻 URL 保留独立 external-signal 实例，并提供 Python 新闻注意力
+burst recorder/replay；仍明确标注有界 feed 和投票语义限制。
 options 系列还新增 VRP recorder/replay：检验 IV 减已实现波动率状态是否持续，但不把它变成卖波动率、
 对冲或实盘执行指令。
 同系列还新增期限结构回放：检验近端/远端 ATM IV 升水或倒挂是否持续，并明确保留到期滚动和日历价差

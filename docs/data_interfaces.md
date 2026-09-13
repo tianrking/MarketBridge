@@ -427,7 +427,7 @@ Important boundaries:
 | Polymarket trades | `/v1/prediction/trades` | Public Data API trade history filtered by market, event, asset, side, limit and offset; no authenticated user ledger. |
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
-| External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush, and DeFi native-state metrics emitted by pool connectors. |
+| External signals | `/v1/external/signals` | CoinGlass, Fear & Greed, CryptoPanic, Santiment, LunarCrush, and DeFi native-state metrics emitted by pool connectors. `source_instance` distinguishes repeated items such as CryptoPanic `news_item` URLs; rows remain current snapshots, not a complete history endpoint. |
 | Weather observations | `/v1/external/weather` | On-demand Open-Meteo forecast or historical archive response with explicit coordinates, mode, dates and requested variables. |
 
 Known non-Polymarket gaps are centralized in

@@ -29,3 +29,4 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 arrow-array = "58.3.0"
 arrow-ipc = "58.3.0"
 arrow-schema = "58.3.0"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

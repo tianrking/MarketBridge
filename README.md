@@ -133,6 +133,9 @@ path.
 The sentiment family also includes a Fear & Greed extreme-state recorder/replay
 that measures fixed-horizon forward-response distributions from MarketBridge
 price snapshots without turning public sentiment into an execution signal.
+Its optional CryptoPanic path now preserves each returned news URL as a distinct
+external-signal instance, with a Python attention-burst recorder/replay over
+the bounded feed.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.

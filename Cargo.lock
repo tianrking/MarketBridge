@@ -1086,6 +1086,7 @@ dependencies = [
  "arrow-schema",
  "async-trait",
  "axum",
+ "chrono",
  "dashmap",
  "flate2",
  "futures-util",
