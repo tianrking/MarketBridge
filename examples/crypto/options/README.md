@@ -23,6 +23,14 @@ whether an upward (contango) or inverted term-structure state persists for a
 minimum run. Expiry identities can roll, so a persistent state is evidence to
 investigate, not a calendar-spread or option trade.
 
+The bull-call-spread monitor selects two calls from one expiry near configurable
+moneyness targets, uses the lower call ask and higher call bid when available
+(mark fallback is labeled), and reports debit, width, breakeven and capped
+paper payoff geometry. Its recorder/replay asks whether the same expiry/strike
+identity remains observable for a consecutive run. This is a quote-structure
+hypothesis, not a recommendation: it does not model settlement, margin,
+exercise, fills, fees, slippage, hedging or forward returns.
+
 Provenance: the public [IV-minus-realized-volatility discussion on
 X](https://x.com/isellpremium/status/2072350364385349678) is treated as a
 research lead and cross-checked against the [Bitcoin-options risk-premia
@@ -33,6 +41,10 @@ options data guide](https://insights.deribit.com/industry/genesis-volatility-opt
 which describes ATM implied volatility across different expiration dates. This
 example deliberately uses MarketBridge's transparent near/far ATM buckets and
 does not claim a complete interpolated surface.
+The spread case preserves the public [Deribit bull-call-spread/options-flow
+observation on X](https://x.com/laevitas1/status/1985373005644476891) as an
+unverified research lead; the monitor makes leg-selection and quote-quality
+assumptions explicit instead of inferring a profitable trade.
 
 ## 中文
 
@@ -50,12 +62,19 @@ VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到
 斜率是否持续为升水（contango）或倒挂。到期标识会滚动，因此“持续”只是值得继续研究的
 曲面状态证据，不是日历价差或期权交易指令。
 
+牛市看涨价差监控会在同一到期日内，按可配置的 moneyness 目标挑选较低和较高执行价的看涨期权；
+优先使用低执行价 ask 与高执行价 bid，缺失时才回退到并明确标记 mark。输出 debit、价差宽度、
+盈亏平衡点和封顶的纸面收益几何；recorder/replay 检验相同到期日/执行价组合是否连续出现。
+这只是报价结构假设，不是交易建议：没有伪装成已建模的结算、保证金、行权、成交、手续费、滑点、对冲或未来收益。
+
 出处：公开的 [IV 减已实现波动率 X 讨论](https://x.com/isellpremium/status/2072350364385349678)
 只是研究线索，并对照了 [Bitcoin options 风险溢价论文](https://papers.ssrn.com/sol3/Delivery.cfm/98257442-0b56-4c20-8b8f-c91befac0b1b-MECA.pdf?abstractid=6771170)。
 两者都不被当作收益保证。
 期限结构定义对照了 [Deribit Insights 的期权数据说明](https://insights.deribit.com/industry/genesis-volatility-options-data-guide/)，
 其中将期限结构描述为不同到期日的 ATM 隐含波动率。这里仅使用 MarketBridge 透明的近端/远端 ATM 分桶，
 不声称已经完成全曲面插值。
+价差案例保留公开的 [Deribit 牛市看涨价差/期权流 X 观察](https://x.com/laevitas1/status/1985373005644476891)
+作为未经验证的研究线索；实现会把选腿规则和报价质量写入输出，不把它推断成可获利交易。
 
 ## Commands / 命令
 
@@ -77,6 +96,14 @@ python3 examples/crypto/options/crypto_options_skew_replay.py \
   --input work/crypto-options-skew.jsonl --min-run 3
 python3 examples/crypto/options/crypto_options_term_structure_replay.py \
   --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
+python3 examples/crypto/options/crypto_options_bull_call_spread_monitor.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --long-moneyness 0.95 --short-moneyness 1.05
+python3 examples/crypto/options/crypto_options_bull_call_spread_recorder.py \
+  --currency BTC --venue deribit --expiry-days 30 --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-bull-call-spread.jsonl
+python3 examples/crypto/options/crypto_options_bull_call_spread_replay.py \
+  --input work/crypto-options-bull-call-spread.jsonl --min-run 3
 python3 examples/crypto/options/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168

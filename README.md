@@ -167,6 +167,10 @@ short-volatility or hedging instruction.
 It also has a term-structure replay that tests whether near/far ATM-IV
 contango or backwardation persists, while keeping expiry roll and calendar
 spread execution as explicit gaps.
+It also includes a bull-call-spread monitor/recorder/replay: lower-call ask
+and higher-call bid are reduced to paper debit/width geometry and tested for
+repeated expiry/strike identity, with mark-only quotes, settlement, margin and
+execution left explicit.
 The liquidity-stress monitor also has a recorder/replay pair, so a single
 expensive snapshot is not promoted to a persistent regime without consecutive
 evidence.

@@ -706,3 +706,15 @@ integrity assertions passed. Commit: `f0efe84` (original local ID `7d6bb98`). Lo
 - Validation: the working-tree suite including these regressions passed
   `cargo +stable test --locked`: 270 passed, 0 failed. `cargo fmt` and
   `git diff --check` passed. No remote CI or live-provider certification claimed.
+
+## 2026-09-14 — bull-call-spread quote persistence case
+
+Added a Python-first options case for the public [Deribit bull-call-spread/options-flow
+observation on X](https://x.com/laevitas1/status/1985373005644476891). The monitor
+selects same-expiry call legs near configurable moneyness targets from
+`/v1/options/chains`, prefers lower-call ask plus higher-call bid, labels mark-only
+fallbacks, and emits debit, strike width, breakeven and capped paper payoff geometry.
+The JSONL recorder and replay test whether the same expiry/strike identity stays
+observable for a consecutive run. No order path, settlement, margin, hedge, cost,
+fill or forward-PnL claim was added; all assumptions are documented bilingually in
+`examples/crypto/options/README.md`.
