@@ -299,6 +299,22 @@ python3 examples/crypto_microstructure_monitor.py \
 运行前使用只读的 `config.research-live.yaml`（它已显式启用 `BTCUSDT` 的 spot 和 perp
 feed）。这只是盘口快照观察器；队列、成交、滑点和下一次更新前的撤单都没有被假设为可执行。
 
+若要避免把短暂挂单误认成主动买卖压力，可再用同一交易所、同一合约的
+`/v1/market/order-flow` 对齐最近一个 1m bucket。`buy_notional - sell_notional` 的方向和
+前五档 imbalance 同向时才标记 `confirmed_*_pressure`；反向时标记
+`book_flow_conflict`，只保留为研究样本；没有成交流时则是
+`unconfirmed_book_pressure_missing_flow`，不补零也不下单：
+
+```bash
+python3 examples/crypto_flow_book_confirmation.py \
+  --symbol BTCUSDT --exchange binance --window-ms 60000 \
+  --imbalance-threshold 0.30 --flow-threshold 0.20
+```
+
+这个确认器把“盘口 imbalance + taker flow/CVD”当成可证伪的数据对齐假设，而不是把任一
+指标当成预测。它仍未建模 queue position、撤单速度、成交延迟、费用、滑点和 funding
+结算；这些字段必须在 replay 或 paper execution 中另外加入。
+
 Liquidation reversal 目前先提供一个边界清晰的 OKX/CoinEx partial replay：
 
 ```bash
