@@ -25,6 +25,13 @@ causes BTC movement or that a swap is executable.
 and compare stressed snapshots with later absolute BTC movement. This is a
 risk event study, not a depeg-arbitrage or liquidity-withdrawal instruction.
 
+`crypto_stablecoin_rotation_response_replay.py` reuses that JSONL archive for a
+narrow directional hypothesis: after normalizing either `USDCUSDT` or the
+inverse `USDTUSDC` quote into USDC priced in USDT, does a USDC discount align
+with positive BTC movement and a premium with negative movement? It reports
+aligned-return statistics only; it does not infer capital flows, redemption
+pressure or an executable conversion.
+
 Provenance: the decomposition follows the public [Uniswap explanation of pool
 liquidity and price impact](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
 and [swap execution](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps).
@@ -63,6 +70,10 @@ redemptions, solvency or executable mean reversion.
 [Detecting Depegs 研究](https://arxiv.org/abs/2306.10612)。MarketBridge 只检验报价偏离和之后的绝对波动，
 不推断储备、赎回、偿付能力或可执行均值回归。
 
+`crypto_stablecoin_rotation_response_replay.py` 复用该 JSONL 归档，专门检验一个有方向的窄假设：将 `USDCUSDT` 或反向
+`USDTUSDC` 归一化为“USDC 以 USDT 计价”后，USDC 折价是否与 BTC 上涨、USDC 溢价是否与 BTC 下跌对齐？输出只包含
+方向对齐收益统计，不推断资金流、赎回压力或可执行兑换。
+
 ## Commands / 命令
 
 ```bash
@@ -90,4 +101,7 @@ python3 examples/crypto/defi/crypto_stablecoin_depeg_recorder.py \
 python3 examples/crypto/defi/crypto_stablecoin_depeg_replay.py \
   --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
   --stress-bps 50 --min-stress 3 --min-ordinary 3
+python3 examples/crypto/defi/crypto_stablecoin_rotation_response_replay.py \
+  --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
+  --threshold-bps 5 --min-observations 5
 ```

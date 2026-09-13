@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — directional USDC/USDT rotation replay
+
+Added `crypto_stablecoin_rotation_response_replay.py` under the DeFi family.
+It reuses the existing stablecoin-depeg JSONL archive, normalizes both
+`USDCUSDT` and inverse `USDTUSDC` quotes into USDC priced in USDT, and tests
+the falsifiable claim that a USDC discount aligns with positive BTC response
+while a premium aligns with negative response. Provenance: the public [USDC
+rotation discussion on X](https://x.com/xiaomustock/status/1916307721809721637),
+cross-checked with the existing [Binance public market-data documentation](https://developers.binance.com/en/docs/products/spot/rest-api).
+The output remains a directional event study and does not infer capital flows,
+redemption, conversion or execution.
+
 ## 2026-09-14 — cross-venue order-book response replay
 
 Added `crypto_cross_venue_orderbook_response_recorder.py` and

@@ -971,6 +971,8 @@ microstructure 系列还新增 footprint response recorder/replay：把相同压
 比较 bid/ask 压力与普通状态之后的有符号和绝对波动；仍然是有界研究回放，不是执行信号。
 DeFi 系列现在还新增稳定币脱锚 monitor/recorder/replay：保留报价偏离和点差压力，并比较压力快照之后的
 BTC 绝对波动；不推断储备、赎回、偿付能力，也不把它变成可执行均值回归。
+同时新增稳定币 USDC/USDT rotation replay：统一处理 `USDCUSDT` 与 `USDTUSDC` 两种报价方向，检验 USDC 折溢价与 BTC
+之后方向是否对齐；不声称资金流因果，也不执行兑换。
 同系列还提供 `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short、
 清算和 basis 上下文，但不把聚合比率解释成真实持仓归属。
 现在还提供 Python recorder/replay：把聚合拥挤状态写入 JSONL，并要求连续快照后才报告持续候选；

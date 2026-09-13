@@ -216,6 +216,10 @@ joins normalized `defi_native_state` pressure snapshots with a synchronized BTC
 quote and compares fixed-record forward responses for pressure versus ordinary
 pool states. This remains a descriptive study; it adds no route, gas, LP-PnL,
 wallet or swap-execution path.
+The stablecoin family also includes a directional USDC/USDT rotation replay:
+it normalizes both quote orientations and tests whether USDC discounts/premiums
+align with later BTC direction, without claiming capital-flow causality or
+conversion execution.
 The microstructure family also exposes optional CoinGlass aggregate derivatives
 context while preserving missing-key and missing-metric evidence.
 It now includes a Python recorder/replay pair that tests whether aggregate
