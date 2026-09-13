@@ -26,6 +26,7 @@ Cases:
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
+- `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
@@ -103,6 +104,15 @@ kline documentation](https://developers.binance.com/docs/derivatives/coin-margin
 The result reports aligned close-to-close returns after a paper hurdle; it is
 not a universal session edge or an execution instruction.
 
+The anchored-VWAP replay is deliberately separate from session VWAP. At each
+candle it chooses a low or high only from the preceding lookback, anchors the
+typical-price OHLCV VWAP there, and records only a fresh reclaim or rejection
+with optional volume confirmation. It then measures the next fixed candle index;
+the anchor is not an externally verified news/event timestamp and the result is
+not a technical-analysis guarantee. The research lead is the public [anchored
+VWAP discussion on X](https://x.com/Jake__Wujastyk/status/1873917626638098894),
+cross-checked with [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 The volume-profile case is motivated by the public [compression-to-expansion /
 low-volume-node discussion on X](https://x.com/Stoiiic/status/1796078958674628714)
 and cross-checked against the research [Liquidity-Driven Breakout Reliability
@@ -147,6 +157,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
 - `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
+- `crypto_anchored_vwap_replay.py`：以前置窗口 swing low/high 为锚点，检验 VWAP 夺回/跌破后的固定窗口响应。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`：检验两项以上压力条件是否在多个快照中持续。
 
@@ -196,6 +207,12 @@ session VWAP、EMA(9/21)、MACD 加成交量确认，并测量固定未来 K 线
 [X 上 15 分钟 VWAP/EMA/MACD/成交量讨论](https://x.com/Gustafssonkotte/status/2030566353178882122)，
 K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
 输出是纸面 close-to-close 统计，不是普适时段优势或执行指令。
+
+`crypto_anchored_vwap_replay.py` 与 session VWAP 分开：每根 K 线只从前置回看窗口选择 swing low 或 swing high，
+以该点开始计算 typical-price OHLCV VWAP，只记录新的夺回或跌破，并可要求成交量确认，再测量固定未来 K 线窗口。
+锚点不是外部验证的新闻/事件时间戳，结果也不是技术分析保证。研究线索来自公开的
+[anchored VWAP X 讨论](https://x.com/Jake__Wujastyk/status/1873917626638098894)，K 线语义对照
+[Binance 官方文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
 
 `crypto_volume_profile_breakout_replay.py` 检验低成交量节点（LVN）突破：用历史 OHLCV 近似 volume-at-price，
 从滚动 profile 计算 value area，要求价格离开 value area、进入低量 bin 并有成交量确认，再测量固定未来窗口。
@@ -305,6 +322,10 @@ python3 examples/crypto/microstructure/crypto_session_momentum_replay.py \
   --timezone America/New_York --session-start 09:00 --session-end 09:15 \
   --volume-multiplier 1.0 --horizon-bars 15 --min-score 4 \
   --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/microstructure/crypto_anchored_vwap_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 5m \
+  --anchor-lookback 96 --anchor-mode both --horizon-bars 12 \
+  --volume-multiplier 1.0 --paper-cost-bps 10 --min-observations 5
 python3 examples/crypto/microstructure/crypto_volume_profile_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --interval 1m --days 3 \
   --lookback-bars 120 --bins 24 --value-area-fraction 0.70 \

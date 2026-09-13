@@ -940,6 +940,8 @@ BTC 绝对波动；不推断储备、赎回、偿付能力，也不把它变成�
 ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配或执行路径。
 微结构系列还新增独立的拥挤响应 recorder/replay：把 CoinGlass 上下文与 MarketBridge 价格快照一起冻结，
 报告固定记录窗口的签名响应，并单独保留伴随清算的样本；不会把聚合 ratio 解释成持仓归属或交易信号。
+同系列还新增 anchored VWAP 回放：只用前置窗口选择 swing 锚点，避免未来数据泄漏，检验历史 K 线中的新夺回/跌破响应，
+并明确保留 OHLCV 近似和事件身份限制。
 sentiment 系列还新增 Fear & Greed 极值 recorder/replay，用 MarketBridge 价格快照测量固定窗口的未来收益分布，
 但不会把公开情绪转成执行信号。
 可选 CryptoPanic 路径现在会按每条新闻 URL 保留独立 external-signal 实例，并提供 Python 新闻注意力

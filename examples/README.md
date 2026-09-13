@@ -40,6 +40,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
 | `crypto/microstructure/crypto_quarter_hour_flow_replay.py` | UTC quarter-hour opening taker-flow imbalance may align with a fixed-horizon perp return | `/v1/history/candles` at 1m and `/v1/history/trades` | Phase-aligned single-venue replay; bounded history, clock-phase causality, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_session_momentum_replay.py` | Session VWAP/EMA(9/21)/MACD/volume confluence may align with a fixed-horizon return | `/v1/history/candles` | Timezone-aware close-to-close replay; session definition, missing bars, costs and execution remain explicit gaps |
+| `crypto/microstructure/crypto_anchored_vwap_replay.py` | A reclaim above a prior swing-low anchored VWAP, or rejection below a swing-high anchored VWAP, may align with a fixed-horizon return | `/v1/history/candles` | Prior-window anchor and OHLCV VWAP replay; event identity, tick volume, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_volume_profile_breakout_replay.py` | A close leaving the prior value area into an OHLCV-approximated low-volume node may continue | `/v1/history/candles` | Volume-at-price approximation replay; tick-level profile, thresholds, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_footprint_imbalance_monitor.py` / recorder / replay | Price-bin bid/ask delta and stacked imbalance may persist across rolling trade-buffer snapshots | `/v1/market/footprint` and JSONL archive | Persistence diagnostic; rolling retention, bin semantics, resting liquidity and forward returns remain explicit gaps |
 | `crypto/microstructure/crypto_derivatives_sentiment_monitor.py` | Aggregate funding/OI/long-short/liquidation context should remain visible without inferring position ownership | `/v1/external/signals?sources=coinglass` | Optional keyed snapshot context; missing metrics remain observe-only and no execution model |
@@ -169,6 +170,10 @@ python3 examples/weather_market_calibration.py \
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT \
   --interval 1m --limit 60 --timezone America/New_York
+python3 examples/crypto/microstructure/crypto_anchored_vwap_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 5m \
+  --anchor-lookback 96 --anchor-mode both --horizon-bars 12 \
+  --volume-multiplier 1.0 --paper-cost-bps 10 --min-observations 5
 python3 examples/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --days 3 --range-bars 12 --compression-window 12 \
@@ -364,6 +369,7 @@ rewritten as falsifiable hypotheses:
 - [Bayesian event-arb / faster evidence update narrative (unverified public claim)](https://x.com/0xRicker/status/2035334040216113631)
 - [15-minute Polymarket timing, early price discovery vs late conviction narrative (unverified public claim)](https://x.com/telonex/status/2022251717270573513)
 - [15-minute session, VWAP/EMA/MACD/volume narrative (unverified public claim)](https://x.com/Gustafssonkotte/status/2030566353178882122)
+- [Anchored VWAP technical-analysis discussion (unverified public claim)](https://x.com/Jake__Wujastyk/status/1873917626638098894)
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
 - [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
 - [Crowded positioning and liquidation-to-reversal context (unverified public claim)](https://x.com/TheCryptoData/status/1948466627365769584)

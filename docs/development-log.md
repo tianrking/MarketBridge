@@ -14,6 +14,18 @@ no-order boundaries are preserved in output and the bilingual microstructure
 guide. Provenance: [CryptoData's public liquidation-threshold discussion on
 X](https://x.com/TheCryptoData/status/1948466627365769584).
 
+## 2026-09-14 — event-anchored VWAP replay
+
+Added `crypto_anchored_vwap_replay.py` to separate event-anchored VWAP from
+the existing session VWAP case. For every candle it chooses a swing low or high
+only from a preceding lookback, computes typical-price OHLCV VWAP from that
+anchor, requires a fresh reclaim/rejection and optional volume confirmation, and
+measures the next fixed candle-index response. The implementation explicitly
+does not claim an externally verified event timestamp, tick-level volume, or
+execution edge. Provenance: the unverified [anchored VWAP discussion on
+X](https://x.com/Jake__Wujastyk/status/1873917626638098894), cross-checked with
+[Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — footprint imbalance persistence monitor
 
 Added Python monitor/recorder/replay entrypoints for the existing

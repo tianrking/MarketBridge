@@ -160,6 +160,9 @@ recorder/replay: it freezes CoinGlass context beside a MarketBridge price
 snapshot and reports signed fixed-record responses, including a
 liquidation-qualified bucket, without turning aggregate ratios into ownership
 or a trade signal.
+It also includes an anchored-VWAP replay that chooses prior-window swing
+anchors without look-ahead and measures fresh reclaim/rejection responses from
+historical candles, keeping the OHLCV and event-identity approximations visible.
 The sentiment family also includes a Fear & Greed extreme-state recorder/replay
 that measures fixed-horizon forward-response distributions from MarketBridge
 price snapshots without turning public sentiment into an execution signal.
