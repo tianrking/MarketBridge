@@ -100,7 +100,7 @@ The Python-first crypto strategy index is maintained in
 [examples/README.md](examples/README.md), with bilingual family guides under
 [`examples/crypto/`](examples/crypto/README.md). The categorized entrypoints
 include carry/funding, microstructure/liquidation/liquidity stress,
-options/volatility, DeFi pool research and cross-asset research. Each runner requests only the
+options/volatility, DeFi pool, on-chain transfer and cross-asset research. Each runner requests only the
 selected strategy's normalized inputs; the Rust server may still ingest every
 feed enabled in its runtime config.
 The carry family now also includes a funding-regime persistence replay: it

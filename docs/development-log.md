@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — bounded on-chain transfer burst replay
+
+Added the categorized `examples/crypto/onchain/` case for a public large-
+transfer liquidity lead. It compares rolling transfer USD bursts from
+`/v1/onchain/transfers` with ordinary forward absolute candle moves from
+`/v1/history/candles`; it preserves direction, asset, chain and source only as
+metadata. The implementation explicitly rejects exchange-net-flow, stablecoin
+supply and directional claims because the cache is bounded and transfer events
+may be bundled or internal. Added bilingual provenance, a deterministic test,
+and no wallet or execution path.
+
 ## 2026-09-14 — DeFi pool flow and liquidity-pressure examples
 
 Added the categorized `examples/crypto/defi/` family. The monitor joins
