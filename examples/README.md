@@ -49,7 +49,7 @@ categorized command is the recommended one.
 | `weather_event_observer.py` | A daily weather bucket can be compared with a provider observation/forecast | `/v1/external/weather` | Deterministic observation only; no implied probability |
 | `weather_pressure_differential.py` | Compare a weather observation with a matching Polymarket YES ask after an external update | `/v1/external/weather`, `/polymarket/markets`, `/polymarket/books` | Investigation candidate only; identity, probability and fill assumptions remain explicit |
 | `weather_market_calibration.py` | Compare archived weather buckets with verified closed-market outcomes and optional YES prices | `/v1/external/weather` + explicit JSONL manifest | Descriptive calibration; identity and resolution rules are caller-owned |
-| `crypto_session_filter.py` | Test a short session-window hypothesis with VWAP, EMA(9/21), MACD and volume confirmation | `/v1/market/klines` | Research filter; no universal timing edge or fill model |
+| `crypto/microstructure/crypto_session_filter.py` | Test a short session-window hypothesis with VWAP, EMA(9/21), MACD and volume confirmation | `/v1/market/klines` | Research filter; no universal timing edge or fill model |
 | `crypto_volatility_breakout_replay.py` | A range break after compressed realized volatility may continue when candle volume and optional taker flow confirm | `/v1/history/candles`, optional `/v1/history/trades` | Bounded close-to-close replay; no execution, funding or fee model |
 | `crypto_options_skew_monitor.py` | Put-wing IV minus call-wing IV and near/far ATM IV term structure expose options hedging demand and volatility regime | `/v1/options/chains` | Snapshot observer using transparent moneyness buckets; no delta-hedge or execution model |
 | `crypto_options_skew_recorder.py` | Freeze repeated options skew snapshots so persistence can be tested rather than inferred from one quote | `/v1/options/chains` | Append-only JSONL observation archive; no private ledger or order data |
@@ -153,7 +153,7 @@ python3 examples/weather_pressure_differential.py \
   --min-temp 15 --max-temp 25 --max-yes-ask 0.25
 python3 examples/weather_market_calibration.py \
   --manifest examples/weather-market-manifest.example.jsonl
-python3 examples/crypto_session_filter.py \
+python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT \
   --interval 1m --limit 60 --timezone America/New_York
 python3 examples/crypto_volatility_breakout_replay.py \
