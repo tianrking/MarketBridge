@@ -28,6 +28,7 @@ Cases:
 - `crypto_bollinger_squeeze_replay.py`: a trailing BandWidth squeeze followed by an upper/lower-band break versus fixed-horizon continuation.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
+- `crypto_vwap_deviation_reversion_replay.py`: prior UTC-session VWAP deviation followed by a cross-back versus fixed-horizon directional response.
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
@@ -104,6 +105,15 @@ post's ATR stops, leverage or automated execution. Provenance: the public
 [Bollinger BandWidth/Squeeze explanation](https://www.bollingerbands.com/bollinger-band-rules)
 and the unverified [VWAP + Bollinger squeeze lead on X](https://x.com/instaclaws/status/2038363051213181035).
 
+The VWAP-deviation case is separate from anchored VWAP reclaim and session
+confluence: it resets at UTC midnight, measures a volume-weighted typical-price
+VWAP plus weighted standard deviation, and only records a cross-back after the
+previous close was outside the configured percentage/standard-deviation band.
+Provenance: the public [BTC VWAP mean-reversion study](https://www.coinquant.ai/blog/vwap-strategy-backtest-on-bitcoin-intraday-mean-reversion-results)
+and the [VWAP-band construction reference](https://www.basischarts.com/indicators/vwap-bands).
+The replay is intentionally able to report a negative result and contains no
+position, stop or execution model.
+
 The quarter-hour case is a stricter replay of a public [order-book imbalance and
 funding-rate strategy lead on X](https://x.com/instaclaws/status/2038363051213181035),
 not an endorsement of its automated-trading claims. It is cross-checked against
@@ -175,6 +185,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
 - `crypto_bollinger_squeeze_replay.py`：用前一根 K 线的 BandWidth 历史分位识别压缩，再检验上下轨突破后的固定窗口延续。
+- `crypto_vwap_deviation_reversion_replay.py`：按 UTC 日重置 VWAP，用成交量加权典型价标准差识别前一根偏离，再检验回穿 VWAP 后的固定窗口方向响应。
 - `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
 - `crypto_anchored_vwap_replay.py`：以前置窗口 swing low/high 为锚点，检验 VWAP 夺回/跌破后的固定窗口响应。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
@@ -257,6 +268,12 @@ Bollinger 案例与已有 realized-volatility/区间突破回放分开：它只�
 再检验随后突破上轨或下轨后的固定窗口延续，不加入公开帖子里的 ATR 止损、杠杆或自动执行。出处是公开的
 [Bollinger BandWidth/Squeeze 说明](https://www.bollingerbands.com/bollinger-band-rules)，以及未经验证的
 [X 上 VWAP + Bollinger squeeze 线索](https://x.com/instaclaws/status/2038363051213181035)。
+
+VWAP deviation 案例与 anchored VWAP 夺回和 session confluence 分开：按 UTC 午夜重置，用成交量加权典型价计算 VWAP 及
+标准差，只记录前一根收盘价在百分比/标准差带外、当前收盘回穿 VWAP 的事件。出处参考公开的
+[BTC VWAP 均值回归研究](https://www.coinquant.ai/blog/vwap-strategy-backtest-on-bitcoin-intraday-mean-reversion-results)
+和 [VWAP band 计算说明](https://www.basischarts.com/indicators/vwap-bands)。回放可以如实报告负结果，
+不含仓位、止损或执行模型。
 
 `crypto_derivatives_sentiment_monitor.py` 使用可选的 CoinGlass aggregate signal，把资金费率、OI、
 long/short ratio、basis 和 liquidation 放在同一上下文中；API key 缺失或指标缺失会保持为 observe-only，
@@ -350,6 +367,10 @@ python3 examples/crypto/microstructure/crypto_bollinger_squeeze_replay.py \
   --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
   --period 20 --deviations 2 --bandwidth-lookback 96 \
   --max-bandwidth-quantile 0.20 --horizon-bars 12 \
+  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
+python3 examples/crypto/microstructure/crypto_vwap_deviation_reversion_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1h --days 30 \
+  --deviation-bps 50 --sigma 2 --horizon-bars 12 \
   --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60

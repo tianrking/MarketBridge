@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — session VWAP-deviation reversion replay
+
+Added `crypto_vwap_deviation_reversion_replay.py` under microstructure. It
+resets at UTC midnight, computes volume-weighted typical-price VWAP and weighted
+standard deviation from OHLCV, then records only a cross-back after the prior
+close was outside a percentage/standard-deviation band. The fixed forward
+window reports gross and paper-cost-adjusted directional responses and can
+honestly remain negative. Provenance: the public [BTC VWAP mean-reversion
+study](https://www.coinquant.ai/blog/vwap-strategy-backtest-on-bitcoin-intraday-mean-reversion-results)
+and [VWAP-band construction reference](https://www.basischarts.com/indicators/vwap-bands).
+No position, stop or execution model was added.
+
 ## 2026-09-14 — keyed social-signal response replay
 
 Added `crypto_social_signal_response_recorder.py` and

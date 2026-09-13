@@ -42,6 +42,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
 | `crypto/microstructure/crypto_quarter_hour_flow_replay.py` | UTC quarter-hour opening taker-flow imbalance may align with a fixed-horizon perp return | `/v1/history/candles` at 1m and `/v1/history/trades` | Phase-aligned single-venue replay; bounded history, clock-phase causality, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_session_momentum_replay.py` | Session VWAP/EMA(9/21)/MACD/volume confluence may align with a fixed-horizon return | `/v1/history/candles` | Timezone-aware close-to-close replay; session definition, missing bars, costs and execution remain explicit gaps |
+| `crypto/microstructure/crypto_vwap_deviation_reversion_replay.py` | A prior UTC-session VWAP deviation followed by a cross-back may show directional mean-reversion response | `/v1/history/candles` | OHLCV VWAP-band response study; session reset, parameters, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_anchored_vwap_replay.py` | A reclaim above a prior swing-low anchored VWAP, or rejection below a swing-high anchored VWAP, may align with a fixed-horizon return | `/v1/history/candles` | Prior-window anchor and OHLCV VWAP replay; event identity, tick volume, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_volume_profile_breakout_replay.py` | A close leaving the prior value area into an OHLCV-approximated low-volume node may continue | `/v1/history/candles` | Volume-at-price approximation replay; tick-level profile, thresholds, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_footprint_imbalance_monitor.py` / recorder / replay | Price-bin bid/ask delta and stacked imbalance may persist across rolling trade-buffer snapshots | `/v1/market/footprint` and JSONL archive | Persistence diagnostic; rolling retention, bin semantics, resting liquidity and forward returns remain explicit gaps |
@@ -201,6 +202,10 @@ python3 examples/crypto/microstructure/crypto_bollinger_squeeze_replay.py \
   --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
   --period 20 --deviations 2 --bandwidth-lookback 96 \
   --max-bandwidth-quantile 0.20 --horizon-bars 12 \
+  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
+python3 examples/crypto/microstructure/crypto_vwap_deviation_reversion_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1h --days 30 \
+  --deviation-bps 50 --sigma 2 --horizon-bars 12 \
   --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
 python3 examples/crypto/microstructure/crypto_short_squeeze_response_recorder.py \
   --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 30 \
