@@ -103,6 +103,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/research/features" => routes::research::features,
         "/v1/research/market-regime" => routes::research::market_regime,
         "/v1/research/symbol-state" => routes::strategy::symbol_state,
+        "/v1/research/squeeze/scan" => routes::strategy::squeeze_scan,
         "/v1/storage/manifest" => routes::storage::manifest,
         "/v1/integration/context" => routes::integration::context,
         "/v1/integration/capabilities" => routes::integration::capabilities,
@@ -167,6 +168,10 @@ pub fn build_router(state: ApiState) -> Router {
         .route(
             "/v1/research/replay",
             post(routes::opportunities::replay).options(cors::preflight),
+        )
+        .route(
+            "/v1/research/squeeze/archive",
+            post(routes::strategy::archive_squeeze_scan).options(cors::preflight),
         )
         .route(
             "/v1/storage/partitions",

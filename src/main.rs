@@ -35,6 +35,7 @@ mod router;
 mod runtime;
 mod source;
 mod source_roadmap;
+mod squeeze_radar;
 mod strategy_state;
 mod types;
 

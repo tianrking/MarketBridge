@@ -168,6 +168,7 @@ Short version:
 | Universe filters | `/v1/universe/*` | klines, quotes, external signals | derived | Volume, percent change, volatility, spread, cross-market, market cap, age/listing, and delist-risk filters. |
 | Research features | `/v1/research/features` | klines, quotes, funding, OI, books | derived | Multi-timeframe features, correlated assets, basis/funding/OI/liquidity regimes. |
 | Strategy state | `/v1/research/symbol-state` | live events | derived | Real-time short-squeeze and exhaustion-short state machines with CVD, OFI, OI change, depth pressure, liquidation windows, and read-only risk context. |
+| Squeeze radar | `/v1/research/squeeze/scan` | live state | derived | Read-only ranked squeeze candidates with fixed-window OI/price baselines, freshness gates, raw evidence, and explicit missing-data fields. |
 | Integration context | `/v1/integration/context` | live snapshots + manifest | derived | Compact read-only context bundle for external integrations. |
 | Local lake manifest | `/v1/storage/manifest` | SQLite manifest | metadata | Local Arrow IPC lake index and data-quality metadata. |
 
@@ -483,6 +484,8 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/research/features` | Research feature package. |
 | GET | `/v1/research/market-regime` | Aggregate market regime snapshot. |
 | GET | `/v1/research/symbol-state` | Real-time per-symbol squeeze/exhaustion state machine. |
+| GET | `/v1/research/squeeze/scan` | Read-only squeeze scan over symbols observed by the current process. |
+| POST | `/v1/research/squeeze/archive` | Append-only local archive of the current squeeze scan evidence. |
 | GET | `/v1/integration/context` | Compact read-only integration context. |
 | GET | `/v1/integration/capabilities` | Read-only integration capability inventory. |
 | GET | `/v1/options/chains` | Cached option chains. |

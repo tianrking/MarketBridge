@@ -15,8 +15,13 @@ use crate::types::{
 
 const FLOW_WINDOW_MS: u64 = 60_000;
 const LIQUIDATION_WINDOW_MS: u64 = 15 * 60_000;
+/// Longest rolling window exposed by the read-only squeeze research API.
+/// This is deliberately bounded in memory; durable multi-day research belongs
+/// in the configured data lake / replay workflow.
+const ROLLING_HISTORY_MS: u64 = 24 * 60 * 60_000;
 const MAX_FLOW_EVENTS_PER_SIDE: usize = 20_000;
 const MAX_LIQUIDATION_EVENTS: usize = 10_000;
+const MAX_ROLLING_SAMPLES: usize = 30_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SymbolStateResponse {
@@ -33,6 +38,10 @@ pub struct StrategySymbolState {
     pub exchange: String,
     pub symbol: String,
     pub generated_at_ms: u64,
+    /// Most recent source observation consumed for this exchange/symbol pair.
+    /// `generated_at_ms` is response construction time and must not be used as
+    /// market-data freshness evidence.
+    pub observed_at_ms: u64,
     pub metrics: StrategyMetrics,
     pub long_squeeze: StrategyLegState,
     pub short_exhaustion: StrategyLegState,
@@ -42,10 +51,18 @@ pub struct StrategySymbolState {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct StrategyMetrics {
     pub latest_price: Option<f64>,
+    pub price_observed_at_ms: Option<u64>,
     pub funding_rate: Option<f64>,
+    pub funding_observed_at_ms: Option<u64>,
     pub open_interest: Option<f64>,
     pub open_interest_value: Option<f64>,
+    pub open_interest_observed_at_ms: Option<u64>,
     pub open_interest_change_pct: Option<f64>,
+    /// Fixed-window changes include their actual sampled elapsed time. A null
+    /// value means the service has not observed a suitably aligned baseline.
+    pub open_interest_changes: Vec<RollingChange>,
+    pub price_changes: Vec<RollingChange>,
+    pub funding_observations_24h: usize,
     pub spot_cvd_notional_1m: Option<f64>,
     pub perp_cvd_notional_1m: Option<f64>,
     pub cvd_divergence: Option<String>,
@@ -54,8 +71,18 @@ pub struct StrategyMetrics {
     pub bid_ask_depth_ratio_10: Option<f64>,
     pub depth_pressure_10: Option<f64>,
     pub ofi_best_level_1m: Option<f64>,
+    pub order_book_observed_at_ms: Option<u64>,
     pub buy_liquidation_notional_15m: Option<f64>,
     pub sell_liquidation_notional_15m: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RollingChange {
+    pub window_ms: u64,
+    pub actual_elapsed_ms: u64,
+    pub change_pct: f64,
+    pub baseline_ts_ms: u64,
+    pub latest_ts_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -91,15 +118,22 @@ struct SymbolRuntimeState {
     exchange: String,
     symbol: String,
     latest_price: Option<f64>,
+    price_observed_at_ms: Option<u64>,
     funding_rate: Option<f64>,
+    funding_observed_at_ms: Option<u64>,
     open_interest: Option<f64>,
     open_interest_value: Option<f64>,
+    open_interest_observed_at_ms: Option<u64>,
     previous_open_interest: Option<f64>,
     open_interest_change_pct: Option<f64>,
+    open_interest_history: VecDeque<NumericSample>,
+    price_history: VecDeque<NumericSample>,
+    funding_history: VecDeque<NumericSample>,
     spot_flow: VecDeque<FlowSample>,
     perp_flow: VecDeque<FlowSample>,
     liquidations: VecDeque<LiquidationSample>,
     latest_book: Option<BookSnapshot>,
+    order_book_observed_at_ms: Option<u64>,
     previous_book_top: Option<BookTop>,
     ofi_samples: VecDeque<FlowSample>,
     updated_at_ms: u64,
@@ -116,6 +150,12 @@ struct LiquidationSample {
     ts_ms: u64,
     side: TradeSide,
     notional: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct NumericSample {
+    ts_ms: u64,
+    value: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +226,26 @@ impl StrategyStateStore {
         }
     }
 
+    /// Snapshot every observed symbol. This is intentionally a read-only
+    /// in-memory view; absence from the response means no live data has been
+    /// observed since this process started, not that a market does not exist.
+    pub async fn query_all(&self) -> Vec<StrategySymbolState> {
+        let now = now_ms();
+        let mut rows = self
+            .inner
+            .write()
+            .await
+            .symbols
+            .values_mut()
+            .map(|state| {
+                state.prune(now);
+                state.snapshot(now)
+            })
+            .collect::<Vec<_>>();
+        rows.sort_by(|a, b| a.exchange.cmp(&b.exchange).then(a.symbol.cmp(&b.symbol)));
+        rows
+    }
+
     async fn update_tick(&self, tick: &MarketTick) {
         if tick.market != MarketKind::Perp && tick.market != MarketKind::Spot {
             return;
@@ -196,6 +256,12 @@ impl StrategyStateStore {
         let mut guard = self.inner.write().await;
         let state = guard.symbol_state(tick.exchange, &tick.symbol);
         state.latest_price = Some(tick.mark.unwrap_or(mid));
+        state.price_observed_at_ms = Some(tick.ts_ms);
+        push_numeric(
+            &mut state.price_history,
+            tick.ts_ms,
+            tick.mark.unwrap_or(mid),
+        );
         state.updated_at_ms = tick.ts_ms;
     }
 
@@ -203,8 +269,11 @@ impl StrategyStateStore {
         let mut guard = self.inner.write().await;
         let state = guard.symbol_state(tick.exchange, &tick.symbol);
         state.funding_rate = Some(tick.funding_rate);
+        state.funding_observed_at_ms = Some(tick.ts_ms);
+        push_numeric(&mut state.funding_history, tick.ts_ms, tick.funding_rate);
         if let Some(mark) = tick.mark_price {
             state.latest_price = Some(mark);
+            state.price_observed_at_ms = Some(tick.ts_ms);
         }
         state.updated_at_ms = tick.ts_ms;
     }
@@ -220,6 +289,12 @@ impl StrategyStateStore {
         }
         state.open_interest = Some(tick.open_interest);
         state.open_interest_value = tick.open_interest_value;
+        state.open_interest_observed_at_ms = Some(tick.ts_ms);
+        push_numeric(
+            &mut state.open_interest_history,
+            tick.ts_ms,
+            tick.open_interest,
+        );
         state.updated_at_ms = tick.ts_ms;
     }
 
@@ -242,6 +317,8 @@ impl StrategyStateStore {
             target.pop_front();
         }
         state.latest_price = Some(tick.price);
+        state.price_observed_at_ms = Some(tick.ts_ms);
+        push_numeric(&mut state.price_history, tick.ts_ms, tick.price);
         state.updated_at_ms = tick.ts_ms;
         state.prune(tick.ts_ms);
     }
@@ -262,6 +339,7 @@ impl StrategyStateStore {
             state.liquidations.pop_front();
         }
         state.latest_price = Some(tick.price);
+        state.price_observed_at_ms = Some(tick.ts_ms);
         state.updated_at_ms = tick.ts_ms;
         state.prune(tick.ts_ms);
     }
@@ -284,8 +362,10 @@ impl StrategyStateStore {
         }
         state.previous_book_top = current_top;
         state.latest_book = Some(book_snapshot(tick));
+        state.order_book_observed_at_ms = Some(tick.ts_ms);
         if let Some(book) = &state.latest_book {
             state.latest_price = mid_opt(book.best_bid, book.best_ask).or(state.latest_price);
+            state.price_observed_at_ms = Some(tick.ts_ms);
         }
         state.updated_at_ms = tick.ts_ms;
         state.prune(tick.ts_ms);
@@ -317,6 +397,9 @@ impl SymbolRuntimeState {
         {
             self.liquidations.pop_front();
         }
+        prune_numeric(&mut self.open_interest_history, now);
+        prune_numeric(&mut self.price_history, now);
+        prune_numeric(&mut self.funding_history, now);
     }
 
     fn snapshot(&self, now: u64) -> StrategySymbolState {
@@ -328,6 +411,7 @@ impl SymbolRuntimeState {
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             generated_at_ms: now,
+            observed_at_ms: self.updated_at_ms,
             metrics,
             long_squeeze,
             short_exhaustion,
@@ -370,10 +454,16 @@ impl SymbolRuntimeState {
         };
         StrategyMetrics {
             latest_price: self.latest_price,
+            price_observed_at_ms: self.price_observed_at_ms,
             funding_rate: self.funding_rate,
+            funding_observed_at_ms: self.funding_observed_at_ms,
             open_interest: self.open_interest,
             open_interest_value: self.open_interest_value,
+            open_interest_observed_at_ms: self.open_interest_observed_at_ms,
             open_interest_change_pct: self.open_interest_change_pct,
+            open_interest_changes: rolling_changes(&self.open_interest_history),
+            price_changes: rolling_changes(&self.price_history),
+            funding_observations_24h: self.funding_history.len(),
             spot_cvd_notional_1m: spot_cvd,
             perp_cvd_notional_1m: perp_cvd,
             cvd_divergence,
@@ -382,10 +472,87 @@ impl SymbolRuntimeState {
             bid_ask_depth_ratio_10: ratio,
             depth_pressure_10: pressure,
             ofi_best_level_1m: sum_flow(&self.ofi_samples),
+            order_book_observed_at_ms: self.order_book_observed_at_ms,
             buy_liquidation_notional_15m: buy_liq,
             sell_liquidation_notional_15m: sell_liq,
         }
     }
+}
+
+const ROLLING_WINDOWS_MS: [u64; 5] = [
+    5 * 60_000,
+    15 * 60_000,
+    60 * 60_000,
+    4 * 60 * 60_000,
+    24 * 60 * 60_000,
+];
+
+fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) {
+    if ts_ms == 0 || !value.is_finite() {
+        return;
+    }
+    if samples
+        .back()
+        .is_some_and(|previous| ts_ms < previous.ts_ms)
+    {
+        // Out-of-order samples are not used for historical window baselines;
+        // accepting them would create look-ahead errors in a replay.
+        return;
+    }
+    if samples
+        .back()
+        .is_some_and(|previous| previous.ts_ms == ts_ms)
+    {
+        samples.pop_back();
+    }
+    samples.push_back(NumericSample { ts_ms, value });
+    while samples.len() > MAX_ROLLING_SAMPLES {
+        samples.pop_front();
+    }
+}
+
+fn prune_numeric(samples: &mut VecDeque<NumericSample>, now: u64) {
+    while samples
+        .front()
+        .is_some_and(|sample| now.saturating_sub(sample.ts_ms) > ROLLING_HISTORY_MS)
+    {
+        samples.pop_front();
+    }
+}
+
+fn rolling_changes(samples: &VecDeque<NumericSample>) -> Vec<RollingChange> {
+    let Some(latest) = samples.back().copied() else {
+        return Vec::new();
+    };
+    ROLLING_WINDOWS_MS
+        .into_iter()
+        .filter_map(|window_ms| {
+            let target = latest.ts_ms.saturating_sub(window_ms);
+            // Sampling cadence varies by venue. A baseline is only accepted
+            // when it falls within +/- 25% of the requested window, so a
+            // field named "1h" is never silently a many-hour change.
+            let tolerance = (window_ms / 4).max(30_000);
+            let baseline = samples
+                .iter()
+                .filter(|sample| sample.ts_ms <= latest.ts_ms)
+                .min_by_key(|sample| sample.ts_ms.abs_diff(target))?;
+            let elapsed = latest.ts_ms.saturating_sub(baseline.ts_ms);
+            if baseline.value <= 0.0
+                || elapsed < window_ms.saturating_sub(tolerance)
+                || elapsed > window_ms.saturating_add(tolerance)
+            {
+                return None;
+            }
+            let change_pct = (latest.value - baseline.value) / baseline.value * 100.0;
+            change_pct.is_finite().then_some(RollingChange {
+                window_ms,
+                actual_elapsed_ms: elapsed,
+                change_pct,
+                baseline_ts_ms: baseline.ts_ms,
+                latest_ts_ms: latest.ts_ms,
+            })
+        })
+        .collect()
 }
 
 pub fn spawn_strategy_state_service(
@@ -758,5 +925,28 @@ mod tests {
 
         assert_eq!(state.state, "triggered_short_exhaustion");
         assert!(state.progress.contains(&"book_vacuum"));
+    }
+
+    #[test]
+    fn rolling_changes_require_an_aligned_baseline_and_report_actual_elapsed_time() {
+        let mut samples = VecDeque::new();
+        push_numeric(&mut samples, 1_000, 100.0);
+        push_numeric(&mut samples, 3_601_000, 120.0);
+        let changes = rolling_changes(&samples);
+        let one_hour = changes
+            .iter()
+            .find(|change| change.window_ms == 60 * 60_000)
+            .unwrap();
+        assert_eq!(one_hour.actual_elapsed_ms, 60 * 60_000);
+        assert!((one_hour.change_pct - 20.0).abs() < f64::EPSILON);
+
+        let mut sparse = VecDeque::new();
+        push_numeric(&mut sparse, 1_000, 100.0);
+        push_numeric(&mut sparse, 8 * 60 * 60_000 + 1_000, 120.0);
+        assert!(
+            rolling_changes(&sparse)
+                .iter()
+                .all(|change| change.window_ms != 60 * 60_000)
+        );
     }
 }

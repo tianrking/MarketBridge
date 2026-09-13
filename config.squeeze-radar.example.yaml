@@ -1,0 +1,33 @@
+# Read-only Squeeze Radar v0 example. No private account credentials, order
+# endpoint, wallet, borrowing, or transfer capability is configured here.
+runtime:
+  api_addr: "127.0.0.1:8080"
+  queue_capacity: 8192
+  broadcast_capacity: 8192
+  backpressure: block
+  report_interval_ms: 1000
+  stale_ttl_ms: 3000
+  api_rate_limit_per_minute: 120
+strategy:
+  min_profit_usdt: 0
+  min_profit_bps: 0
+  min_signal_hold_ms: 1000
+  slippage_bps: 0
+  book_signal_notional_usdt: 1000
+
+# Keep this deliberately bounded. First discover a broad funding universe via
+# /v1/market/perpetual-funding, then add only reviewed symbols to this list.
+symbols: [BTCUSDT, ETHUSDT, SOLUSDT]
+perp_symbols: [BTCUSDT, ETHUSDT, SOLUSDT]
+exchanges:
+  binance:
+    enabled: true
+    fee: {mode: fixed, maker_bps: 10, taker_bps: 10}
+  okx:
+    enabled: true
+    fee: {mode: fixed, maker_bps: 10, taker_bps: 10}
+
+klines:
+  enabled: true
+  sqlite_path: "data/squeeze-radar.sqlite"
+  lake_root: "data/squeeze-radar-lake"

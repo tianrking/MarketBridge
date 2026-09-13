@@ -36,6 +36,7 @@ All releases:
 | [`query_examples.md`](query_examples.md) | Broad scenario cookbook covering common searches across funding, price change, exchange coverage, symbol discovery, exports, and monitoring setup. |
 | [`perpetual_funding_cookbook.md`](perpetual_funding_cookbook.md) | Copy-paste `curl + jq` cookbook for perpetual contract discovery, funding-rate range searches, cross-exchange comparisons, CSV exports, and watchlist generation. |
 | [`squeeze_and_exhaustion_examples.md`](squeeze_and_exhaustion_examples.md) | Read-only symbol-level squeeze and exhaustion-short monitoring examples, including current data dimensions and known gaps. |
+| [`squeeze_radar.md`](squeeze_radar.md) | Squeeze Radar v0: bounded live setup, fixed-window evidence gates, scan/archive APIs, paper-study rules, and explicit model limits. |
 
 ## Coverage And Engineering References
 
