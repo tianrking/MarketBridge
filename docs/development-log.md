@@ -1037,3 +1037,16 @@ not a directional, routing or execution strategy.
 Provenance: the decomposition follows the unverified public [Pine Analytics /
 FlyingTulip execution-risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994)
 and the primary [Binance order-book API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).
+
+## 2026-09-14 — spot/perp depth-gap response recorder and replay
+
+Added the missing response layer for the existing same-venue spot/perpetual
+depth-gap recorder. The new recorder freezes each target-size spot/perp book and
+basis observation beside a perpetual MarketBridge quote. The replay compares
+fixed-record signed and absolute BTC movement after perp-depth advantage,
+spot-depth advantage and no-material-gap states. It keeps asynchronous books,
+displayed-depth limitations, basis context and the no-execution boundary
+explicit; no hedge route or arbitrage PnL is inferred.
+
+Provenance: the public [spot/perp depth-gap discussion on X](https://x.com/ciaobelindazhou/status/2031929849850273955)
+is an unverified lead, cross-checked against [Binance's official order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).

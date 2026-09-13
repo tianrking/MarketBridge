@@ -136,6 +136,9 @@ leaving inventory, settlement and execution outside MarketBridge.
 It now also has a response recorder/replay that joins those book states to a
 BTC quote and compares later movement after qualifying versus unqualified
 snapshots; this remains descriptive and does not infer arbitrage PnL or fills.
+The microstructure family also has a spot/perp depth-gap response replay that
+compares later BTC movement after perp-depth advantage, spot-depth advantage
+and no-material-gap states without turning a displayed book into a hedge route.
 The carry family now also includes a single-venue triangular quote-consistency
 monitor/recorder/replay for BTCUSDT, ETHBTC and ETHUSDT. It evaluates both
 conversion directions with a paper per-leg cost and consecutive-snapshot

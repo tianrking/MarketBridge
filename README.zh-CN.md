@@ -912,6 +912,8 @@ options 系列新增 `crypto_options_gamma_response_recorder.py` /
 同系列的 `crypto_spot_perp_depth_gap_monitor.py` 比较同交易所现货/永续目标规模深度与冲击，
 只输出执行风险观察，不执行路由或对冲。
 并提供 recorder/replay 版本检验深度优势是否持续，避免单个盘口快照被误当成稳定结构。
+现在还提供 spot/perp depth-gap response recorder/replay：比较永续优势、现货优势和无明显差异状态之后固定记录窗口的
+BTC 响应，不把展示盘口转成对冲路由或套利执行。
 universe 系列还提供 `crypto_volatility_adjusted_momentum_sweep.py`，用于比较多个窗口的
 样本内敏感性；回放和扫描可用 `--roundtrip-cost-bps` 加入固定纸面成本门槛，但不会自动
 挑选或发布实盘参数。

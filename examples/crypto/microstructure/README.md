@@ -25,6 +25,7 @@ Cases:
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`: freeze the same context beside a price snapshot and compare signed fixed-record responses after long/short crowding, with a separate liquidation-qualified bucket.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
+- `crypto_spot_perp_depth_gap_response_recorder.py` / `crypto_spot_perp_depth_gap_response_replay.py`: freeze depth-gap states beside a quote and compare later BTC movement by state.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
 - `crypto_bollinger_squeeze_replay.py`: a trailing BandWidth squeeze followed by an upper/lower-band break versus fixed-horizon continuation.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
@@ -110,6 +111,17 @@ The spot/perp depth-gap monitor is an execution-risk observation motivated by
 [a public discussion of the spot/perp depth gap on X](https://x.com/ciaobelindazhou/status/2031929849850273955).
 It tests the claim with a target-size snapshot and current basis context; it
 does not assume that deeper perp liquidity makes a hedge executable.
+
+The spot/perp depth-gap response recorder/replay is a separate temporal test.
+It adds a perpetual MarketBridge quote to each depth/basis snapshot, then
+compares fixed-record signed and absolute BTC movement after
+`perp_depth_advantage_observation`, `spot_depth_advantage_observation` and
+`no_material_depth_gap`. This does not convert a displayed depth advantage
+into a hedge route, arbitrage PnL or execution claim.
+
+Provenance: the public [spot/perp depth-gap discussion on X](https://x.com/ciaobelindazhou/status/2031929849850273955)
+is treated as an unverified lead and the book fields are cross-checked against
+[Binance's official order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).
 
 The CVD divergence replay is deliberately separate from breakout confirmation:
 it requires a material price move and opposite taker-flow ratio over the same
@@ -231,6 +243,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`：把同一聚合上下文和价格快照一起冻结，比较多头/空头拥挤后的固定记录窗口签名收益，并单独统计伴随清算的样本。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
+- `crypto_spot_perp_depth_gap_response_recorder.py` / `crypto_spot_perp_depth_gap_response_replay.py`：把深度差状态与同步报价冻结，按永续优势、现货优势和无明显差异比较后续 BTC 响应。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
 - `crypto_bollinger_squeeze_replay.py`：用前一根 K 线的 BandWidth 历史分位识别压缩，再检验上下轨突破后的固定窗口延续。
 - `crypto_vwap_deviation_reversion_replay.py`：按 UTC 日重置 VWAP，用成交量加权典型价标准差识别前一根偏离，再检验回穿 VWAP 后的固定窗口方向响应。
@@ -286,6 +299,13 @@ MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺�
 
 现货/永续深度差监控的研究线索来自[公开 X 讨论](https://x.com/ciaobelindazhou/status/2031929849850273955)。
 它用目标规模盘口和当前 basis 做执行风险观察，不假设永续深度更深就代表对冲一定可成交。
+
+spot/perp depth-gap response recorder/replay 是独立的时间检验：为每个深度/basis 快照补充永续 MarketBridge 报价，
+再按 `perp_depth_advantage_observation`、`spot_depth_advantage_observation` 和 `no_material_depth_gap` 比较固定记录窗口的
+BTC 有符号/绝对波动。这不会把展示深度优势转成对冲路由、套利 PnL 或执行结论。
+
+出处：公开 [现货/永续深度差 X 讨论](https://x.com/ciaobelindazhou/status/2031929849850273955)
+只是未经验证的研究线索，盘口字段对照 [Binance 官方 order-book 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)。
 
 波动率突破回放支持 `--roundtrip-cost-bps`，同时输出 gross 与扣除纸面成本后的方向收益、命中率和 verdict；
 候选必须满足 after-cost 平均 edge 与最小样本数。这个门槛是透明敏感性输入，不是交易所成交模型。
@@ -432,6 +452,13 @@ python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_recorder.py \
   --output work/crypto-spot-perp-depth.jsonl
 python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_replay.py \
   --input work/crypto-spot-perp-depth.jsonl --min-depth-ratio 2.0 --min-run 3
+python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --target-notional 10000 \
+  --iterations 60 --interval-secs 30 \
+  --output work/crypto-spot-perp-depth-response.jsonl
+python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_response_replay.py \
+  --input work/crypto-spot-perp-depth-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
   --roundtrip-cost-bps 20 --min-cost-adjusted-edge-bps 0
