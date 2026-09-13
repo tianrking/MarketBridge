@@ -1038,6 +1038,20 @@ Provenance: the decomposition follows the unverified public [Pine Analytics /
 FlyingTulip execution-risk discussion on X](https://x.com/PineAnalytics/status/1974474638093590994)
 and the primary [Binance order-book API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book).
 
+## 2026-09-14 — universe opportunity candidate-response replay
+
+Added a response lifecycle for the bounded universe opportunity scanner. The
+new recorder freezes the point-in-time top-k candidate list beside perpetual
+quotes and a BTC benchmark. The replay uses only that captured candidate list
+to form an equal-weight paper basket, then compares its next fixed-record
+return with BTC. Missing constituent prices remain a separate coverage state;
+the result does not allocate capital, model turnover, or execute rebalancing.
+
+Provenance: the candidate-discovery framing remains the unverified [RoboNet
+multi-asset perpetuals discussion on X](https://x.com/RoboNetHQ/status/2024893544520143012),
+cross-checked with [Binance's public funding-history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
+and MarketBridge's normalized universe endpoints.
+
 ## 2026-09-14 — spot/perp depth-gap response recorder and replay
 
 Added the missing response layer for the existing same-venue spot/perpetual

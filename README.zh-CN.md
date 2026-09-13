@@ -1013,6 +1013,8 @@ BTC 有符号/绝对波动；不会把成交成本转成方向信号或路由信
 资金费率收敛回放还支持显式的每小时纸面成本门槛，同时报告 gross 与扣除门槛后的持续性，
 但不会伪装成交易所手续费、借贷成本或对冲成交模型。
 Universe scanner 也新增 recorder/replay，用于检验候选集合是否跨快照持续，不会把当前排名变成组合权重。
+现在还提供 candidate-response recorder/replay：冻结 top-k 候选及其报价，比较等权纸面篮子与 BTC 的固定窗口响应，
+并明确保留成分缺失与换手限制。
 volatility-breakout 回放也支持显式纸面成本门槛，并分开保留 gross 与 after-cost 的突破延续证据。
 carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状态报告分布，不推断持仓多空归属。
 同系列还新增 OI impulse recorder/replay：把 OI 扩张、收缩和普通快照与之后的绝对 BTC 波动做比较，

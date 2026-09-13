@@ -20,6 +20,14 @@ freeze the scanner's candidate sets and test whether the top-k universe remains
 present across snapshots. This is persistence evidence only; it does not turn a
 ranking into an allocation or execution signal.
 
+`crypto_universe_opportunity_response_recorder.py` /
+`crypto_universe_opportunity_response_replay.py` extend that archive with
+perpetual quotes for the selected top-k symbols and a BTC benchmark. The replay
+forms an equal-weight paper basket using only the point-in-time candidate list,
+then compares its next fixed-record return with BTC. It is a falsifiable
+candidate-discovery response study, not a portfolio or rebalancing instruction;
+missing constituent prices are excluded from coverage rather than filled.
+
 The volatility-adjusted replay is a separate ranking test: it divides each
 asset's trailing return by its trailing per-bar realized volatility before
 selecting the top basket. Zero-volatility assets are excluded rather than
@@ -132,6 +140,11 @@ regime labels.
 `crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py` 会冻结 scanner
 候选集合，检验 top-k 标的是否跨快照持续出现。这只是候选持续性证据，不会把排名变成资金分配或执行信号。
 
+`crypto_universe_opportunity_response_recorder.py` /
+`crypto_universe_opportunity_response_replay.py` 在同一归档中补充 top-k 标的永续报价和 BTC 基准。
+Replay 只使用当时的候选列表构造等权纸面篮子，再比较下一固定记录窗口相对 BTC 的收益。这是可证伪的候选响应研究，
+不是组合或再平衡指令；成分报价缺失会保留为覆盖缺口，不会填成零。
+
 出处：[RoboNet 在 X 的多资产策略讨论](https://x.com/RoboNetHQ/status/2024893544520143012)
 提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
@@ -170,6 +183,14 @@ python3 examples/crypto/universe/crypto_universe_opportunity_recorder.py \
   --iterations 30 --interval-secs 30 --output work/crypto-universe-opportunities.jsonl
 python3 examples/crypto/universe/crypto_universe_opportunity_replay.py \
   --input work/crypto-universe-opportunities.jsonl --top-k 3 --min-run 3
+python3 examples/crypto/universe/crypto_universe_opportunity_response_recorder.py \
+  --exchange binance --market perp --interval 5m \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --min-score 2 --price-top-k 3 \
+  --iterations 30 --interval-secs 30 \
+  --output work/crypto-universe-opportunity-response.jsonl
+python3 examples/crypto/universe/crypto_universe_opportunity_response_replay.py \
+  --input work/crypto-universe-opportunity-response.jsonl \
+  --top-k 3 --horizon-records 3 --min-assets 2 --min-observations 5
 python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --horizon-bars 8 --top-k 1

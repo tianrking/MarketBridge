@@ -282,6 +282,9 @@ hurdle and reports gross versus after-cost persistence without pretending to
 model venue fees, borrow or hedge fills.
 The universe scanner also has a recorder/replay pair that tests candidate-set
 persistence without turning current rankings into portfolio weights.
+It also has a candidate-response recorder/replay that freezes top-k candidates
+with quotes and compares their equal-weight paper basket with BTC over a fixed
+record horizon, while keeping missing constituents and turnover explicit.
 Volatility-breakout replay also exposes an explicit paper cost hurdle and keeps
 gross versus after-cost continuation evidence separate.
 The carry family also includes a point-in-time price/OI/funding regime replay;
