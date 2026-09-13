@@ -121,6 +121,9 @@ evidence; depth, atomicity, latency, inventory and execution remain outside
 MarketBridge.
 The universe family also includes a frozen-spread pair replay that tests
 relative-price convergence without claiming cointegration or paired fills.
+It also includes an altcoin-breadth replay that compares a caller-selected
+equal-count alt basket with BTC across low/neutral/high trailing participation
+states, while explicitly not reproducing a market-cap index.
 It also exposes a stale/missing-quote risk guard before universe candidates
 enter research, without forecasting delistings or automatically excluding assets.
 The same family exposes the aggregate Rust market-regime context as Python

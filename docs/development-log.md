@@ -14,6 +14,19 @@ no-order boundaries are preserved in output and the bilingual microstructure
 guide. Provenance: [CryptoData's public liquidation-threshold discussion on
 X](https://x.com/TheCryptoData/status/1948466627365769584).
 
+## 2026-09-14 — altcoin breadth relative-response replay
+
+Added `crypto_altcoin_breadth_replay.py` to separate participation breadth
+from the existing cross-asset momentum ranking. For a caller-selected BTC and
+altcoin set, the replay measures the fraction of alts whose trailing return
+beats BTC, then reports the next equal-weight alt-basket versus BTC relative
+response by low/neutral/high breadth state. It preserves exact timestamp
+intersections, missing histories and a paper cost hurdle. The implementation is
+an auditable proxy rather than BlockchainCenter's official market-cap-weighted
+Top-50 Altcoin Season Index. Provenance: [BlockchainCenter's Altcoin Season
+Index definition](https://www.blockchaincenter.net/altcoin-season-index/) and
+the public [xWIN altcoin-index discussion on X](https://x.com/xwinfinance/status/1951412106345193606).
+
 ## 2026-09-14 — event-anchored VWAP replay
 
 Added `crypto_anchored_vwap_replay.py` to separate event-anchored VWAP from

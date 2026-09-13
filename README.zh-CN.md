@@ -942,6 +942,8 @@ ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配�
 报告固定记录窗口的签名响应，并单独保留伴随清算的样本；不会把聚合 ratio 解释成持仓归属或交易信号。
 同系列还新增 anchored VWAP 回放：只用前置窗口选择 swing 锚点，避免未来数据泄漏，检验历史 K 线中的新夺回/跌破响应，
 并明确保留 OHLCV 近似和事件身份限制。
+Universe 系列还新增 altcoin breadth 回放：按调用者选择的等计数山寨币篮子，比较低/中性/高参与度状态下
+山寨币篮子相对 BTC 的后续响应；明确不冒充市值加权指数。
 sentiment 系列还新增 Fear & Greed 极值 recorder/replay，用 MarketBridge 价格快照测量固定窗口的未来收益分布，
 但不会把公开情绪转成执行信号。
 可选 CryptoPanic 路径现在会按每条新闻 URL 保留独立 external-signal 实例，并提供 Python 新闻注意力

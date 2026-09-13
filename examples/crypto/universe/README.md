@@ -8,6 +8,13 @@ cross-asset replay ranks trailing returns across exact timestamp intersections
 and compares the selected basket with an equal-weight benchmark over a fixed
 horizon. Missing symbols and insufficient history remain visible.
 
+`crypto_altcoin_breadth_replay.py` is a separate participation test. It counts
+the fraction of caller-selected altcoins whose trailing return beats BTC, then
+compares the next equal-weight altcoin-basket return with BTC by low, neutral and
+high breadth states. This is intentionally an equal-count proxy: it does not
+reproduce BlockchainCenter's market-cap-weighted Top-50 universe or claim to be
+an official Altcoin Season Index.
+
 `crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py`
 freeze the scanner's candidate sets and test whether the top-k universe remains
 present across snapshots. This is persistence evidence only; it does not turn a
@@ -58,6 +65,12 @@ The candidate-discovery framing is also informed by the public [multi-asset
 perpetuals discussion by RoboNet](https://x.com/RoboNetHQ/status/2024893544520143012);
 it is treated as an unverified research lead.
 
+The breadth definition is cross-checked against [BlockchainCenter's official
+Altcoin Season Index description](https://www.blockchaincenter.net/altcoin-season-index/),
+which defines an alt season using the share of a Top-50 universe outperforming
+Bitcoin over a 90-day window. MarketBridge exposes the universe, lookback and
+thresholds as caller parameters so the approximation remains auditable.
+
 The pair-reversion decomposition is cross-checked against the peer-reviewed
 [Pairs Trading in Cryptocurrency Markets](https://ieeexplore.ieee.org/document/9200323/)
 and the public [Pairs Trading in Crypto paper](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2).
@@ -69,6 +82,10 @@ performance or execution guarantee for MarketBridge.
 这些案例用于发现候选，不负责分配资金。Universe scanner 连接流动性、已实现波动率和当前
 资金费率；跨资产回放在共同 timestamp 上排名历史收益，并将选中篮子与固定窗口的等权基准
 比较。缺失标的和历史长度不足都会保留在结果里。
+
+`crypto_altcoin_breadth_replay.py` 是独立的市场参与度检验：统计调用者选择的山寨币中，过去窗口收益跑赢 BTC
+的比例，再按低、中性、高 breadth 状态比较下一窗口等权山寨币篮子相对 BTC 的响应。这是等计数近似，
+不会冒充 BlockchainCenter 的市值加权 Top-50 或官方 Altcoin Season Index。
 
 波动率调整回放是独立的排名测试：先用历史收益除以逐 K 线已实现波动率，再选择排名靠前
 的篮子。零波动标的会被排除，而不是赋予无穷大分数。它测试风险调整后的排名，不分配资金，
@@ -95,6 +112,10 @@ performance or execution guarantee for MarketBridge.
 提供了波动率调整的研究线索；[CME 的加密资产分散研究](https://www.cmegroup.com/articles/2025/diversifying-crypto-portfolios-with-xrp-and-sol.html)
 说明主要加密资产的波动率确实不同。两者只是可证伪回放的输入，不代表保证收益。
 
+breadth 定义对照 [BlockchainCenter 的 Altcoin Season Index 说明](https://www.blockchaincenter.net/altcoin-season-index/)，
+该说明使用 Top-50 中跑赢 Bitcoin 的比例和 90 天窗口。MarketBridge 将币篮子、回看窗口和阈值都交给调用者，
+确保这个近似可审计。
+
 配对回归拆解另外对照了同行评审的 [Pairs Trading in Cryptocurrency Markets](https://ieeexplore.ieee.org/document/9200323/)
 和公开的 [Pairs Trading in Crypto 论文](https://papers.ssrn.com/sol3/Delivery.cfm/6188418.pdf?abstractid=6188418&mirid=1&type=2)。
 这些资料只提供可测试的相对价格假设，不是 MarketBridge 的收益或执行保证。
@@ -119,6 +140,11 @@ python3 examples/crypto/universe/crypto_universe_opportunity_replay.py \
 python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --horizon-bars 8 --top-k 1
+python3 examples/crypto/universe/crypto_altcoin_breadth_replay.py \
+  --btc-symbol BTCUSDT --alt-symbols ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT \
+  --exchange binance --market perp --interval 1d --lookback-bars 90 \
+  --horizon-bars 7 --low-threshold 0.25 --high-threshold 0.75 \
+  --min-alt-assets 3 --min-observations 5 --paper-cost-bps 20
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 --top-k 1 \

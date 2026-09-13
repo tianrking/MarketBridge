@@ -75,6 +75,7 @@ categorized command is the recommended one.
 | `crypto_universe_opportunity_scan.py` | Rank a bounded perp universe by stored-kline liquidity/realized volatility plus current funding magnitude | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding` | Candidate discovery only; missing joins and unknown funding intervals remain explicit |
 | `crypto/universe/crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py` | Test whether top-k universe candidates persist across snapshots | JSONL from universe and funding endpoints | Persistence diagnostic; no allocation, sizing or execution model |
 | `crypto_cross_asset_momentum_replay.py` | Test whether the strongest trailing BTC/ETH/SOL (or caller-selected) assets beat an equal-weight basket over the next fixed horizon | `/v1/history/candles` for each symbol, exact timestamp intersection | Gross close-to-close replay; no fees, funding, slippage, weight drift or execution model |
+| `crypto/universe/crypto_altcoin_breadth_replay.py` | The fraction of selected altcoins beating BTC over a trailing window may separate the next altcoin-basket-versus-BTC relative response | `/v1/history/candles` for BTC and caller-selected altcoins, exact timestamp intersection | Equal-count breadth proxy; not the official market-cap Top-50 index, no allocation or execution model |
 | `crypto_volatility_adjusted_momentum_replay.py` | Test whether trailing return divided by per-bar realized volatility improves cross-asset ranking versus an equal-weight basket | `/v1/history/candles` for each symbol, exact timestamp intersection | Risk-adjusted ranking replay; optional fixed paper cost hurdle, no allocation/fill model |
 | `crypto_volatility_adjusted_momentum_sweep.py` | Expose sensitivity across lookback, volatility and forward-horizon windows without selecting a live parameter | `/v1/history/candles` fetched once per symbol, bounded parameter grid | In-sample diagnostic with optional paper cost hurdle; best row requires time-held-out validation |
 | `crypto_volatility_adjusted_momentum_walkforward.py` | Evaluate one fixed risk-adjusted momentum parameter set on a later chronological holdout | `/v1/history/candles` for each symbol, exact timestamp intersection | Holdout paper diagnostic; one split is not proof of stable alpha |
@@ -307,6 +308,11 @@ python3 examples/python_strategy_runner.py \
   --cross-asset-symbols BTCUSDT,ETHUSDT,SOLUSDT \
   --cross-asset-interval 1h --cross-asset-lookback 8 \
   --cross-asset-horizon 8 --cross-asset-top-k 1
+python3 examples/crypto/universe/crypto_altcoin_breadth_replay.py \
+  --btc-symbol BTCUSDT --alt-symbols ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT \
+  --exchange binance --market perp --interval 1d --lookback-bars 90 \
+  --horizon-bars 7 --low-threshold 0.25 --high-threshold 0.75 \
+  --min-alt-assets 3 --min-observations 5 --paper-cost-bps 20
 python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 4,8,12 --volatility-bars 4,8,12 --horizon-bars 4,8 \
@@ -380,6 +386,7 @@ rewritten as falsifiable hypotheses:
 - [Deribit bull-call-spread / options-flow observation (unverified public claim)](https://x.com/laevitas1/status/1985373005644476891)
 - [IV minus realized-volatility dashboard / VRP context (unverified public claim)](https://x.com/isellpremium/status/2072350364385349678)
 - [Volatility-adjusted multi-asset BTC/ETH/SOL strategy context (unverified public claim)](https://x.com/RoboNetHQ/status/2024893544520143012)
+- [xWIN altcoin-index / breadth context (unverified public claim)](https://x.com/xwinfinance/status/1951412106345193606)
 - [Compression-to-expansion / low-volume-node context (unverified public claim)](https://x.com/Stoiiic/status/1796078958674628714)
 - [Binance public order-book API documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 - [Cross-exchange arbitrage friction and settlement-latency study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)
