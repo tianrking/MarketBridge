@@ -31,6 +31,11 @@ python3 examples/crypto/options/crypto_options_gamma_replay.py \
   --input work/crypto-options-gamma.jsonl --min-run 3
 python3 examples/crypto/options/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30
+python3 examples/crypto/options/crypto_options_skew_recorder.py \
+  --currency BTC --venue deribit --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-skew.jsonl
+python3 examples/crypto/options/crypto_options_skew_replay.py \
+  --input work/crypto-options-skew.jsonl --min-run 3
 python3 examples/crypto/options/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168

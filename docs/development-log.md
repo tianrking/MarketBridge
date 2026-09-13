@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — categorized launchers completed for remaining Python cases
+
+Added categorized Python launchers for the remaining maintained examples:
+flow/book confirmation, the microstructure monitor, volatility-breakout
+replay, session filter, and options-skew recorder/replay. The root
+implementations remain the single source of logic; the launchers only put each
+case in its research family and preserve the Python-only boundary. Updated the
+microstructure/options bilingual guides and smoke-tested every new launcher
+with `--help`.
+
 ## 2026-09-14 — rolling liquidation-burst replay
 
 Added a microstructure replay for the public “large liquidation threshold may

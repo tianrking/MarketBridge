@@ -16,6 +16,8 @@ Cases:
 - `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
+- `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
+- `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
@@ -53,6 +55,8 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
+- `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
+- `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
 
 流动性压力案例是风险上下文观察器：它回答“现在以指定名义金额退出是否昂贵”，
@@ -85,6 +89,10 @@ python3 examples/crypto/microstructure/liquidity_stress_monitor.py \
 python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --window-hours 24 --horizon-bars 12
+python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 5m --days 7
+python3 examples/crypto/microstructure/crypto_session_filter.py \
+  --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange binance --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000
