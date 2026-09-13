@@ -1,5 +1,34 @@
 # Development log
 
+## 2026-09-14 — Python-only categorized strategy examples
+
+Migrated the four legacy Rust example monitors (squeeze, exhaustion, basis
+carry and liquidation reversal) to Python launchers backed by the shared
+`python_strategy_runner.py`. Removed Rust strategy files from `examples/` and
+added bilingual category guides under `examples/crypto/` for carry,
+microstructure, options/volatility and universe research. The categorized
+launchers preserve simple commands while keeping one implementation, and the
+server remains the Rust data/infrastructure process. Live smoke coverage ran
+all four Python entrypoints for two iterations against Binance/OKX public data;
+all returned structured `research_only_no_orders` observations. CI now guards
+the Python-only invariant so Rust strategy files cannot silently return.
+
+## 2026-09-14 — unsigned options gamma map and persistence replay
+
+Added a Python-first gamma-map case for the public “gamma wall / gamma flip”
+narrative. The observer aggregates `gamma`, `open_interest`, `strike` and
+`underlying_price` into a relative unsigned gamma mass. A live check showed
+Deribit’s summary cache does not always carry greeks, so the observer now uses
+the existing `/options/deribit/book` route for bounded, explicit enrichment and
+reports fetched/unfetched coverage instead of silently treating missing gamma
+as zero. It identifies near-spot concentration and dominant strikes, but does
+not infer dealer long/short gamma from public OI. Added a JSONL recorder/replay
+pair and `options_gamma` runner mode so persistence can be measured before
+anyone studies a realized-volatility response. This is a market-structure
+observation, not a directional signal, hedge ratio or order path.
+
+Provenance: [public BTC gamma-wall discussion on X](https://x.com/david_eng_mba/status/2042265877488533758); field semantics follow [Deribit public option-book documentation](https://docs.deribit.com/api-reference/market-data/public-get-order-book).
+
 ## 2026-09-14 — cross-asset momentum replay
 
 Converted the public adaptive BTC/ETH/SOL perp-vault narrative into a

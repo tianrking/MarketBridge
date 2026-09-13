@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from python_strategy_runner import (
     score_cross_asset_momentum,
     score_funding_convergence,
+    score_options_gamma,
     score_options_skew,
     score_options_vrp,
     score_volatility_breakout,
@@ -39,6 +40,26 @@ def options_payload():
 
 
 class PythonStrategyRunnerTests(unittest.TestCase):
+    def test_options_gamma_dispatch_keeps_dealer_sign_unknown(self):
+        settings = args()
+        settings.gamma_min_near_share = 0.5
+        settings.gamma_min_concentration = 0.1
+        expiry = "2099-01-01T00:00:00Z"
+        options = {"chains": [
+            {"payload": {"expiry_time": expiry, "strike": 100.0,
+                          "option_type": "call", "gamma": 0.1,
+                          "open_interest": 10.0, "underlying_price": 100.0}},
+            {"payload": {"expiry_time": expiry, "strike": 100.0,
+                          "option_type": "put", "gamma": 0.1,
+                          "open_interest": 5.0, "underlying_price": 100.0}},
+        ]}
+        score, maximum, verdict, evidence = score_options_gamma(
+            {"options": options}, settings, {}
+        )
+        self.assertEqual((score, maximum), (1, 1))
+        self.assertEqual(verdict, "gamma-map observation")
+        self.assertIn("dealer gamma sign not inferred", evidence)
+
     def test_cross_asset_momentum_dispatch_reports_gross_evidence(self):
         settings = args()
         settings.cross_asset_lookback = 2

@@ -38,14 +38,14 @@ cargo run
 在另一终端运行空头拥挤／逼空观察（默认 30 秒轮询；`--iterations` 便于做短验收）：
 
 ```bash
-cargo run --example short_squeeze_monitor -- \
+python3 examples/crypto/microstructure/short_squeeze_monitor.py \
   --symbol BTCUSDT --exchange binance --interval-secs 30 --iterations 3
 ```
 
 运行多头拥挤／耗竭观察：
 
 ```bash
-cargo run --example exhaustion_short_monitor -- \
+python3 examples/crypto/microstructure/exhaustion_short_monitor.py \
   --symbol BTCUSDT --exchange binance --interval-secs 30 --iterations 3
 ```
 
@@ -54,7 +54,7 @@ funding 时，空永续的一侧可能收到 funding。MarketBridge 已有 basis
 对应的研究示例是：
 
 ```bash
-cargo run --example basis_carry_monitor -- \
+python3 examples/crypto/carry/basis_carry_monitor.py \
   --symbol BTCUSDT --exchange binance --interval-secs 30 --iterations 3
 ```
 
@@ -66,7 +66,7 @@ cargo run --example basis_carry_monitor -- \
 `/v1/market/order-flow` 和 5 分钟 K 线：
 
 ```bash
-cargo run --example liquidation_reversal_monitor -- \
+python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
   --symbol BTCUSDT --exchange binance --interval-secs 30 --iterations 3
 ```
 

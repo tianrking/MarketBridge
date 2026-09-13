@@ -82,7 +82,7 @@ The example looks for this confluence:
 Run:
 
 ```bash
-cargo run --example short_squeeze_monitor -- --symbol BTCUSDT --exchange binance --iterations 5 --interval-secs 30
+python3 examples/crypto/microstructure/short_squeeze_monitor.py --symbol BTCUSDT --exchange binance --iterations 5 --interval-secs 30
 ```
 
 The output reports a score and evidence lines. OI-change evidence requires at
@@ -121,7 +121,7 @@ The example looks for this confluence:
 Run:
 
 ```bash
-cargo run --example exhaustion_short_monitor -- --symbol BTCUSDT --exchange binance --iterations 5 --interval-secs 30
+python3 examples/crypto/microstructure/exhaustion_short_monitor.py --symbol BTCUSDT --exchange binance --iterations 5 --interval-secs 30
 ```
 
 What it can evaluate today:

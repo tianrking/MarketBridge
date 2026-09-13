@@ -28,6 +28,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enforce Python-only strategy examples
+        run: python -c "from pathlib import Path; p=next(Path('examples').rglob('*.rs'), None); assert p is None, f'Rust strategy example found: {p}'"
+
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:

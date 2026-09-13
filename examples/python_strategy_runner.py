@@ -21,6 +21,11 @@ from crypto_options_skew_monitor import (
     summarize_expiry,
 )
 from crypto_options_vrp_monitor import annualized_realized_vol_pct
+from crypto_options_gamma_monitor import (
+    classify_gamma,
+    observe as observe_options_gamma,
+    summarize_expiry as summarize_gamma_expiry,
+)
 from crypto_cross_asset_momentum_replay import candle_points, evaluate_momentum
 from crypto_volatility_breakout_replay import breakout_features
 from funding_convergence_monitor import observe as observe_funding_convergence
@@ -86,6 +91,13 @@ def fetch_core(client, args):
             "interval": args.rv_interval,
             "limit": args.rv_bars + 1,
         })
+    if args.strategy == "options_gamma":
+        data["options_gamma"] = observe_options_gamma(
+            args.base_url, args.currency, args.options_venue, args.expiry_days,
+            args.atm_band, args.gamma_min_near_share,
+            args.gamma_min_concentration, args.gamma_max_book_fetches,
+            args.timeout,
+        )
     if args.strategy == "volatility_breakout":
         data["breakout_klines"] = client("/v1/history/candles", {
             "exchange": args.exchange or "binance",
@@ -299,6 +311,44 @@ def score_options_vrp(data, args, _previous):
     return int(vrp >= args.vrp_threshold), 1, verdict, evidence
 
 
+def score_options_gamma(data, args, _previous):
+    if data.get("options_gamma") is not None:
+        result = data["options_gamma"]
+        target = result.get("target_expiry") or {}
+        state = target.get("state") or "observe_only_missing_gamma"
+        evidence = list(result.get("evidence", []))
+        if target.get("near_spot_share") is not None:
+            evidence.append(f"near-spot gamma share={target['near_spot_share']:.2%}")
+        if target.get("concentration_at_strike") is not None:
+            evidence.append(f"dominant-strike concentration={target['concentration_at_strike']:.2%}")
+        candidate = state == "near_spot_gamma_concentration"
+        return int(candidate), 1, "gamma-map observation" if candidate else "observe only", evidence
+    grouped = {}
+    now_ts = time.time()
+    for row in rows(data["options"], "chains"):
+        option = payload_row(row)
+        expiry = option.get("expiry_time")
+        expiry_ts = expiry_timestamp(expiry)
+        if expiry_ts is None or expiry_ts <= now_ts:
+            continue
+        grouped.setdefault(expiry, []).append(row)
+    summaries = [summarize_gamma_expiry(group, expiry, now_ts, args.atm_band)
+                 for expiry, group in grouped.items()]
+    summaries.sort(key=lambda item: item.get("days_to_expiry") or float("inf"))
+    if not summaries:
+        return 0, 1, "observe only", ["missing option chain"]
+    target = min(summaries, key=lambda item: abs((item.get("days_to_expiry") or 0) - args.expiry_days))
+    state = classify_gamma(target, args.gamma_min_near_share, args.gamma_min_concentration)
+    evidence = [f"target expiry={target['expiry_time']}", f"gamma state={state}"]
+    if target.get("near_spot_share") is not None:
+        evidence.append(f"near-spot gamma share={target['near_spot_share']:.2%}")
+    if target.get("concentration_at_strike") is not None:
+        evidence.append(f"dominant-strike concentration={target['concentration_at_strike']:.2%}")
+    evidence.append("dealer gamma sign not inferred")
+    candidate = state == "near_spot_gamma_concentration"
+    return int(candidate), 1, "gamma-map observation" if candidate else "observe only", evidence
+
+
 def score_volatility_breakout(data, args, _previous):
     bars = []
     for row in rows(data["breakout_klines"], "candles"):
@@ -375,7 +425,7 @@ def score_cross_asset_momentum(data, args, _previous):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "cross_asset_momentum", "options_skew", "options_vrp", "volatility_breakout"), required=True)
+    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "funding_convergence", "cross_asset_momentum", "options_skew", "options_vrp", "options_gamma", "volatility_breakout"), required=True)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--interval-secs", type=float, default=30.0)
@@ -392,6 +442,9 @@ def main():
     parser.add_argument("--rv-interval", default="1h")
     parser.add_argument("--rv-bars", type=int, default=168)
     parser.add_argument("--vrp-threshold", type=float, default=5.0)
+    parser.add_argument("--gamma-min-near-share", type=float, default=0.50)
+    parser.add_argument("--gamma-min-concentration", type=float, default=0.10)
+    parser.add_argument("--gamma-max-book-fetches", type=int, default=24)
     parser.add_argument("--funding-exchanges", default="binance,okx,bybit")
     parser.add_argument("--min-spread-bps-per-hour", type=float, default=0.5)
     parser.add_argument("--cross-asset-symbols", default="BTCUSDT,ETHUSDT,SOLUSDT")
@@ -418,6 +471,10 @@ def main():
             or not 0 < args.wing_min < 1 or args.wing_max <= 1
             or args.wing_min >= args.wing_max):
         parser.error("interval must be non-negative and iterations must be positive")
+    if (not 0 <= args.gamma_min_near_share <= 1
+            or not 0 <= args.gamma_min_concentration <= 1
+            or args.gamma_max_book_fetches < 0):
+        parser.error("gamma thresholds must be between 0 and 1")
     if (args.breakout_limit <= 0 or args.breakout_horizon_bars <= 0
             or args.range_bars <= 0 or args.compression_window <= 1
             or args.baseline_window <= 1 or not 0 < args.max_compression_ratio < 2
@@ -443,6 +500,7 @@ def main():
         "liquidation": score_liquidation,
         "options_skew": score_options_skew,
         "options_vrp": score_options_vrp,
+        "options_gamma": score_options_gamma,
         "volatility_breakout": score_volatility_breakout,
         "funding_convergence": score_funding_convergence,
         "cross_asset_momentum": score_cross_asset_momentum,

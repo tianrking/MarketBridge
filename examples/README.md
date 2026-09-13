@@ -1,5 +1,14 @@
 # MarketBridge strategy demo library
 
+The maintained crypto entrypoints are grouped under [`crypto/`](crypto/README.md)
+with bilingual (English/中文) guides for carry, microstructure, options and
+universe research. The root scripts remain compatibility entrypoints and shared
+Python implementations; there are no Rust strategy examples in `examples/`.
+
+维护中的加密策略入口统一放在 [`crypto/`](crypto/README.md)，每个系列目录都有中英文
+说明，覆盖套利/资金费率、微结构/清算、期权/波动率和资产宇宙。根目录脚本保留为兼容
+入口和共享 Python 实现；`examples/` 中不再放 Rust 策略示例。
+
 These examples are research observers. They call the running MarketBridge HTTP
 API, print evidence and a bounded hypothesis score, and never place orders.
 Each demo must state its data assumptions and keep missing data visible.
@@ -13,10 +22,10 @@ experiments should start from `python_strategy_runner.py`.
 
 | Demo | Strategy hypothesis | MarketBridge inputs | Status |
 |---|---|---|---|
-| `short_squeeze_monitor` | Negative funding + rising OI + spot/perp flow divergence can identify a squeeze candidate | funding, OI, order flow, liquidations, external liquidation signal | Research observer |
-| `exhaustion_short_monitor` | Positive funding + failed highs + falling OI + weak bids can identify long exhaustion | funding, OI, klines, order flow, L2, optional on-chain transfers | Research observer |
-| `basis_carry_monitor` | Positive spot/perp basis + positive funding can justify a delta-neutral carry investigation | basis, funding, observed funding interval when available | Research observer; withholds annualization when interval is unknown |
-| `liquidation_reversal_monitor` | Sell-side liquidation + falling OI + positive CVD and price recovery can identify a flush-reversal candidate | liquidations, OI, order flow, klines | Research observer; liquidation side semantics must be venue-validated |
+| `crypto/microstructure/short_squeeze_monitor.py` | Negative funding + rising OI + spot/perp flow divergence can identify a squeeze candidate | funding, OI, order flow, liquidations, external liquidation signal | Python research observer |
+| `crypto/microstructure/exhaustion_short_monitor.py` | Positive funding + failed highs + falling OI + weak bids can identify long exhaustion | funding, OI, klines, order flow, L2, optional on-chain transfers | Python research observer |
+| `crypto/carry/basis_carry_monitor.py` | Positive spot/perp basis + positive funding can justify a delta-neutral carry investigation | basis, funding, observed funding interval when available | Python research observer; withholds annualization when interval is unknown |
+| `crypto/microstructure/liquidation_reversal_monitor.py` | Sell-side liquidation + falling OI + positive CVD and price recovery can identify a flush-reversal candidate | liquidations, OI, order flow, klines | Python research observer; liquidation side semantics must be venue-validated |
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
 | `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
 | `polymarket_price_shock_replay.py` | A sharp public probability update may continue over the next few history points | `/polymarket/markets`, `/polymarket/prices-history` | Descriptive continuation replay; the causal evidence timestamp and execution costs remain explicit |
@@ -34,6 +43,8 @@ experiments should start from `python_strategy_runner.py`.
 | `crypto_options_skew_recorder.py` | Freeze repeated options skew snapshots so persistence can be tested rather than inferred from one quote | `/v1/options/chains` | Append-only JSONL observation archive; no private ledger or order data |
 | `crypto_options_skew_replay.py` | Measure skew persistence and term-state runs from recorded snapshots | explicit JSONL from recorder | Descriptive persistence replay; no option PnL or hedge simulation |
 | `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
+| `crypto_options_gamma_monitor.py` | Map unsigned gamma concentration near spot and dominant strikes without inferring dealer long/short gamma | `/v1/options/chains` plus bounded `/options/deribit/book` enrichment | Snapshot gamma map; relative mass only, partial coverage is reported, not USD exposure or a directional signal |
+| `crypto_options_gamma_recorder.py` / `crypto_options_gamma_replay.py` | Test whether unsigned near-spot gamma concentration persists across snapshots | `/v1/options/chains` JSONL archive | Descriptive persistence replay; no dealer sign, realized-volatility response or hedge PnL |
 | `crypto_universe_opportunity_scan.py` | Rank a bounded perp universe by stored-kline liquidity/realized volatility plus current funding magnitude | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding` | Candidate discovery only; missing joins and unknown funding intervals remain explicit |
 | `crypto_cross_asset_momentum_replay.py` | Test whether the strongest trailing BTC/ETH/SOL (or caller-selected) assets beat an equal-weight basket over the next fixed horizon | `/v1/history/candles` for each symbol, exact timestamp intersection | Gross close-to-close replay; no fees, funding, slippage, weight drift or execution model |
 | `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
@@ -41,7 +52,7 @@ experiments should start from `python_strategy_runner.py`.
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
-| `python_strategy_runner.py` | Python-first versions of squeeze, exhaustion, basis, liquidation, funding convergence, cross-asset momentum, volatility breakout, options skew and options VRP observers | normalized MarketBridge endpoints | Primary strategy entry point; read-only JSON output |
+| `python_strategy_runner.py` | Shared Python implementation for squeeze, exhaustion, basis, liquidation, funding convergence, cross-asset momentum, volatility breakout, options skew, options VRP and options gamma observers | normalized MarketBridge endpoints | Primary strategy implementation; read-only JSON output |
 | `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
 | `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
 
@@ -62,13 +73,13 @@ MARKETBRIDGE_CONFIG=./config.research-live.yaml cargo run
 ```
 
 ```bash
-cargo run --example short_squeeze_monitor -- \
+python3 examples/crypto/microstructure/short_squeeze_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
-cargo run --example exhaustion_short_monitor -- \
+python3 examples/crypto/microstructure/exhaustion_short_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
-cargo run --example basis_carry_monitor -- \
+python3 examples/crypto/carry/basis_carry_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
-cargo run --example liquidation_reversal_monitor -- \
+python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
 python3 examples/liquidation_reversal_replay.py \
   --exchange okx --symbol BTCUSDT --limit 100 \
@@ -124,6 +135,16 @@ python3 examples/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \
   --vrp-threshold 5
+python3 examples/crypto_options_gamma_monitor.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --min-near-share 0.50 --min-concentration 0.10 \
+  --max-book-fetches 24
+python3 examples/crypto_options_gamma_recorder.py \
+  --currency BTC --venue deribit --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-gamma.jsonl
+python3 examples/crypto_options_gamma_replay.py \
+  --input work/crypto-options-gamma.jsonl --min-near-share 0.50 \
+  --min-concentration 0.10 --min-run 3
 python3 examples/crypto_universe_opportunity_scan.py \
   --exchange binance --market perp --interval 5m \
   --min-quote-volume 1000000 --min-realized-vol 0.2 \
@@ -168,6 +189,10 @@ python3 examples/python_strategy_runner.py \
   --cross-asset-symbols BTCUSDT,ETHUSDT,SOLUSDT \
   --cross-asset-interval 1h --cross-asset-lookback 8 \
   --cross-asset-horizon 8 --cross-asset-top-k 1
+python3 examples/python_strategy_runner.py \
+  --strategy options_gamma --currency BTC --options-venue deribit \
+  --expiry-days 30 --gamma-min-near-share 0.50 \
+  --gamma-min-concentration 0.10
 python3 examples/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
 ```
 
