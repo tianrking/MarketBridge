@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-09-14 — observed liquidation price-cluster replay
+
+Added a microstructure replay inspired by public liquidation-heatmap
+discussions. It groups the observed rows from `/v1/history/liquidations` into
+relative price bands, requires a configurable total notional and dominant-band
+share, and compares the next fixed absolute price move with ordinary candle
+windows. The implementation explicitly does not infer untouched liquidation
+levels, leverage distributions, long/short truth or a directional trade. Added
+a categorized launcher, bilingual documentation, provenance links and
+deterministic tests for band concentration, cooldown and observe-only gating.
+
+Provenance: [CoinGlass's public liquidation-heatmap post on X](https://x.com/coinglass_com/status/1930154005491282291)
+and [Glassnode's liquidation-heatmap research](https://research.glassnode.com/liquidation-heatmaps/).
+These are research leads; MarketBridge validates only the observable executed
+liquidation-print subset.
+
 ## 2026-09-14 — persistent funding-regime replay
 
 Added a carry-family funding-only replay that groups consecutive extreme

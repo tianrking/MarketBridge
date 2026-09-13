@@ -14,6 +14,7 @@ Cases:
 - `exhaustion_short_monitor.py`: positive funding + failed highs + falling OI + weak bids.
 - `liquidation_reversal_monitor.py`: sell-side liquidation + falling OI + positive CVD + recovery.
 - `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
+- `crypto_liquidation_price_cluster_replay.py`: observed liquidation prints grouped into price bands, compared with ordinary forward absolute movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
@@ -39,9 +40,23 @@ window, compares the next price movement with ordinary candle windows, and
 keeps side labels as metadata only. It does not assume that a venue's `sell`
 label proves a long liquidation.
 
+The price-cluster replay is deliberately narrower than a commercial heatmap.
+It clusters only observed liquidation prints returned by
+`/v1/history/liquidations`; it does not infer untouched liquidation levels,
+leverage distributions or a price magnet. A candidate requires a notional
+threshold, a minimum share in one price band and a fixed forward window, then
+reports an absolute-move comparison rather than a directional trade.
+
 Provenance: [CryptoData's public liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
 is treated as an unverified research lead; the replay tests the threshold and
 reports the data-coverage limits instead of repeating the claim.
+
+Provenance for the price-band decomposition: [CoinGlass's public liquidation
+heatmap post on X](https://x.com/coinglass_com/status/1930154005491282291) and
+the [Glassnode liquidation-heatmap research note](https://research.glassnode.com/liquidation-heatmaps/).
+Those sources discuss dense liquidation bands; MarketBridge tests only the
+observable executed-print subset and makes the missing latent-level evidence
+explicit.
 
 The spot/perp depth-gap monitor is an execution-risk observation motivated by
 [a public discussion of the spot/perp depth gap on X](https://x.com/ciaobelindazhou/status/2031929849850273955).
@@ -60,6 +75,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `exhaustion_short_monitor.py`：正资金费率 + 冲高失败 + OI 下降 + 买盘变弱。
 - `liquidation_reversal_monitor.py`：卖方清算 + OI 下降 + CVD 转正 + 价格恢复。
 - `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
+- `crypto_liquidation_price_cluster_replay.py`：把已观测清算成交按价格带聚类，并与普通窗口的未来绝对波动比较。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
@@ -80,8 +96,16 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 再和普通 K 线窗口的未来价格波动比较；side 只作为元数据保留，不假设交易所的
 `sell` 一定代表多头清算。
 
+价格带聚类回放比商业热图更窄：它只聚类 `/v1/history/liquidations` 返回的已发生清算成交，
+不推断尚未触发的清算价、杠杆分布或“价格磁铁”。必须同时满足名义金额阈值、单一价格带占比
+阈值和固定未来窗口，输出仍是绝对波动比较，不是方向性交易。
+
 出处：[CryptoData 在 X 的清算阈值讨论](https://x.com/TheCryptoData/status/1948466627365769584)
 只是未经验证的研究线索；回放会检验阈值，并把覆盖范围限制明确输出，而不是复述结论。
+
+价格带拆解出处：[CoinGlass 在 X 的公开清算热图帖子](https://x.com/coinglass_com/status/1930154005491282291)
+以及 [Glassnode 清算热图研究说明](https://research.glassnode.com/liquidation-heatmaps/)。这些资料讨论密集清算带；
+MarketBridge 只验证已观测成交子集，并明确潜在清算墙数据缺失。
 
 现货/永续深度差监控的研究线索来自[公开 X 讨论](https://x.com/ciaobelindazhou/status/2031929849850273955)。
 它用目标规模盘口和当前 basis 做执行风险观察，不假设永续深度更深就代表对冲一定可成交。
@@ -101,6 +125,10 @@ python3 examples/crypto/microstructure/liquidity_stress_monitor.py \
 python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --window-hours 24 --horizon-bars 12
+python3 examples/crypto/microstructure/crypto_liquidation_price_cluster_replay.py \
+  --exchange okx --price-exchange okx --symbol BTCUSDT \
+  --threshold-notional 1000000 --cluster-band-bps 25 \
+  --min-cluster-share 0.5 --window-hours 24 --horizon-bars 12
 python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_monitor.py \
   --symbol BTCUSDT --exchange binance --target-notional 10000 \
   --min-depth-ratio 2.0 --min-impact-improvement-bps 5
