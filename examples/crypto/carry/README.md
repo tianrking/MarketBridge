@@ -10,6 +10,16 @@ monitor/replay compares the same symbol across venues using explicit
 point-in-time intervals. Missing intervals, borrow, transfer latency, margin,
 fees and slippage remain evidence gaps, never zeros.
 
+The basis recorder/replay is a separate falsifiable test: after a same-venue
+basis observation is at least `min_z` standard deviations from its trailing
+mean, does the absolute basis contract over the next `horizon` snapshots? It
+reports contraction frequency and does not call that frequency carry PnL.
+
+Provenance: the test is motivated by the public [CryptoCred basis-trade
+discussion on X](https://x.com/CryptoCred/status/1777720296297975952) and the
+[CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
+These are research leads, not verified performance claims.
+
 Useful inputs:
 
 - `/v1/market/basis`
@@ -22,6 +32,14 @@ Useful inputs:
 对冲。基差监控只有在快照新鲜、资金费率结算间隔已知时才报告研究候选；跨交易所收敛
 监控/回放使用逐点时间间隔比较同一标的。缺失间隔、借币、转账延迟、保证金、手续费和
 滑点都保持为证据缺口，绝不会当成零值。
+
+基差录制/回放是独立的可证伪测试：当同一交易所的基差相对滚动均值偏离至少
+`min_z` 个标准差后，未来 `horizon` 个快照的绝对基差是否收缩？输出的是收缩频率，
+不会把它冒充成套利 PnL。
+
+出处：测试思路来自公开的 [CryptoCred 基差交易讨论](https://x.com/CryptoCred/status/1777720296297975952)
+和 [CME 与现货基差示例](https://x.com/0xscarlettw/status/1944584946670276938)。它们只是研究线索，
+不是已经验证的收益声明。
 
 主要接口：
 
@@ -38,6 +56,12 @@ python3 examples/crypto/carry/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit --iterations 3
 python3 examples/crypto/carry/funding_convergence_replay.py \
   --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200
+python3 examples/crypto/carry/crypto_basis_recorder.py \
+  --symbol BTCUSDT --exchanges binance,okx --iterations 120 --interval-secs 30 \
+  --output work/crypto-basis.jsonl
+python3 examples/crypto/carry/crypto_basis_replay.py \
+  --input work/crypto-basis.jsonl --symbol BTCUSDT \
+  --lookback 20 --horizon 3 --min-z 2.0
 python3 examples/crypto/carry/crypto_funding_oi_replay.py \
   --symbol BTCUSDT --funding-exchange binance --oi-exchange binance \
   --price-exchange binance --days 7

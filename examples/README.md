@@ -25,6 +25,7 @@ launcher or `python_strategy_runner.py`; Rust remains the data/runtime layer.
 | `crypto/microstructure/short_squeeze_monitor.py` | Negative funding + rising OI + spot/perp flow divergence can identify a squeeze candidate | funding, OI, order flow, liquidations, external liquidation signal | Python research observer |
 | `crypto/microstructure/exhaustion_short_monitor.py` | Positive funding + failed highs + falling OI + weak bids can identify long exhaustion | funding, OI, klines, order flow, L2, optional on-chain transfers | Python research observer |
 | `crypto/carry/basis_carry_monitor.py` | Positive spot/perp basis + positive funding can justify a delta-neutral carry investigation | basis, funding, observed funding interval when available | Python research observer; withholds annualization when interval is unknown |
+| `crypto/carry/crypto_basis_recorder.py` / `crypto_basis_replay.py` | An unusually wide same-venue basis may contract over the next fixed snapshot horizon | `/v1/market/basis`, `/v1/market/perpetual-funding` JSONL archive | Descriptive contraction replay; no carry PnL, hedge, borrow or execution model |
 | `crypto/microstructure/liquidation_reversal_monitor.py` | Sell-side liquidation + falling OI + positive CVD and price recovery can identify a flush-reversal candidate | liquidations, OI, order flow, klines | Python research observer; liquidation side semantics must be venue-validated |
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
 | `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
@@ -80,6 +81,11 @@ python3 examples/crypto/microstructure/exhaustion_short_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
 python3 examples/crypto/carry/basis_carry_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
+python3 examples/crypto/carry/crypto_basis_recorder.py \
+  --symbol BTCUSDT --exchanges binance,okx --iterations 120 --interval-secs 30 \
+  --output work/crypto-basis.jsonl
+python3 examples/crypto/carry/crypto_basis_replay.py \
+  --input work/crypto-basis.jsonl --symbol BTCUSDT --lookback 20 --horizon 3
 python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
 python3 examples/liquidation_reversal_replay.py \

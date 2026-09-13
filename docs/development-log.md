@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — basis contraction recorder and replay
+
+Added a carry-family recorder/replay pair that preserves spot/perpetual basis
+snapshots and funding context in JSONL, then tests the narrow hypothesis that a
+same-venue basis observation beyond a trailing z-score threshold contracts over
+the next fixed number of snapshots. The replay keeps exchange and symbol
+identity, rejects insufficient history, reports contraction frequency rather
+than PnL, and excludes hedge fills, borrow, fees, funding transfers, margin and
+slippage. Added categorized launchers, bilingual carry documentation and
+deterministic coverage for identity filtering, multi-level history and the
+insufficient-sample verdict.
+
+Provenance: [CryptoCred basis-trade discussion on X](https://x.com/CryptoCred/status/1777720296297975952)
+and [CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
+
 ## 2026-09-14 — liquidity stress case and strategy-scoped requests
 
 Added the Python-first `liquidity_stress` observer under
