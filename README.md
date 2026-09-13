@@ -106,6 +106,9 @@ feed enabled in its runtime config.
 The carry family now also includes a funding-regime persistence replay: it
 tests consecutive extreme funding runs against later perp returns while
 keeping schedule gaps and the no-order boundary explicit.
+It also includes a cross-sectional funding replay that compares fresh
+low-funding and high-funding asset groups at exact price timestamps with an
+optional paper cost hurdle; it does not allocate or hedge.
 The microstructure family also includes an observed liquidation-price-cluster
 replay; it tests concentration in returned liquidation prints without claiming
 to reconstruct latent heatmap levels.

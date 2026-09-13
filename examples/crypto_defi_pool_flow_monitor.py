@@ -10,6 +10,10 @@ not an LP-yield estimate, routing recommendation, or wallet action.
 import argparse
 import json
 import math
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from crypto_microstructure_monitor import fetch
 

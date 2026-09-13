@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — cross-sectional funding dispersion replay
+
+Added `crypto_funding_cross_section_replay.py` to separate cross-asset funding
+dispersion from the existing same-symbol regime and cross-venue convergence
+cases. It uses fresh point-in-time funding observations, exact price timestamp
+intersections, low/high funding groups and an explicit optional paper hurdle.
+Coverage, interval freshness and missing intersections remain visible; there
+is no allocation, hedge, funding-income, leverage or order path. Added bilingual
+index/docs and deterministic tests. Provenance is the public [funding
+differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
+plus [Binance's funding-history API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+
 ## 2026-09-14 — bounded on-chain transfer burst replay
 
 Added the categorized `examples/crypto/onchain/` case for a public large-

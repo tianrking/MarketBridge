@@ -71,6 +71,7 @@ categorized command is the recommended one.
 | `funding_convergence_replay.py` | Align historical funding observations and measure gross and after-cost differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Explicit paper cost hurdle is a sensitivity input; no fill, borrow or hedge simulation |
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `crypto/carry/crypto_funding_regime_replay.py` | Persistent same-direction extreme funding may precede a move against the crowded side | `/v1/history/candles` for funding-rate and perp candles | Funding-only persistence replay; no OI, funding income, hedge or execution model |
+| `crypto/carry/crypto_funding_cross_section_replay.py` | At wide funding dispersion, low-funding assets may have different next-window returns from high-funding assets | `/v1/history/candles` for funding-rate and perp candles across a caller-selected universe | Cross-sectional diagnostic with freshness, exact price intersections and optional paper cost; no allocation or hedge execution |
 | `crypto/carry/crypto_positioning_regime_replay.py` | Price trend, OI change and funding sign may separate forward-return distributions | `/v1/history/candles`, `/v1/history/open-interest` | Point-in-time regime matrix; OI is aggregate and no long/short ownership is inferred |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
@@ -210,6 +211,10 @@ python3 examples/crypto_funding_oi_replay.py \
 python3 examples/crypto/carry/crypto_funding_regime_replay.py \
   --symbol BTCUSDT --funding-exchange binance --price-exchange binance \
   --days 14 --min-funding-pct 0.01 --min-run 3 --horizon-bars 3
+python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
+  --price-exchange binance --interval 1h --days 14 --top-k 1 \
+  --min-dispersion-bps 1 --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/crypto_microstructure_monitor.py \
   --symbol BTCUSDT --exchange binance --top-levels 5 \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01
