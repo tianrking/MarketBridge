@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — spot/perp target-size depth gap monitor
+
+Added a microstructure observer for same-venue spot/perpetual depth asymmetry.
+It requests explicit spot and perp books plus basis context, computes target-size
+depth and worst-side impact for both markets, and reports a perp/spot advantage
+only when configurable depth and impact thresholds are both met. Missing sides,
+unsynchronized snapshots and basis gaps remain visible; the monitor does not
+route orders or infer hedge feasibility. Added a categorized launcher, bilingual
+usage guidance and deterministic tests for material and missing gaps.
+
+Provenance: [public spot/perp depth-gap discussion on X](https://x.com/ciaobelindazhou/status/2031929849850273955),
+treated as an execution-risk research lead rather than a trading claim.
+
 ## 2026-09-14 — chronological holdout replay
 
 Added `crypto_volatility_adjusted_momentum_walkforward.py` to separate

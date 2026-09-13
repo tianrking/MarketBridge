@@ -16,6 +16,7 @@ Cases:
 - `crypto_liquidation_burst_replay.py`: rolling liquidation-notional threshold versus forward absolute price movement.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
+- `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
@@ -41,6 +42,11 @@ Provenance: [CryptoData's public liquidation-threshold discussion on X](https://
 is treated as an unverified research lead; the replay tests the threshold and
 reports the data-coverage limits instead of repeating the claim.
 
+The spot/perp depth-gap monitor is an execution-risk observation motivated by
+[a public discussion of the spot/perp depth gap on X](https://x.com/ciaobelindazhou/status/2031929849850273955).
+It tests the claim with a target-size snapshot and current basis context; it
+does not assume that deeper perp liquidity makes a hedge executable.
+
 ## 中文
 
 这些观察器组合资金费率、OI 变化、现货/永续订单流、盘口深度、价格上下文和清算事件，
@@ -55,6 +61,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_liquidation_burst_replay.py`：滚动清算名义金额阈值与未来绝对价格波动对比。
 - `crypto_microstructure_monitor.py`：盘口失衡结合资金费率上下文。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
+- `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
 - `crypto_session_filter.py`：VWAP/EMA/MACD/成交量的时段过滤回放。
 - `liquidity_stress_monitor.py`：目标名义金额的可执行冲击 + 点差 + 短周期 EWMA 波动率。
@@ -74,6 +81,9 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 出处：[CryptoData 在 X 的清算阈值讨论](https://x.com/TheCryptoData/status/1948466627365769584)
 只是未经验证的研究线索；回放会检验阈值，并把覆盖范围限制明确输出，而不是复述结论。
 
+现货/永续深度差监控的研究线索来自[公开 X 讨论](https://x.com/ciaobelindazhou/status/2031929849850273955)。
+它用目标规模盘口和当前 basis 做执行风险观察，不假设永续深度更深就代表对冲一定可成交。
+
 ## Commands / 命令
 
 ```bash
@@ -89,6 +99,9 @@ python3 examples/crypto/microstructure/liquidity_stress_monitor.py \
 python3 examples/crypto/microstructure/crypto_liquidation_burst_replay.py \
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --threshold-notional 1000000 --window-hours 24 --horizon-bars 12
+python3 examples/crypto/microstructure/crypto_spot_perp_depth_gap_monitor.py \
+  --symbol BTCUSDT --exchange binance --target-notional 10000 \
+  --min-depth-ratio 2.0 --min-impact-improvement-bps 5
 python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --interval 5m --days 7
 python3 examples/crypto/microstructure/crypto_session_filter.py \
