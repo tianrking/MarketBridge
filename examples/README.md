@@ -39,6 +39,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_volatility_breakout_replay.py` | A compressed range break with volume/flow confirmation may continue after a fixed horizon | `/v1/history/candles`, optional `/v1/history/trades` | Gross and optional after-cost replay; no execution or fill model |
 | `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
 | `crypto/microstructure/crypto_derivatives_sentiment_monitor.py` | Aggregate funding/OI/long-short/liquidation context should remain visible without inferring position ownership | `/v1/external/signals?sources=coinglass` | Optional keyed snapshot context; missing metrics remain observe-only and no execution model |
+| `crypto/microstructure/crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py` | Repeated aggregate derivatives crowding states should be tested for persistence rather than promoted from one snapshot | `/v1/external/signals?sources=coinglass`, JSONL archive | Consecutive-state diagnostic; aggregate ratios are not ownership and no price, allocation or execution model |
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
 | `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
 | `polymarket_price_shock_replay.py` | A sharp public probability update may continue over the next few history points | `/polymarket/markets`, `/polymarket/prices-history` | Descriptive continuation replay; the causal evidence timestamp and execution costs remain explicit |
@@ -168,6 +169,11 @@ python3 examples/crypto/microstructure/crypto_cvd_divergence_replay.py \
   --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_monitor.py \
   --symbol BTC --long-short-high 1.2 --long-short-low 0.8
+python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py \
+  --symbol BTC --iterations 20 --interval-secs 30 \
+  --output work/crypto-derivatives-sentiment.jsonl
+python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
+  --input work/crypto-derivatives-sentiment.jsonl --min-run 3
 python3 examples/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --min-skew-iv 3 --min-term-slope-iv 3

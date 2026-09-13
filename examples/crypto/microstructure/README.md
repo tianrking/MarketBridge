@@ -19,6 +19,7 @@ Cases:
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
 - `crypto_cvd_divergence_replay.py`: tests whether a price move that disagrees with single-venue taker-flow delta is followed by a fixed-horizon reversal.
 - `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
+- `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`: freeze aggregate CoinGlass context and require consecutive crowding states before promoting persistence.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`: test whether that gap persists across snapshots.
 - `crypto_volatility_breakout_replay.py`: compressed range plus volume confirmation versus forward returns.
@@ -104,6 +105,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
 - `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否反转。
 - `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short 与清算上下文，不把聚合指标解释成持仓归属。
+- `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`：记录 CoinGlass 聚合情绪并要求连续拥挤状态后才报告持续性。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
 - `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py`：检验该深度差是否在多个快照中持续。
 - `crypto_volatility_breakout_replay.py`：压缩区间突破结合成交量确认，并测量未来收益。
@@ -151,6 +153,24 @@ CVD 背离回放与突破确认不同：它要求同一回看窗口内价格有�
 long/short ratio、basis 和 liquidation 放在同一上下文中；API key 缺失或指标缺失会保持为 observe-only，
 不会把 aggregate ratio 解释成真实持仓归属。
 
+The sentiment recorder/replay turns that snapshot into a falsifiable temporal
+check: it appends the aggregate state to JSONL, sorts by capture time, and only
+reports a persistent long/short crowding candidate after `--min-run` consecutive
+states. A provider ratio is not position ownership; the replay has no price,
+funding-income, allocation or execution model.
+
+情绪 recorder/replay 把单次快照变成可证伪的时间检验：将聚合状态追加到 JSONL，按采集时间排序，
+只有连续 `--min-run` 次多头/空头拥挤状态才报告持续候选。提供方 ratio 不是持仓归属；回放不含价格、
+资金费收入、资金分配或执行模型。
+
+Provenance: the decomposition follows the public [CoinGlass aggregate
+positioning discussion on X](https://x.com/ImCryptOpus/status/1949195275903410571),
+treated as an unverified lead. MarketBridge tests persistence and exposes
+coverage instead of repeating a directional claim.
+
+出处：拆解来自 [CoinGlass 聚合持仓讨论](https://x.com/ImCryptOpus/status/1949195275903410571)，
+这里只把它作为未经验证的研究线索；MarketBridge 检验状态持续性并暴露覆盖范围，不复述方向性结论。
+
 ## Commands / 命令
 
 ```bash
@@ -188,6 +208,11 @@ python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
   --roundtrip-cost-bps 20 --min-cost-adjusted-edge-bps 0
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_monitor.py \
   --symbol BTC --long-short-high 1.2 --long-short-low 0.8
+python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py \
+  --symbol BTC --iterations 20 --interval-secs 30 \
+  --output work/crypto-derivatives-sentiment.jsonl
+python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
+  --input work/crypto-derivatives-sentiment.jsonl --min-run 3
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 python3 examples/liquidation_reversal_replay.py \

@@ -126,6 +126,10 @@ It also includes a CVD divergence replay that measures fixed-horizon reversal
 after a price/taker-flow disagreement on one venue.
 The microstructure family also exposes optional CoinGlass aggregate derivatives
 context while preserving missing-key and missing-metric evidence.
+It now includes a Python recorder/replay pair that tests whether aggregate
+long/short crowding states persist across snapshots; ratios remain provider
+context, not position ownership, and the replay has no allocation or execution
+path.
 The options family now also has a VRP recorder/replay pair that tests
 IV-minus-realized-volatility regime persistence without turning it into a
 short-volatility or hedging instruction.

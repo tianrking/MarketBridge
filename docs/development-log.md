@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — derivatives sentiment persistence recorder/replay
+
+Added Python `crypto_derivatives_sentiment_recorder.py` and
+`crypto_derivatives_sentiment_replay.py` under the microstructure family. The
+recorder archives the existing optional CoinGlass aggregate signal surface as
+JSONL; the replay sorts captures by time and requires consecutive long/short
+crowding states before reporting a persistence candidate. Aggregate ratios are
+kept as provider context rather than position ownership, and the case contains
+no price forecast, allocation, wallet or execution path. Added bilingual index
+entries and deterministic tests. Provenance remains the unverified public
+[CoinGlass positioning discussion on X](https://x.com/ImCryptOpus/status/1949195275903410571).
+
 ## 2026-09-14 — aggregate derivatives sentiment context monitor
 
 Added `crypto_derivatives_sentiment_monitor.py` for the existing optional
