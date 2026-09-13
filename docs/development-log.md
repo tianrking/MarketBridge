@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — frozen on-chain transfer response replay
+
+Added `crypto_onchain_transfer_response_recorder.py` and
+`crypto_onchain_transfer_response_replay.py` under the categorized on-chain
+family. The recorder freezes `/v1/onchain/transfers` beside a synchronized
+MarketBridge BTC quote; replay deduplicates repeated provider rows using only
+observable fields and compares rolling burst versus ordinary absolute BTC
+responses. Provenance: the public [stablecoin-liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494),
+the [BIS transfer-level study](https://www.bis.org/publications/working-paper-1359-anatomy-stablecoin-transactions),
+and [Whale Alert's API schema](https://developer.whale-alert.io/api-account/documentation).
+Transfer direction remains metadata, coverage is explicit, and no wallet or
+execution path is added.
+
 ## 2026-09-14 — bull-call-spread response replay
 
 Added `crypto_options_bull_call_spread_response_recorder.py` and

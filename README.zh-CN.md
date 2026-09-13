@@ -891,6 +891,9 @@ swap volume、流动性和买卖笔数识别高换手/薄流动性压力状态�
 这只是描述性事件研究，不新增路由、gas、LP 收益、钱包或 swap 执行路径。
 onchain 系列新增 `crypto_onchain_transfer_burst_replay.py`：把公开大额转账 burst 与未来绝对波动做
 非方向性比较，不把转账方向解释成交易所净流入，也不执行钱包操作。
+现在还提供 `crypto_onchain_transfer_response_recorder.py` / `crypto_onchain_transfer_response_replay.py`：把 provider
+转账行与 MarketBridge BTC 报价冻结，重建去重后的滚动窗口，比较 burst 和普通窗口的非方向性后续响应；不把钱包标签
+解释成交易所资金流，也不增加钱包或执行路径。
 carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，universe 系列新增
 `crypto_volatility_adjusted_momentum_replay.py`；前者检验基差异常后的收缩，后者检验
 收益除以已实现波动率后的跨资产排名，二者都只做回放，不构成资金分配或实盘指令。

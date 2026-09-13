@@ -195,6 +195,11 @@ claiming resting liquidity or execution evidence.
 The microstructure family now also has a footprint response recorder/replay,
 which joins that state to a MarketBridge quote and compares bid/ask pressure
 with later signed and absolute movement; it remains a bounded research study.
+The on-chain family now also provides a transfer-response recorder/replay. It
+freezes provider transfer rows beside a MarketBridge BTC quote, reconstructs a
+deduplicated rolling window, and compares non-directional burst versus ordinary
+responses. It does not interpret wallet labels as exchange flow or add a wallet
+or execution path.
 The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or

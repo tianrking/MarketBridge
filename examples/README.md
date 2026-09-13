@@ -75,6 +75,7 @@ categorized command is the recommended one.
 | `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
 | `crypto/defi/crypto_defi_pool_flow_response_recorder.py` / `crypto_defi_pool_flow_response_replay.py` | Compare later BTC movement after pressure versus ordinary DEX-pool snapshots | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, LP-PnL, route, gas or wallet-execution claim |
 | `crypto/onchain/crypto_onchain_transfer_burst_replay.py` | A rolling burst of public large-transfer notional may precede larger absolute price movement | `/v1/onchain/transfers`, `/v1/history/candles` | Non-directional bounded replay; transfer semantics, labels, coverage and execution remain explicit |
+| `crypto/onchain/crypto_onchain_transfer_response_recorder.py` / `crypto_onchain_transfer_response_replay.py` | A frozen rolling transfer burst may have a different later BTC response than ordinary windows | `/v1/onchain/transfers`, `/v1/market/quotes`, JSONL archive | Non-directional response study; provider coverage, deduplication, transfer semantics and execution remain explicit |
 | `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
 | `crypto/options/crypto_options_vrp_recorder.py` / `crypto_options_vrp_replay.py` | Test whether an IV-minus-RV premium regime persists for one option expiry | `/v1/options/chains`, `/v1/history/candles`, JSONL archive | Descriptive VRP persistence; no option PnL, delta hedge or short-vol execution model |
 | `crypto_options_gamma_monitor.py` | Map unsigned gamma concentration near spot and dominant strikes without inferring dealer long/short gamma | `/v1/options/chains` plus bounded `/options/deribit/book` enrichment | Snapshot gamma map; relative mass only, partial coverage is reported, not USD exposure or a directional signal |
@@ -272,6 +273,15 @@ python3 examples/crypto/onchain/crypto_onchain_transfer_burst_replay.py \
   --source whale_alert --asset USDT --min-transfer-usd 100000 \
   --price-exchange binance --symbol BTCUSDT --interval 5m \
   --threshold-usd 1000000 --window-hours 24 --horizon-bars 12
+python3 examples/crypto/onchain/crypto_onchain_transfer_response_recorder.py \
+  --source whale_alert --asset USDT --min-transfer-usd 100000 \
+  --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 120 --interval-secs 60 \
+  --output work/crypto-onchain-transfer-response.jsonl
+python3 examples/crypto/onchain/crypto_onchain_transfer_response_replay.py \
+  --input work/crypto-onchain-transfer-response.jsonl \
+  --window-hours 24 --horizon-records 12 \
+  --threshold-usd 1000000 --min-observations 3
 python3 examples/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \
