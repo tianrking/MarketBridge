@@ -901,6 +901,8 @@ options 系列新增 `crypto_options_gamma_response_recorder.py` /
 比较集中状态和其他状态在固定记录窗口后的有符号收益与绝对波动。它不推断做市商 Gamma 多空，
 不计算期权 PnL 或对冲，也不下单；完整命令、限制和出处见
 [`examples/crypto/options/README.md`](examples/crypto/options/README.md)。
+同系列还新增 bull-call-spread response recorder/replay：把现有纸面价差报价几何与 BTC 行情配对，比较
+可观察价差状态和未验证状态之后的固定窗口波动。报价只作为研究证据，不推断成交、期权 PnL、对冲或执行。
 同系列的 `crypto_spot_perp_depth_gap_monitor.py` 比较同交易所现货/永续目标规模深度与冲击，
 只输出执行风险观察，不执行路由或对冲。
 并提供 recorder/replay 版本检验深度优势是否持续，避免单个盘口快照被误当成稳定结构。

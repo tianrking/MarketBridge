@@ -31,6 +31,13 @@ identity remains observable for a consecutive run. This is a quote-structure
 hypothesis, not a recommendation: it does not model settlement, margin,
 exercise, fills, fees, slippage, hedging or forward returns.
 
+The bull-call-spread response recorder additionally freezes a synchronized
+MarketBridge BTC quote. Its replay compares fixed-record BTC signed and
+absolute returns after `bull_call_spread_quote_available` or
+`bull_call_spread_mark_only` snapshots against snapshots where the spread was
+not validated. This tests the public flow lead without converting it into an
+option PnL, hedge or execution claim.
+
 The gamma-response recorder joins each unsigned gamma snapshot to a
 MarketBridge BTC quote. Its replay asks a falsifiable, non-directional question:
 does a near-spot, concentrated gamma map have a different fixed-record forward
@@ -78,6 +85,10 @@ VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到
 优先使用低执行价 ask 与高执行价 bid，缺失时才回退到并明确标记 mark。输出 debit、价差宽度、
 盈亏平衡点和封顶的纸面收益几何；recorder/replay 检验相同到期日/执行价组合是否连续出现。
 这只是报价结构假设，不是交易建议：没有伪装成已建模的结算、保证金、行权、成交、手续费、滑点、对冲或未来收益。
+
+bull-call-spread response recorder 还会冻结同步的 MarketBridge BTC 报价；replay 比较
+`bull_call_spread_quote_available` 或 `bull_call_spread_mark_only` 快照与未验证价差快照之后固定记录窗口的 BTC
+有符号/绝对收益。它只检验公开期权流线索，不把结果转成期权 PnL、对冲或执行结论。
 
 Gamma-response recorder 会把每次无符号 Gamma 快照和 MarketBridge 的 BTC 行情同时冻结。
 Replay 检验一个可证伪的非方向性问题：近现货且集中于单一执行价的 Gamma map，未来固定记录窗口的
@@ -131,6 +142,13 @@ python3 examples/crypto/options/crypto_options_bull_call_spread_recorder.py \
   --output work/crypto-options-bull-call-spread.jsonl
 python3 examples/crypto/options/crypto_options_bull_call_spread_replay.py \
   --input work/crypto-options-bull-call-spread.jsonl --min-run 3
+python3 examples/crypto/options/crypto_options_bull_call_spread_response_recorder.py \
+  --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-bull-call-spread-response.jsonl
+python3 examples/crypto/options/crypto_options_bull_call_spread_response_replay.py \
+  --input work/crypto-options-bull-call-spread-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168

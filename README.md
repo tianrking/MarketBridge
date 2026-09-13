@@ -117,6 +117,10 @@ The options family also includes a gamma-response recorder/replay: it joins
 unsigned near-spot gamma concentration with a BTC quote and compares later
 signed/absolute movement against other snapshots. The result is a fixed-record
 research comparison, not dealer-sign inference, option PnL or execution.
+It now also includes a bull-call-spread response recorder/replay, which joins
+the existing paper spread geometry to a BTC quote and compares later movement
+after observable spread states versus unvalidated snapshots. Quotes remain
+research evidence; no option fill, hedge, PnL or execution is inferred.
 The carry family also has a cross-venue same-asset price-gap replay, which
 tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes

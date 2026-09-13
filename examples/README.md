@@ -69,6 +69,7 @@ categorized command is the recommended one.
 | `crypto_options_skew_replay.py` | Measure skew persistence and term-state runs from recorded snapshots | explicit JSONL from recorder | Descriptive persistence replay; no option PnL or hedge simulation |
 | `crypto/options/crypto_options_term_structure_replay.py` | Test whether the near/far ATM-IV slope stays in contango or backwardation for a minimum run | JSONL from `crypto_options_skew_recorder.py` | Term-structure persistence diagnostic; expiry roll, quotes, costs and calendar-spread execution remain explicit gaps |
 | `crypto/options/crypto_options_bull_call_spread_monitor.py` / recorder / replay | A lower-call ask plus higher-call bid can form a paper debit below strike width for one expiry | `/v1/options/chains`, JSONL archive | Leg-selection and payoff-geometry persistence diagnostic; mark-only quotes, settlement, margin, costs and execution remain explicit gaps |
+| `crypto/options/crypto_options_bull_call_spread_response_recorder.py` / `crypto_options_bull_call_spread_response_replay.py` | Observable bull-call-spread quote states may have different later BTC responses than unvalidated snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; quote structure is not option PnL, fill, hedge or execution |
 | `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
 | `crypto/defi/crypto_stablecoin_depeg_monitor.py` / recorder / replay | Stablecoin quote deviation and spread stress may coincide with larger later absolute BTC movement | `/v1/market/quotes` for selected CEX/DEX pairs and BTCUSDT, plus JSONL archive | Depeg-risk event study; no reserve, redemption, solvency, mean-reversion or execution model |
 | `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
@@ -245,6 +246,13 @@ python3 examples/crypto/options/crypto_options_bull_call_spread_recorder.py \
   --output work/crypto-options-bull-call-spread.jsonl
 python3 examples/crypto/options/crypto_options_bull_call_spread_replay.py \
   --input work/crypto-options-bull-call-spread.jsonl --min-run 3
+python3 examples/crypto/options/crypto_options_bull_call_spread_response_recorder.py \
+  --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 20 --interval-secs 30 \
+  --output work/crypto-options-bull-call-spread-response.jsonl
+python3 examples/crypto/options/crypto_options_bull_call_spread_response_replay.py \
+  --input work/crypto-options-bull-call-spread-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/defi/crypto_defi_pool_flow_monitor.py \
   --sources uniswap_v3,meteora --min-liquidity-usd 100000 \
   --min-turnover-h1 0.25

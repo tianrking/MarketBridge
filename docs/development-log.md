@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — bull-call-spread response replay
+
+Added `crypto_options_bull_call_spread_response_recorder.py` and
+`crypto_options_bull_call_spread_response_replay.py` under the categorized
+options family. The recorder joins the existing one-expiry, moneyness-selected
+paper spread geometry with a synchronized MarketBridge BTC quote; replay
+compares signed and absolute fixed-record responses after observable spread
+states versus unvalidated snapshots. Provenance: the unverified [Laevitas
+bull-call-spread flow observation on X](https://x.com/laevitas1/status/1985373005644476891),
+cross-checked with [Deribit's public option-book documentation](https://docs.deribit.com/api-reference/market-data/public-get-order-book).
+The output remains quote research evidence and adds no option PnL, hedge or
+execution path.
+
 ## 2026-09-14 — DeFi pool-flow response replay
 
 Added `crypto_defi_pool_flow_response_recorder.py` and
