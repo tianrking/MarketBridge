@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — triangular quote-consistency replay
+
+Added the carry-family Python monitor/recorder/replay for a bounded
+single-venue triangular conversion hypothesis. It reads synchronized spot
+top-of-book quotes for BTCUSDT, ETHBTC and ETHUSDT, evaluates both USDT cycle
+directions, subtracts a paper per-leg cost and requires consecutive qualifying
+snapshots in replay. The output is deliberately a quote-consistency candidate,
+not an executable arbitrage claim: depth, atomicity, queue position, latency,
+inventory, fees and partial fills remain missing. Provenance: [Binance's
+official spot market-data API documentation](https://developers.binance.com/en/docs/products/spot/rest-api)
+and the peer-reviewed [Wish or reality? On the exploitability of triangular
+arbitrage in cryptocurrency markets](https://www.sciencedirect.com/science/article/pii/S154461232401537X).
+
 ## 2026-09-14 — cross-venue order-book paper-edge replay
 
 Added the carry-family Python monitor/recorder/replay for synchronized

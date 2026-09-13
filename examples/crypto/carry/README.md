@@ -57,6 +57,13 @@ The recorder/replay tests whether a qualifying book edge persists across
 consecutive snapshots. It still does not model prefunded inventory, settlement,
 queue position, transfer fees or execution.
 
+`crypto_triangular_arbitrage_monitor.py` is the single-venue three-leg analogue:
+it requests the synchronized `BTCUSDT`, `ETHBTC` and `ETHUSDT` spot top-of-book,
+calculates both USDT cycle directions, and applies a paper per-leg cost. The
+recorder/replay pair asks whether a net edge survives consecutive snapshots.
+This is a quote-consistency experiment, not a triangular-arbitrage execution
+claim: depth, atomicity, fees, latency, inventory and partial fills are absent.
+
 Provenance: the basis tests are motivated by the public [CryptoCred basis-trade
 discussion on X](https://x.com/CryptoCred/status/1777720296297975952) and the
 [CME-versus-spot basis example](https://x.com/0xscarlettw/status/1944584946670276938).
@@ -80,7 +87,12 @@ The order-book case is cross-checked against [Binance's public order-book
 documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 and the [cross-exchange arbitrage-friction study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad).
 Those sources motivate measuring depth and settlement friction, not assuming a
-snapshot edge is executable.
+snapshot edge is executable. The triangular case is cross-checked against
+[Binance's official spot market-data API documentation](https://developers.binance.com/en/docs/products/spot/rest-api)
+and the peer-reviewed [Wish or reality? On the exploitability of triangular
+arbitrage in cryptocurrency markets](https://www.sciencedirect.com/science/article/pii/S154461232401537X).
+They motivate a falsifiable top-of-book persistence test; they do not establish
+that a displayed three-leg edge can be filled.
 The data semantics are cross-checked against [Binance's official open-interest
 history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info),
 which describes bounded historical OI observations rather than trader-side ownership.
@@ -127,6 +139,11 @@ Useful inputs:
 两边 VWAP，拒绝超出时间偏差阈值的快照，并扣除调用者提供的纸面双边成本。recorder/replay 再检验盘口
 edge 是否连续出现。它仍不模拟预存库存、结算、队列位置、转账费或执行。
 
+`crypto_triangular_arbitrage_monitor.py` 是同一交易所的三腿报价一致性案例：请求同步的
+`BTCUSDT`、`ETHBTC`、`ETHUSDT` 现货盘口，分别计算两个 USDT 换算方向，并扣除每腿纸面成本。
+recorder/replay 再检验净 edge 是否连续出现。它只是可证伪的报价实验，不是三角套利成交声明；深度、原子性、
+手续费、延迟、库存和部分成交都没有被假设为已知。
+
 出处：基差测试思路来自公开的 [CryptoCred 基差交易讨论](https://x.com/CryptoCred/status/1777720296297975952)
 和 [CME 与现货基差示例](https://x.com/0xscarlettw/status/1944584946670276938)。资金费率持续性线索
 另外对照了一级资料 [Kraken 资金费率策略说明](https://www.kraken.com/learn/futures-trading-funding-rate-strategy)，
@@ -139,6 +156,9 @@ edge 是否连续出现。它仍不模拟预存库存、结算、队列位置、
 盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
 这些资料支持测量深度和结算摩擦，不支持把单次快照 edge 当成可执行机会。
+三角案例对照 [Binance 官方现货市场数据 API 文档](https://developers.binance.com/en/docs/products/spot/rest-api)
+以及同行评审的 [加密货币三角套利可利用性研究](https://www.sciencedirect.com/science/article/pii/S154461232401537X)。
+这些资料支持做报价 edge 持续性检验，不支持把展示出的三腿差异当成可成交利润。
 
 主要接口：
 
@@ -189,6 +209,15 @@ python3 examples/crypto/carry/crypto_cross_venue_orderbook_recorder.py \
   --output work/crypto-cross-venue-orderbook.jsonl
 python3 examples/crypto/carry/crypto_cross_venue_orderbook_replay.py \
   --input work/crypto-cross-venue-orderbook.jsonl --min-run 3 \
+  --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_triangular_arbitrage_monitor.py \
+  --exchange binance --start-notional 10000 --max-skew-ms 500 \
+  --paper-cost-bps-per-leg 10 --min-net-edge-bps 0
+python3 examples/crypto/carry/crypto_triangular_arbitrage_recorder.py \
+  --exchange binance --iterations 120 --interval-secs 2 \
+  --output work/crypto-triangular-arbitrage.jsonl
+python3 examples/crypto/carry/crypto_triangular_arbitrage_replay.py \
+  --input work/crypto-triangular-arbitrage.jsonl --min-run 3 \
   --min-net-edge-bps 0
 python3 examples/crypto/carry/funding_extremes.py \
   --exchange binance --min-pct -2 --max-pct -0.1

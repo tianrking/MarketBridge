@@ -114,6 +114,11 @@ tests contraction without calling an asynchronous spread executable.
 It also has a cross-venue order-book monitor/recorder/replay that computes
 target-notional VWAP edges under timestamp-skew and paper-cost hurdles while
 leaving inventory, settlement and execution outside MarketBridge.
+The carry family now also includes a single-venue triangular quote-consistency
+monitor/recorder/replay for BTCUSDT, ETHBTC and ETHUSDT. It evaluates both
+conversion directions with a paper per-leg cost and consecutive-snapshot
+evidence; depth, atomicity, latency, inventory and execution remain outside
+MarketBridge.
 The universe family also includes a frozen-spread pair replay that tests
 relative-price convergence without claiming cointegration or paired fills.
 It also exposes a stale/missing-quote risk guard before universe candidates
