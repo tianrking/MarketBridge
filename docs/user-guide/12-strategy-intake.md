@@ -228,9 +228,21 @@ python3 examples/python_strategy_runner.py \
   --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
 ```
 
-可选策略为 `squeeze`、`exhaustion`、`basis`、`liquidation`。输出是 JSON 证据和研究
+可选策略为 `squeeze`、`exhaustion`、`basis`、`liquidation`、`options_skew`、`options_vrp`。
+输出是 JSON 证据和研究
 评分，不是交易指令。复制这个文件增加新策略时，应保留输入、缺失数据、成本假设和
 `research_only_no_orders` 边界。
+
+options 研究也可以走同一个 Python 入口，Rust 不需要为策略逻辑增加分支：
+
+```bash
+python3 examples/python_strategy_runner.py \
+  --strategy options_skew --currency BTC --options-venue deribit \
+  --expiry-days 30 --iterations 2 --interval-secs 30
+python3 examples/python_strategy_runner.py \
+  --strategy options_vrp --currency BTC --options-venue deribit \
+  --symbol BTCUSDT --exchange binance --rv-interval 1h --rv-bars 168
+```
 
 公开讨论中常见的「固定时段 + VWAP/EMA/MACD/成交量确认」也可以先做成可证伪过滤器，
 而不是把时段本身当成 alpha：

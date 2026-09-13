@@ -13,6 +13,15 @@ import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from crypto_options_skew_monitor import (
+    classify_skew,
+    classify_term_structure,
+    expiry_timestamp,
+    payload_row,
+    summarize_expiry,
+)
+from crypto_options_vrp_monitor import annualized_realized_vol_pct
+
 
 def fetch(base_url, path, params, timeout=30.0):
     query = urlencode({key: value for key, value in params.items() if value is not None})
@@ -44,7 +53,7 @@ def latest_value(payload, key, exchange):
 
 def fetch_core(client, args):
     symbol = args.symbol
-    return {
+    data = {
         "funding": client("/v1/market/funding", {"symbols": symbol}),
         "oi": client("/v1/market/open-interest", {"symbols": symbol}),
         "perp_flow": client("/v1/market/order-flow", {
@@ -60,6 +69,21 @@ def fetch_core(client, args):
         }),
         "basis": client("/v1/market/basis", {"symbols": symbol}),
     }
+    if args.strategy in ("options_skew", "options_vrp"):
+        data["options"] = client("/v1/options/chains", {
+            "venue": args.options_venue,
+            "currency": args.currency,
+            "include_stale": "false",
+        })
+    if args.strategy == "options_vrp":
+        data["rv_klines"] = client("/v1/history/candles", {
+            "exchange": args.exchange or "binance",
+            "symbol": symbol,
+            "market": "perp",
+            "interval": args.rv_interval,
+            "limit": args.rv_bars + 1,
+        })
+    return data
 
 
 def flow_delta(payload, exchange):
@@ -190,17 +214,87 @@ def score_liquidation(data, args, previous):
     return score, 4, "flush reversal candidate" if score >= 3 else "observe only", evidence
 
 
+def option_expiry_summaries(payload, args):
+    grouped = {}
+    now_ts = time.time()
+    for row in rows(payload, "chains"):
+        option = payload_row(row)
+        expiry = option.get("expiry_time")
+        expiry_ts = expiry_timestamp(expiry)
+        if expiry_ts is None or expiry_ts <= now_ts:
+            continue
+        grouped.setdefault(expiry, []).append(row)
+    summaries = [summarize_expiry(group, expiry, now_ts, args.atm_band,
+                                  args.wing_min, args.wing_max)
+                 for expiry, group in grouped.items()]
+    return sorted(summaries, key=lambda item: item.get("days_to_expiry") or float("inf"))
+
+
+def score_options_skew(data, args, _previous):
+    summaries = option_expiry_summaries(data["options"], args)
+    if not summaries:
+        return 0, 2, "observe only", ["missing option chain"]
+    target = min(summaries, key=lambda item: abs((item.get("days_to_expiry") or 0) - args.expiry_days))
+    target["skew_state"] = classify_skew(target, args.min_skew_iv, args.min_skew_iv)
+    near = summaries[0]
+    far = summaries[1] if len(summaries) > 1 else None
+    term_state = classify_term_structure(
+        near.get("atm_iv"), far.get("atm_iv") if far else None, args.min_term_slope_iv,
+    )
+    evidence = [f"target expiry={target['expiry_time']}"]
+    if target.get("put_call_skew_iv") is not None:
+        evidence.append(f"put-call skew={target['put_call_skew_iv']:.2f} IV points")
+    else:
+        evidence.append("comparable wing IV missing")
+    evidence.append(f"term structure={term_state}")
+    score = int(target["skew_state"] == "downside_protection_demand") + int(term_state != "observe_only_missing_term_points")
+    verdict = "options skew observation" if score else "observe only"
+    return score, 2, verdict, evidence
+
+
+def score_options_vrp(data, args, _previous):
+    summaries = option_expiry_summaries(data["options"], args)
+    candles = rows(data["rv_klines"], "candles")
+    closes = [number(row, "close") for row in candles if number(row, "close") is not None and number(row, "close") > 0]
+    rv = annualized_realized_vol_pct(closes[-(args.rv_bars + 1):], args.rv_interval)
+    if not summaries or rv is None:
+        return 0, 1, "observe only", ["missing option ATM IV or realized-volatility window"]
+    target = min(summaries, key=lambda item: abs((item.get("days_to_expiry") or 0) - args.expiry_days))
+    iv = target.get("atm_iv")
+    if iv is None:
+        return 0, 1, "observe only", ["target expiry ATM IV missing"]
+    vrp = iv - rv
+    evidence = [f"ATM IV={iv:.2f}%", f"annualized RV={rv:.2f}%", f"IV-RV={vrp:.2f} points"]
+    verdict = "implied volatility premium observation" if vrp >= args.vrp_threshold else "observe only"
+    return int(vrp >= args.vrp_threshold), 1, verdict, evidence
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation"), required=True)
+    parser.add_argument("--strategy", choices=("squeeze", "exhaustion", "basis", "liquidation", "options_skew", "options_vrp"), required=True)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--interval-secs", type=float, default=30.0)
     parser.add_argument("--iterations", type=int, default=1)
     parser.add_argument("--timeout", type=float, default=30.0)
+    parser.add_argument("--options-venue", default="deribit")
+    parser.add_argument("--currency", default="BTC")
+    parser.add_argument("--expiry-days", type=float, default=30.0)
+    parser.add_argument("--atm-band", type=float, default=0.03)
+    parser.add_argument("--wing-min", type=float, default=0.85)
+    parser.add_argument("--wing-max", type=float, default=1.15)
+    parser.add_argument("--min-skew-iv", type=float, default=3.0)
+    parser.add_argument("--min-term-slope-iv", type=float, default=3.0)
+    parser.add_argument("--rv-interval", default="1h")
+    parser.add_argument("--rv-bars", type=int, default=168)
+    parser.add_argument("--vrp-threshold", type=float, default=5.0)
     args = parser.parse_args()
-    if args.interval_secs < 0 or args.iterations <= 0:
+    if (args.interval_secs < 0 or args.iterations <= 0 or args.expiry_days <= 0
+            or args.rv_bars <= 1 or args.min_skew_iv < 0 or args.min_term_slope_iv < 0
+            or args.vrp_threshold < 0 or not 0 < args.atm_band < 0.25
+            or not 0 < args.wing_min < 1 or args.wing_max <= 1
+            or args.wing_min >= args.wing_max):
         parser.error("interval must be non-negative and iterations must be positive")
 
     strategies = {
@@ -208,6 +302,8 @@ def main():
         "exhaustion": score_exhaustion,
         "basis": score_basis,
         "liquidation": score_liquidation,
+        "options_skew": score_options_skew,
+        "options_vrp": score_options_vrp,
     }
     previous = {}
 

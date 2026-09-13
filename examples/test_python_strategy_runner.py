@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Deterministic tests for Python-first strategy dispatch."""
+
+import unittest
+from types import SimpleNamespace
+
+from python_strategy_runner import score_options_skew, score_options_vrp
+
+
+def args():
+    return SimpleNamespace(
+        expiry_days=30.0, atm_band=0.03, wing_min=0.85, wing_max=1.15,
+        min_skew_iv=3.0, min_term_slope_iv=3.0, rv_interval="1h",
+        rv_bars=2, vrp_threshold=5.0,
+    )
+
+
+def options_payload():
+    expiry = "2099-01-01T00:00:00Z"
+    return {"chains": [
+        {"payload": {"expiry_time": expiry, "strike": 100.0, "mark_iv": 50.0,
+                      "option_type": "call", "underlying_price": 100.0}},
+        {"payload": {"expiry_time": expiry, "strike": 95.0, "mark_iv": 56.0,
+                      "option_type": "put", "underlying_price": 100.0}},
+        {"payload": {"expiry_time": expiry, "strike": 105.0, "mark_iv": 50.0,
+                      "option_type": "call", "underlying_price": 100.0}},
+    ]}
+
+
+class PythonStrategyRunnerTests(unittest.TestCase):
+    def test_options_skew_dispatch_keeps_evidence(self):
+        score, maximum, verdict, evidence = score_options_skew(
+            {"options": options_payload()}, args(), {}
+        )
+        self.assertEqual((score, maximum), (1, 2))
+        self.assertEqual(verdict, "options skew observation")
+        self.assertTrue(any("put-call skew" in item for item in evidence))
+
+    def test_options_vrp_dispatch_is_read_only(self):
+        data = {"options": options_payload(), "rv_klines": {"candles": [
+            {"close": 100.0}, {"close": 101.0}, {"close": 100.0},
+        ]}}
+        score, maximum, verdict, evidence = score_options_vrp(data, args(), {})
+        self.assertEqual(maximum, 1)
+        self.assertIn(score, (0, 1))
+        self.assertIn(verdict, ("implied volatility premium observation", "observe only"))
+        self.assertTrue(any("ATM IV" in item for item in evidence) or evidence == ["missing option ATM IV or realized-volatility window"])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -39,7 +39,7 @@ experiments should start from `python_strategy_runner.py`.
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
 | `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
-| `python_strategy_runner.py` | Python-first versions of squeeze, exhaustion, basis and liquidation observers | normalized MarketBridge endpoints | Primary strategy entry point; read-only JSON output |
+| `python_strategy_runner.py` | Python-first versions of squeeze, exhaustion, basis, liquidation, options skew and options VRP observers | normalized MarketBridge endpoints | Primary strategy entry point; read-only JSON output |
 | `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
 | `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
 
@@ -139,6 +139,12 @@ python3 examples/crypto_flow_book_confirmation.py \
   --imbalance-threshold 0.30 --flow-threshold 0.20
 python3 examples/python_strategy_runner.py \
   --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
+python3 examples/python_strategy_runner.py \
+  --strategy options_skew --currency BTC --options-venue deribit \
+  --expiry-days 30 --iterations 2 --interval-secs 30
+python3 examples/python_strategy_runner.py \
+  --strategy options_vrp --currency BTC --options-venue deribit \
+  --symbol BTCUSDT --exchange binance --rv-interval 1h --rv-bars 168
 python3 examples/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
 ```
 
