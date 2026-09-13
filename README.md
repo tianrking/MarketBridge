@@ -141,6 +141,10 @@ high-volatility, leveraged and normal states with later BTC response
 distributions while retaining the current-snapshot limitation.
 The macro family also exposes configured DXY, VIX and US10Y references beside
 funding context, without turning them into a crypto return forecast.
+It also includes an ETF-flow response replay that treats a caller-supplied
+Farside-style CSV as an explicit external input and obtains the aligned BTC
+price history from MarketBridge. Native historical ETF-flow ingestion remains a
+separate data-plane gap, not an invented zero-filled field.
 It now also has a macro-context recorder/replay that reports BTC response
 distributions by VIX regime and funding crowding, while retaining provider
 timestamp and synchronization limits.

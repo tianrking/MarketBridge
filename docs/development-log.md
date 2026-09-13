@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — external BTC ETF-flow response replay
+
+Added `crypto_etf_flow_response_replay.py` under macro. It parses a
+Farside-style daily CSV in USD millions, aligns flow dates with MarketBridge
+daily BTC candles, and compares large inflow, large outflow and ordinary-flow
+response buckets. The external CSV boundary, missing rows, revisions, NAV
+timing and no-execution limitation are explicit; no flow value is synthesized.
+Provenance: [Farside's Bitcoin ETF flow table](https://farside.co.uk/btc/) and
+the existing [Wintermute macro/crypto-liquidity research lead on X](https://x.com/wintermute_t/status/1985631560021000352).
+
 ## 2026-09-14 — adaptive cross-asset paper-index replay
 
 Added `crypto_adaptive_cross_asset_replay.py` under the universe family. It

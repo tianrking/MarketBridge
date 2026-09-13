@@ -16,6 +16,14 @@ The result is a response study, not a directional macro signal: reference
 timestamps are provider snapshots and not a synchronized historical index
 series.
 
+`crypto_etf_flow_response_replay.py` is the explicit external-data bridge for
+spot ETF flow research. It reads a Farside-style CSV in USD millions, aligns
+each trading date with MarketBridge daily BTC candles, and compares large
+inflow, large outflow and ordinary-flow buckets at a fixed forward horizon.
+The CSV is intentionally caller-supplied because ETF flows are not yet a
+native MarketBridge historical endpoint; the output names that boundary rather
+than silently treating missing flow data as zero.
+
 Provenance: VIX semantics are cross-checked against [Cboe's VIX FAQ](https://www.cboe.com/tradable_products/vix/faqs),
 which describes the index as derived from SPX option inputs; dollar-index context
 is cross-checked against the [Federal Reserve H.10 dollar-index documentation](https://www.federalreserve.gov/releases/h10/Summary/).
@@ -24,6 +32,9 @@ crypto returns.
 The risk-context hypothesis is also motivated by [Wintermute's public macro and
 crypto-liquidity discussion on X](https://x.com/wintermute_t/status/1985631560021000352),
 which is treated as an unverified research lead rather than a forecast.
+The ETF-flow lead is cross-checked against [Farside's daily Bitcoin ETF flow
+table](https://farside.co.uk/btc/). It is a measurement source, not evidence
+that flows cause price movement.
 
 ## 中文
 
@@ -35,13 +46,35 @@ which is treated as an unverified research lead rather than a forecast.
 参考报价、资金费率状态和 BTC 价格，再按宏观波动与资金拥挤分桶报告未来收益、绝对波动和下行比例。
 它是响应分布研究，不是宏观方向信号；参考报价的时间戳来自提供方快照，不是同步的历史指数序列。
 
+`crypto_etf_flow_response_replay.py` 是外部数据的明确接入桥：读取 USD 百万单位的 Farside 风格 CSV，
+把每个交易日和 MarketBridge 的 BTC 日线对齐，再比较大额流入、大额流出与普通流量在固定窗口后的响应。
+由于 ETF 流量还不是 MarketBridge 原生历史接口，CSV 必须由调用者提供；输出会明确这一边界，不会把缺失流量填成零。
+
 出处：VIX 语义对照 [Cboe VIX FAQ](https://www.cboe.com/tradable_products/vix/faqs)，其中说明该指数来自
 SPX 期权输入；美元指数上下文对照 [Federal Reserve H.10 美元指数文档](https://www.federalreserve.gov/releases/h10/Summary/)。
 这些资料只是参考数据定义，不代表宏观快照能预测 crypto 收益。
 风险上下文假设也参考 [Wintermute 在 X 的宏观与 crypto 流动性讨论](https://x.com/wintermute_t/status/1985631560021000352)，
 但该内容只作为未经验证的研究线索，不作为预测。
+ETF 流量出处对照 [Farside 的 Bitcoin ETF 日流量表](https://farside.co.uk/btc/)，它是测量来源，不表示流量能够造成价格变动。
 
 ## Commands / 命令
+
+The CSV needs a date column and an aggregate total-flow column in USD
+millions; parenthesized values are treated as outflows. For example:
+
+```csv
+Date,Total
+2026-09-01,125.5
+2026-09-02,(80.0)
+```
+
+CSV 需要日期列和 USD 百万单位的 aggregate total-flow 列；括号值会被解析为流出。例如：
+
+```csv
+Date,Total
+2026-09-01,125.5
+2026-09-02,(80.0)
+```
 
 ```bash
 python3 examples/crypto/macro/crypto_macro_context_monitor.py \
@@ -53,5 +86,9 @@ python3 examples/crypto/macro/crypto_macro_context_recorder.py \
   --output work/crypto-macro-context.jsonl
 python3 examples/crypto/macro/crypto_macro_context_replay.py \
   --input work/crypto-macro-context.jsonl --horizon-records 7 \
+  --min-observations 5 --paper-cost-bps 10
+python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
+  --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
+  --interval 1d --threshold-musd 100 --horizon-days 1 \
   --min-observations 5 --paper-cost-bps 10
 ```
