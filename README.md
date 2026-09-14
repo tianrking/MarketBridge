@@ -681,7 +681,7 @@ tables below are a shorter runtime summary.
 | Public trades | price, size, side, trade id, source timestamp | `GET /v1/market/trades` | `WS /v1/stream?domains=trade` | source push where available | No |
 | Funding rates | funding rate, next funding time, mark/index if present | `GET /v1/market/funding` | `WS /v1/stream?domains=funding` | source push or venue poller | No |
 | Perp market discovery | latest public perpetual contract lists by exchange | `GET /v1/catalog/perpetuals`, `GET /v1/catalog/markets` | No direct stream | on-demand public REST | No |
-| On-demand perp funding | all supported current perp funding rows, not limited to configured symbols | `GET /v1/market/perpetual-funding` | No direct stream | on-demand public REST | No |
+| On-demand perp funding | all supported current perp funding rows, not limited to configured symbols; Binance cap/floor metadata when published | `GET /v1/market/perpetual-funding` | No direct stream | on-demand public REST | No |
 | Open interest | OI quantity/notional where venue exposes it | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | source push or venue poller | No |
 | Liquidations | public liquidation events | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | source push where stable public feed exists | No |
 | Klines | SQLite OHLCV from REST backfill and live ticks | `GET /v1/market/klines` | No direct stream | configured intervals, default `1m/5m/15m/1h` | No |
@@ -1177,10 +1177,13 @@ Response fields:
 
 - top level: `version`, `domain`, `supported_exchanges`, `funding`, `errors`
 - `funding[]`: `exchange`, `symbol`, `native_symbol`, `funding_rate`,
-  `funding_rate_pct`, `next_funding_time_ms`, `mark_price`, `index_price`,
+  `funding_rate_pct`, `next_funding_time_ms`, `funding_interval_ms`,
+  `funding_rate_cap`, `funding_rate_floor`, `mark_price`, `index_price`,
   `active`, `source`, `ts_ms`
 - `funding_rate` is the decimal rate, for example `-0.001`
 - `funding_rate_pct` is already percent, for example `-0.1` means `-0.1%`
+- `funding_rate_cap` and `funding_rate_floor` are Binance adjusted provider
+  parameters when published; other venues return `null` and no default is inferred.
 
 Examples:
 

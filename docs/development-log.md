@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Binance funding provider-band context
+
+Extended on-demand perpetual funding rows with Binance's published adjusted
+funding-rate cap, floor and interval when `fundingInfo` exposes them. Added the
+Python `crypto_funding_band_monitor.py` case, which makes the falsifiable
+hypothesis explicit: cap/floor proximity may define a later response state, but
+it is not a direction, funding-income or execution claim. Provenance: [Binance
+Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info)
+and the unverified [public X funding-extremes lead](https://x.com/instaclaws/status/2038363051213181035).
+No order, wallet, signing or execution path is included.
+
 ## 2026-09-14 — Binance ADL-risk context monitor
 
 Added the read-only `/v1/market/adl-risk` endpoint for Binance's public

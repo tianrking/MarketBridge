@@ -154,7 +154,7 @@ Short version:
 |---|---|---|---|---|
 | Quotes | `/v1/market/quotes` | CEX/DeFi/TradFi/aggregates | raw normalized | Current latest quote snapshots. |
 | Funding | `/v1/market/funding` | CEX perp feeds | raw normalized | Latest funding-rate rows. |
-| Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; includes `funding_interval_ms` when the provider exposes an explicit schedule. |
+| Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; includes explicit interval and Binance `funding_rate_cap`/`funding_rate_floor` when the provider exposes them. |
 | Open interest | `/v1/market/open-interest` | CEX perp feeds | raw normalized | Latest OI rows. |
 | ADL risk | `/v1/market/adl-risk` | Binance public futures | raw normalized | Symbol-level high/medium/low provider rating with update timestamp; not a directional forecast or private account metric. |
 | Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
@@ -680,6 +680,7 @@ Response fields:
 | `funding_rate_pct` | Percent funding rate, e.g. `-0.1` means `-0.1%`. |
 | `next_funding_time_ms` | Next funding timestamp in Unix milliseconds when available. |
 | `funding_interval_ms` | Observed interval between the venue's current and next funding timestamps when both are supplied; otherwise `null`. Never inferred from a default. |
+| `funding_rate_cap`, `funding_rate_floor` | Binance adjusted provider band when published by `fundingInfo`; other venues return `null`. These are context parameters, not guaranteed bounds for future rates or a directional signal. |
 | `mark_price`, `index_price` | Venue mark/index price when available. |
 | `active` | Whether the venue reports the contract as active/trading when available. |
 | `source` | Public REST URL used by the adapter. |

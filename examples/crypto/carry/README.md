@@ -74,6 +74,12 @@ the historical counterpart to the live basis recorder: provider snapshots are
 not simultaneous bid/ask legs, so the output is a convergence study, not an
 arbitrage, carry PnL, hedge or execution model.
 
+`crypto_funding_band_monitor.py` tests a narrower provider-context hypothesis:
+when the current Binance funding rate is close to its published adjusted cap or
+floor, is that state followed by a different fixed-window response than ordinary
+observations? It reports the rate, explicit interval, cap/floor and proximity;
+it does not infer direction, funding income, liquidation risk or a fill.
+
 `crypto_cross_venue_price_gap_replay.py` isolates same-asset price
 fragmentation: it aligns two venue candle series, detects an extreme log-price
 gap relative to a frozen trailing mean, and measures subsequent contraction.
@@ -161,12 +167,24 @@ which describes bounded historical OI observations rather than trader-side owner
 The funding/OI replay now forwards coverage metadata for funding, OI and price
 history into its evidence output, so sparse timestamp overlap is visible in the
 case result.
+The funding-band case uses Binance's official [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info),
+which documents adjusted cap, floor and interval fields. The public X lead is
+[this funding-extremes discussion](https://x.com/instaclaws/status/2038363051213181035);
+it is treated only as an unverified hypothesis source, not as performance evidence.
 
 Useful inputs:
 
 - `/v1/market/basis`
 - `/v1/market/perpetual-funding`
 - `/v1/history/candles?candle_type=funding_rate`
+- Binance rows' `funding_rate_cap` and `funding_rate_floor` fields
+
+Example:
+
+```bash
+python3 examples/crypto/carry/crypto_funding_band_monitor.py \
+  --symbol BTCUSDT --threshold 0.8
+```
 
 ## 中文
 
@@ -246,6 +264,13 @@ premium index 是交易所衍生的市场上下文，不代表资金费现金流
 并只把公开的 [CryptoCred 基差讨论](https://x.com/CryptoCred/status/1777720296297975952) 当作未经验证的研究线索。
 provider basis 不是同步可成交的 bid/ask，也不证明收敛套利收益。
 
+`crypto_funding_band_monitor.py` 检验更窄的提供方上下文假设：当 Binance 当前资金费率接近公开的调整后
+cap 或 floor 时，之后固定窗口的响应是否不同于普通观测？它输出费率、明确结算间隔、上下限和接近程度；
+不会推断方向、资金费收入、清算风险或可成交性。
+出处使用 Binance 官方 [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info)
+的调整后 cap、floor 和 interval 字段；公开 X 的[资金费率极值讨论](https://x.com/instaclaws/status/2038363051213181035)
+只作为未经验证的研究假设来源，不作为收益证据。
+
 盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
 这些资料支持测量深度和结算摩擦，不支持把单次快照 edge 当成可执行机会。
@@ -258,6 +283,14 @@ provider basis 不是同步可成交的 bid/ask，也不证明收敛套利收益
 - `/v1/market/basis`
 - `/v1/market/perpetual-funding`
 - `/v1/history/candles?candle_type=funding_rate`
+- Binance 行的 `funding_rate_cap`、`funding_rate_floor` 字段
+
+示例：
+
+```bash
+python3 examples/crypto/carry/crypto_funding_band_monitor.py \
+  --symbol BTCUSDT --threshold 0.8
+```
 
 ## Commands / 命令
 

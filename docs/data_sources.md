@@ -67,6 +67,7 @@ Primary endpoints:
 | Funding rates | `/v1/market/funding` | `funding` | Mixed by source, mostly keyless |
 | Perp contract discovery | `/v1/catalog/perpetuals`, `/v1/catalog/markets` | none | Keyless where public REST exists |
 | On-demand perp funding | `/v1/market/perpetual-funding` | none | Keyless where public REST exists |
+| Funding provider bands | `/v1/market/perpetual-funding` | none | Binance `fundingInfo` cap/floor/interval metadata is preserved when published; not a trading signal |
 | Open interest | `/v1/market/open-interest` | `open_interest` | Mixed by source, mostly keyless |
 | ADL risk rating | `/v1/market/adl-risk` | none | Keyless Binance symbol-level provider risk snapshot; not a directional signal or private account risk |
 | Liquidations | `/v1/market/liquidations` | `liquidation` | Keyless where public feeds exist |

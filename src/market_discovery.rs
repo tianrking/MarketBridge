@@ -82,6 +82,8 @@ pub struct PerpetualFundingRow {
     pub funding_rate_pct: f64,
     pub next_funding_time_ms: Option<u64>,
     pub funding_interval_ms: Option<u64>,
+    pub funding_rate_cap: Option<f64>,
+    pub funding_rate_floor: Option<f64>,
     pub mark_price: Option<f64>,
     pub index_price: Option<f64>,
     pub active: Option<bool>,
@@ -557,9 +559,9 @@ async fn binance_markets(http: &reqwest::Client, market: &str) -> Result<Vec<Mar
 
 async fn binance_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow>> {
     let url = "https://fapi.binance.com/fapi/v1/premiumIndex";
-    let funding_intervals = get_json(http, "https://fapi.binance.com/fapi/v1/fundingInfo")
+    let funding_info = get_json(http, "https://fapi.binance.com/fapi/v1/fundingInfo")
         .await
-        .map(|value| funding_interval_hours_map(&value))
+        .map(|value| funding_info_map(&value))
         .unwrap_or_default();
     let value = get_json(http, url).await?;
     Ok(value
@@ -581,8 +583,11 @@ async fn binance_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingR
                 url,
                 u64_value(row, "time"),
             );
-            result.funding_interval_ms =
-                funding_intervals.get(&native.to_ascii_uppercase()).copied();
+            if let Some(info) = funding_info.get(&native.to_ascii_uppercase()) {
+                result.funding_interval_ms = info.interval_ms;
+                result.funding_rate_cap = info.cap;
+                result.funding_rate_floor = info.floor;
+            }
             Some(result)
         })
         .collect())
@@ -752,18 +757,33 @@ async fn bybit_funding(http: &reqwest::Client) -> Result<Vec<PerpetualFundingRow
         .collect())
 }
 
-fn funding_interval_hours_map(value: &Value) -> HashMap<String, u64> {
+#[derive(Debug, Clone, Copy, Default)]
+struct BinanceFundingInfo {
+    interval_ms: Option<u64>,
+    cap: Option<f64>,
+    floor: Option<f64>,
+}
+
+fn funding_info_map(value: &Value) -> HashMap<String, BinanceFundingInfo> {
     value
         .as_array()
         .into_iter()
         .flatten()
         .filter_map(|row| {
             let symbol = text(row, "symbol")?.to_ascii_uppercase();
-            let hours = number(row, "fundingIntervalHours")?;
-            if hours <= 0.0 {
-                return None;
-            }
-            Some((symbol, (hours * 3_600_000.0).round() as u64))
+            let interval_ms = number(row, "fundingIntervalHours")
+                .filter(|hours| *hours > 0.0)
+                .map(|hours| (hours * 3_600_000.0).round() as u64);
+            let cap = number(row, "adjustedFundingRateCap");
+            let floor = number(row, "adjustedFundingRateFloor");
+            (interval_ms.is_some() || cap.is_some() || floor.is_some()).then_some((
+                symbol,
+                BinanceFundingInfo {
+                    interval_ms,
+                    cap,
+                    floor,
+                },
+            ))
         })
         .collect()
 }
@@ -1357,6 +1377,8 @@ fn funding_row(
         funding_rate_pct: funding_rate * 100.0,
         next_funding_time_ms,
         funding_interval_ms: None,
+        funding_rate_cap: None,
+        funding_rate_floor: None,
         mark_price,
         index_price,
         active,
@@ -1508,14 +1530,16 @@ mod tests {
     #[test]
     fn parses_provider_funding_intervals_without_inference() {
         let value = serde_json::json!([
-            {"symbol":"BTCUSDT", "fundingIntervalHours":8},
+            {"symbol":"BTCUSDT", "fundingIntervalHours":8, "adjustedFundingRateCap":"0.025", "adjustedFundingRateFloor":"-0.025"},
             {"symbol":"ETHUSDT", "fundingIntervalHours":"4"},
             {"symbol":"UNKNOWN", "fundingIntervalHours":0}
         ]);
-        let intervals = funding_interval_hours_map(&value);
-        assert_eq!(intervals.get("BTCUSDT"), Some(&28_800_000));
-        assert_eq!(intervals.get("ETHUSDT"), Some(&14_400_000));
-        assert!(!intervals.contains_key("UNKNOWN"));
+        let info = funding_info_map(&value);
+        assert_eq!(info["BTCUSDT"].interval_ms, Some(28_800_000));
+        assert_eq!(info["ETHUSDT"].interval_ms, Some(14_400_000));
+        assert!(!info.contains_key("UNKNOWN"));
+        assert_eq!(info["BTCUSDT"].cap, Some(0.025));
+        assert_eq!(info["BTCUSDT"].floor, Some(-0.025));
 
         let bybit = serde_json::json!({
             "result": {

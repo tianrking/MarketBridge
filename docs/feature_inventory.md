@@ -61,6 +61,7 @@ Status labels:
 | Spot-perp basis | `/v1/market/basis` | implemented | keyless | Derived from current spot/perp quote snapshots per exchange/symbol. |
 | Funding rates | `/v1/market/funding` | implemented | mixed | Native CEX feeds plus future aggregate feeds. |
 | On-demand perpetual funding | `/v1/market/perpetual-funding` | implemented | keyless | Current public REST funding rows for supported perpetual venues; includes explicit provider intervals for Binance, Bybit and OKX when available; not limited to configured symbols. |
+| Funding provider bands | `/v1/market/perpetual-funding` | implemented | keyless | Binance adjusted funding-rate cap/floor and explicit interval are preserved when the provider publishes them; context only, not a direction or income forecast. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | ADL risk rating | `/v1/market/adl-risk` | implemented | keyless | Binance symbol-level provider rating updated about every 30 minutes; risk context only, not price direction or private account risk. |
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
