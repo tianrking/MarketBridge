@@ -177,31 +177,31 @@ python3 examples/crypto/microstructure/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange okx --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000 \
   --oi-exchange bybit --trades-exchange okx
-python3 examples/polymarket_complement_monitor.py --min-edge-bps 10
-python3 examples/polymarket_price_shock_replay.py \
+python3 examples/prediction/polymarket_complement_monitor.py --min-edge-bps 10
+python3 examples/prediction/polymarket_price_shock_replay.py \
   --market-query "temperature" --outcome Yes --interval 1m \
   --shock-bps 100 --horizon-points 3 --min-observations 5
-python3 examples/polymarket_timing_replay.py \
+python3 examples/prediction/polymarket_timing_replay.py \
   --market-query "Bitcoin above" --market-limit 100 \
   --min-bucket-observations 5 --position-size-usd 10 --fee-bps 30
-python3 examples/prediction_trade_flow.py --market 0x... --limit 1000
-python3 examples/polymarket_settlement_replay.py \
+python3 examples/prediction/prediction_trade_flow.py --market 0x... --limit 1000
+python3 examples/prediction/polymarket_settlement_replay.py \
   --market 0x... --max-entry-price 0.80 --fee-bps 30
-python3 examples/polymarket_trade_recorder.py \
+python3 examples/prediction/polymarket_trade_recorder.py \
   --market 0x... --page-size 1000 --pages 3 \
   --output work/polymarket-trades.jsonl
-python3 examples/polymarket_settlement_replay.py \
+python3 examples/prediction/polymarket_settlement_replay.py \
   --market 0x... --trades-jsonl work/polymarket-trades.jsonl
-python3 examples/polymarket_calibration_report.py \
+python3 examples/prediction/polymarket_calibration_report.py \
   --trades-jsonl work/polymarket-trades.jsonl --resolved-outcome No
-python3 examples/weather_event_observer.py \
+python3 examples/weather/weather_event_observer.py \
   --latitude 52.52 --longitude 13.41 --date 2026-09-14 \
   --min-temp 15 --max-temp 25
-python3 examples/weather_pressure_differential.py \
+python3 examples/weather/weather_pressure_differential.py \
   --market-query "Berlin temperature" \
   --latitude 52.52 --longitude 13.41 --date 2026-09-14 \
   --min-temp 15 --max-temp 25 --max-yes-ask 0.25
-python3 examples/weather_market_calibration.py \
+python3 examples/weather/weather_market_calibration.py \
   --manifest examples/weather-market-manifest.example.jsonl
 python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT \
@@ -210,7 +210,7 @@ python3 examples/crypto/microstructure/crypto_anchored_vwap_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --anchor-lookback 96 --anchor-mode both --horizon-bars 12 \
   --volume-multiplier 1.0 --paper-cost-bps 10 --min-observations 5
-python3 examples/crypto_volatility_breakout_replay.py \
+python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 5m \
   --days 3 --range-bars 12 --compression-window 12 \
   --baseline-window 48 --flow-exchange binance --flow-pages 12
@@ -258,14 +258,14 @@ python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_reco
 python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_replay.py \
   --input work/crypto-derivatives-crowding-response.jsonl \
   --horizon-records 7 --min-observations 5 --paper-cost-bps 10
-python3 examples/crypto_options_skew_monitor.py \
+python3 examples/crypto/options/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --min-skew-iv 3 --min-term-slope-iv 3
-python3 examples/crypto_options_skew_recorder.py \
+python3 examples/crypto/options/crypto_options_skew_recorder.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --iterations 20 --interval-secs 30 \
   --output work/crypto-options-skew.jsonl
-python3 examples/crypto_options_skew_replay.py \
+python3 examples/crypto/options/crypto_options_skew_replay.py \
   --input work/crypto-options-skew.jsonl --min-skew-iv 3 --min-run 3
 python3 examples/crypto/options/crypto_options_skew_response_recorder.py \
   --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
@@ -372,18 +372,18 @@ python3 examples/crypto/onchain/crypto_onchain_transfer_response_replay.py \
   --input work/crypto-onchain-transfer-response.jsonl \
   --window-hours 24 --horizon-records 12 \
   --threshold-usd 1000000 --min-observations 3
-python3 examples/crypto_options_vrp_monitor.py \
+python3 examples/crypto/options/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \
   --vrp-threshold 5
-python3 examples/crypto_options_gamma_monitor.py \
+python3 examples/crypto/options/crypto_options_gamma_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --min-near-share 0.50 --min-concentration 0.10 \
   --max-book-fetches 24
-python3 examples/crypto_options_gamma_recorder.py \
+python3 examples/crypto/options/crypto_options_gamma_recorder.py \
   --currency BTC --venue deribit --iterations 20 --interval-secs 30 \
   --output work/crypto-options-gamma.jsonl
-python3 examples/crypto_options_gamma_replay.py \
+python3 examples/crypto/options/crypto_options_gamma_replay.py \
   --input work/crypto-options-gamma.jsonl --min-near-share 0.50 \
   --min-concentration 0.10 --min-run 3
 python3 examples/crypto/options/crypto_options_gamma_response_recorder.py \
@@ -393,20 +393,20 @@ python3 examples/crypto/options/crypto_options_gamma_response_recorder.py \
 python3 examples/crypto/options/crypto_options_gamma_response_replay.py \
   --input work/crypto-options-gamma-response.jsonl --horizon-records 3 \
   --min-near-share 0.50 --min-concentration 0.10 --min-observations 5
-python3 examples/crypto_universe_opportunity_scan.py \
+python3 examples/crypto/universe/crypto_universe_opportunity_scan.py \
   --exchange binance --market perp --interval 5m \
   --min-quote-volume 1000000 --min-realized-vol 0.2 \
   --min-abs-funding-hourly-pct 0.01 --min-score 2
-python3 examples/crypto_cross_asset_momentum_replay.py \
+python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance \
   --interval 1h --lookback-bars 8 --horizon-bars 8 \
   --top-k 1 --min-observations 5
-python3 examples/funding_convergence_monitor.py \
+python3 examples/crypto/carry/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit \
   --iterations 3 --interval-secs 30
-python3 examples/funding_convergence_replay.py \
+python3 examples/crypto/carry/funding_convergence_replay.py \
   --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200
-python3 examples/crypto_funding_oi_replay.py \
+python3 examples/crypto/carry/crypto_funding_oi_replay.py \
   --symbol BTCUSDT --funding-exchange binance \
   --oi-exchange binance --price-exchange binance \
   --days 7 --min-funding-pct 0.01 --min-oi-change-pct 0.10
@@ -544,11 +544,11 @@ python3 examples/crypto/sentiment/crypto_social_signal_response_recorder.py \
 python3 examples/crypto/sentiment/crypto_social_signal_response_replay.py \
   --input work/crypto-social-response.jsonl --horizon-records 6 \
   --min-change 1 --min-observations 5
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy options_gamma --currency BTC --options-venue deribit \
   --expiry-days 30 --gamma-min-near-share 0.50 \
   --gamma-min-concentration 0.10
-python3 examples/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
+python3 examples/crypto/carry/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
 ```
 
 The first OI poll has no change baseline. A missing book, funding row, or
