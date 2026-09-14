@@ -206,6 +206,8 @@ def main():
     parser.add_argument("--price-limit", type=int, default=1500)
     parser.add_argument("--price-pages", type=int, default=4)
     parser.add_argument("--liquidation-limit", type=int, default=100)
+    parser.add_argument("--liquidation-pages", type=int, default=1,
+                        help="bounded CoinEx liquidation pages; OKX remains recent-window only")
     parser.add_argument("--liquidation-window-hours", type=float, default=24.0)
     parser.add_argument("--ratio-threshold", type=float, default=0.10)
     parser.add_argument("--oi-drop-threshold", type=float, default=0.10)
@@ -222,6 +224,7 @@ def main():
             or args.oi_pages < 1 or args.oi_pages > 96
             or args.price_pages < 1 or args.price_pages > 48
             or args.liquidation_window_hours <= 0 or args.liquidation_limit <= 0
+            or args.liquidation_pages < 1 or args.liquidation_pages > 48
             or args.horizon_bars <= 0 or args.min_observations <= 0
             or args.min_abs_edge_bps < 0 or args.timeout <= 0):
         parser.error("invalid window, pages, threshold, horizon or observation argument")
@@ -240,6 +243,7 @@ def main():
     liquidation_payload = fetch(args.base_url, "/v1/history/liquidations", {
         **common, "exchange": args.liquidation_exchange,
         "limit": min(args.liquidation_limit, 100),
+        "pages": args.liquidation_pages,
     }, args.timeout)
     price_payload = fetch(args.base_url, "/v1/history/candles", {
         **common, "exchange": args.price_exchange, "candle_type": "perp",
@@ -271,6 +275,7 @@ def main():
                     "oi_drop_threshold": args.oi_drop_threshold,
                     "min_liquidation_notional": args.min_liquidation_notional,
                     "liquidation_window_hours": args.liquidation_window_hours,
+                    "liquidation_pages": args.liquidation_pages,
                     "ratio_pages": args.ratio_pages, "oi_pages": args.oi_pages,
                     "price_pages": args.price_pages, "horizon_bars": args.horizon_bars,
                     "min_observations": args.min_observations,

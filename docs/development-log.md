@@ -2243,3 +2243,15 @@ bounds, sorted/deduplicated, and `coverage_detail.requested_pages` remains
 visible. Provenance: [Binance Futures Basis API](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
 and the existing [public basis-trade discussion](https://x.com/0xscarlettw/status/1944584946670276938).
 The change adds no hedge, order, wallet, signing or execution path.
+
+## 2026-09-14 — CoinEx liquidation-history pagination
+
+Extended `/v1/history/liquidations` with bounded CoinEx `pages=1..48`, passing
+the provider's `page`, `start_time`, and `end_time` parameters and stopping when
+`pagination.has_next` is false. Rows are normalized, time-filtered,
+sorted/deduplicated, and `coverage_detail.requested_pages` is retained. OKX is
+deliberately unchanged: its official liquidation channel describes recent
+orders rather than a complete total-liquidation history. The crowded-liquidation
+replay now exposes `--liquidation-pages`; no order, wallet, signing or execution
+path was added. Provenance: [CoinEx liquidation-history API](https://docs.coinex.com/api/v2/futures/market/http/list-market-liquidation-history)
+and [OKX liquidation-orders channel](https://app.okx.com/docs-v5/en/).

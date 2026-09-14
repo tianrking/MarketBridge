@@ -33,7 +33,7 @@ liquidity-sandwich pair 只检验一个更窄的公开 X 假设：当买卖两�
 python3 examples/crypto/microstructure/crypto_crowded_liquidation_reversal_replay.py \
   --symbol BTCUSDT --ratio-exchange binance --ratio-scope top_trader \
   --liquidation-exchange okx --price-exchange binance --period 1h \
-  --days 14 --ratio-pages 4 --oi-pages 4 --price-pages 4 \
+  --days 14 --ratio-pages 4 --oi-pages 4 --price-pages 4 --liquidation-pages 1 \
   --ratio-threshold 0.10 --oi-drop-threshold 0.10 \
   --min-liquidation-notional 1000000 --horizon-bars 3 \
   --min-observations 5
@@ -42,6 +42,9 @@ python3 examples/crypto/microstructure/crypto_crowded_liquidation_reversal_repla
 研究线索来自 [CryptoData 在 X 的清算/OI 讨论](https://x.com/TheCryptoData/status/1948466627365769584)。
 账户多空比字段对照 [Binance 官方 global long/short ratio API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio)，
 该接口明确了有限时间粒度和单页上限。两者只用于提出可检验的上下文假设，不是业绩证据。
+
+CoinEx 的公开 liquidation-history 支持有界 `--liquidation-pages`（1–48）。OKX 官方清算频道明确是 recent window，
+不是完整的总清算记录；因此回放会继续保留这个 provider 限制，不会把 OKX 数据包装成完整历史。
 
 `crypto_liquidity_sweep_response_replay.py` 检验公开“流动性扫损/收回”叙事中可以从 OHLCV 观察到的子集：当前 K 线刺破前序回看窗口的高点或低点，
 随后收盘重新穿回该水平，并且实体/波动达到阈值；然后报告按方向对齐的未来收益。这不能证明真实止损流动性、潜在 liquidity pool、CISD、displacement 意图或可执行形态。

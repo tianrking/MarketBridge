@@ -38,7 +38,7 @@ universally a long liquidation, and it does not output a reversal trade.
 python3 examples/crypto/microstructure/crypto_crowded_liquidation_reversal_replay.py \
   --symbol BTCUSDT --ratio-exchange binance --ratio-scope top_trader \
   --liquidation-exchange okx --price-exchange binance --period 1h \
-  --days 14 --ratio-pages 4 --oi-pages 4 --price-pages 4 \
+  --days 14 --ratio-pages 4 --oi-pages 4 --price-pages 4 --liquidation-pages 1 \
   --ratio-threshold 0.10 --oi-drop-threshold 0.10 \
   --min-liquidation-notional 1000000 --horizon-bars 3 \
   --min-observations 5
@@ -48,6 +48,11 @@ The research lead is [CryptoData's public liquidation/OI discussion](https://x.c
 The normalized account-ratio fields follow [Binance's official global long/short ratio API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio),
 which documents bounded periods and a maximum page size. Both sources motivate a
 testable context study only; they are not performance evidence.
+
+CoinEx supports bounded `--liquidation-pages` (1–48) through its public
+liquidation-history pagination. OKX remains a recent-window source because its
+official liquidation channel is explicitly not a complete total-liquidation
+record; the replay keeps that provider limitation visible.
 The liquidity-sandwich pair tests the narrower public-X claim that symmetric
 near-touch bid and ask depth with a tight spread is followed by a different
 absolute BTC move than ordinary snapshots. It does not call the displayed

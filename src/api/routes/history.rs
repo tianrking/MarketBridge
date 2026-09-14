@@ -41,6 +41,7 @@ pub struct HistoryLiquidationsQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -809,14 +810,16 @@ pub async fn liquidations(
 
 fn liquidation_coverage_detail(rows: &[Value], q: &HistoryLiquidationsQuery) -> Value {
     let limit = q.limit.unwrap_or(100).clamp(1, 100);
+    let requested_pages = q.pages.unwrap_or(1).clamp(1, 48);
     serde_json::json!({
-        "status": liquidation_coverage_status(rows.len(), limit),
+        "status": if rows.is_empty() { "empty_or_provider_limited" } else if q.exchange.trim().eq_ignore_ascii_case("coinex") && requested_pages > 1 { "bounded_paged_history" } else { liquidation_coverage_status(rows.len(), limit) },
         "requested_start_ms": q.start_ms,
         "requested_end_ms": q.end_ms,
         "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
         "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
         "returned_rows": rows.len(),
         "page_limit": limit,
+        "requested_pages": requested_pages,
     })
 }
 
@@ -1628,44 +1631,64 @@ async fn fetch_coinex_liquidations(
     q: &HistoryLiquidationsQuery,
 ) -> Result<Vec<Value>> {
     let symbol = q.symbol.trim().to_ascii_uppercase();
-    let limit = q.limit.unwrap_or(100).clamp(1, 100).to_string();
-    let payload = http
-        .get("https://api.coinex.com/v2/futures/liquidation-history")
-        .query(&[("market", symbol.as_str()), ("limit", limit.as_str())])
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Value>()
-        .await
-        .context("failed to parse coinex liquidation history")?;
-    if payload.get("code").and_then(Value::as_i64) != Some(0) {
-        bail!(
-            "coinex liquidation history error: {}",
-            payload
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or("unknown provider error")
-        );
-    }
-    let rows = payload
-        .get("data")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let rows = rows
-        .into_iter()
-        .filter_map(|row| {
-            let ts_ms = value_u64(row.get("created_at"))?;
+    let limit = q.limit.unwrap_or(100).clamp(1, 100);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let mut rows = Vec::new();
+    for page in 1..=pages {
+        let page_query = page.to_string();
+        let limit_query = limit.to_string();
+        let mut request = http
+            .get("https://api.coinex.com/v2/futures/liquidation-history")
+            .query(&[
+                ("market", symbol.as_str()),
+                ("page", page_query.as_str()),
+                ("limit", limit_query.as_str()),
+            ]);
+        if let Some(start_ms) = q.start_ms {
+            request = request.query(&[("start_time", start_ms.to_string())]);
+        }
+        if let Some(end_ms) = q.end_ms {
+            request = request.query(&[("end_time", end_ms.to_string())]);
+        }
+        let payload = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await
+            .context("failed to parse coinex liquidation history")?;
+        if payload.get("code").and_then(Value::as_i64) != Some(0) {
+            bail!(
+                "coinex liquidation history error: {}",
+                payload
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown provider error")
+            );
+        }
+        for row in payload
+            .get("data")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let Some(ts_ms) = value_u64(row.get("created_at")) else {
+                continue;
+            };
             if q.start_ms.is_some_and(|start| ts_ms < start)
                 || q.end_ms.is_some_and(|end| ts_ms > end)
             {
-                return None;
+                continue;
             }
             let raw_side = row.get("side").and_then(Value::as_str).unwrap_or("unknown");
             let side = coinex_liquidation_side(raw_side);
-            let price = value_f64(row.get("liq_price"))?;
-            let qty = value_f64(row.get("liq_amount"))?;
-            Some(serde_json::json!({
+            let Some(price) = value_f64(row.get("liq_price")) else {
+                continue;
+            };
+            let Some(qty) = value_f64(row.get("liq_amount")) else {
+                continue;
+            };
+            rows.push(serde_json::json!({
                 "exchange": "coinex",
                 "symbol": symbol,
                 "side": side,
@@ -1675,9 +1698,18 @@ async fn fetch_coinex_liquidations(
                 "notional": price * qty,
                 "ts_ms": ts_ms,
                 "source": "coinex_public_liquidation_history"
-            }))
-        })
-        .collect::<Vec<_>>();
+            }));
+        }
+        if !payload
+            .pointer("/pagination/has_next")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            break;
+        }
+    }
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    rows.dedup_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
     Ok(rows)
 }
 
@@ -2984,6 +3016,21 @@ mod tests {
             liquidation_coverage_status(100, 100),
             "provider_page_may_be_truncated"
         );
+    }
+
+    #[test]
+    fn coinex_liquidation_coverage_reports_requested_pages() {
+        let query = HistoryLiquidationsQuery {
+            exchange: "coinex".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            start_ms: Some(1),
+            end_ms: Some(10),
+            limit: Some(100),
+            pages: Some(3),
+        };
+        let detail = liquidation_coverage_detail(&[serde_json::json!({"ts_ms": 1})], &query);
+        assert_eq!(detail["requested_pages"], serde_json::json!(3));
+        assert_eq!(detail["status"], serde_json::json!("bounded_paged_history"));
     }
 
     #[test]
