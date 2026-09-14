@@ -28,6 +28,19 @@ Provenance: the public [volatility-risk-premium research lead on X](https://x.co
 is treated as a falsifiable lead only; the Deribit OHLC semantics remain
 grounded in the [official volatility-index API documentation](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data).
 
+## 2026-09-14 — Cross-asset Deribit volatility spread response study
+
+Added `crypto_deribit_cross_asset_volatility_response_replay.py`. It aligns
+BTC and ETH public Deribit volatility-index closes, classifies the ETH-minus-BTC
+spread, and compares later ETH-minus-BTC perp returns and absolute relative
+responses against an aligned control state. It keeps provider timestamp
+intersection, missing price windows, option PnL, hedge ratio, fees and
+execution outside the claim.
+
+Provenance: the public [BTC/ETH options comparison on X](https://x.com/Gate_Launch/status/2063810805552845140)
+is an unverified lead; index fields remain grounded in [Deribit's official
+volatility-index API documentation](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data).
+
 ## 2026-09-14 — Binance global account-ratio scope
 
 Extended `/v1/history/account-ratio` with `scope=global|top_trader` for

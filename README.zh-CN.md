@@ -20,6 +20,8 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 只做描述性研究，不建模波动率仓位或执行。
 同时提供 DVOL 减已实现波动率（RV）的响应回放，明确计算收盘价 RV 窗口，
 不把公开风险溢价讨论直接包装成卖波动率回测。
+另有 ETH-DVOL 减 BTC-DVOL 的相对响应回放，与 BTC/ETH 永续 K 线对齐，
+只做跨资产上下文比较，不执行 dispersion 交易。
 
 [English README](README.md)
 

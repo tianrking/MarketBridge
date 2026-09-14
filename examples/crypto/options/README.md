@@ -93,6 +93,12 @@ responses, while keeping the different construction, annualization horizon and
 missing-history assumptions visible. It is not a short-volatility or hedge
 backtest.
 
+`crypto_deribit_cross_asset_volatility_response_replay.py` aligns BTC and ETH
+Deribit volatility-index closes, classifies the ETH-minus-BTC spread, and joins
+the state to synchronized BTC/ETH perp price windows. It asks whether the
+relative response differs by volatility-spread state; no dispersion position,
+hedge ratio or execution path is inferred.
+
 Provenance: the public [IV-minus-realized-volatility discussion on
 X](https://x.com/isellpremium/status/2072350364385349678) is treated as a
 research lead and cross-checked against the [Bitcoin-options risk-premia
@@ -124,6 +130,9 @@ timestamps. The index remains provider context; no volatility trade is modeled.
 The index-minus-RV extension follows the public [volatility-risk-premium research lead on X](https://x.com/ConcretumR/status/1952298941745172695)
 as a falsifiable comparison only; the public post is not treated as a crypto
 performance claim.
+The cross-asset extension is motivated by the public [BTC/ETH options comparison on X](https://x.com/Gate_Launch/status/2063810805552845140)
+and uses the same official Deribit volatility-index semantics; the X post does
+not establish that an index spread predicts relative returns.
 
 ## 中文
 
@@ -195,6 +204,10 @@ Gamma 响应案例保留公开的 [X 上 gamma wall 讨论](https://x.com/david_
 比较指数减 RV 的溢价、折价和对齐状态之后的 BTC 绝对波动。不同的波动率构造、年化窗口和历史缺失会保留在结果中，
 不会伪装成卖波动率或对冲回测。
 
+`crypto_deribit_cross_asset_volatility_response_replay.py` 对齐 BTC 与 ETH 的 Deribit 波动率指数收盘值，
+将 ETH 减 BTC 的波动率差分成状态，再和 BTC/ETH 永续价格窗口配对，检验相对响应是否不同；
+不会推断 dispersion 仓位、对冲比率或执行路径。
+
 出处：研究线索参考 [Glassnode 在 X 上的实现波动率状态观察](https://x.com/glassnode/status/1955218957490594099)，
 数据字段和小时频率以 Bybit 官方 [Get Historical Volatility API](https://bybit-exchange.github.io/docs/v5/market/iv)
 为准。X 内容不被当作收益证明，跨交易所价格只是响应对照。
@@ -202,6 +215,8 @@ Deribit 指数字段、分辨率和时间窗口对照官方 [`public/get_volatil
 它仍然只是提供方波动率上下文，不构造卖波动率、对冲或执行路径。
 指数减 RV 的扩展参考 [公开波动率风险溢价 X 线索](https://x.com/ConcretumR/status/1952298941745172695)，
 只用于提出可证伪比较，不把该帖子当作加密收益证明。
+跨资产扩展参考 [公开 BTC/ETH 期权比较 X 线索](https://x.com/Gate_Launch/status/2063810805552845140)，
+并沿用 Deribit 官方波动率指数语义；该帖子不证明波动率差能够预测相对收益。
 
 ## Commands / 命令
 
@@ -220,6 +235,10 @@ python3 examples/crypto/options/crypto_deribit_volatility_index_response_replay.
 python3 examples/crypto/options/crypto_deribit_volatility_index_vrp_response_replay.py \
   --currency BTC --resolution 3600 --days 30 --price-symbol BTCUSDT \
   --price-interval 1h --rv-bars 24 --vrp-threshold 5 \
+  --horizon-bars 3 --min-observations 5
+python3 examples/crypto/options/crypto_deribit_cross_asset_volatility_response_replay.py \
+  --resolution 3600 --days 30 --btc-symbol BTCUSDT --eth-symbol ETHUSDT \
+  --price-interval 1h --spread-threshold 5 \
   --horizon-bars 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_gamma_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 --max-book-fetches 24
