@@ -12,7 +12,7 @@
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`liquidation_reversal_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
-| 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
+| 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
 ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL，也不推断私人账户风险。
@@ -57,6 +57,21 @@ python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay
 
 完整命令保留在 [`README.md`](README.md)。首次轮询可能没有 OI 基线；清算 side、成交 side
 和盘口语义都取决于提供方，必须保留在输出中。
+
+OI/价格象限回放会把每根价格 K 线与不晚于该时间的最新 OI 对齐，保留 OI 年龄和提供方单位，
+分类为价格上升/OI 上升、价格上升/OI 下降、价格下降/OI 上升、价格下降/OI 下降四种可观察状态，
+再比较后续有符号和绝对收益。标签不证明逼空、新空头、长仓清算或交易者意图。
+
+```bash
+python3 examples/crypto/microstructure/crypto_oi_price_divergence_response_replay.py \
+  --symbol BTCUSDT --price-exchange binance --oi-exchange okx \
+  --price-interval 5m --oi-interval 5m --days 2 \
+  --lookback-bars 3 --horizon-bars 3 --min-observations 5
+```
+
+分解动机来自 [TheCryptoData 的公开 OI 与清算讨论](https://x.com/TheCryptoData/status/1948466627365769584)，
+字段语义同时参考[OKX 合约 OI 文档](https://www.okx.com/docs-v5/en/#rest-api-trading-data-get-contracts-open-interest-and-volume)
+和现有 Binance 历史接口。它们只是研究输入，不证明 divergence 交易具有收益。
 
 ```bash
 python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorder.py \

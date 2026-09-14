@@ -61,6 +61,7 @@ Cases:
 - `crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py`: freeze stress states beside a quote and compare later BTC movement with watch/normal states.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
 - `crypto_taker_oi_response_replay.py`: separates taker buy/sell imbalance with rising OI from the same flow with falling OI, then compares fixed-horizon price responses.
+- `crypto_oi_price_divergence_response_replay.py`: separates four as-of price/OI quadrants and compares fixed-horizon responses without naming them as long/short positions.
 - `crypto_account_ratio_oi_response_replay.py`: separates Bybit holder-count long/short crowding and unwinding states by aligning account-ratio imbalance with OI change and fixed-horizon price responses.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
@@ -101,6 +102,19 @@ Provenance: MarketBridge uses Binance's public [Taker Buy/Sell Volume API](https
 which documents `takerBuyVol`, `takerSellVol`, value fields, timestamps and
 periods from 5m through 1d. This is aggregate provider data, not trader intent,
 and the example never places orders.
+
+`crypto_oi_price_divergence_response_replay.py` is the simpler OI/price
+decomposition. It aligns each price candle with the latest non-future OI row,
+records OI age and provider units, classifies price-up/OI-up, price-up/OI-down,
+price-down/OI-up and price-down/OI-down states, then measures later signed and
+absolute returns. The labels are observable quadrants only; they do not prove
+short covering, new shorts, long liquidation or trader intent.
+
+Provenance: the decomposition is motivated by [TheCryptoData's public OI and
+liquidation discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
+and field semantics are checked against [Binance's historical open-interest
+documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
+and [OKX's public contract OI documentation](https://www.okx.com/docs-v5/en/#rest-api-trading-data-get-contracts-open-interest-and-volume).
 
 中文：`crypto_taker_oi_response_replay.py` 新增原生历史主动买卖量输入。它不把主动成交直接当成“聪明钱”：
 主动买/卖不平衡且 OI 上升标记为新仓压力，同方向不平衡但 OI 下降标记为可能的吸收/平仓，然后比较固定窗口的后续价格响应。
@@ -693,6 +707,10 @@ python3 examples/crypto/microstructure/crypto_taker_oi_response_replay.py \
   --symbol BTCUSDT --exchange binance --period 5m --days 7 \
   --flow-threshold 0.20 --oi-threshold 0.10 \
   --horizon-bars 3 --min-observations 5
+python3 examples/crypto/microstructure/crypto_oi_price_divergence_response_replay.py \
+  --symbol BTCUSDT --price-exchange binance --oi-exchange okx \
+  --price-interval 5m --oi-interval 5m --days 2 \
+  --lookback-bars 3 --horizon-bars 3 --min-observations 5
 python3 examples/crypto/microstructure/crypto_trade_imbalance_bar_replay.py \
   --exchange binance --symbol BTCUSDT --days 2 --trade-pages 12 \
   --bar-notional 1000000 --max-trades-per-bar 500 \

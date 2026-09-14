@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — Added OI/price quadrant response replay
+
+Added `crypto_oi_price_divergence_response_replay.py` under microstructure.
+The replay aligns each price candle with the latest non-future aggregate OI,
+records provider units and OI age, classifies four price/OI quadrants, and
+compares later signed and absolute returns. It deliberately avoids labels such
+as short covering or long liquidation because public OI does not reveal
+ownership. The case accepts Binance, Bybit, and the newly supported OKX OI
+history.
+
+The research lead is [TheCryptoData's public OI/liquidation discussion on X](https://x.com/TheCryptoData/status/1948466627365769584),
+treated as an unverified decomposition rather than a directional forecast.
+
 ## 2026-09-14 — Added OKX historical open-interest coverage
 
 Extended `/v1/history/open-interest` with OKX's public contract

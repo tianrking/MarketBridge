@@ -12,7 +12,7 @@
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `liquidation_reversal_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
-| Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
+| Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
 fixed-record signed or absolute return. The ADL pair treats Binance's rating as
@@ -67,6 +67,25 @@ python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay
 The full command set remains in [`README.md`](README.md). First polls may have
 no OI baseline; venue liquidation side, trade side and book semantics are
 provider-specific and must stay in the output.
+
+The OI/price quadrant replay aligns each price candle with the latest
+non-future OI row, keeps OI age and provider units visible, classifies four
+observable price/OI states, and measures later signed and absolute returns.
+The labels do not prove short covering, new shorts, long liquidation or trader
+intent.
+
+```bash
+python3 examples/crypto/microstructure/crypto_oi_price_divergence_response_replay.py \
+  --symbol BTCUSDT --price-exchange binance --oi-exchange okx \
+  --price-interval 5m --oi-interval 5m --days 2 \
+  --lookback-bars 3 --horizon-bars 3 --min-observations 5
+```
+
+The decomposition is motivated by [TheCryptoData's public OI and liquidation
+discussion on X](https://x.com/TheCryptoData/status/1948466627365769584) and
+uses the public [OKX contract OI documentation](https://www.okx.com/docs-v5/en/#rest-api-trading-data-get-contracts-open-interest-and-volume)
+alongside the existing Binance history semantics. These are research inputs,
+not evidence of a profitable divergence trade.
 
 ```bash
 python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorder.py \
