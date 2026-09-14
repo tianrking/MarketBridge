@@ -68,6 +68,7 @@ Cases:
 - `crypto_adx_dmi_response_replay.py`: compares Wilder-style ADX strength and +DI/-DI direction states with weak-direction/range controls.
 - `crypto_aroon_response_replay.py`: compares recent-high/recent-low Aroon states, crossovers and consolidation controls.
 - `crypto_mfi_response_replay.py`: compares volume-weighted Money Flow Index extremes, reclaims and neutral controls.
+- `crypto_cmf_response_replay.py`: compares close-location-weighted Chaikin Money Flow pressure, zero crosses and neutral controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -659,6 +660,21 @@ python3 examples/crypto/microstructure/crypto_mfi_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --period 14 --overbought 80 --oversold 20 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_cmf_response_replay.py` 与 MFI/OBV 分开：它按 `(close-low)/(high-low)` 计算每根 K 线的 money-flow multiplier，再乘以 volume，
+用窗口内 money-flow volume 总和除以 volume 总和得到 CMF。样本分为 `positive_pressure`、`negative_pressure` 和 `neutral`，并单独保留
+`positive_zero_cross` / `negative_zero_cross`，比较压力状态与中性控制组的固定窗口响应。`high == low` 的 K 线不被填成压力，而会使相关窗口缺失。
+这是收盘位置加权的 OHLCV 代理，不是主动成交流、交易所净流、持仓归属或执行规则；周期、阈值和 horizon 都是敏感性参数。
+公式对照 [TradingView 的 Chaikin Money Flow 说明](https://www.tradingview.com/support/solutions/43000501974-chaikin-money-flow-cmf/)，公开加密资金流线索参考
+[Binance Square 的 money-flow 讨论](https://www.binance.com/en/square/post/21507916375097)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_cmf_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 21 --positive-threshold 0.05 \
+  --negative-threshold -0.05 --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

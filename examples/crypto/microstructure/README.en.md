@@ -276,6 +276,27 @@ python3 examples/crypto/microstructure/crypto_mfi_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_cmf_response_replay.py` is deliberately separate from MFI and OBV. It
+computes each candle's `(close-low)/(high-low)` money-flow multiplier, multiplies
+it by volume, and divides rolling money-flow volume by rolling volume. Bars are
+classified as `positive_pressure`, `negative_pressure` or `neutral`, while
+`positive_zero_cross` and `negative_zero_cross` remain separate events. Pressure
+states are compared with neutral controls over a fixed horizon. A candle with
+`high == low` is not filled with an artificial pressure value; any window that
+needs it remains missing. This is a close-location-weighted OHLCV proxy, not
+aggressive flow, exchange net flow, position ownership or execution. Period,
+thresholds and horizon are sensitivity parameters. Formula details are
+cross-checked against [TradingView's Chaikin Money Flow documentation](https://www.tradingview.com/support/solutions/43000501974-chaikin-money-flow-cmf/),
+the public crypto research lead is [a Binance Square money-flow discussion](https://www.binance.com/en/square/post/21507916375097),
+and candle fields use [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_cmf_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 21 --positive-threshold 0.05 \
+  --negative-threshold -0.05 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

@@ -2025,3 +2025,18 @@ wallet action or order.
 Provenance: the public [Binance Square Supertrend parameter/readout note](https://www.binance.com/en/square/post/24192142459218)
 is treated as an unverified research lead; candle fields are bounded by
 [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — CMF response replay
+
+Added `crypto_cmf_response_replay.py` under the microstructure family. The
+Python case computes close-location-weighted money-flow volume and normalizes it
+by rolling candle volume, separates positive, negative and neutral pressure,
+and retains zero-line crosses for fixed-horizon response comparison. Zero-range
+candles stay missing rather than receiving an artificial pressure value; the
+case never promotes OHLCV pressure to aggressive flow, ownership, a forecast,
+wallet action or an order.
+
+Provenance: [TradingView's Chaikin Money Flow calculation](https://www.tradingview.com/support/solutions/43000501974-chaikin-money-flow-cmf/)
+defines the formula. The public [Binance Square money-flow discussion](https://www.binance.com/en/square/post/21507916375097)
+is treated as an unverified crypto research lead, with candle fields bounded by
+[Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
