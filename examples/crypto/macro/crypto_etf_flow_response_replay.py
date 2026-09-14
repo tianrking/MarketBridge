@@ -126,11 +126,33 @@ def classify(flow_musd, threshold_musd):
     return "ordinary_flow"
 
 
-def aligned_observations(flows, prices, threshold_musd, horizon_days):
+def aligned_observations(
+    flows,
+    prices,
+    threshold_musd,
+    horizon_days,
+    rolling_observations=1,
+    rolling_threshold_musd=None,
+):
+    """Align flow observations to prices without using future flow rows.
+
+    With ``rolling_observations=1`` this preserves the original daily buckets.
+    A larger window classifies each date using the trailing flow sum including
+    the current date; incomplete windows are skipped instead of backfilled.
+    The optional threshold is an explicit sum threshold in USD millions.  If
+    omitted, the daily threshold is scaled by the window length, which keeps
+    the default per-observation hurdle unchanged.
+    """
+    if rolling_observations < 1:
+        raise ValueError("rolling_observations must be positive")
+    if rolling_threshold_musd is None:
+        rolling_threshold_musd = threshold_musd * rolling_observations
     price_by_date = dict(prices)
     ordered_dates = [date for date, _ in prices]
     observations = []
-    for flow in flows:
+    for flow_index, flow in enumerate(flows):
+        if flow_index + 1 < rolling_observations:
+            continue
         if flow["date"] not in price_by_date:
             continue
         try:
@@ -141,10 +163,23 @@ def aligned_observations(flows, prices, threshold_musd, horizon_days):
         if future_index >= len(ordered_dates):
             continue
         baseline, future = price_by_date[flow["date"]], price_by_date[ordered_dates[future_index]]
+        trailing = flows[flow_index - rolling_observations + 1:flow_index + 1]
+        rolling_flow_musd = sum(row["flow_musd"] for row in trailing)
+        if rolling_observations == 1:
+            state = classify(flow["flow_musd"], threshold_musd)
+        else:
+            if rolling_flow_musd >= rolling_threshold_musd:
+                state = "rolling_inflow"
+            elif rolling_flow_musd <= -rolling_threshold_musd:
+                state = "rolling_outflow"
+            else:
+                state = "rolling_neutral"
         observations.append({
             "date": flow["date"],
             "flow_musd": flow["flow_musd"],
-            "state": classify(flow["flow_musd"], threshold_musd),
+            "rolling_flow_musd": rolling_flow_musd,
+            "flow_window_observations": rolling_observations,
+            "state": state,
             "forward_date": ordered_dates[future_index],
             "forward_return_pct": (future / baseline - 1.0) * 100.0,
         })
@@ -166,8 +201,12 @@ def bucket_stats(rows, paper_cost_bps):
 
 
 def summarize(observations, min_observations, paper_cost_bps):
+    states = ["large_inflow", "large_outflow", "ordinary_flow"]
+    for row in observations:
+        if row["state"] not in states:
+            states.append(row["state"])
     by_state = {state: [row for row in observations if row["state"] == state]
-                for state in ("large_inflow", "large_outflow", "ordinary_flow")}
+                for state in states}
     return {
         "by_state": {state: bucket_stats(rows, paper_cost_bps) for state, rows in by_state.items()},
         "verdict": "etf_flow_response_reported"
@@ -188,15 +227,25 @@ def main():
     parser.add_argument("--days", type=float, default=730.0)
     parser.add_argument("--limit", type=int, default=1500)
     parser.add_argument("--threshold-musd", type=float, default=100.0)
+    parser.add_argument(
+        "--rolling-observations", type=int, default=1,
+        help="Trailing flow rows used for classification; 1 keeps daily buckets",
+    )
+    parser.add_argument(
+        "--rolling-threshold-musd", type=float, default=None,
+        help="Absolute trailing-sum threshold in USD millions (default: daily threshold × window)",
+    )
     parser.add_argument("--horizon-days", type=int, default=1)
     parser.add_argument("--paper-cost-bps", type=float, default=0.0)
     parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if (args.days <= 0 or not 2 <= args.limit <= 1500 or args.threshold_musd < 0
+            or args.rolling_observations <= 0
+            or (args.rolling_threshold_musd is not None and args.rolling_threshold_musd < 0)
             or args.horizon_days <= 0 or args.paper_cost_bps < 0
             or args.min_observations <= 0 or args.timeout <= 0):
-        parser.error("invalid days, limits, threshold, horizon, cost or observation arguments")
+        parser.error("invalid days, limits, threshold, rolling window, horizon, cost or observation arguments")
     flows, invalid_flow_rows = load_flows(args.input)
     end_ms = int(time.time() * 1000)
     start_ms = end_ms - int(args.days * 86_400_000)
@@ -206,7 +255,14 @@ def main():
         "limit": args.limit,
     }, args.timeout)
     prices = candle_points(payload)
-    observations = aligned_observations(flows, prices, args.threshold_musd, args.horizon_days)
+    observations = aligned_observations(
+        flows,
+        prices,
+        args.threshold_musd,
+        args.horizon_days,
+        args.rolling_observations,
+        args.rolling_threshold_musd,
+    )
     coverage = payload.get("coverage_detail")
     print(json.dumps({
         "strategy": "crypto_etf_flow_response_replay",
@@ -217,6 +273,10 @@ def main():
                    "interval": args.interval, "timezone": "UTC"},
         "window": {"start_ms": start_ms, "end_ms": end_ms, "days": args.days},
         "filters": {"threshold_musd": args.threshold_musd, "horizon_days": args.horizon_days,
+                    "rolling_observations": args.rolling_observations,
+                    "rolling_threshold_musd": (args.rolling_threshold_musd
+                                                 if args.rolling_threshold_musd is not None
+                                                 else args.threshold_musd * args.rolling_observations),
                     "paper_cost_bps": args.paper_cost_bps, "min_observations": args.min_observations},
         "source_counts": {"flow_rows": len(flows), "invalid_flow_rows": invalid_flow_rows,
                            "price_bars": len(prices), "aligned_observations": len(observations)},
@@ -230,6 +290,7 @@ def main():
             "MarketBridge's Farside connector emits the latest daily row; historical replay still requires recorder JSONL or an external CSV",
             "Farside-style daily flow dates and MarketBridge candle dates are aligned by UTC calendar day",
             "ETF settlement/NAV timing, revisions, weekend gaps, causality, fees and execution are not modeled",
+            "rolling flow windows use only the current and prior external rows; incomplete windows are skipped",
             "fixed close-to-close response is descriptive and not an ETF or crypto trading instruction",
         ],
         "execution": "research_only_no_orders",

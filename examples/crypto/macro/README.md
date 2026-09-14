@@ -25,6 +25,9 @@ form the explicit external-data bridge for
 spot ETF flow research. It reads a Farside-style CSV in USD millions, aligns
 each trading date with MarketBridge daily BTC candles, and compares large
 inflow, large outflow and ordinary-flow buckets at a fixed forward horizon.
+The replay can additionally classify a complete trailing window with
+`--rolling-observations`; it uses only current/prior rows and skips cold-start
+windows. This tests flow persistence separately from a single-day threshold.
 The CSV is intentionally caller-supplied because ETF flows are not yet a
 native MarketBridge historical endpoint; the output names that boundary rather
 than silently treating missing flow data as zero.
@@ -75,6 +78,7 @@ SPX 期权输入；美元指数上下文对照 [Federal Reserve H.10 美元指�
 风险上下文假设也参考 [Wintermute 在 X 的宏观与 crypto 流动性讨论](https://x.com/wintermute_t/status/1985631560021000352)，
 但该内容只作为未经验证的研究线索，不作为预测。
 ETF 流量出处对照 [Farside 的 Bitcoin ETF 日流量表](https://farside.co.uk/btc/)，它是测量来源，不表示流量能够造成价格变动。
+滚动持续性线索还参考 [ecoinometrics 的公开 ETF 流量讨论](https://x.com/ecoinometrics/status/2037548621697303004)，仅作为待验证假设。
 
 ## Commands / 命令
 
@@ -110,6 +114,10 @@ python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
   --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
   --interval 1d --threshold-musd 100 --horizon-days 1 \
   --min-observations 5 --paper-cost-bps 10
+python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
+  --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
+  --interval 1d --threshold-musd 100 --rolling-observations 5 \
+  --horizon-days 1 --min-observations 5
 python3 examples/crypto/macro/crypto_etf_flow_response_recorder.py \
   --asset BTC --symbol BTCUSDT --exchange binance --iterations 10 \
   --interval-secs 900 --output work/crypto-etf-flow-response.jsonl

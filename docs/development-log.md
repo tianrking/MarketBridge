@@ -1,5 +1,19 @@
 # Development log
 
+## 2026-09-14 — Rolling ETF-flow response replay
+
+Extended `crypto_etf_flow_response_replay.py` with an optional
+`--rolling-observations` window and explicit `--rolling-threshold-musd`.
+Complete trailing windows are classified as `rolling_inflow`,
+`rolling_outflow`, or `rolling_neutral`; incomplete windows are skipped, and
+no future flow row is used. The default daily behavior is unchanged. Added
+deterministic coverage for cold-start handling and updated the bilingual macro
+README and examples catalog.
+
+Provenance: the public [ecoinometrics ETF-flow discussion](https://x.com/ecoinometrics/status/2037548621697303004)
+is an unverified persistence hypothesis. Flow dates, publication/NAV timing,
+revisions, causality, fees and execution remain outside the replay claim.
+
 ## 2026-09-14 — Options max-pain proxy and expiry response study
 
 Added the Python-first `crypto_options_max_pain_monitor.py` family with

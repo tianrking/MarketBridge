@@ -6,7 +6,8 @@
 
 - `crypto_macro_context_monitor.py` / recorder / replay：把配置的 DXY、VIX、US10Y、永续资金费率
   与 BTC 报价配对。
-- `crypto_etf_flow_response_recorder.py` / replay：把调用者提供或 `farside_etf` 的流量快照对齐到 BTC 日 K 线。
+- `crypto_etf_flow_response_recorder.py` / replay：把调用者提供或 `farside_etf` 的流量快照对齐到 BTC 日 K 线；回放还支持滚动流量窗口，
+  用来把持续性与单日阈值分开检验。
 - `crypto_market_regime_monitor.py` / recorder / replay：Rust 聚合 regime 标签和固定窗口 BTC 响应分布。
 
 ## 快速开始
@@ -26,6 +27,14 @@ python3 examples/crypto/macro/crypto_macro_context_replay.py \
 
 ETF 流量被明确保留为外部数据边界：可以使用 Farside 风格 CSV 或已配置 connector，但页面
 被拦截时是抓取失败，不是零流量。提供方时间戳是快照，不能冒充同步的历史指数序列。
+
+要做滚动窗口研究，可传 `--rolling-observations 5`。回放只使用当前行和此前的外部流量行，
+窗口不完整时跳过，并分类为 `rolling_inflow`、`rolling_outflow` 或 `rolling_neutral`。
+默认滚动阈值等于“单日阈值 × 窗口长度”；如果研究问题需要累计 USD 百万阈值，可用
+`--rolling-threshold-musd` 明确覆盖。
+
+持续流量线索参考公开的 [ecoinometrics ETF 流量讨论](https://x.com/ecoinometrics/status/2037548621697303004)，
+仅作为未经验证的研究假设，不代表滚动阈值可以预测 BTC。
 
 ## 解释与边界
 

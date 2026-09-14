@@ -138,7 +138,7 @@ there are no root-level compatibility copies.
 | `crypto/universe/crypto_global_market_regime_recorder.py` / `crypto_global_market_regime_replay.py` | CoinGecko global stress/dominance states can be compared with later BTC response distributions | `/v1/external/global-market`, `/v1/market/quotes`, JSONL archive | Provider-context response study; no historical dominance completeness, allocation or execution model |
 | `crypto/macro/crypto_macro_context_monitor.py` | Macro reference snapshots should remain visible beside crypto funding before interpreting a market case | `/v1/market/quotes?exchanges=dxy,vix,us10y`, `/v1/market/perpetual-funding` | Context monitor only; no macro forecast or execution model |
 | `crypto/macro/crypto_macro_context_recorder.py` / `crypto_macro_context_replay.py` | Elevated VIX/macro context and funding crowding can be compared with later BTC return and absolute-move distributions | `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Snapshot response study; macro timestamps, causality, costs and execution remain explicit gaps |
-| `crypto/macro/crypto_etf_flow_response_recorder.py` / `crypto_etf_flow_response_replay.py` | Large daily BTC ETF inflows/outflows may have a different next-window BTC response than ordinary flow days | MarketBridge `farside_etf` external signals, `/v1/market/quotes`, `/v1/history/candles`, or Farside-style CSV | External-flow response study; historical ingestion, NAV timing, revisions, causality and execution remain explicit gaps |
+| `crypto/macro/crypto_etf_flow_response_recorder.py` / `crypto_etf_flow_response_replay.py` | Large daily or complete trailing BTC ETF flow windows may have a different next-window BTC response than ordinary flow days | MarketBridge `farside_etf` external signals, `/v1/market/quotes`, `/v1/history/candles`, or Farside-style CSV | External-flow response study; rolling windows are current/prior rows only; historical ingestion, NAV timing, revisions, causality and execution remain explicit gaps |
 | `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
 | `crypto/sentiment/crypto_news_attention_monitor.py` / recorder / replay | A burst of high-score CryptoPanic items may precede larger absolute BTC movement than ordinary windows | `/v1/external/signals?sources=cryptopanic&categories=news`, `/v1/market/quotes` and JSONL archive | Non-directional attention replay; feed coverage, vote semantics and timing remain explicit |
 | `crypto/sentiment/crypto_social_signal_response_recorder.py` / `crypto_social_signal_response_replay.py` | A change in a keyed LunarCrush/Santiment metric may be followed by a different absolute BTC response than ordinary snapshots | `/v1/external/signals`, `/v1/market/quotes`, JSONL archive | Provider-specific social-score response study; API key, metric scale, coverage and execution remain explicit gaps |
@@ -598,6 +598,10 @@ python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
   --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
   --interval 1d --threshold-musd 100 --horizon-days 1 \
   --min-observations 5 --paper-cost-bps 10
+python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
+  --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
+  --interval 1d --threshold-musd 100 --rolling-observations 5 \
+  --horizon-days 1 --min-observations 5
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_monitor.py \
   --symbol BTCUSDT --exchange binance --fear-max 20 --greed-min 80
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_recorder.py \
@@ -652,6 +656,7 @@ rewritten as falsifiable hypotheses:
 - [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
 - [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
 - [Macro liquidity, ETF-flow and crypto-regime context (unverified public claim)](https://x.com/wintermute_t/status/1985631560021000352)
+- [Rolling ETF-flow persistence discussion (unverified public claim)](https://x.com/ecoinometrics/status/2037548621697303004)
 - [Crowded positioning and liquidation-to-reversal context (unverified public claim)](https://x.com/TheCryptoData/status/1948466627365769584)
 - [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
 - [Delta/imbalance bars and event-driven sampling discussion (unverified public claim)](https://x.com/quantbeckman/status/1931965694251253967)

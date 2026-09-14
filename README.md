@@ -1,5 +1,11 @@
 # MarketBridge
 
+> **Language / 语言:** [English quickstart](README.en.md) · [简体中文](README.zh-CN.md)
+
+If you are new to the repository, start with the short
+[English quickstart](README.en.md) or the [中文入口](README.zh-CN.md), then use
+this page as the full English architecture and API reference.
+
 Read-only, multi-market market-data and strategy-research infrastructure.
 MarketBridge collects and normalizes public data, exposes stable APIs, and
 supports bounded replay and paper validation. It is not a trading bot and never
@@ -9,7 +15,7 @@ places orders.
 metadata, and APIs. Strategy examples are Python-first. Every result must keep
 provider, timestamp, coverage, cost, and look-ahead limitations visible.
 
-Current version: `v0.0.6` · [中文文档](README.zh-CN.md) ·
+Current version: `v0.0.6` · [English quickstart](README.en.md) · [中文文档](README.zh-CN.md) ·
 [Examples](examples/README.en.md) · [完整案例目录](examples/README.md) ·
 [Documentation index](docs/README.md)
 

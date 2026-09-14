@@ -33,6 +33,21 @@ class EtfFlowResponseReplayTests(unittest.TestCase):
                          ["large_inflow", "large_outflow", "ordinary_flow"])
         self.assertAlmostEqual(rows[0]["forward_return_pct"], 1.0)
 
+    def test_rolling_alignment_uses_only_complete_trailing_window(self):
+        flows = [{"date": "2026-09-01", "flow_musd": 80.0},
+                 {"date": "2026-09-02", "flow_musd": 140.0},
+                 {"date": "2026-09-03", "flow_musd": -20.0},
+                 {"date": "2026-09-04", "flow_musd": -160.0}]
+        prices = [("2026-09-01", 100.0), ("2026-09-02", 101.0),
+                  ("2026-09-03", 102.0), ("2026-09-04", 101.0),
+                  ("2026-09-05", 100.0)]
+        rows = aligned_observations(flows, prices, 100.0, 1, 2, 100.0)
+        self.assertEqual([row["date"] for row in rows], ["2026-09-02", "2026-09-03", "2026-09-04"])
+        self.assertEqual([row["state"] for row in rows],
+                         ["rolling_inflow", "rolling_inflow", "rolling_outflow"])
+        self.assertEqual(rows[0]["rolling_flow_musd"], 220.0)
+        self.assertEqual(rows[-1]["flow_window_observations"], 2)
+
     def test_summary_is_observe_only_when_sample_is_short(self):
         result = summarize([{"state": "large_inflow", "forward_return_pct": 1.0}], 2, 10.0)
         self.assertEqual(result["verdict"], "observe_only_insufficient_aligned_flow_days")

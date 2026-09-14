@@ -1,5 +1,7 @@
 # MarketBridge
 
+> **语言 / Language：** [简体中文完整说明](README.zh-CN.md) · [English quickstart](README.en.md) · [完整 English reference](README.md)
+
 只读的多市场市场数据与策略研究基础设施。MarketBridge 负责采集和标准化
 公开数据、提供稳定 API，以及有限范围的回放和纸面验证；它不是交易机器人，
 不会下单。
@@ -8,7 +10,7 @@
 优先使用 Python。每个结果都必须保留提供方、时间戳、覆盖范围、成本假设和
 前视偏差限制。
 
-当前版本：`v0.0.6` · [English README](README.md) ·
+当前版本：`v0.0.6` · [English quickstart](README.en.md) · [完整 English reference](README.md) ·
 [中文案例入口](examples/README.zh-CN.md) · [完整案例目录](examples/README.md) ·
 [文档索引](docs/README.md)
 
