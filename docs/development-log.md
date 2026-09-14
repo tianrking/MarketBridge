@@ -1,5 +1,22 @@
 # Development log
 
+## 2026-09-14 — Options max-pain proxy and expiry response study
+
+Added the Python-first `crypto_options_max_pain_monitor.py` family with
+persistence and BTC-response recorder/replay pairs. It calculates a
+provider-unit intrinsic-pain proxy for each expiry from strike and open
+interest, labels near-expiry proximity versus dislocation, and compares later
+fixed-record BTC responses. The result is explicitly not settlement PnL,
+price-pinning proof, dealer intent, or execution.
+
+Provenance: the public [max-pain discussion on X](https://x.com/martypartymusic/status/1971319091915829353)
+is an unverified research lead. The calculation and expiry caveats follow
+[Deribit's max-pain explanation](https://insights.deribit.com/education/maximum-pain-for-option-buyers-going-into-expiration/),
+[Deribit's Python max-pain example](https://insights.deribit.com/dev-hub/deribit-max-pain-python-code/),
+and the [Deribit Metrics documentation](https://insights.deribit.com/education/introduction-to-deribit-metrics-page/).
+Provider units, TWAP settlement, expiry roll, missing OI, option PnL, hedge,
+margin, cost and execution remain explicit gaps.
+
 ## 2026-09-14 — Options put/call open-interest response study
 
 Added the Python-first `crypto_options_put_call_oi_monitor.py` family with a

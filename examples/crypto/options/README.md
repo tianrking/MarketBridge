@@ -52,6 +52,12 @@ and requires persistence before reporting a candidate. The response recorder
 and replay compare later BTC returns after those states. This is not the same
 as IV skew: OI units, expiry roll and dealer sign remain unresolved.
 
+`crypto_options_max_pain_monitor.py` / recorder / replay calculates a
+transparent expiry-level intrinsic-pain proxy from strike and OI, then labels
+near-expiry proximity or dislocation. Its response recorder/replay compares
+later BTC movement after those states. The proxy is not a settlement PnL or a
+claim that price will be pinned.
+
 Provenance: the public [options brief on X](https://x.com/Gate_Launch/status/2063810805552845140)
 is an unverified research lead. Delta-field semantics are cross-checked against
 [Binance's public options market-data documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data);
@@ -173,6 +179,10 @@ skew monitor 另支持 `--bucket-mode delta`，在 provider 暴露 `delta` greek
 `crypto_options_put_call_oi_monitor.py` / recorder / replay 新增独立的持仓结构案例：按到期窗口汇总提供方公布的看涨/看跌 OI，区分
 `defensive_put_oi`、`call_dominant_oi` 和 `balanced_oi`，只有连续快照才报告候选状态。response recorder/replay 再比较这些状态之后的 BTC
 固定记录窗口收益。它不同于 IV skew；OI 单位、到期滚动和做市商多空方向仍是证据缺口。
+
+`crypto_options_max_pain_monitor.py` / recorder / replay 用执行价和 OI 计算透明的到期 intrinsic-pain proxy，区分临近到期且接近
+max-pain、临近到期但偏离、以及远期上下文；response recorder/replay 再比较这些状态之后的 BTC 响应。这个 proxy 不是结算 PnL，
+也不声称价格一定会被钉在 max-pain。
 
 出处：公开的 [期权市场简报 X 线索](https://x.com/Gate_Launch/status/2063810805552845140)
 只作为未经验证的研究假设；字段语义对照 [Binance 官方期权市场数据文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)。
@@ -299,6 +309,20 @@ python3 examples/crypto/options/crypto_options_put_call_oi_response_recorder.py 
   --output work/crypto-options-put-call-oi-response.jsonl
 python3 examples/crypto/options/crypto_options_put_call_oi_response_replay.py \
   --input work/crypto-options-put-call-oi-response.jsonl \
+  --horizon-records 3 --min-observations 5
+python3 examples/crypto/options/crypto_options_max_pain_monitor.py \
+  --currency BTC --venue deribit --near-expiry-days 3 --near-distance-pct 2
+python3 examples/crypto/options/crypto_options_max_pain_recorder.py \
+  --currency BTC --venue deribit --iterations 20 --interval-secs 600 \
+  --output work/crypto-options-max-pain.jsonl
+python3 examples/crypto/options/crypto_options_max_pain_replay.py \
+  --input work/crypto-options-max-pain.jsonl --min-run 3
+python3 examples/crypto/options/crypto_options_max_pain_response_recorder.py \
+  --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 20 --interval-secs 600 \
+  --output work/crypto-options-max-pain-response.jsonl
+python3 examples/crypto/options/crypto_options_max_pain_response_replay.py \
+  --input work/crypto-options-max-pain-response.jsonl \
   --horizon-records 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_term_structure_replay.py \
   --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
