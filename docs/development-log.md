@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Added paper funding-carry accrual replay
+
+Added `crypto_funding_carry_accrual_replay.py` under carry. For each fixed
+funding-event window it computes per-unit gross funding transfer, the observed
+spot/perpetual basis change, and their signed paper sum for `short_perp` or
+`long_perp`. It keeps funding intervals, coverage and price alignment visible
+and explicitly excludes fills, borrow, margin, collateral, fees and slippage.
+
+The accounting decomposition is grounded in [Binance's funding-arbitrage explanation](https://www.binance.com/en/support/faq/detail/61012e690cf343e7979649282a2ccc3c)
+and [Kraken's funding-rate strategy overview](https://www.kraken.com/learn/futures-trading-funding-rate-strategy); these sources motivate variables, not a profitability claim.
+
 ## 2026-09-14 — Added OI/price quadrant response replay
 
 Added `crypto_oi_price_divergence_response_replay.py` under microstructure.

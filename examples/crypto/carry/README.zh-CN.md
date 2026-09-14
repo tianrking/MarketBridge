@@ -28,6 +28,18 @@ Coinbase premium pair 是独立的公开 X 研究线索：当 Coinbase USD 报�
 历史 OI 现在支持 Binance、Bybit 和 OKX。OKX 公共合约历史接口返回按基础币种聚合、以提供方 USD 单位计量的序列；
 API 会保留单位和时间戳。这样 `crypto_funding_oi_replay.py` 可以扩大交易所比较范围，但不会把聚合 OI 解释成多空归属或对冲结果。
 
+`crypto_funding_carry_accrual_replay.py` 是状态回放之外的纸面账本：每个固定 funding 事件窗口分别计算每单位名义本金的资金费率转移、
+观察到的现货/永续基差变化，以及 `short_perp` 或 `long_perp` 方向下的带符号纸面合计。它不是可执行 carry 回测：公共收盘价不是成交价，
+借币、保证金、抵押品、手续费和滑点都不在账本内。
+
+```bash
+python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
+  --symbol BTCUSDT --funding-exchange binance \
+  --spot-exchange binance --perp-exchange binance \
+  --price-interval 5m --days 7 --horizon-events 3 \
+  --position-side short_perp --min-observations 5
+```
+
 ## 完整运行示例
 
 ```bash
@@ -76,6 +88,8 @@ python3 examples/crypto/carry/crypto_coinbase_premium_historical_replay.py \
 为准；公开 X 仅是待验证线索。当前上下限研究线索来自[公开资金费率讨论](https://x.com/instaclaws/status/2038363051213181035)。
 Coinbase premium 线索来自 [XWIN flow-confirmation 讨论](https://x.com/xwinfinance/status/2023155692916646257)，字段语义对照
 官方 [Coinbase Exchange candles API](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles)。
+纸面 carry 账本的现金流分解参考 Binance 的[资金费率套利说明](https://www.binance.com/en/support/faq/detail/61012e690cf343e7979649282a2ccc3c)
+和 Kraken 的[资金费率策略说明](https://www.kraken.com/learn/futures-trading-funding-rate-strategy)，只用于定义研究变量，不表示收益保证。
 
 ## 边界
 

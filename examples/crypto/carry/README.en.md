@@ -34,6 +34,21 @@ the API keeps that unit and its timestamp explicit. This widens the
 `crypto_funding_oi_replay.py` venue comparison without turning aggregate OI
 into long/short ownership or a hedge result.
 
+`crypto_funding_carry_accrual_replay.py` is the accounting companion to the
+state replays. For each fixed number of funding events it computes gross
+funding transfer per unit notional, the observed spot/perpetual basis change,
+and their signed paper sum for `short_perp` or `long_perp`. It is deliberately
+not an executable carry backtest: public closes are not fills, and borrow,
+margin, collateral, fees and slippage remain outside the ledger.
+
+```bash
+python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
+  --symbol BTCUSDT --funding-exchange binance \
+  --spot-exchange binance --perp-exchange binance \
+  --price-interval 5m --days 7 --horizon-events 3 \
+  --position-side short_perp --min-observations 5
+```
+
 ## Run a complete case
 
 ```bash
@@ -85,6 +100,8 @@ Research leads are listed in the source README and development log. The
 provider-band semantics are grounded in Binance's [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info);
 public X posts are treated as hypotheses, never as validation. The latest
 funding-band lead is [this public funding discussion](https://x.com/instaclaws/status/2038363051213181035).
+The paper-carry accounting is cross-checked against Binance's [funding-arbitrage explanation](https://www.binance.com/en/support/faq/detail/61012e690cf343e7979649282a2ccc3c)
+and Kraken's [funding-rate strategy overview](https://www.kraken.com/learn/futures-trading-funding-rate-strategy); both motivate a cash-flow decomposition, not a guaranteed return.
 The Coinbase premium lead is the [XWIN flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257).
 Coinbase candle and market-data semantics are cross-checked against the
 official [Coinbase Exchange candles API](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles).

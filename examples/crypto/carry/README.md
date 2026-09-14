@@ -36,6 +36,12 @@ income, hedge PnL or an execution instruction. `funding_extremes.py` remains a
 current-universe filter, while `funding_curve_demo.py` is a visualization
 utility; neither is a backtest.
 
+`crypto_funding_carry_accrual_replay.py` adds a separate paper-accounting
+case. It decomposes each fixed funding-event window into per-unit funding
+transfer, spot/perpetual basis drift, and a signed paper carry sum for either
+perp side. It never assumes that public closes filled, and it does not model
+borrow, margin, collateral, fees, slippage or execution.
+
 `crypto_positioning_regime_replay.py` joins funding, aggregate OI and perp price
 at point-in-time timestamps, then reports the forward-return distribution for
 each `price × OI × funding` regime. It is a state-matrix diagnostic, not a
