@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — Options put/call open-interest response study
+
+Added the Python-first `crypto_options_put_call_oi_monitor.py` family with a
+JSONL persistence recorder/replay and a BTC-response recorder/replay. It sums
+provider-reported call and put open interest within an explicit expiry window,
+labels defensive-put, call-dominant and balanced states, and compares later
+fixed-record BTC responses without treating the ratio as dealer positioning.
+
+Provenance: the public [options risk-management lead on X](https://x.com/Gate_Launch/status/2063810805552845140)
+is an unverified research lead. Put/call OI and expiry grouping follow
+[Deribit Metrics documentation](https://insights.deribit.com/education/introduction-to-deribit-metrics-page/)
+and the [Deribit ticker field semantics](https://docs.deribit.com/api-reference/upcoming/market-data/public-ticker).
+The case preserves provider units, expiry roll, missing OI, option PnL, hedge,
+margin, cost and execution as explicit gaps.
+
 ## 2026-09-14 — Funding-sensitive DeFi yield risk context
 
 Added `crypto_defi_funding_yield_risk_monitor.py`, its JSONL recorder/replay,

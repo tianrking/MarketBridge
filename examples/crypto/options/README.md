@@ -45,6 +45,13 @@ also accepts `--bucket-mode delta` to use provider `delta` greeks for ATM and
 25-delta wings when available; missing greeks stay out of the comparable
 sample rather than falling back silently.
 
+`crypto_options_put_call_oi_monitor.py` / recorder / replay adds a separate
+open-interest composition case. It sums provider-reported call and put OI by
+expiry window, labels `defensive_put_oi`, `call_dominant_oi` or `balanced_oi`,
+and requires persistence before reporting a candidate. The response recorder
+and replay compare later BTC returns after those states. This is not the same
+as IV skew: OI units, expiry roll and dealer sign remain unresolved.
+
 Provenance: the public [options brief on X](https://x.com/Gate_Launch/status/2063810805552845140)
 is an unverified research lead. Delta-field semantics are cross-checked against
 [Binance's public options market-data documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data);
@@ -163,9 +170,17 @@ skew-response recorder 会把目标到期日的翼部 IV 快照与同步 MarketB
 skew monitor 另支持 `--bucket-mode delta`，在 provider 暴露 `delta` greeks 时使用 ATM 和 25-delta 翼部；
 缺少 greeks 的合约会留在可比样本之外，不会静默回退成另一种语义。
 
+`crypto_options_put_call_oi_monitor.py` / recorder / replay 新增独立的持仓结构案例：按到期窗口汇总提供方公布的看涨/看跌 OI，区分
+`defensive_put_oi`、`call_dominant_oi` 和 `balanced_oi`，只有连续快照才报告候选状态。response recorder/replay 再比较这些状态之后的 BTC
+固定记录窗口收益。它不同于 IV skew；OI 单位、到期滚动和做市商多空方向仍是证据缺口。
+
 出处：公开的 [期权市场简报 X 线索](https://x.com/Gate_Launch/status/2063810805552845140)
 只作为未经验证的研究假设；字段语义对照 [Binance 官方期权市场数据文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)。
 这不代表完整跨交易所曲面或可执行 skew。
+
+持仓结构出处：公开 X 线索只用于提出假设；put/call OI 与到期维度对照
+[Deribit Metrics 说明](https://insights.deribit.com/education/introduction-to-deribit-metrics-page/)，字段单位对照
+[Deribit public ticker 文档](https://docs.deribit.com/api-reference/upcoming/market-data/public-ticker)。不推断期权 PnL、对冲、执行或收益。
 
 牛市看涨价差监控会在同一到期日内，按可配置的 moneyness 目标挑选较低和较高执行价的看涨期权；
 优先使用低执行价 ask 与高执行价 bid，缺失时才回退到并明确标记 mark。输出 debit、价差宽度、
@@ -271,6 +286,20 @@ python3 examples/crypto/options/crypto_options_skew_response_recorder.py \
 python3 examples/crypto/options/crypto_options_skew_response_replay.py \
   --input work/crypto-options-skew-response.jsonl --horizon-records 3 \
   --min-skew-iv 3 --min-observations 5
+python3 examples/crypto/options/crypto_options_put_call_oi_monitor.py \
+  --currency BTC --venue deribit --max-expiry-days 180
+python3 examples/crypto/options/crypto_options_put_call_oi_recorder.py \
+  --currency BTC --venue deribit --iterations 20 --interval-secs 600 \
+  --output work/crypto-options-put-call-oi.jsonl
+python3 examples/crypto/options/crypto_options_put_call_oi_replay.py \
+  --input work/crypto-options-put-call-oi.jsonl --min-run 3
+python3 examples/crypto/options/crypto_options_put_call_oi_response_recorder.py \
+  --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 20 --interval-secs 600 \
+  --output work/crypto-options-put-call-oi-response.jsonl
+python3 examples/crypto/options/crypto_options_put_call_oi_response_replay.py \
+  --input work/crypto-options-put-call-oi-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_term_structure_replay.py \
   --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
 python3 examples/crypto/options/crypto_options_term_structure_response_replay.py \
