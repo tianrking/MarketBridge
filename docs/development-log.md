@@ -1330,7 +1330,9 @@ Extended `/v1/history/account-ratio` with
 `source` and `semantics=top_trader_position_share`, so top-trader position
 shares are not pooled with global account shares, top-trader account shares or
 Bybit holder counts. The existing Python OI-response replay accepts the new
-scope; no position ledger, execution path or direction claim was added.
+scope; the normalizer accepts both documented `longPosition/shortPosition`
+fields and the USDⓈ-M `longAccount/shortAccount` shape without merging their
+semantics. No position ledger, execution path or direction claim was added.
 
 Provenance: Binance defines the endpoint as the long/short position share of
 the top 20% of users by margin balance in its [official market-data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).

@@ -1452,13 +1452,15 @@ async fn fetch_binance_account_ratio(
 fn normalize_binance_account_ratio_row(row: Value, source: &str, semantics: &str) -> Result<Value> {
     let ts_ms =
         value_u64(row.get("timestamp")).context("missing Binance account-ratio timestamp")?;
-    let buy_ratio = value_f64(row.get("longAccount")).context("missing Binance longAccount")?;
-    let sell_ratio = value_f64(row.get("shortAccount")).context("missing Binance shortAccount")?;
+    let buy_ratio = value_f64(row.get("longAccount").or_else(|| row.get("longPosition")))
+        .context("missing Binance long-account or long-position share")?;
+    let sell_ratio = value_f64(row.get("shortAccount").or_else(|| row.get("shortPosition")))
+        .context("missing Binance short-account or short-position share")?;
     let long_short_ratio = value_f64(row.get("longShortRatio"))
         .or_else(|| (sell_ratio > 0.0).then_some(buy_ratio / sell_ratio));
     Ok(serde_json::json!({
         "exchange": "binance",
-        "symbol": row.get("symbol"),
+        "symbol": row.get("symbol").or_else(|| row.get("pair")),
         "buy_ratio": buy_ratio,
         "sell_ratio": sell_ratio,
         "imbalance": buy_ratio - sell_ratio,
@@ -2230,6 +2232,24 @@ mod tests {
             serde_json::json!("top_trader_position_share")
         );
         assert_eq!(row["long_short_ratio"], serde_json::json!(2.33));
+    }
+
+    #[test]
+    fn normalizes_documented_position_field_names_and_pair_identity() {
+        let row = normalize_binance_account_ratio_row(
+            serde_json::json!({
+                "pair": "BTCUSD",
+                "longPosition": "0.64",
+                "shortPosition": "0.36",
+                "timestamp": 9013
+            }),
+            "binance_top_trader_position_ratio",
+            "top_trader_position_share",
+        )
+        .expect("normalized documented Binance position ratio");
+        assert_eq!(row["symbol"], serde_json::json!("BTCUSD"));
+        assert_eq!(row["buy_ratio"], serde_json::json!(0.64));
+        assert_eq!(row["sell_ratio"], serde_json::json!(0.36));
     }
 
     #[test]
