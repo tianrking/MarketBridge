@@ -202,6 +202,7 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=meteora,orca,uniswap_
 | CoinGecko | Crypto reference prices | `/v1/market/quotes?exchanges=coingecko` | optional | `COINGECKO_API_KEY` |
 | CoinGecko global market | Total market cap/volume, BTC/ETH dominance and active-market counts | `/v1/external/global-market` | keyless public | n/a |
 | DefiLlama stablecoins | Circulating stablecoin supply, changes and chain distribution | `/v1/external/stablecoins` | keyless public | n/a |
+| DefiLlama yields | Pool APY, TVL, base/reward yield and stablecoin flags | `/v1/external/defi-yields` | keyless public | n/a |
 | Deribit volatility index | Public volatility-index OHLC candles | `/v1/history/volatility-index` | keyless public | n/a |
 | CoinCap | Crypto reference prices | `/v1/market/quotes?exchanges=coincap` | optional | `COINCAP_API_KEY` |
 | CoinMarketCap | Crypto reference prices | `/v1/market/quotes?exchanges=coinmarketcap` | required | `COINMARKETCAP_API_KEY` |

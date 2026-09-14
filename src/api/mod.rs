@@ -108,6 +108,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/external/signals" => routes::external::v1_external_signals,
         "/v1/external/global-market" => routes::external::v1_external_global_market,
         "/v1/external/stablecoins" => routes::external::v1_external_stablecoins,
+        "/v1/external/defi-yields" => routes::external::v1_external_defi_yields,
         "/v1/external/weather" => routes::external::v1_external_weather,
         "/v1/onchain/transfers" => routes::onchain::v1_onchain_transfers,
         "/v1/universe/top-volume" => routes::universe::top_volume,

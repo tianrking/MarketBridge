@@ -548,6 +548,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/external/signals` | 聚合、新闻、情绪、宏观信号。 |
 | GET | `/v1/external/global-market` | CoinGecko 全市场市值、成交量和 dominance 上下文。 |
 | GET | `/v1/external/stablecoins` | DefiLlama 稳定币流通供应、变化和链分布上下文。 |
+| GET | `/v1/external/defi-yields` | DefiLlama DeFi 池 APY、TVL、基础收益与奖励收益上下文。 |
 | GET | `/v1/onchain/transfers` | 链上大额转账。 |
 | GET | `/snapshot` | legacy 最新 tick 快照。 |
 | GET | `/funding` | legacy funding view。 |
@@ -848,6 +849,27 @@ python3 examples/crypto/defi/crypto_stablecoin_liquidity_monitor.py \
   --symbols USDT,USDC,DAI --growth-threshold-pct 1.0
 ```
 
+### `GET /v1/external/defi-yields`
+
+只读查询 DefiLlama 收益池上下文，适合研究筛选和回放输入。返回 TVL、总
+APY、基础 APY、奖励 APY、池类型和提供方变化字段，方便区分基础收益观察与
+依赖奖励代币的观察。APY 不是承诺收益；该接口不存款、不提款、不签名钱包，
+也不执行策略。
+
+常用参数：
+
+- `chains=Ethereum,Arbitrum`、`projects=aave,uniswap`、`symbols=USDC,ETH`
+- `stablecoin=true|false`
+- `min_tvl_usd`、`min_apy`、`max_apy`、`limit`（默认 `100`，最大 `500`）
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/external/defi-yields?stablecoin=true&min_tvl_usd=10000000&limit=20" | jq
+python3 examples/crypto/defi/crypto_defi_yield_context_monitor.py \
+  --stablecoin-only --min-tvl-usd 10000000 --min-apy 2 --limit 50
+```
+
 ### Polymarket
 
 ```bash
@@ -967,25 +989,29 @@ data/redis_dead_letters.jsonl
 
 ## 边界说明
 
-MarketBridge 是数据与研究基础设施，不是交易执行器。以下边界是硬约束：
+> **硬边界：** MarketBridge 是只读的市场数据与策略研究基座，不是交易或执行引擎。
 
-- Rust 负责连接器、标准化、缓存、历史、回放基础和稳定 API；策略代码优先使用 Python。
-- 所有 examples 都是数据观察、假设检验或纸面回放，不代表因子有效、收益保证或可成交。
-- 不接入钱包签名、下单、撤单、资金划转或实盘账户 PnL。
-- 缺失数据、提供方语义、时间覆盖、手续费、滑点、库存和成交约束必须保留为证据缺口。
+| 范围 | MarketBridge 提供 | 明确不提供 |
+|---|---|---|
+| Rust 数据层 | 连接器、标准化、新鲜度、缓存、历史、回放基础和稳定 API | 因子审批、组合配置或交易决策 |
+| Python 研究层 | 数据观察、可证伪假设检验和纸面回放 | Alpha、收益、成交或实盘 PnL 保证 |
+| 外部集成 | 公开或明确配置的只读数据 | 钱包签名、下单/撤单/改单、资金划转或实盘账户执行 |
+| 证据质量 | 明示提供方、时间、覆盖和成本假设 | 隐藏手续费、借贷、滑点、库存或排队假设 |
 
-快速入口：
+### 最短入口
 
 ```bash
 python3 examples/crypto/strategy/python_strategy_runner.py --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
 python3 examples/crypto/microstructure/crypto_session_filter.py --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 ```
 
-完整案例与限制说明：
+### 文档入口
 
 - [`examples/README.md`](examples/README.md)：根索引与分类入口
 - [`examples/crypto/README.md`](examples/crypto/README.md)：加密案例总览
 - [`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md)：策略接入规范
+
+以下历史研究记录保持折叠，仅用于追溯已实现案例和证据边界：
 
 <details>
 <summary>展开：历史案例与研究边界记录</summary>

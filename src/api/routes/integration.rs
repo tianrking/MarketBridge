@@ -154,6 +154,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Inspect DefiLlama circulating stablecoin supply and chain distribution as read-only liquidity context.",
         },
         IntegrationCapability {
+            name: "defi_yield_context",
+            endpoint: "/v1/external/defi-yields",
+            purpose: "Inspect DefiLlama pool APY, TVL, base/reward yield and stablecoin flags without deposit or execution paths.",
+        },
+        IntegrationCapability {
             name: "deribit_volatility_index_history",
             endpoint: "/v1/history/volatility-index",
             purpose: "Fetch bounded public Deribit volatility-index OHLC history for volatility-regime research.",

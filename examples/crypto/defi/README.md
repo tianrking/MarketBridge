@@ -38,6 +38,12 @@ seven-day changes and chain distribution, classifying expansion, contraction
 or missing-change states. Supply is not exchange inventory, bridge flow or a
 price signal.
 
+`crypto_defi_yield_context_monitor.py` adds a pool-yield context case using
+DefiLlama's public `/pools` snapshot. It separates base-yield-dominant pools,
+reward-dependent pools, non-positive APY and missing-metric states. APY/TVL are
+provider observations rather than guaranteed return or redemption liquidity;
+the monitor never deposits, withdraws, signs a wallet or executes a strategy.
+
 Provenance: the unverified [stablecoin liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494)
 and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352)
 motivate the hypothesis. Fields are cross-checked against DefiLlama's
@@ -141,6 +147,9 @@ redemptions, solvency or executable mean reversion.
 `crypto_stablecoin_liquidity_monitor.py` 新增供应侧上下文案例：读取 DefiLlama 公开稳定币快照，输出筛选后的流通供应、
 7 日变化和链分布，并明确区分供应扩张、收缩和缺失变化。流通供应不是交易所库存、桥接流量或价格信号。
 
+`crypto_defi_yield_context_monitor.py` 新增收益池上下文案例：读取 DefiLlama 公开 `/pools` 快照，区分基础收益主导、
+奖励依赖、非正 APY 和指标缺失状态。APY/TVL 只是提供方观察，不是保证收益或赎回流动性；监控不会存款、提款、签名钱包或执行策略。
+
 出处：未经验证的 [稳定币净流入 X 讨论](https://x.com/Cointelegraph/status/2029519994652942494)
 和[稳定币增长讨论](https://x.com/wintermute_t/status/1985631560021000352)只作为研究线索；字段对照 DefiLlama
 [稳定币数据说明](https://docs.llama.fi/)，不推断资金流或执行结果。
@@ -179,6 +188,8 @@ swap 历史、LP 收入、实际滑点或可执行路由深度。
 python3 examples/crypto/defi/crypto_defi_pool_flow_monitor.py \
   --sources uniswap_v3,meteora --min-liquidity-usd 100000 \
   --min-turnover-h1 0.25
+python3 examples/crypto/defi/crypto_defi_yield_context_monitor.py \
+  --stablecoin-only --min-tvl-usd 10000000 --min-apy 2 --limit 50
 python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
   --sources uniswap_v3,meteora --iterations 30 --interval-secs 30 \
   --output work/crypto-defi-pool-flow.jsonl

@@ -916,6 +916,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
 | GET | `/v1/external/global-market` | CoinGecko global market-cap, volume and dominance context |
 | GET | `/v1/external/stablecoins` | DefiLlama stablecoin supply and chain-distribution context |
+| GET | `/v1/external/defi-yields` | DefiLlama DeFi pool APY, TVL and base/reward yield context |
 | GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
 | GET | `/v1/universe/top-volume` | Universe filter by historical quote volume |
 | GET | `/v1/universe/percent-change` | Universe filter by percent change |
@@ -1539,6 +1540,28 @@ python3 examples/crypto/defi/crypto_stablecoin_liquidity_monitor.py \
   --symbols USDT,USDC,DAI --growth-threshold-pct 1.0
 ```
 
+### `GET /v1/external/defi-yields`
+
+Read-only DefiLlama pool context for research screens and replay inputs. The
+response keeps TVL, total APY, base APY, reward APY, pool type and provider
+change fields together so a researcher can distinguish base-yield observations
+from reward-dependent observations. APY is not a promised return, and the
+endpoint does not deposit, withdraw, sign a wallet or execute a strategy.
+
+Useful filters:
+
+- `chains=Ethereum,Arbitrum`, `projects=aave,uniswap`, `symbols=USDC,ETH`
+- `stablecoin=true|false`
+- `min_tvl_usd`, `min_apy`, `max_apy`, and `limit` (default `100`, max `500`)
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/external/defi-yields?stablecoin=true&min_tvl_usd=10000000&limit=20" | jq
+python3 examples/crypto/defi/crypto_defi_yield_context_monitor.py \
+  --stablecoin-only --min-tvl-usd 10000000 --min-apy 2 --limit 50
+```
+
 ### `GET /v1/prediction/books`
 
 Envelope-based prediction-market order books from the Polymarket live cache.
@@ -2102,18 +2125,17 @@ cargo test
 
 ## Boundary Notes
 
-MarketBridge is a market-data and research foundation, not an execution engine.
+> **Hard boundary:** MarketBridge is a read-only market-data and
+> strategy-research foundation. It is not a trading or execution engine.
 
-- Rust owns connectors, normalization, caches, historical inputs, replay
-  primitives and the stable API; strategy research is Python-first.
-- Every example is an observer, falsifiable hypothesis test or paper replay.
-  It is not proof of alpha, profitability, fillability or live-account PnL.
-- The project does not sign wallets, place/cancel orders, move funds or connect
-  a live-account execution path.
-- Missing data, provider semantics, timestamp coverage, fees, funding, borrow,
-  slippage, inventory and queue position remain explicit evidence gaps.
+| Area | MarketBridge provides | Explicitly out of scope |
+|---|---|---|
+| Rust data plane | Connectors, normalization, freshness, caches, history, replay primitives and stable APIs | Alpha approval, portfolio allocation or trade decisions |
+| Python research layer | Observations, falsifiable hypothesis tests and paper replays | Guaranteed alpha, profitability, fills or live-account PnL |
+| External integrations | Public or explicitly configured read-only data | Wallet signing, order placement/cancel/replace, fund transfers or live-account execution |
+| Evidence quality | Provider, timestamp, coverage and cost assumptions shown in results | Hidden assumptions about fees, borrow, slippage, inventory or queue position |
 
-Start with the categorized examples:
+### Start here
 
 ```bash
 python3 examples/crypto/strategy/python_strategy_runner.py \
@@ -2122,7 +2144,7 @@ python3 examples/crypto/microstructure/crypto_session_filter.py \
   --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 ```
 
-Documentation entrypoints:
+### Documentation entrypoints
 
 - [`examples/README.md`](examples/README.md): categorized demo index
 - [`examples/crypto/README.md`](examples/crypto/README.md): crypto research families

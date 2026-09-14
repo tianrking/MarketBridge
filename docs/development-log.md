@@ -1,5 +1,23 @@
 # Development log
 
+## 2026-09-14 — DeFi yield context and bilingual boundary cleanup
+
+Added the read-only `/v1/external/defi-yields` endpoint backed by DefiLlama's
+public `/pools` snapshot. It filters by chain, project, symbol, stablecoin,
+TVL and APY, and preserves total/base/reward APY, TVL, provider changes and
+pool-risk flags. Added the Python-first
+`crypto_defi_yield_context_monitor.py` case and deterministic tests; it
+separates base-yield-dominant, reward-dependent, non-positive and missing-data
+states. APY/TVL remain provider observations, not guaranteed return, safety or
+redemption liquidity. No deposit, withdrawal, wallet signing or execution path
+was added.
+
+Provenance: [DefiLlama yields](https://defillama.com/yields) and the
+[DefiLlama API documentation](https://defillama.com/docs/api). The root
+English and Chinese READMEs now present the same boundary table, short entry
+commands and API links; the long research history remains folded below the
+boundary section.
+
 ## 2026-09-14 — Deribit volatility-index history and response replay
 
 Added the read-only `/v1/history/volatility-index` endpoint backed by

@@ -41,6 +41,18 @@ pub struct StablecoinQuery {
     limit: Option<usize>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct DefiYieldsQuery {
+    chains: Option<String>,
+    projects: Option<String>,
+    symbols: Option<String>,
+    stablecoin: Option<bool>,
+    min_tvl_usd: Option<f64>,
+    min_apy: Option<f64>,
+    max_apy: Option<f64>,
+    limit: Option<usize>,
+}
+
 pub async fn v1_external_weather(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<WeatherQuery>,
@@ -227,6 +239,49 @@ pub async fn v1_external_stablecoins(
     }
 }
 
+pub async fn v1_external_defi_yields(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<DefiYieldsQuery>,
+) -> impl IntoResponse {
+    let response = state
+        .http
+        .get("https://yields.llama.fi/pools")
+        .send()
+        .await
+        .and_then(|response| response.error_for_status());
+    match response {
+        Ok(response) => match response.json::<Value>().await {
+            Ok(payload) => match normalize_defillama_yields(&payload, &q) {
+                Some(data) => Json(serde_json::json!({
+                    "version": "v1",
+                    "domain": "defi_yield_context",
+                    "source": "defillama_yields",
+                    "coverage": "provider_snapshot",
+                    "data": data,
+                    "limitations": [
+                        "APY and TVL are provider observations and do not guarantee future yield, liquidity or redemption",
+                        "reward APY depends on reward-token prices and emissions; pool safety, audits, lockups and smart-contract risk are not certified",
+                        "this read-only endpoint does not deposit, withdraw, sign wallets or execute a strategy"
+                    ]
+                }))
+                .into_response(),
+                None => (
+                    StatusCode::BAD_GATEWAY,
+                    Json(serde_json::json!({
+                        "version": "v1",
+                        "domain": "defi_yield_context",
+                        "source": "defillama_yields",
+                        "error": "DefiLlama yield payload missing usable data"
+                    })),
+                )
+                    .into_response(),
+            },
+            Err(error) => upstream_error("defillama_yields", error),
+        },
+        Err(error) => upstream_error("defillama_yields", error),
+    }
+}
+
 fn normalize_coingecko_global(payload: &Value) -> Option<Value> {
     let data = payload.get("data")?;
     let total_market_cap_usd = data
@@ -350,6 +405,136 @@ fn normalize_defillama_stablecoins(payload: &Value, query: &StablecoinQuery) -> 
     }))
 }
 
+fn normalize_defillama_yields(payload: &Value, query: &DefiYieldsQuery) -> Option<Value> {
+    let chains = query
+        .chains
+        .as_deref()
+        .map(|value| parse_csv_set_lower(value.to_string()));
+    let projects = query
+        .projects
+        .as_deref()
+        .map(|value| parse_csv_set_lower(value.to_string()));
+    let symbols = query
+        .symbols
+        .as_deref()
+        .map(|value| parse_csv_set_upper(value.to_string()));
+    let min_tvl_usd = query.min_tvl_usd.unwrap_or(0.0).max(0.0);
+    let min_apy = query.min_apy.unwrap_or(f64::NEG_INFINITY);
+    let max_apy = query.max_apy.unwrap_or(f64::INFINITY);
+    if min_apy > max_apy {
+        return None;
+    }
+    let limit = query.limit.unwrap_or(100).clamp(1, 500);
+    let mut pools = payload
+        .get("data")
+        .and_then(Value::as_array)?
+        .iter()
+        .filter_map(|row| {
+            let chain = row.get("chain")?.as_str()?.to_string();
+            let project = row.get("project")?.as_str()?.to_string();
+            let symbol = row.get("symbol")?.as_str()?.to_string();
+            let tvl_usd = row.get("tvlUsd").and_then(value_f64_value)?;
+            let apy_pct = row.get("apy").and_then(value_f64_value);
+            if chains
+                .as_ref()
+                .is_some_and(|set| !set.contains(&chain.to_ascii_lowercase()))
+                || projects
+                    .as_ref()
+                    .is_some_and(|set| !set.contains(&project.to_ascii_lowercase()))
+                || symbols.as_ref().is_some_and(|set| {
+                    let normalized = symbol.to_ascii_uppercase();
+                    !set.iter().any(|wanted| normalized.contains(wanted))
+                })
+                || query.stablecoin.is_some_and(|wanted| {
+                    row.get("stablecoin").and_then(Value::as_bool) != Some(wanted)
+                })
+                || tvl_usd < min_tvl_usd
+                || apy_pct.is_some_and(|value| value < min_apy || value > max_apy)
+            {
+                return None;
+            }
+            Some(serde_json::json!({
+                "pool_id": row.get("pool"),
+                "chain": chain,
+                "project": project,
+                "symbol": symbol,
+                "tvl_usd": tvl_usd,
+                "apy_pct": apy_pct,
+                "apy_base_pct": row.get("apyBase").and_then(value_f64_value),
+                "apy_reward_pct": row.get("apyReward").and_then(value_f64_value),
+                "apy_change_1d_pct": row.get("apyPct1D").and_then(value_f64_value),
+                "apy_change_7d_pct": row.get("apyPct7D").and_then(value_f64_value),
+                "apy_change_30d_pct": row.get("apyPct30D").and_then(value_f64_value),
+                "stablecoin": row.get("stablecoin"),
+                "il_risk": row.get("ilRisk"),
+                "exposure": row.get("exposure"),
+                "reward_tokens": row.get("rewardTokens"),
+                "volume_usd_1d": row.get("volumeUsd1d").and_then(value_f64_value),
+                "volume_usd_7d": row.get("volumeUsd7d").and_then(value_f64_value),
+                "source": "defillama_yields"
+            }))
+        })
+        .collect::<Vec<_>>();
+    let total_pools = pools.len();
+    let total_tvl_usd = pools
+        .iter()
+        .filter_map(|row| row.get("tvl_usd").and_then(Value::as_f64))
+        .sum::<f64>();
+    let apys = pools
+        .iter()
+        .filter_map(|row| row.get("apy_pct").and_then(Value::as_f64))
+        .collect::<Vec<_>>();
+    let stablecoin_pools = pools
+        .iter()
+        .filter(|row| row.get("stablecoin").and_then(Value::as_bool) == Some(true))
+        .count();
+    pools.sort_by(|a, b| {
+        b.get("tvl_usd")
+            .and_then(Value::as_f64)
+            .partial_cmp(&a.get("tvl_usd").and_then(Value::as_f64))
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                a.get("pool_id")
+                    .and_then(Value::as_str)
+                    .cmp(&b.get("pool_id").and_then(Value::as_str))
+            })
+    });
+    pools.truncate(limit);
+    Some(serde_json::json!({
+        "filters": {
+            "chains": query.chains,
+            "projects": query.projects,
+            "symbols": query.symbols,
+            "stablecoin": query.stablecoin,
+            "min_tvl_usd": min_tvl_usd,
+            "min_apy": query.min_apy,
+            "max_apy": query.max_apy,
+            "limit": limit
+        },
+        "summary": {
+            "total_pools": total_pools,
+            "returned_pools": pools.len(),
+            "stablecoin_pools": stablecoin_pools,
+            "total_tvl_usd": total_tvl_usd,
+            "median_apy_pct": if apys.is_empty() { None } else { Some(statistics_median(&apys)) }
+        },
+        "pools": pools,
+        "updated_at_ms": crate::types::now_ms(),
+        "source": "defillama_yields"
+    }))
+}
+
+fn statistics_median(values: &[f64]) -> f64 {
+    let mut values = values.to_vec();
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let middle = values.len() / 2;
+    if values.len().is_multiple_of(2) {
+        (values[middle - 1] + values[middle]) / 2.0
+    } else {
+        values[middle]
+    }
+}
+
 fn value_f64_value(value: &Value) -> Option<f64> {
     value
         .as_f64()
@@ -365,7 +550,10 @@ fn pct_change(current: f64, previous: Option<f64>) -> Option<f64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{StablecoinQuery, normalize_coingecko_global, normalize_defillama_stablecoins};
+    use super::{
+        DefiYieldsQuery, StablecoinQuery, normalize_coingecko_global,
+        normalize_defillama_stablecoins, normalize_defillama_yields,
+    };
 
     #[test]
     fn normalizes_global_market_dominance_and_totals() {
@@ -421,5 +609,41 @@ mod tests {
             .expect("numeric stablecoin change");
         assert!((change - 20.0).abs() < 1e-9);
         assert_eq!(data["chains"][0]["supply_usd"], serde_json::json!(80.0));
+    }
+
+    #[test]
+    fn normalizes_defi_yield_composition_and_summary_before_limit() {
+        let payload = serde_json::json!({
+            "data": [
+                {"pool":"reward", "chain":"Ethereum", "project":"aave", "symbol":"USDC",
+                 "tvlUsd":200.0, "apy":10.0, "apyBase":2.0, "apyReward":8.0, "stablecoin":true},
+                {"pool":"base", "chain":"Arbitrum", "project":"uniswap", "symbol":"ETH-USDC",
+                 "tvlUsd":100.0, "apy":5.0, "apyBase":4.0, "apyReward":1.0, "stablecoin":false},
+                {"pool":"small", "chain":"Ethereum", "project":"aave", "symbol":"USDT",
+                 "tvlUsd":50.0, "apy":2.0, "apyBase":2.0, "apyReward":0.0, "stablecoin":true}
+            ]
+        });
+        let query = DefiYieldsQuery {
+            chains: Some("ethereum,arbitrum".to_string()),
+            min_tvl_usd: Some(75.0),
+            limit: Some(1),
+            ..Default::default()
+        };
+        let data = normalize_defillama_yields(&payload, &query).expect("normalized yields");
+        assert_eq!(data["summary"]["total_pools"], serde_json::json!(2));
+        assert_eq!(data["summary"]["returned_pools"], serde_json::json!(1));
+        assert_eq!(data["summary"]["stablecoin_pools"], serde_json::json!(1));
+        assert_eq!(data["summary"]["median_apy_pct"], serde_json::json!(7.5));
+        assert_eq!(data["pools"][0]["pool_id"], serde_json::json!("reward"));
+    }
+
+    #[test]
+    fn rejects_invalid_defi_yield_apy_range() {
+        let query = DefiYieldsQuery {
+            min_apy: Some(5.0),
+            max_apy: Some(1.0),
+            ..Default::default()
+        };
+        assert!(normalize_defillama_yields(&serde_json::json!({"data": []}), &query).is_none());
     }
 }
