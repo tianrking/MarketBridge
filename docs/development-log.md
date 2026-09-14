@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Binance taker-volume/OI response research input
+
+Added the read-only `/v1/history/taker-volume` endpoint for Binance's public
+aggregate taker buy/sell volume history. Rows now expose normalized buy/sell
+volume, value, total and signed imbalance with bounded coverage metadata. Added
+the Python `crypto_taker_oi_response_replay.py` case, which separates rising-OI
+pressure from falling-OI absorption/closing states and compares fixed-horizon
+price responses. Provenance: [Binance Taker Buy/Sell Volume API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Taker-BuySell-Volume).
+No trader identity, causal inference, order, wallet, signing or execution path
+is included.
+
 ## 2026-09-14 — Meteora DLMM native pool context
 
 Replaced the Meteora-specific DexScreener-only path with the official public

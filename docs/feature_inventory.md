@@ -65,6 +65,7 @@ Status labels:
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
 | Historical liquidations | `/v1/history/liquidations` | implemented | keyless | Bounded recent OKX/CoinEx public liquidation history; not a complete cross-venue ledger. |
 | Historical open interest | `/v1/history/open-interest` | implemented | keyless | Binance/Bybit public time-bounded OI history with explicit provider units; not directional positioning. |
+| Historical taker buy/sell volume | `/v1/history/taker-volume` | implemented | keyless | Binance public aggregate taker buy/sell volume normalized with total value and imbalance; not trader identity or intent. |
 | Historical trades | `/v1/history/trades` | implemented | keyless | Bounded Binance/OKX public trades normalized with taker side for CVD research; retention is provider-controlled. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |

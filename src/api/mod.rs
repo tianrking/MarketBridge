@@ -92,6 +92,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/history/candles" => routes::history::candles,
         "/v1/history/liquidations" => routes::history::liquidations,
         "/v1/history/open-interest" => routes::history::open_interest,
+        "/v1/history/taker-volume" => routes::history::taker_volume,
         "/v1/history/trades" => routes::history::trades,
         "/v1/market/liquidations" => routes::market::v1_market_liquidations,
         "/v1/market/order-books" => routes::market::v1_market_order_books,

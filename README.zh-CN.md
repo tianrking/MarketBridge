@@ -372,6 +372,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 永续合约发现 | 某交易所当前公开列出的永续合约清单 | `GET /v1/catalog/perpetuals`、`GET /v1/catalog/markets` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | 按需永续资金费率 | 支持交易所的当前永续资金费率全量行，不限于配置 symbol | `GET /v1/market/perpetual-funding` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | Open interest | OI 数量/名义金额 | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | WS 或交易所 poller | 否 |
+| 历史主动买卖量 | Binance 聚合 taker buy/sell、总量、imbalance | `GET /v1/history/taker-volume` | 暂无直接流 | 按需请求，保留提供方覆盖状态 | 否 |
 | Liquidations 爆仓 | 公共强平事件 | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | 有稳定公共 feed 才推送 | 否 |
 | Klines K 线 | SQLite OHLCV，REST 回补 + live ticks 聚合 | `GET /v1/market/klines` | 暂无直接流 | 默认 `1m/5m/15m/1h` | 否 |
 | Basis | spot-perp basis、basis bps | `GET /v1/market/basis` | 暂无直接流 | 从最新 quote cache 派生 | 否 |

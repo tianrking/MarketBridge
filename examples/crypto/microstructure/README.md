@@ -44,6 +44,7 @@ Cases:
 - `crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py`: test whether a two-of-three stress state persists across snapshots.
 - `crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py`: freeze stress states beside a quote and compare later BTC movement with watch/normal states.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
+- `crypto_taker_oi_response_replay.py`: separates taker buy/sell imbalance with rising OI from the same flow with falling OI, then compares fixed-horizon price responses.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
 notional is expensive to unwind right now, rather than predicting direction.
@@ -72,6 +73,24 @@ execution-aware risk discussion on X](https://x.com/PineAnalytics/status/1974474
 which emphasizes real order-book depth, target-size slippage and short-horizon
 EWMA volatility. The implementation is an independently testable hypothesis,
 not an endorsement or a claim that the post's idea is profitable.
+
+`crypto_taker_oi_response_replay.py` adds a native historical taker-volume
+input. It does not assume that aggressive flow means informed flow: buy/sell
+imbalance with rising OI is labelled new-position pressure, while the same
+imbalance with falling OI is labelled possible absorption/closing. Missing
+alignment and provider page limits remain explicit.
+
+Provenance: MarketBridge uses Binance's public [Taker Buy/Sell Volume API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Taker-BuySell-Volume),
+which documents `takerBuyVol`, `takerSellVol`, value fields, timestamps and
+periods from 5m through 1d. This is aggregate provider data, not trader intent,
+and the example never places orders.
+
+中文：`crypto_taker_oi_response_replay.py` 新增原生历史主动买卖量输入。它不把主动成交直接当成“聪明钱”：
+主动买/卖不平衡且 OI 上升标记为新仓压力，同方向不平衡但 OI 下降标记为可能的吸收/平仓，然后比较固定窗口的后续价格响应。
+缺失对齐和提供方分页始终保留为证据缺口。
+
+出处：MarketBridge 使用 Binance 公开的[主动买卖量接口](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Taker-BuySell-Volume)，
+文档给出 `takerBuyVol`、`takerSellVol`、价值字段、时间戳和 5m 到 1d 周期。数据是提供方聚合，不是交易者意图；示例不下单。
 
 The liquidation-burst replay is deliberately different from the single-event
 reversal monitor: it aggregates all public liquidation notional over a rolling
@@ -586,6 +605,10 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
   --exchange binance --symbol BTCUSDT --days 3 --window-minutes 5 \
   --horizon-bars 240 --min-flow-ratio 0.20 --paper-cost-bps 10 \
   --min-edge-bps 0 --min-observations 5
+python3 examples/crypto/microstructure/crypto_taker_oi_response_replay.py \
+  --symbol BTCUSDT --exchange binance --period 5m --days 7 \
+  --flow-threshold 0.20 --oi-threshold 0.10 \
+  --horizon-bars 3 --min-observations 5
 python3 examples/crypto/microstructure/crypto_trade_imbalance_bar_replay.py \
   --exchange binance --symbol BTCUSDT --days 2 --trade-pages 12 \
   --bar-notional 1000000 --max-trades-per-bar 500 \

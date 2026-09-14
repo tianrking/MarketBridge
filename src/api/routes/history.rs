@@ -44,6 +44,16 @@ pub struct HistoryOpenInterestQuery {
 }
 
 #[derive(Debug, Deserialize, Default)]
+pub struct HistoryTakerVolumeQuery {
+    exchange: String,
+    symbol: String,
+    period: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct HistoryTradesQuery {
     exchange: String,
     symbol: String,
@@ -175,6 +185,58 @@ pub async fn open_interest(
         }))
         .into_response(),
     }
+}
+
+pub async fn taker_volume(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryTakerVolumeQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "binance" => fetch_binance_taker_volume(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported historical taker-volume exchange: {other}; public history is currently available for binance"
+        )),
+    };
+    match result {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_taker_volume",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "period": q.period.clone().unwrap_or_else(|| "5m".to_string()),
+            "coverage": "bounded_public_history",
+            "coverage_detail": taker_volume_coverage_detail(&rows, &q),
+            "rows": rows,
+            "limitations": [
+                "Binance exposes provider aggregate taker volumes, not individual fills",
+                "only the provider retention window is available and page completeness is not guaranteed",
+                "buy/sell imbalance is descriptive and does not identify informed flow or execution quality"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_taker_volume",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+fn taker_volume_coverage_detail(rows: &[Value], q: &HistoryTakerVolumeQuery) -> Value {
+    let page_limit = q.limit.unwrap_or(500);
+    serde_json::json!({
+        "status": open_interest_coverage_status(rows.len(), page_limit),
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+    })
 }
 
 fn open_interest_coverage_detail(rows: &[Value], q: &HistoryOpenInterestQuery) -> Value {
@@ -836,6 +898,76 @@ async fn fetch_binance_open_interest(
         .collect()
 }
 
+async fn fetch_binance_taker_volume(
+    http: &reqwest::Client,
+    q: &HistoryTakerVolumeQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let period = q.period.as_deref().unwrap_or("5m");
+    let allowed_period = matches!(
+        period,
+        "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "12h" | "1d"
+    );
+    if !allowed_period {
+        bail!("unsupported Binance taker-volume period: {period}");
+    }
+    let limit = q.limit.unwrap_or(500).clamp(1, 500).to_string();
+    let mut request = http
+        .get("https://fapi.binance.com/futures/data/takerBuySellVol")
+        .query(&[
+            ("symbol", symbol.as_str()),
+            ("contractType", "PERPETUAL"),
+            ("period", period),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Value>>()
+        .await
+        .context("failed to parse binance taker buy/sell volume history")?;
+    payload
+        .into_iter()
+        .map(normalize_binance_taker_volume_row)
+        .collect()
+}
+
+fn normalize_binance_taker_volume_row(row: Value) -> Result<Value> {
+    let ts_ms =
+        value_u64(row.get("timestamp")).context("missing Binance taker-volume timestamp")?;
+    let buy_volume =
+        value_f64(row.get("takerBuyVol")).context("missing Binance taker buy volume")?;
+    let sell_volume =
+        value_f64(row.get("takerSellVol")).context("missing Binance taker sell volume")?;
+    let buy_value = value_f64(row.get("takerBuyVolValue"));
+    let sell_value = value_f64(row.get("takerSellVolValue"));
+    let total_volume = buy_volume + sell_volume;
+    let total_value = buy_value.zip(sell_value).map(|(buy, sell)| buy + sell);
+    let imbalance = (total_volume > 0.0).then_some((buy_volume - sell_volume) / total_volume);
+    Ok(serde_json::json!({
+        "exchange": "binance",
+        "symbol": row.get("symbol"),
+        "contract_type": row.get("contractType"),
+        "taker_buy_volume": buy_volume,
+        "taker_sell_volume": sell_volume,
+        "taker_buy_value": buy_value,
+        "taker_sell_value": sell_value,
+        "total_volume": total_volume,
+        "total_value": total_value,
+        "imbalance": imbalance,
+        "buy_sell_ratio": (sell_volume > 0.0).then_some(buy_volume / sell_volume),
+        "ts_ms": ts_ms,
+        "source": "binance_taker_buy_sell_volume"
+    }))
+}
+
 async fn fetch_bybit_open_interest(
     http: &reqwest::Client,
     q: &HistoryOpenInterestQuery,
@@ -1319,6 +1451,47 @@ mod tests {
             serde_json::json!({"ts_ms": 3, "open_interest": 2.0}),
         ];
         let detail = open_interest_coverage_detail(&rows, &query);
+        assert_eq!(detail["covered_start_ms"], serde_json::json!(1));
+        assert_eq!(detail["covered_end_ms"], serde_json::json!(3));
+        assert_eq!(
+            detail["status"],
+            serde_json::json!("provider_page_may_be_truncated")
+        );
+    }
+
+    #[test]
+    fn normalizes_binance_taker_volume_and_imbalance() {
+        let row = normalize_binance_taker_volume_row(serde_json::json!({
+            "symbol": "BTCUSDT",
+            "contractType": "PERPETUAL",
+            "takerBuyVol": "60",
+            "takerSellVol": "40",
+            "takerBuyVolValue": "600000",
+            "takerSellVolValue": "400000",
+            "timestamp": 1234
+        }))
+        .expect("normalized row");
+        assert_eq!(row["ts_ms"], serde_json::json!(1234));
+        assert_eq!(row["total_volume"], serde_json::json!(100.0));
+        assert_eq!(row["imbalance"], serde_json::json!(0.2));
+        assert_eq!(row["buy_sell_ratio"], serde_json::json!(1.5));
+    }
+
+    #[test]
+    fn taker_volume_coverage_never_claims_completeness() {
+        let query = HistoryTakerVolumeQuery {
+            exchange: "binance".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            period: Some("5m".to_string()),
+            start_ms: Some(1),
+            end_ms: Some(3),
+            limit: Some(2),
+        };
+        let rows = vec![
+            serde_json::json!({"ts_ms": 1}),
+            serde_json::json!({"ts_ms": 3}),
+        ];
+        let detail = taker_volume_coverage_detail(&rows, &query);
         assert_eq!(detail["covered_start_ms"], serde_json::json!(1));
         assert_eq!(detail["covered_end_ms"], serde_json::json!(3));
         assert_eq!(
