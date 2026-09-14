@@ -10,6 +10,7 @@
 | Basis and funding | `basis_carry_monitor.py`, `funding_convergence_monitor.py`, `crypto_funding_band_monitor.py` | Fresh spot/perp basis, funding, interval, provider cap/floor and missing-field context |
 | Historical replay | `crypto_basis_replay.py`, `crypto_historical_basis_replay.py`, `crypto_funding_*_replay.py` | Fixed-window contraction, convergence or regime distributions |
 | Cross-venue | `crypto_cross_venue_orderbook_*`, `crypto_cross_venue_price_gap_replay.py` | Point-in-time quote/book gaps with latency and coverage metadata |
+| Coinbase premium | `crypto_coinbase_premium_monitor.py`, `crypto_coinbase_premium_response_recorder.py`, `crypto_coinbase_premium_response_replay.py` | Coinbase USD versus reference-venue spot spread and later BTC response |
 | Triangular | `crypto_triangular_arbitrage_*` | Paper price-cycle consistency only; no route or fill |
 | Response studies | `crypto_*_response_recorder.py` / `*_response_replay.py` | State frozen beside a BTC quote, then compared with later returns |
 
@@ -17,6 +18,12 @@ The funding-band pair is the newest response case. It classifies provider
 funding as `near_upper_funding_cap`, `near_lower_funding_floor`, or
 `within_provider_funding_band`, then compares later BTC movement. It does not
 turn a cap/floor proximity observation into funding income, a hedge, or a trade.
+
+The Coinbase premium pair tests a separate public-X lead: after the Coinbase
+USD quote is materially above or below a reference spot quote, does the next
+fixed-record BTC response differ from ordinary snapshots? The default
+reference is Binance `BTCUSDT`; the USD/USDT stablecoin basis is retained as a
+limitation rather than silently labelled US spot flow.
 
 ## Run a complete case
 
@@ -46,12 +53,28 @@ sample so that independent studies do not share state.
   modelled separately.
 - `research_only_no_orders` is part of every recorder/replay result.
 
+```bash
+python3 examples/crypto/carry/crypto_coinbase_premium_monitor.py \
+  --coinbase-symbol BTC-USD --reference-symbol BTCUSDT \
+  --reference-exchange binance --premium-threshold-bps 5
+python3 examples/crypto/carry/crypto_coinbase_premium_response_recorder.py \
+  --coinbase-symbol BTC-USD --reference-symbol BTCUSDT \
+  --reference-exchange binance --iterations 60 --interval-secs 60 \
+  --output work/crypto-coinbase-premium-response.jsonl
+python3 examples/crypto/carry/crypto_coinbase_premium_response_replay.py \
+  --input work/crypto-coinbase-premium-response.jsonl \
+  --horizon-records 3 --min-observations 5
+```
+
 ## Provenance
 
 Research leads are listed in the source README and development log. The
 provider-band semantics are grounded in Binance's [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info);
 public X posts are treated as hypotheses, never as validation. The latest
 funding-band lead is [this public funding discussion](https://x.com/instaclaws/status/2038363051213181035).
+The Coinbase premium lead is the [XWIN flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257).
+Coinbase candle and market-data semantics are cross-checked against the
+official [Coinbase Exchange candles API](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles).
 
 ## Boundary
 

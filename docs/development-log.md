@@ -1560,3 +1560,17 @@ claim is made.
 Provenance: the unverified [public liquidity-sandwich discussion on X](https://x.com/snowinjon/status/1995863059165053368)
 motivates the hypothesis. Field shape and semantics are cross-checked against
 Binance's official [USDⓈ-M Order Book API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Order-Book).
+
+## 2026-09-14 — Coinbase spot-premium response study
+
+Added `crypto_coinbase_premium_monitor.py` plus a recorder/replay pair under
+the carry family. The monitor joins the public Coinbase `BTC-USD` spot quote
+with a reference venue quote (default Binance `BTCUSDT`), classifies premium,
+discount and ordinary spread states, and keeps USD/USDT basis and timestamp
+coverage visible. Replay compares later fixed-record BTC responses; it does not
+claim pure US spot-flow causality, arbitrage, conversion, or execution.
+
+Provenance: the unverified [XWIN flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257)
+mentions Coinbase premium alongside ETF and spot-demand confirmation. Coinbase
+product candle and market-data semantics are cross-checked against the official
+[Coinbase Exchange candles API](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles).

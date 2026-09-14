@@ -1190,6 +1190,8 @@ ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配�
 不声称发生了真实 ADL，也不访问私有账户风险。
 carry 系列还新增提供方资金费率上下限 response recorder/replay：比较接近上限、接近下限和普通区间状态之后的 BTC 响应，
 并明确保留提供方参数变化和执行缺口。
+同系列还新增 Coinbase premium response pair：比较公开 `BTC-USD` 报价与参考 `BTCUSDT` 现货报价；USD/USDT 基差和 venue
+时间对齐都会显式保留，不会把结果冒充纯美国现货流量或套利信号。
 同系列还新增 anchored VWAP 回放：只用前置窗口选择 swing 锚点，避免未来数据泄漏，检验历史 K 线中的新夺回/跌破响应，
 并明确保留 OHLCV 近似和事件身份限制。
 Universe 系列还新增 altcoin breadth 回放：按调用者选择的等计数山寨币篮子，比较低/中性/高参与度状态下

@@ -323,6 +323,10 @@ later responses without claiming a realized ADL event or private account risk.
 The carry family also includes a provider funding-band response recorder/replay:
 it compares later BTC movement after near-cap, near-floor and ordinary funding
 states, while keeping provider-band changes and execution gaps explicit.
+It also includes a Coinbase-premium response pair that compares the public
+`BTC-USD` quote with a reference `BTCUSDT` spot quote. USD/USDT basis and venue
+timing remain explicit, so the result is not presented as a pure US spot-flow
+or arbitrage signal.
 It now includes a Python recorder/replay pair that tests whether aggregate
 long/short crowding states persist across snapshots; ratios remain provider
 context, not position ownership, and the replay has no allocation or execution
