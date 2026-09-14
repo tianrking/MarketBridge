@@ -13,6 +13,8 @@
   difficulty-adjustment and seven-day hashrate context.
 - `crypto_hash_ribbon_response_replay.py`: a timestamp-aware 30/60-day
   hashrate-crossing response study using `/v1/history/mining` and BTC candles.
+- `crypto_mayer_multiple_response_replay.py`: a close-only 200-day price/SMA
+  regime study across discount, trend-band and premium states.
 
 ## Quickstart
 
@@ -49,6 +51,12 @@ python3 examples/crypto/onchain/crypto_hash_ribbon_response_replay.py \
   --mining-window 3y --short-window-days 30 --long-window-days 60 \
   --price-short-days 10 --price-long-days 20 \
   --horizon-days 30 --min-observations 3
+python3 examples/crypto/onchain/crypto_mayer_multiple_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 1825 \
+  --ma-days 200 --discount-threshold 0.8 \
+  --deep-discount-threshold 0.6 --premium-threshold 2.4 \
+  --extreme-premium-threshold 3.0 --horizon-days 30 \
+  --min-observations 5
 ```
 
 Provenance is maintained in [`README.md`](README.md), including the

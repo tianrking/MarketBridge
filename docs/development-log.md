@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-09-14 — Added Mayer Multiple valuation-regime replay
+
+Added the Python `crypto_mayer_multiple_response_replay.py` case to the on-chain
+research family. It computes the close-only BTC price divided by a trailing
+200-day SMA, classifies deep discount/discount/trend-band/premium/extreme
+premium states using explicit caller thresholds, and reports later fixed-window
+returns and absolute moves. It uses only `/v1/history/candles`; it does not
+claim intrinsic value, realized-cap cost basis, causality, allocation or
+execution.
+
+The definition is cross-checked against [Glassnode's Mayer Multiple chart](https://studio.glassnode.com/charts/d54901eb-056d-4644-46d8-718e8a8cdd2a?a=BTC),
+which defines price divided by the 200-day SMA and documents the 0.6/0.8 and
+2.4/3.0 regime bands. The broader public lead is represented by the
+[Mayer Multiple public X account](https://x.com/TIPMayerMultple); both are
+treated as research context, not performance evidence.
+
 ## 2026-09-14 — Added historical Bitcoin mining context and hash-ribbon replay
 
 Added read-only `/v1/history/mining`, backed by mempool.space's public trailing

@@ -58,6 +58,12 @@ price-momentum condition remains a separate observable filter. It is a
 provider-context response study, not proof of miner capitulation, profitability,
 causality or a trade signal.
 
+`crypto_mayer_multiple_response_replay.py` tests a separate valuation-regime
+hypothesis: price divided by a close-only 200-day SMA may have different fixed
+forward responses below `0.6`, between `0.8` and `2.4`, or above `3.0`. It
+keeps thresholds caller-configurable and does not claim intrinsic value or
+recommend an allocation.
+
 This does not turn a negative difficulty change into a miner-capitulation claim.
 Hashrate is estimated, difficulty is a protocol adjustment, and neither field
 identifies a miner's reserve, profitability, treasury sale, or forced selling.

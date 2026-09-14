@@ -10,6 +10,8 @@
 - `crypto_onchain_mining_pressure_monitor.py` / recorder / replay：难度调整和七日 hashrate 上下文。
 - `crypto_hash_ribbon_response_replay.py`：使用 `/v1/history/mining` 与 BTC K 线，做时间戳感知的
   30/60 日 hashrate 交叉响应研究。
+- `crypto_mayer_multiple_response_replay.py`：使用收盘价与 200 日 SMA，比较折价、趋势带和溢价状态的
+  后续 BTC 响应。
 
 ## 快速开始
 
@@ -41,6 +43,12 @@ python3 examples/crypto/onchain/crypto_hash_ribbon_response_replay.py \
   --mining-window 3y --short-window-days 30 --long-window-days 60 \
   --price-short-days 10 --price-long-days 20 \
   --horizon-days 30 --min-observations 3
+python3 examples/crypto/onchain/crypto_mayer_multiple_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 1825 \
+  --ma-days 200 --discount-threshold 0.8 \
+  --deep-discount-threshold 0.6 --premium-threshold 2.4 \
+  --extreme-premium-threshold 3.0 --horizon-days 30 \
+  --min-observations 5
 ```
 
 出处在 [`README.md`](README.md) 维护，包括 [mempool.space REST API](https://mempool.space/docs/api/rest)
