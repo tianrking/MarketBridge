@@ -17,6 +17,12 @@
 The recorder/replay pairs freeze a state beside a quote and measure a later
 fixed-record signed or absolute return. The ADL pair treats Binance's rating as
 provider context—not proof that ADL occurred or a private account was at risk.
+The live liquidation store now retains a bounded recent event window per
+venue/symbol instead of overwriting the previous event. Pass
+`--source market` to `crypto_liquidation_burst_response_recorder.py` to archive
+Binance, Bybit, BitMEX, Gate, and other enabled live feeds; use
+`--source history` for the OKX/CoinEx bounded-history path. Retention is not a
+complete historical ledger and feed gaps remain visible.
 The liquidity-sandwich pair tests the narrower public-X claim that symmetric
 near-touch bid and ask depth with a tight spread is followed by a different
 absolute BTC move than ordinary snapshots. It does not call the displayed
@@ -47,6 +53,17 @@ python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay
 The full command set remains in [`README.md`](README.md). First polls may have
 no OI baseline; venue liquidation side, trade side and book semantics are
 provider-specific and must stay in the output.
+
+```bash
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorder.py \
+  --source market --exchange binance --price-exchange binance \
+  --symbol BTCUSDT --iterations 120 --interval-secs 30 \
+  --output work/crypto-live-liquidation-burst-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_replay.py \
+  --input work/crypto-live-liquidation-burst-response.jsonl \
+  --window-hours 1 --horizon-records 12 --threshold-notional 1000000 \
+  --cooldown-records 12 --min-observations 3
+```
 
 ## Evidence rules
 

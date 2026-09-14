@@ -158,6 +158,12 @@ ordinary snapshots. A burst is not counted again during the configurable
 cooldown, and missing quotes remain outside the aligned sample. This is a
 non-directional response study, not a liquidation forecast or order model.
 
+The same recorder also accepts `--source market`. In that mode it reads the
+bounded recent event window from `/v1/market/liquidations`, which now retains
+distinct live liquidation events per venue/symbol. This is the recommended
+path for Binance, Bybit, BitMEX, Gate and other enabled WS feeds; it remains a
+live archive with retention and feed-gap limits, not a backfilled ledger.
+
 Provenance: the public [CryptoData liquidation-threshold discussion on X](https://x.com/TheCryptoData/status/1948466627365769584)
 is an unverified research lead. The event semantics are bounded by
 [Binance's public liquidation-order stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams);
@@ -595,6 +601,10 @@ python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorde
   --exchange okx --price-exchange okx --symbol BTCUSDT \
   --iterations 120 --interval-secs 30 --threshold-notional 1000000 \
   --output work/crypto-liquidation-burst-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorder.py \
+  --source market --exchange binance --price-exchange binance --symbol BTCUSDT \
+  --iterations 120 --interval-secs 30 \
+  --output work/crypto-live-liquidation-burst-response.jsonl
 python3 examples/crypto/microstructure/crypto_liquidation_burst_response_replay.py \
   --input work/crypto-liquidation-burst-response.jsonl \
   --window-hours 24 --horizon-records 12 --threshold-notional 1000000 \

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze public liquidation history beside a synchronized MarketBridge quote."""
+"""Freeze public liquidation history or live liquidation events beside a quote."""
 
 import argparse
 import json
@@ -30,11 +30,31 @@ def quote_price(payload, symbol, exchange, product_type):
     return None
 
 
+def liquidation_rows(payload, source):
+    """Normalize history rows and live market rows to the replay schema."""
+    rows = payload.get("rows", []) if source == "history" else payload.get("liquidations", [])
+    normalized = []
+    for row in rows:
+        item = dict(row)
+        try:
+            price = float(item.get("price"))
+            qty = float(item.get("qty"))
+        except (TypeError, ValueError):
+            continue
+        if price <= 0 or qty <= 0:
+            continue
+        item["notional"] = float(item.get("notional", price * qty))
+        normalized.append(item)
+    return normalized
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--exchange", choices=("okx", "coinex"), default="okx")
-    parser.add_argument("--price-exchange", choices=("okx", "binance"), default=None)
+    parser.add_argument("--source", choices=("history", "market"), default="history",
+                        help="history uses /v1/history/liquidations; market uses retained live events")
+    parser.add_argument("--exchange", default="okx")
+    parser.add_argument("--price-exchange", default=None)
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--product-type", choices=("spot", "perp"), default="perp")
     parser.add_argument("--liquidation-limit", type=int, default=100)
@@ -53,17 +73,21 @@ def main():
     price_exchange = args.price_exchange or args.exchange
     args.output.parent.mkdir(parents=True, exist_ok=True)
     parameters = {
-        "exchange": args.exchange, "price_exchange": price_exchange,
+        "source": args.source, "exchange": args.exchange, "price_exchange": price_exchange,
         "symbol": args.symbol.upper(), "product_type": args.product_type,
         "liquidation_limit": args.liquidation_limit,
         "window_hours": args.window_hours, "threshold_notional": args.threshold_notional,
     }
     with args.output.open("a", encoding="utf-8") as handle:
         for iteration in range(args.iterations):
-            liquidation_payload = fetch(args.base_url, "/v1/history/liquidations", {
-                "exchange": args.exchange, "symbol": args.symbol,
-                "limit": args.liquidation_limit,
-            }, args.timeout)
+            liquidation_payload = fetch(
+                args.base_url,
+                "/v1/history/liquidations" if args.source == "history" else "/v1/market/liquidations",
+                {"exchange": args.exchange, "symbol": args.symbol,
+                 "limit": args.liquidation_limit} if args.source == "history" else
+                {"exchanges": args.exchange, "symbols": args.symbol},
+                args.timeout,
+            )
             quote_payload = fetch(args.base_url, "/v1/market/quotes", {
                 "symbols": args.symbol, "exchanges": price_exchange,
                 "product_type": args.product_type, "include_stale": "false",
@@ -73,12 +97,13 @@ def main():
                 "recorded_at_ms": int(time.time() * 1000), "iteration": iteration + 1,
                 "parameters": parameters,
                 "observation": {
-                    "liquidations": liquidation_payload.get("rows", []),
+                    "liquidations": liquidation_rows(liquidation_payload, args.source),
                     "price": quote_price(quote_payload, args.symbol, price_exchange,
                                           args.product_type),
                     "research_only": True,
                 },
-                "coverage": liquidation_payload.get("coverage_detail"),
+                "coverage": liquidation_payload.get("coverage_detail") if args.source == "history"
+                else {"status": "retained_live_event_window", "returned_rows": len(liquidation_rows(liquidation_payload, args.source))},
                 "upstream_errors": ([error] if error else []) + quote_payload.get("errors", []),
             }, ensure_ascii=False, sort_keys=True) + "\n")
             handle.flush()

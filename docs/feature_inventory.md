@@ -65,7 +65,7 @@ Status labels:
 | Predicted funding estimates | `/v1/market/predicted-funding` | implemented | keyless | Hyperliquid `predictedFundings` named-venue estimates are kept separate from settled funding and schedules; research context only. |
 | Open interest | `/v1/market/open-interest` | implemented | keyless | Native CEX feeds plus future aggregate feeds. |
 | ADL risk rating | `/v1/market/adl-risk` | implemented | keyless | Binance symbol-level provider rating updated about every 30 minutes; risk context only, not price direction or private account risk. |
-| Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available. |
+| Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available, retained as a bounded recent event window per venue/symbol rather than one last-row snapshot. |
 | Historical liquidations | `/v1/history/liquidations` | implemented | keyless | Bounded recent OKX/CoinEx public liquidation history; not a complete cross-venue ledger. |
 | Historical open interest | `/v1/history/open-interest` | implemented | keyless | Binance/Bybit public time-bounded OI history with explicit provider units; not directional positioning. |
 | Historical taker buy/sell volume | `/v1/history/taker-volume` | implemented | keyless | Binance public aggregate taker buy/sell volume normalized with total value and imbalance; not trader identity or intent. |

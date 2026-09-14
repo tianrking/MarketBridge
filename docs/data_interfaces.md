@@ -157,7 +157,7 @@ Short version:
 | Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; includes explicit interval and Binance `funding_rate_cap`/`funding_rate_floor` when the provider exposes them. |
 | Open interest | `/v1/market/open-interest` | CEX perp feeds | raw normalized | Latest OI rows. |
 | ADL risk | `/v1/market/adl-risk` | Binance public futures | raw normalized | Symbol-level high/medium/low provider rating with update timestamp; not a directional forecast or private account metric. |
-| Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
+| Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Retained live event window per venue/symbol; rows are bounded by freshness/retention and do not replace a complete historical ledger. |
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
 | Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |
 | Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to the local Arrow IPC lake. |
@@ -521,7 +521,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/funding` | Funding rates. |
 | GET | `/v1/market/perpetual-funding` | On-demand current funding rows for perpetual markets. |
 | GET | `/v1/market/open-interest` | Open interest. |
-| GET | `/v1/market/liquidations` | Liquidation events. |
+| GET | `/v1/market/liquidations` | Retained live liquidation events from enabled venue feeds; inspect timestamps and retention before treating the window as complete. |
 | GET | `/v1/market/order-books` | L2 order books. |
 | GET | `/v1/market/trades` | Recent trades. |
 | GET | `/v1/market/order-flow` | Buy/sell pressure and CVD windows. |

@@ -16,6 +16,9 @@
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
 ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL，也不推断私人账户风险。
+实时清算存储现在按 venue/symbol 保留有界的近期事件窗口，不再覆盖上一条事件。给
+`crypto_liquidation_burst_response_recorder.py` 传 `--source market` 可归档 Binance、Bybit、BitMEX、Gate
+等已启用实时 feed；`--source history` 仍使用 OKX/CoinEx 有界历史路径。保留窗口不是完整历史账本，feed 缺口必须保留。
 liquidity-sandwich pair 只检验一个更窄的公开 X 假设：当买卖两侧近盘口深度都明显、点差较窄时，
 后续 BTC 绝对波动是否不同于普通快照；不会把显示深度称为持续墙体，也不推导区间交易机会。
 
@@ -43,6 +46,17 @@ python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay
 
 完整命令保留在 [`README.md`](README.md)。首次轮询可能没有 OI 基线；清算 side、成交 side
 和盘口语义都取决于提供方，必须保留在输出中。
+
+```bash
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_recorder.py \
+  --source market --exchange binance --price-exchange binance \
+  --symbol BTCUSDT --iterations 120 --interval-secs 30 \
+  --output work/crypto-live-liquidation-burst-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidation_burst_response_replay.py \
+  --input work/crypto-live-liquidation-burst-response.jsonl \
+  --window-hours 1 --horizon-records 12 --threshold-notional 1000000 \
+  --cooldown-records 12 --min-observations 3
+```
 
 ## 证据规则
 

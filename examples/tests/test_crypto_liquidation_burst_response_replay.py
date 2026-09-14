@@ -3,6 +3,7 @@
 import unittest
 
 from crypto_liquidation_burst_response_replay import summarize_records
+from crypto_liquidation_burst_response_recorder import liquidation_rows
 
 
 def record(ts, price, liquidations):
@@ -16,6 +17,14 @@ def liquidation(ts, notional, side="sell", price=100.0):
 
 
 class LiquidationBurstResponseReplayTests(unittest.TestCase):
+    def test_live_market_rows_get_replay_notional(self):
+        rows = liquidation_rows({"liquidations": [
+            {"ts_ms": 1, "price": 100.0, "qty": 2.0, "side": "sell"},
+            {"ts_ms": 2, "price": 0.0, "qty": 3.0},
+        ]}, "market")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["notional"], 200.0)
+
     def test_burst_is_compared_with_ordinary_window(self):
         rows = [
             record(1_000, 100, [liquidation(999, 2_000_000)]),

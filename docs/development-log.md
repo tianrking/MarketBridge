@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-09-14 — Retained live liquidation event window
+
+Changed the normalized live liquidation snapshot store from one overwriting
+row per venue/symbol to a bounded recent event window keyed by observable
+timestamp, price, quantity and side. Retention still follows the runtime stale
+TTL and global entry cap, so `/v1/market/liquidations` remains a snapshot
+context rather than a complete historical ledger. Extended
+`crypto_liquidation_burst_response_recorder.py` with `--source market` so
+Binance, Bybit, BitMEX, Gate and other enabled live feeds can be archived and
+replayed without inventing a REST history endpoint.
+
+The public [Binance liquidation stream documentation](https://developers.binance.com/en/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
+and the [Binance notice about the retired REST liquidation-history path](https://www.binance.com/en/support/announcement/detail/bcc9e902421a46398771c5f15f550685)
+are treated as source semantics. Live retention, feed gaps, duplicate fields,
+side meaning and elapsed-time coverage remain explicit limitations.
+
 ## 2026-09-14 — Historical stablecoin supply endpoint and replay
 
 Added read-only `/v1/history/stablecoins`, backed by DefiLlama's public

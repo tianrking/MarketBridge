@@ -146,9 +146,9 @@ impl EventSnapshotStore {
 
     pub fn upsert_liquidation(&self, tick: &LiquidationTick, stale_ttl_ms: u64) {
         self.liquidation_snapshots
-            .upsert(perp_key(tick.exchange, &tick.symbol), tick.clone());
+            .upsert(liquidation_key(tick), tick.clone());
         self.liquidation_snapshots.prune_by_ts(
-            now_ms(),
+            (self.clock)(),
             snapshot_retention_ms(stale_ttl_ms),
             |tick| tick.ts_ms,
             MAX_SNAPSHOT_KEYS_PER_DOMAIN,
@@ -368,6 +368,18 @@ fn perp_key(exchange: &str, symbol: &str) -> String {
     format!("{exchange}:perp:{symbol}")
 }
 
+fn liquidation_key(tick: &LiquidationTick) -> String {
+    format!(
+        "{}:perp:{}:{}:{:?}:{:?}:{:?}",
+        tick.exchange,
+        tick.symbol,
+        tick.ts_ms,
+        tick.side,
+        tick.price.to_bits(),
+        tick.qty.to_bits()
+    )
+}
+
 fn market_key(exchange: &str, market: MarketKind, symbol: &str) -> String {
     format!("{exchange}:{}:{symbol}", market_to_str(market))
 }
@@ -491,5 +503,27 @@ mod tests {
         let values = map.values();
 
         assert_eq!(values, vec![1_100]);
+    }
+
+    #[tokio::test]
+    async fn liquidation_snapshots_keep_distinct_recent_events_for_one_symbol() {
+        let mut store = EventSnapshotStore::new(1_000);
+        store.clock = Arc::new(|| 10_100);
+        let first = LiquidationTick {
+            exchange: "binance",
+            symbol: "BTCUSDT".into(),
+            side: crate::types::TradeSide::Sell,
+            price: 100.0,
+            qty: 1.0,
+            ts_ms: 10_000,
+        };
+        let second = LiquidationTick {
+            ts_ms: 10_050,
+            price: 101.0,
+            ..first.clone()
+        };
+        store.upsert_liquidation(&first, 1_000);
+        store.upsert_liquidation(&second, 1_000);
+        assert_eq!(store.liquidation_snapshot_all().await.len(), 2);
     }
 }
