@@ -1,20 +1,24 @@
 # MarketBridge
 
-Multi-market, multi-venue market-data and strategy-research foundation in Rust.
-The target platform unifies live and historical ingestion, opportunity scanning,
-cost analysis, replay and paper validation through APIs. It does not place orders.
-Infrastructure is shared; each market retains its own asset, contract and model
-semantics. See the [roadmap and acceptance gates](docs/platform-roadmap.md) and
-[development evidence](docs/development-log.md) for implemented versus planned work.
+Read-only, multi-market market-data and strategy-research infrastructure.
+MarketBridge collects and normalizes public data, exposes stable APIs, and
+supports bounded replay and paper validation. It is not a trading bot and never
+places orders.
 
-Current version: `v0.0.6`
+**Runtime boundary:** Rust owns connectors, normalization, storage, quality
+metadata, and APIs. Strategy examples are Python-first. Every result must keep
+provider, timestamp, coverage, cost, and look-ahead limitations visible.
+
+Current version: `v0.0.6` · [中文文档](README.zh-CN.md) ·
+[Examples](examples/README.md) · [Documentation index](docs/README.md)
 
 Unreleased research API/CLI: [usage and limitations](docs/research-api.md).
-Start with `config.research.yaml` for a localhost-only, zero-collector service.
-Open `/workbench` on the running service for the built-in research console (no
-Node.js service required). [Complete Chinese usage series](docs/user-guide/README.md).
+Start with `config.research.yaml` for a localhost-only, zero-collector service;
+open `/workbench` after startup for the built-in research console.
 
-[中文文档](README.zh-CN.md)
+The [roadmap and acceptance gates](docs/platform-roadmap.md) and
+[development evidence](docs/development-log.md) distinguish shipped behavior,
+active validation, and planned work.
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)
 ![Tokio](https://img.shields.io/badge/Runtime-Tokio-333333?logo=rust)
@@ -25,24 +29,24 @@ Node.js service required). [Complete Chinese usage series](docs/user-guide/READM
 ![Serde](https://img.shields.io/badge/Serialization-Serde-16a34a)
 ![License](https://img.shields.io/badge/License-MIT-64748b)
 
-## At a Glance
+## Start here
 
 | If you need... | Start here |
 |---|---|
 | A local market-data API | [`config.research.yaml`](config.research.yaml), then `cargo run --release` |
 | A Python strategy example | [`examples/README.md`](examples/README.md) |
 | API contracts and field semantics | [`docs/data_interfaces.md`](docs/data_interfaces.md) |
-| A reproducible replay | [`examples/crypto/`](examples/crypto/README.md) and its family README |
+| A reproducible replay | [`examples/crypto/`](examples/crypto/README.md) |
+| Implemented vs planned work | [`docs/feature_inventory.md`](docs/feature_inventory.md) |
 
-> **Scope:** MarketBridge is a read-only market-data and research foundation.
-> Rust owns connectors, normalization, storage and APIs; strategy examples are
-> Python-first. Examples produce observations, falsifiable tests or paper
-> replays. They never sign wallets, place orders, move funds or claim live PnL.
+> **Hard boundary:** MarketBridge provides observations, falsifiable tests, and
+> paper replays only. It does not sign wallets, place/cancel/replace orders,
+> move funds, manage positions, or claim live-account PnL.
 
 ## Table of Contents
 
-- [At a Glance](#at-a-glance)
-- [Why This Project](#why-this-project)
+- [Start here](#start-here)
+- [Why this project](#why-this-project)
 - [Tool Positioning](#tool-positioning)
 - [Architecture Contract](#architecture-contract)
 - [Tech Stack](#tech-stack)
@@ -62,7 +66,7 @@ Node.js service required). [Complete Chinese usage series](docs/user-guide/READM
 - [Extend New Exchange](#extend-new-exchange)
 - [Boundary Notes](#boundary-notes)
 
-## Why This Project
+## Why this project
 
 `MarketBridge` solves three hard problems for quant research teams:
 
@@ -2132,12 +2136,20 @@ cargo test
 > **Hard boundary:** MarketBridge is a read-only market-data and
 > strategy-research foundation. It is not a trading or execution engine.
 
-| Area | MarketBridge provides | Explicitly out of scope |
-|---|---|---|
-| Rust data plane | Connectors, normalization, freshness, caches, history, replay primitives and stable APIs | Alpha approval, portfolio allocation or trade decisions |
-| Python research layer | Observations, falsifiable hypothesis tests and paper replays | Guaranteed alpha, profitability, fills or live-account PnL |
-| External integrations | Public or explicitly configured read-only data | Wallet signing, order placement/cancel/replace, fund transfers or live-account execution |
-| Evidence quality | Provider, timestamp, coverage and cost assumptions shown in results | Hidden assumptions about fees, borrow, slippage, inventory or queue position |
+Keep this division explicit when adding a connector or example:
+
+- **Rust data plane — provides:** connectors, normalization, freshness, caches,
+  history, replay primitives, and stable APIs. **Does not provide:** alpha
+  approval, portfolio allocation, or trade decisions.
+- **Python research layer — provides:** observations, falsifiable hypothesis
+  tests, and paper replays. **Does not provide:** guaranteed alpha,
+  profitability, fills, or live-account PnL.
+- **External integrations — provides:** public or explicitly configured
+  read-only data. **Does not provide:** wallet signing, order placement/cancel/
+  replace, fund transfers, or live-account execution.
+- **Evidence quality — provides:** provider, timestamp, coverage, and cost
+  assumptions in the output. **Does not hide:** fee, borrow, slippage,
+  inventory, latency, or queue-position gaps.
 
 ### Start here
 

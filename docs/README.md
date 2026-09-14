@@ -6,7 +6,7 @@ the reference manuals remain in English. The Chinese step-by-step research
 manual is at [user-guide/README.md](user-guide/README.md), including setup,
 models, live scanning, archives, SDKs, the workbench and operational boundaries.
 
-Current documented release: `v0.0.5`
+Current documented release: `v0.0.6`
 
 Unreleased research-platform work is documented separately in
 [research API](research-api.md), [development evidence](development-log.md) and

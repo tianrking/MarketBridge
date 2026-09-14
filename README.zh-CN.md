@@ -1,29 +1,26 @@
 # MarketBridge
 
-MarketBridge：多市场、多平台的市场数据与策略研究基座，统一接入实时与历史数据，支持机会扫描、成本分析、历史回放和模拟验证，对外提供 API，不负责下单。
+只读的多市场市场数据与策略研究基础设施。MarketBridge 负责采集和标准化
+公开数据、提供稳定 API，以及有限范围的回放和纸面验证；它不是交易机器人，
+不会下单。
 
-通用的是基础设施，不是所有资产共用一套套利公式。以上是完整目标定位，
-不代表全部能力已经实现；请查看[研发路线与验收门槛](docs/platform-roadmap.md)
-和[开发验证记录](docs/development-log.md)，区分已实现、正在验证与后续规划。
+**运行边界：** Rust 负责连接器、标准化、存储、质量元数据和 API；策略案例
+优先使用 Python。每个结果都必须保留提供方、时间戳、覆盖范围、成本假设和
+前视偏差限制。
 
-当前版本：`v0.0.6`
+当前版本：`v0.0.6` · [English README](README.md) ·
+[案例索引](examples/README.md) · [文档索引](docs/README.md)
 
-未发布的研究 API / CLI 增量见[使用与限制](docs/research-api.md)。
-`config.research.yaml` 提供仅监听本机、不启动采集源的研究服务配置。
-完整操作教程见 [docs/user-guide](docs/user-guide/README.md)。当前源码自带 `/workbench`
-研究工作台，无需额外 Node.js 服务；包括实验归档、扫描配置、事件与数据查询。
+未发布的研究 API / CLI 见[使用与限制](docs/research-api.md)。先用
+`config.research.yaml` 启动仅监听本机、不开启采集器的研究服务；启动后打开
+`/workbench` 使用内置研究工作台。
+
 永续合约的负资金费率筛选、逼空结构复核与归档流程见
 [逼空雷达实战指南](docs/user-guide/11-squeeze-radar.md)。
 
-期权系列还提供 Deribit 波动率指数历史响应回放：通过
-`/v1/history/volatility-index` 比较高、低和普通 provider 状态之后的 BTC 绝对波动，
-只做描述性研究，不建模波动率仓位或执行。
-同时提供 DVOL 减已实现波动率（RV）的响应回放，明确计算收盘价 RV 窗口，
-不把公开风险溢价讨论直接包装成卖波动率回测。
-另有 ETH-DVOL 减 BTC-DVOL 的相对响应回放，与 BTC/ETH 永续 K 线对齐，
-只做跨资产上下文比较，不执行 dispersion 交易。
-
-[English README](README.md)
+期权研究入口包括 Deribit DVOL、已实现波动率、IV skew、期限结构和 max-pain
+等响应回放；它们只比较固定记录窗口的市场反应，不建模期权仓位、对冲或执行。
+具体案例、出处和限制统一放在 [`examples/crypto/options/README.md`](examples/crypto/options/README.md)。
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)
 ![Tokio](https://img.shields.io/badge/Runtime-Tokio-333333?logo=rust)
@@ -34,22 +31,22 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 ![Serde](https://img.shields.io/badge/Serialization-Serde-16a34a)
 ![License](https://img.shields.io/badge/License-MIT-64748b)
 
-## 快速导览
+## 先看这里
 
 | 需求 | 从这里开始 |
 |---|---|
 | 启动本地数据 API | [`config.research.yaml`](config.research.yaml)，然后运行 `cargo run --release` |
 | 查看 Python 策略案例 | [`examples/README.md`](examples/README.md) |
 | 查 API 契约和字段语义 | [`docs/data_interfaces.md`](docs/data_interfaces.md) |
-| 做可复现回放 | [`examples/crypto/`](examples/crypto/README.md) 及对应系列 README |
+| 做可复现回放 | [`examples/crypto/`](examples/crypto/README.md) |
+| 查已实现与规划 | [`docs/feature_inventory.md`](docs/feature_inventory.md) |
 
-> **边界先读：** MarketBridge 是只读的市场数据与研究基座。Rust 负责连接器、
-> 标准化、存储和 API；策略案例优先使用 Python。Examples 只输出观察、可证伪
-> 检验或纸面回放，不签名钱包、不下单、不划转资金，也不声称实盘 PnL。
+> **硬边界：** MarketBridge 只输出观察、可证伪检验和纸面回放；不签名钱包、
+> 不下单/撤单/改单、不划转资金、不管理仓位，也不声称实盘账户 PnL。
 
 ## 目录
 
-- [快速导览](#快速导览)
+- [先看这里](#先看这里)
 - [项目定位](#项目定位)
 - [系统架构](#系统架构)
 - [运行流程](#运行流程)
@@ -995,12 +992,16 @@ data/redis_dead_letters.jsonl
 
 > **硬边界：** MarketBridge 是只读的市场数据与策略研究基座，不是交易或执行引擎。
 
-| 范围 | MarketBridge 提供 | 明确不提供 |
-|---|---|---|
-| Rust 数据层 | 连接器、标准化、新鲜度、缓存、历史、回放基础和稳定 API | 因子审批、组合配置或交易决策 |
-| Python 研究层 | 数据观察、可证伪假设检验和纸面回放 | Alpha、收益、成交或实盘 PnL 保证 |
-| 外部集成 | 公开或明确配置的只读数据 | 钱包签名、下单/撤单/改单、资金划转或实盘账户执行 |
-| 证据质量 | 明示提供方、时间、覆盖和成本假设 | 隐藏手续费、借贷、滑点、库存或排队假设 |
+新增连接器或案例时，请保持以下分工清晰：
+
+- **Rust 数据层——提供：** 连接器、标准化、新鲜度、缓存、历史、回放
+  基础和稳定 API。**不提供：** 因子审批、组合配置或交易决策。
+- **Python 研究层——提供：** 数据观察、可证伪假设检验和纸面回放。
+  **不提供：** Alpha、收益、成交或实盘 PnL 保证。
+- **外部集成——提供：** 公开或明确配置的只读数据。**不提供：** 钱包
+  签名、下单/撤单/改单、资金划转或实盘账户执行。
+- **证据质量——提供：** 明示提供方、时间、覆盖范围和成本假设。
+  **不隐藏：** 手续费、借贷、滑点、库存、延迟或排队位置缺口。
 
 ### 最短入口
 
