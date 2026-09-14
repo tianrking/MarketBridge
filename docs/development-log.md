@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Bybit account-ratio/OI response research input
+
+Added the read-only `/v1/history/account-ratio` endpoint for Bybit's public
+holder-count long/short ratio history. The normalized rows expose buy/sell
+ratios, signed imbalance and provider cursor/coverage metadata. Added the
+Python `crypto_account_ratio_oi_response_replay.py` case, which aligns the
+ratio with aggregate OI and candles to compare crowding and unwinding states.
+Provenance: [Bybit Get Long Short Ratio](https://bybit-exchange.github.io/docs/v5/market/long-short-ratio).
+The ratio is not notional positioning or trader intent; no order, wallet,
+signing or execution path is included.
+
 ## 2026-09-14 — Binance taker-volume/OI response research input
 
 Added the read-only `/v1/history/taker-volume` endpoint for Binance's public

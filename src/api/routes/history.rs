@@ -54,6 +54,16 @@ pub struct HistoryTakerVolumeQuery {
 }
 
 #[derive(Debug, Deserialize, Default)]
+pub struct HistoryAccountRatioQuery {
+    exchange: String,
+    symbol: String,
+    period: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct HistoryTradesQuery {
     exchange: String,
     symbol: String,
@@ -77,6 +87,11 @@ struct HistoricalTradesResult {
     covered_start_ms: Option<u64>,
     covered_end_ms: Option<u64>,
     page_limit: usize,
+}
+
+struct AccountRatioResult {
+    rows: Vec<Value>,
+    next_page_cursor: Option<String>,
 }
 
 pub async fn trades(
@@ -224,6 +239,69 @@ pub async fn taker_volume(
         }))
         .into_response(),
     }
+}
+
+pub async fn account_ratio(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryAccountRatioQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "bybit" => fetch_bybit_account_ratio(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported historical account-ratio exchange: {other}; public history is currently available for bybit"
+        )),
+    };
+    match result {
+        Ok(result) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_account_ratio",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "period": q.period.clone().unwrap_or_else(|| "1h".to_string()),
+            "coverage": "bounded_public_history",
+            "coverage_detail": account_ratio_coverage_detail(&result.rows, &q, result.next_page_cursor.as_deref()),
+            "next_page_cursor": result.next_page_cursor,
+            "rows": result.rows,
+            "limitations": [
+                "Bybit account ratio is a holder-count distribution, not notional position ownership",
+                "provider pagination and retention are bounded; a cursor means the page is incomplete",
+                "long/short ratio is descriptive context and does not identify trader intent or execution"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_account_ratio",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+fn account_ratio_coverage_detail(
+    rows: &[Value],
+    q: &HistoryAccountRatioQuery,
+    next_page_cursor: Option<&str>,
+) -> Value {
+    let page_limit = q.limit.unwrap_or(50);
+    let status = if next_page_cursor.is_some() || rows.len() >= page_limit {
+        "provider_page_may_be_truncated"
+    } else {
+        "bounded_single_page"
+    };
+    serde_json::json!({
+        "status": status,
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+        "has_next_page": next_page_cursor.is_some(),
+    })
 }
 
 fn taker_volume_coverage_detail(rows: &[Value], q: &HistoryTakerVolumeQuery) -> Value {
@@ -1028,6 +1106,88 @@ async fn fetch_bybit_open_interest(
         .collect()
 }
 
+async fn fetch_bybit_account_ratio(
+    http: &reqwest::Client,
+    q: &HistoryAccountRatioQuery,
+) -> Result<AccountRatioResult> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let period = match q.period.as_deref().unwrap_or("1h") {
+        "5m" | "5min" => "5min",
+        "15m" | "15min" => "15min",
+        "30m" | "30min" => "30min",
+        "1h" => "1h",
+        "4h" => "4h",
+        "1d" => "1d",
+        other => bail!("unsupported Bybit account-ratio period: {other}"),
+    };
+    let limit = q.limit.unwrap_or(50).clamp(1, 500).to_string();
+    let mut request = http
+        .get("https://api.bybit.com/v5/market/account-ratio")
+        .query(&[
+            ("category", "linear"),
+            ("symbol", symbol.as_str()),
+            ("period", period),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse bybit account-ratio history")?;
+    if payload.get("retCode").and_then(Value::as_i64) != Some(0) {
+        bail!(
+            "bybit account-ratio error: {}",
+            payload
+                .get("retMsg")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let result = payload.get("result").cloned().unwrap_or(Value::Null);
+    let next_page_cursor = result
+        .get("nextPageCursor")
+        .and_then(Value::as_str)
+        .filter(|cursor| !cursor.is_empty())
+        .map(str::to_string);
+    let rows = result
+        .get("list")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(normalize_bybit_account_ratio_row)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(AccountRatioResult {
+        rows,
+        next_page_cursor,
+    })
+}
+
+fn normalize_bybit_account_ratio_row(row: Value) -> Result<Value> {
+    let ts_ms = value_u64(row.get("timestamp")).context("missing Bybit account-ratio timestamp")?;
+    let buy_ratio = value_f64(row.get("buyRatio")).context("missing Bybit buy ratio")?;
+    let sell_ratio = value_f64(row.get("sellRatio")).context("missing Bybit sell ratio")?;
+    let total = buy_ratio + sell_ratio;
+    Ok(serde_json::json!({
+        "exchange": "bybit",
+        "symbol": row.get("symbol"),
+        "buy_ratio": buy_ratio,
+        "sell_ratio": sell_ratio,
+        "imbalance": (total > 0.0).then_some((buy_ratio - sell_ratio) / total),
+        "long_short_ratio": (sell_ratio > 0.0).then_some(buy_ratio / sell_ratio),
+        "ts_ms": ts_ms,
+        "source": "bybit_account_ratio"
+    }))
+}
+
 async fn fetch_binance_trades(
     http: &reqwest::Client,
     q: &HistoryTradesQuery,
@@ -1473,7 +1633,8 @@ mod tests {
         .expect("normalized row");
         assert_eq!(row["ts_ms"], serde_json::json!(1234));
         assert_eq!(row["total_volume"], serde_json::json!(100.0));
-        assert_eq!(row["imbalance"], serde_json::json!(0.2));
+        let imbalance = row["imbalance"].as_f64().expect("numeric imbalance");
+        assert!((imbalance - 0.2).abs() < 1e-12);
         assert_eq!(row["buy_sell_ratio"], serde_json::json!(1.5));
     }
 
@@ -1494,6 +1655,42 @@ mod tests {
         let detail = taker_volume_coverage_detail(&rows, &query);
         assert_eq!(detail["covered_start_ms"], serde_json::json!(1));
         assert_eq!(detail["covered_end_ms"], serde_json::json!(3));
+        assert_eq!(
+            detail["status"],
+            serde_json::json!("provider_page_may_be_truncated")
+        );
+    }
+
+    #[test]
+    fn normalizes_bybit_account_ratio_and_cursor_coverage() {
+        let row = normalize_bybit_account_ratio_row(serde_json::json!({
+            "symbol": "BTCUSDT",
+            "buyRatio": "0.60",
+            "sellRatio": "0.40",
+            "timestamp": "1234"
+        }))
+        .expect("normalized row");
+        assert_eq!(row["ts_ms"], serde_json::json!(1234));
+        let imbalance = row["imbalance"].as_f64().expect("numeric imbalance");
+        assert!((imbalance - 0.2).abs() < 1e-12);
+        let long_short_ratio = row["long_short_ratio"]
+            .as_f64()
+            .expect("numeric long/short ratio");
+        assert!((long_short_ratio - 1.5).abs() < 1e-12);
+        let query = HistoryAccountRatioQuery {
+            exchange: "bybit".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            period: Some("1h".to_string()),
+            start_ms: None,
+            end_ms: None,
+            limit: Some(2),
+        };
+        let detail = account_ratio_coverage_detail(
+            &[serde_json::json!({"ts_ms": 1234})],
+            &query,
+            Some("next"),
+        );
+        assert_eq!(detail["has_next_page"], serde_json::json!(true));
         assert_eq!(
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")

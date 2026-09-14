@@ -244,10 +244,10 @@ python3 examples/crypto/carry/crypto_positioning_regime_replay.py \
   --symbol BTCUSDT --funding-exchange binance --oi-exchange binance \
   --price-exchange binance --days 7 --price-interval 5m \
   --lookback-bars 3 --horizon-bars 3 --min-observations 3
-python3 examples/crypto/carry/crypto_oi_impulse_response_recorder.py \
+python3 examples/crypto/microstructure/crypto_oi_impulse_response_recorder.py \
   --symbol BTCUSDT --exchange binance --iterations 60 --interval-secs 30 \
   --min-oi-change-pct 0.25 --output work/crypto-oi-impulse-response.jsonl
-python3 examples/crypto/carry/crypto_oi_impulse_response_replay.py \
+python3 examples/crypto/microstructure/crypto_oi_impulse_response_replay.py \
   --input work/crypto-oi-impulse-response.jsonl --horizon-records 7 \
   --min-oi-change-pct 0.25 --min-observations 5
 python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \

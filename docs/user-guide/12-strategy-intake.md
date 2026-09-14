@@ -386,7 +386,7 @@ python3 examples/crypto_funding_oi_replay.py \
 把它当作短时压力候选；若同时出现极端 funding，则输出冲突状态，而不是强行给出方向：
 
 ```bash
-python3 examples/crypto_microstructure_monitor.py \
+python3 examples/crypto/microstructure/crypto_microstructure_monitor.py \
   --symbol BTCUSDT --exchange binance --top-levels 5 \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01
 ```

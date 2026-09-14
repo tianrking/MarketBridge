@@ -873,6 +873,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
 | GET | `/v1/history/open-interest` | Bounded public Binance/Bybit open-interest history |
 | GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance |
+| GET | `/v1/history/account-ratio` | Bounded public Bybit holder-count long/short ratio with cursor and coverage metadata |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |

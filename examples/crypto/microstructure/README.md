@@ -45,6 +45,7 @@ Cases:
 - `crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py`: freeze stress states beside a quote and compare later BTC movement with watch/normal states.
 - `crypto_quarter_hour_flow_replay.py`: tests whether UTC quarter-hour opening taker-flow imbalance aligns with a fixed-horizon perp return.
 - `crypto_taker_oi_response_replay.py`: separates taker buy/sell imbalance with rising OI from the same flow with falling OI, then compares fixed-horizon price responses.
+- `crypto_account_ratio_oi_response_replay.py`: separates Bybit holder-count long/short crowding and unwinding states by aligning account-ratio imbalance with OI change and fixed-horizon price responses.
 
 The liquidity-stress case is a risk-context monitor: it asks whether a chosen
 notional is expensive to unwind right now, rather than predicting direction.
@@ -91,6 +92,25 @@ and the example never places orders.
 
 出处：MarketBridge 使用 Binance 公开的[主动买卖量接口](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Taker-BuySell-Volume)，
 文档给出 `takerBuyVol`、`takerSellVol`、价值字段、时间戳和 5m 到 1d 周期。数据是提供方聚合，不是交易者意图；示例不下单。
+
+`crypto_account_ratio_oi_response_replay.py` uses Bybit's public account-ratio
+history to test whether holder-count crowding behaves differently when aggregate
+OI rises or falls. The endpoint reports the percentage of holders on each side;
+it is not a notional long/short position ratio. The replay keeps provider cursor
+and coverage fields, aligns the ratio with OI and candles, and reports descriptive
+fixed-horizon responses only.
+
+出处：Bybit [Get Long Short Ratio](https://bybit-exchange.github.io/docs/v5/market/long-short-ratio)
+公开 `buyRatio`、`sellRatio`、时间戳和 `nextPageCursor`。这不是持仓名义金额，也不证明交易者意图；示例只读、只研究、不下单。
+
+Run / 运行：
+
+```bash
+python3 examples/crypto/microstructure/crypto_account_ratio_oi_response_replay.py \
+  --symbol BTCUSDT --exchange bybit --period 1h --days 14 \
+  --ratio-threshold 0.10 --oi-threshold 0.10 \
+  --horizon-bars 3 --min-observations 5
+```
 
 The liquidation-burst replay is deliberately different from the single-event
 reversal monitor: it aggregates all public liquidation notional over a rolling
