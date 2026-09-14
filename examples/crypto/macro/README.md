@@ -47,6 +47,13 @@ If the public page returns a bot-protection challenge, the connector logs the
 fetch failure and emits no signal; use the documented CSV fallback or a
 credential-free mirror rather than treating the challenge page as data.
 
+`crypto_liquidity_impulse_replay.py` is the historical two-channel companion:
+it sums a trailing caller-supplied ETF-flow window, measures exact-date
+stablecoin circulating-supply change from `/v1/history/stablecoins`, and
+compares later BTC candles across the nine transparent sign combinations.
+It is deliberately not a composite score, causal model, or liquidity-to-price
+forecast; missing dates and provider coverage remain visible.
+
 Provenance: VIX semantics are cross-checked against [Cboe's VIX FAQ](https://www.cboe.com/tradable_products/vix/faqs),
 which describes the index as derived from SPX option inputs; dollar-index context
 is cross-checked against the [Federal Reserve H.10 dollar-index documentation](https://www.federalreserve.gov/releases/h10/Summary/).
@@ -144,4 +151,10 @@ python3 examples/crypto/macro/crypto_etf_flow_response_recorder.py \
 python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
   --input work/crypto-etf-flow-response.jsonl --exchange binance \
   --symbol BTCUSDT --interval 1d --threshold-musd 100 --horizon-days 1
+python3 examples/crypto/macro/crypto_liquidity_impulse_replay.py \
+  --etf-flow-csv work/btc-etf-flows.csv --chain all \
+  --exchange binance --symbol BTCUSDT --interval 1d \
+  --flow-window-observations 5 --supply-change-window-days 7 \
+  --etf-threshold-musd 100 --supply-threshold-pct 1 \
+  --horizon-days 7 --min-observations 5
 ```

@@ -14,6 +14,9 @@
 - `crypto_liquidity_confirmation_monitor.py` / recorder / replay: ETF flow,
   stablecoin supply, Coinbase premium, and funding crowding are kept as
   separate channels before a transparent confirmation matrix is evaluated.
+- `crypto_liquidity_impulse_replay.py`: a historical two-channel response
+  study that joins a trailing Farside ETF-flow window with exact-date
+  DefiLlama stablecoin-supply change before measuring a later BTC candle.
 - `crypto_market_regime_monitor.py` / recorder / replay: Rust aggregate regime
   labels and fixed-window BTC response distributions.
 
@@ -48,6 +51,13 @@ The persistence lead is motivated by this public [ecoinometrics ETF-flow
 discussion](https://x.com/ecoinometrics/status/2037548621697303004). It is an
 unverified research lead, not evidence that a rolling threshold predicts BTC.
 
+The new impulse replay tests a narrower version of the public liquidity
+narrative: do simultaneous ETF inflow/outflow and stablecoin expansion/
+contraction states separate the next fixed BTC window? It uses a caller-owned
+Farside-style CSV or JSONL, exact UTC dates from `/v1/history/stablecoins`, and
+MarketBridge BTC candles. Missing dates are skipped; stablecoin supply is not
+treated as exchange inventory or confirmed buying power.
+
 The four-channel confirmation lead is motivated by the public [XWIN trend and
 flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257)
 and the [Wintermute liquidity-channel discussion](https://x.com/wintermute_t/status/1985631560021000352).
@@ -65,6 +75,12 @@ python3 examples/crypto/macro/crypto_liquidity_confirmation_recorder.py \
 python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
   --input work/crypto-liquidity-confirmation.jsonl \
   --horizon-records 3 --min-observations 5
+python3 examples/crypto/macro/crypto_liquidity_impulse_replay.py \
+  --etf-flow-csv work/btc-etf-flows.csv --chain all \
+  --exchange binance --symbol BTCUSDT --interval 1d \
+  --flow-window-observations 5 --supply-change-window-days 7 \
+  --etf-threshold-musd 100 --supply-threshold-pct 1 \
+  --horizon-days 7 --min-observations 5
 ```
 
 ## Interpretation and boundary

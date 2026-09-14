@@ -1,5 +1,24 @@
 # Development log
 
+## 2026-09-14 — Added two-channel ETF/stablecoin liquidity impulse replay
+
+Added the Python-first `crypto_liquidity_impulse_replay.py` case under the
+macro family. It tests a falsifiable version of a recurring public-X claim:
+whether a trailing spot-ETF flow impulse and an exact-date stablecoin-supply
+impulse separate the next fixed BTC response. The replay keeps the two signals
+independent, reports all nine sign combinations, skips incomplete dates, and
+retains MarketBridge coverage metadata. It does not turn circulating supply
+into exchange inventory, infer causality, or create an allocation/execution
+path.
+
+The research lead is the public [Wintermute liquidity-channel discussion](https://x.com/wintermute_t/status/1985631560021000352)
+and the [ecoinometrics ETF-flow discussion](https://x.com/ecoinometrics/status/2037548621697303004).
+ETF measurement semantics are cross-checked against [Farside's daily Bitcoin
+ETF table](https://farside.co.uk/btc/); stablecoin field semantics follow
+[DefiLlama's stablecoin methodology](https://docs.llama.fi/), which describes
+circulating supply rather than exchange inventory. These are research inputs,
+not performance evidence.
+
 ## 2026-09-14 — Retained live liquidation event window
 
 Changed the normalized live liquidation snapshot store from one overwriting

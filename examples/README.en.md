@@ -14,7 +14,7 @@ Chinese guide at `README.zh-CN.md`.
 |---|---|---|
 | Crypto carry | basis, funding, cross-venue and triangular price relationships | [`crypto/carry/`](crypto/carry/README.en.md) |
 | Crypto DeFi | pool flow, stablecoins, router impact and liquidity context | [`crypto/defi/`](crypto/defi/README.en.md) |
-| Crypto macro | DXY/VIX/US10Y, ETF flow and market regime context | [`crypto/macro/`](crypto/macro/README.en.md) |
+| Crypto macro | DXY/VIX/US10Y, ETF flow, stablecoin liquidity impulse and market regime context | [`crypto/macro/`](crypto/macro/README.en.md) |
 | Crypto microstructure | order flow, OI, liquidation, depth and response studies | [`crypto/microstructure/`](crypto/microstructure/README.en.md) |
 | Crypto on-chain | transfers, mempool and mining pressure | [`crypto/onchain/`](crypto/onchain/README.en.md) |
 | Crypto options | IV surface, skew, gamma, VRP and max-pain proxies | [`crypto/options/`](crypto/options/README.en.md) |

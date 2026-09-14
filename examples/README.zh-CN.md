@@ -12,7 +12,7 @@
 |---|---|---|
 | 加密资金费率 | basis、资金费率、跨交易所和三角价差 | [`crypto/carry/`](crypto/carry/README.zh-CN.md) |
 | 加密 DeFi | 池流量、稳定币、路由冲击和流动性上下文 | [`crypto/defi/`](crypto/defi/README.zh-CN.md) |
-| 加密宏观 | DXY/VIX/US10Y、ETF 流量和市场状态 | [`crypto/macro/`](crypto/macro/README.zh-CN.md) |
+| 加密宏观 | DXY/VIX/US10Y、ETF 流量、稳定币流动性冲击和市场状态 | [`crypto/macro/`](crypto/macro/README.zh-CN.md) |
 | 加密微结构 | 订单流、OI、清算、深度和响应研究 | [`crypto/microstructure/`](crypto/microstructure/README.zh-CN.md) |
 | 加密链上 | 转账、mempool 和矿工压力 | [`crypto/onchain/`](crypto/onchain/README.zh-CN.md) |
 | 加密期权 | IV 曲面、skew、gamma、VRP 和 max-pain 近似 | [`crypto/options/`](crypto/options/README.zh-CN.md) |
