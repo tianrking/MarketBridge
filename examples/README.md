@@ -491,6 +491,10 @@ python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance \
   --interval 1h --lookback-bars 8 --horizon-bars 8 \
   --top-k 1 --min-observations 5
+python3 examples/crypto/universe/crypto_cross_asset_lead_lag_response_replay.py \
+  --exchange binance --leader-symbol BTCUSDT --follower-symbol ETHUSDT \
+  --interval 1h --days 90 --lookback-bars 1 --horizon-bars 1 \
+  --leader-threshold-pct 0.10 --min-observations 20
 python3 examples/crypto/carry/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit \
   --iterations 3 --interval-secs 30
@@ -500,6 +504,11 @@ python3 examples/crypto/carry/crypto_funding_oi_replay.py \
   --symbol BTCUSDT --funding-exchange binance \
   --oi-exchange binance --price-exchange binance \
   --days 7 --min-funding-pct 0.01 --min-oi-change-pct 0.10
+python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
+  --symbol BTCUSDT --funding-exchange binance \
+  --spot-exchange binance --perp-exchange binance \
+  --price-interval 5m --days 7 --horizon-events 3 \
+  --position-side short_perp --min-observations 5
 python3 examples/crypto/carry/crypto_funding_regime_replay.py \
   --symbol BTCUSDT --funding-exchange binance --price-exchange binance \
   --days 14 --min-funding-pct 0.01 --min-run 3 --horizon-bars 3
