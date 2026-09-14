@@ -201,6 +201,20 @@ python3 examples/crypto/microstructure/crypto_aroon_response_replay.py \
   --consolidation-threshold 50 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_mfi_response_replay.py` 把“价格 + 成交量资金流”拆成可证伪的极值研究：用典型价乘以 K 线 volume 得到 raw money flow，按典型价相对上一根的变化分别累加正/负资金流，计算 0–100 的 MFI。
+样本分为 `overbought`、`oversold`、`neutral`，并单独保留 `oversold_reclaim` / `overbought_rejection` 事件，再比较极值与中性控制组的固定窗口有符号、方向对齐、绝对和路径响应。
+这里的 volume 是 K 线成交量，不是主动买卖、交易所净流、持仓归属或资金流向证明；80/20 阈值、周期和 horizon 只是敏感性参数，不生成反转、入场或执行规则。
+公式对照 [TradingView 的 MFI 计算说明](https://www.tradingview.com/support/solutions/43000502348-money-flow-mfi/)，公开加密资金流线索参考
+[Binance Square 的 money-flow 讨论](https://www.binance.com/en/square/post/21507916375097)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_mfi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --overbought 80 --oversold 20 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

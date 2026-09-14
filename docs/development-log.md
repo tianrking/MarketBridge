@@ -957,6 +957,20 @@ execution edge. Provenance: the unverified [anchored VWAP discussion on
 X](https://x.com/Jake__Wujastyk/status/1873917626638098894), cross-checked with
 [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 
+## 2026-09-14 — MFI response replay
+
+Added `crypto_mfi_response_replay.py` under the microstructure family. The
+Python case computes a transparent typical-price-times-volume Money Flow Index,
+separates overbought, oversold and neutral states, retains threshold reclaims,
+and compares fixed-horizon responses with a neutral control. Candle volume is
+not promoted to aggressive flow, exchange flow or holder ownership; thresholds,
+period and coverage stay visible, and no state creates an order or wallet path.
+
+Provenance: [TradingView's MFI calculation](https://www.tradingview.com/support/solutions/43000502348-money-flow-mfi/)
+defines the formula, while the public [Binance Square money-flow discussion](https://www.binance.com/en/square/post/21507916375097)
+is treated as an unverified crypto research lead. Candle fields are bounded by
+[Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — ADX/DMI response replay
 
 Added `crypto_adx_dmi_response_replay.py` under the microstructure family.

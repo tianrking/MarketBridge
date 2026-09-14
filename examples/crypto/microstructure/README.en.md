@@ -256,6 +256,26 @@ python3 examples/crypto/microstructure/crypto_aroon_response_replay.py \
   --consolidation-threshold 50 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_mfi_response_replay.py` turns the “price plus volume money flow” story
+into a falsifiable extreme study. It multiplies typical price by candle volume,
+accumulates positive and negative flow according to the typical-price change,
+and computes a bounded 0–100 MFI. Bars are grouped as `overbought`, `oversold`
+or `neutral`; `oversold_reclaim` and `overbought_rejection` are retained as
+separate events, and extreme states are compared with neutral controls using
+fixed-horizon signed, aligned, absolute and path responses. Volume is candle
+volume—not aggressive flow, exchange net flow or position ownership. The 80/20
+thresholds, period and horizon are sensitivity parameters, not reversal, entry
+or execution rules. Formula details are cross-checked against [TradingView's MFI calculation](https://www.tradingview.com/support/solutions/43000502348-money-flow-mfi/);
+the public crypto research lead is [a Binance Square money-flow discussion](https://www.binance.com/en/square/post/21507916375097),
+and candle fields use [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_mfi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --overbought 80 --oversold 20 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same
