@@ -37,6 +37,38 @@ BTC 有符号/绝对响应。
 和其[官方 FAQ](https://mempool.space/docs/faq)为准。FAQ 明确说明推荐费率是参考值，
 不保证确认时间。
 
+## Bitcoin mining pressure / 比特币矿工压力
+
+### English
+
+`crypto_onchain_mining_pressure_monitor.py` reads `/v1/onchain/mining` and
+classifies `miner_stress_context`, `miner_tailwind_context`, or
+`ordinary_mining_context` from the current difficulty adjustment and the
+provider's seven-day hashrate change. The recorder freezes the state beside a
+BTC quote; the replay compares later signed and absolute BTC responses by state.
+
+This does not turn a negative difficulty change into a miner-capitulation claim.
+Hashrate is estimated, difficulty is a protocol adjustment, and neither field
+identifies a miner's reserve, profitability, treasury sale, or forced selling.
+
+Provenance: [CryptoDiffer's public X discussion of an 11.16% Bitcoin difficulty drop and miner-capitulation interpretation](https://x.com/CryptoDiffer/status/2021059510106980651)
+is treated as an unverified research lead. The inputs are cross-checked against
+the [official mempool.space REST API](https://mempool.space/docs/api/rest), which
+documents difficulty-adjustment and hashrate endpoints.
+
+### 中文
+
+`crypto_onchain_mining_pressure_monitor.py` 读取 `/v1/onchain/mining`，根据当前难度
+调整和 provider 七日哈希率变化，分类为矿工压力、矿工顺风或普通网络状态。recorder
+会把状态与 BTC 报价冻结；replay 按状态比较之后固定记录窗口的有符号/绝对响应。
+
+负难度调整不等于已经证明矿工投降。哈希率是估计值，难度是协议调整；二者都不能识别
+矿工储备、盈利、财库出售或被迫卖出。
+
+出处：[CryptoDiffer 在 X 上关于 Bitcoin 难度下调 11.16% 与 miner capitulation 的公开讨论](https://x.com/CryptoDiffer/status/2021059510106980651)
+只作为未验证研究线索；字段以 [mempool.space 官方 REST API](https://mempool.space/docs/api/rest)
+中的 difficulty-adjustment 与 hashrate 接口为准。
+
 ## English
 
 This family tests a deliberately conservative stablecoin/large-transfer lead:
@@ -113,5 +145,14 @@ python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_recorder.py \
   --output work/crypto-onchain-mempool-pressure.jsonl
 python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_replay.py \
   --input work/crypto-onchain-mempool-pressure.jsonl \
+  --horizon-records 12 --min-observations 3
+python3 examples/crypto/onchain/crypto_onchain_mining_pressure_monitor.py \
+  --stress-difficulty-pct -3 --stress-hashrate-pct -3
+python3 examples/crypto/onchain/crypto_onchain_mining_pressure_recorder.py \
+  --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 600 \
+  --output work/crypto-onchain-mining-pressure.jsonl
+python3 examples/crypto/onchain/crypto_onchain_mining_pressure_replay.py \
+  --input work/crypto-onchain-mining-pressure.jsonl \
   --horizon-records 12 --min-observations 3
 ```

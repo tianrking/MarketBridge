@@ -87,6 +87,7 @@ pub async fn info() -> impl IntoResponse {
             "deribit_volatility_index_history",
             "onchain_transfers",
             "bitcoin_mempool_context",
+            "bitcoin_mining_context",
             "universe",
             "research",
             "conditional_cost_curves",

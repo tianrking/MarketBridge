@@ -278,6 +278,10 @@ It also provides a Bitcoin mempool-pressure monitor/recorder/replay over
 `/v1/onchain/mempool`, comparing later BTC responses after high, low and ordinary
 fee-pressure states. The provider/node snapshot, fee-estimate uncertainty and
 no-broadcast boundary remain explicit.
+The on-chain family also provides a Bitcoin mining-pressure monitor/recorder/replay
+over `/v1/onchain/mining`, comparing difficulty-adjustment and seven-day-hashrate
+stress states with later BTC responses without treating provider estimates as
+miner-capitulation, profitability or forced-selling evidence.
 The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or
@@ -735,6 +739,7 @@ tables below are a shorter runtime summary.
 | Sentiment/news | Fear & Greed, CryptoPanic, Santiment, LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | `poll_secs`, source-specific | Most except Fear & Greed need keys |
 | On-chain transfers | Whale Alert, mempool.space BTC, Etherscan watched-address transfers | `GET /v1/onchain/transfers` | No direct stream | `poll_secs`, default 60s | Whale Alert/Etherscan need keys |
 | Bitcoin mempool context | mempool.space count, vsize, aggregate fee and recommended sat/vB rates | `GET /v1/onchain/mempool` | No direct stream | on-demand public REST | No |
+| Bitcoin mining context | mempool.space difficulty adjustment and trailing hashrate | `GET /v1/onchain/mining` | No direct stream | on-demand public REST | No |
 | Catalog and health | enabled sources, API-key status, domains, instruments, freshness | `/v1/catalog/*`, `/coverage`, `/metrics` | No | updated from runtime caches/metrics | No |
 | Redis sink | normalized event stream export | `runtime.redis_url` | Redis Streams | batched XADD with JSONL dead letters | Redis required |
 
@@ -928,6 +933,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/external/defi-yields` | DefiLlama DeFi pool APY, TVL and base/reward yield context |
 | GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
 | GET | `/v1/onchain/mempool` | Keyless Bitcoin mempool size, aggregate fee and recommended sat/vB context |
+| GET | `/v1/onchain/mining` | Keyless Bitcoin difficulty-adjustment and hashrate context |
 | GET | `/v1/universe/top-volume` | Universe filter by historical quote volume |
 | GET | `/v1/universe/percent-change` | Universe filter by percent change |
 | GET | `/v1/universe/volatility` | Universe filter by realized volatility |
@@ -2092,6 +2098,19 @@ curl -s "http://127.0.0.1:8080/v1/onchain/mempool" | jq
 This is provider/node context, not a complete network ledger. Fee suggestions
 do not guarantee confirmation timing and do not constitute a BTC direction,
 transaction, wallet, or execution instruction.
+
+### `GET /v1/onchain/mining`
+
+On-demand, read-only Bitcoin mining context from mempool.space. It returns the
+current difficulty adjustment, retarget progress, current/trailing hashrate and
+the derived seven-day hashrate change used by the Python research example.
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/mining" | jq
+```
+
+Hashrate and difficulty are provider estimates. They do not identify miner
+profitability, reserves, forced selling, capitulation or BTC direction.
 
 ## Connection Model Matrix
 

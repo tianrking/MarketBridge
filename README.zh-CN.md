@@ -359,6 +359,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | CoinGlass | 需要 | `COINGLASS_API_KEY` |
 | CryptoPanic / Santiment / LunarCrush | 需要 | `CRYPTOPANIC_API_KEY` / `SANTIMENT_API_KEY` / `LUNARCRUSH_API_KEY` |
 | mempool.space BTC mempool | 不需要 | 无 |
+| mempool.space Bitcoin mining | 不需要 | 无 |
 | Whale Alert / Etherscan | 需要 | `WHALE_ALERT_API_KEY` / `ETHERSCAN_API_KEY` |
 | Architect | 需要 bearer token | `ARCHITECT_API_TOKEN` |
 | Decibel | 需要 bearer token | `DECIBEL_API_TOKEN` |
@@ -410,6 +411,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 天气观察 | Open-Meteo forecast/archive | `GET /v1/external/weather` | 按需只读 | keyless；坐标、模型、market bucket 与结算规则需调用者明确 | 否 |
 | 链上大额转账 | Whale Alert、mempool.space BTC、Etherscan watched addresses | `GET /v1/onchain/transfers` | 暂无直接流 | 默认 60 秒 | Whale Alert/Etherscan 需要 |
 | Bitcoin mempool 上下文 | mempool.space 计数、虚拟大小、总手续费和推荐 sat/vB 费率 | `GET /v1/onchain/mempool` | 暂无直接流 | 按需公共 REST | 否 |
+| Bitcoin mining 上下文 | mempool.space 难度调整和七日哈希率 | `GET /v1/onchain/mining` | 暂无直接流 | 按需公共 REST | 否 |
 | Catalog / Health | 数据源状态、key 状态、domain、instrument、freshness | `/v1/catalog/*`、`/coverage`、`/metrics` | 暂无 | 来自 runtime cache/metrics | 否 |
 | Redis Stream | 标准化事件流导出 | `runtime.redis_url` | Redis Streams | batched XADD + JSONL dead letter | 需要 Redis |
 
@@ -549,6 +551,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/external/defi-yields` | DefiLlama DeFi 池 APY、TVL、基础收益与奖励收益上下文。 |
 | GET | `/v1/onchain/transfers` | 链上大额转账。 |
 | GET | `/v1/onchain/mempool` | 无需 key 的 Bitcoin mempool 大小、总手续费和推荐 sat/vB 上下文。 |
+| GET | `/v1/onchain/mining` | 无需 key 的 Bitcoin 难度调整和哈希率上下文。 |
 | GET | `/snapshot` | legacy 最新 tick 快照。 |
 | GET | `/funding` | legacy funding view。 |
 | GET | `/options/deribit/summary` | Deribit 实时 REST option summary。 |
@@ -913,6 +916,15 @@ curl -s "http://127.0.0.1:8080/v1/onchain/mempool" | jq
 推荐 sat/vB 费率和 tip height。它是 provider/node 上下文，不是完整网络账本；
 推荐费率不保证确认时间，也不是 BTC 方向、交易、钱包或执行指令。
 
+### Bitcoin mining context
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/mining" | jq
+```
+
+该接口返回当前难度调整、重定向进度、当前/近期哈希率和七日哈希率变化。
+哈希率与难度是 provider 估计值，不识别矿工盈利、储备、被迫卖出、投降或 BTC 方向。
+
 ### Data quality
 
 ```bash
@@ -1053,6 +1065,9 @@ onchain 系列新增 `crypto_onchain_transfer_burst_replay.py`：把公开大额
 链上系列还新增 Bitcoin mempool 费率压力 monitor/recorder/replay，读取
 `/v1/onchain/mempool`，比较高、低和普通费率压力状态之后的 BTC 固定窗口响应；
 provider/node 快照、费率估计不确定性和不广播交易边界都明确保留。
+同系列还新增 Bitcoin mining 压力 monitor/recorder/replay，读取
+`/v1/onchain/mining`，按难度调整与七日哈希率变化比较矿工压力、顺风和普通状态；
+不把 provider 估计解释成矿工投降、盈利或强制卖出证明。
 carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，universe 系列新增
 `crypto_volatility_adjusted_momentum_replay.py`；前者检验基差异常后的收缩，后者检验
 收益除以已实现波动率后的跨资产排名，二者都只做回放，不构成资金分配或实盘指令。

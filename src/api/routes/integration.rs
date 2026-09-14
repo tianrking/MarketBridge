@@ -164,6 +164,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Inspect keyless Bitcoin mempool size and recommended fee-rate context without broadcasting transactions or inferring direction.",
         },
         IntegrationCapability {
+            name: "bitcoin_mining_context",
+            endpoint: "/v1/onchain/mining",
+            purpose: "Inspect keyless Bitcoin difficulty-adjustment and hashrate context without inferring miner identity, profitability or direction.",
+        },
+        IntegrationCapability {
             name: "deribit_volatility_index_history",
             endpoint: "/v1/history/volatility-index",
             purpose: "Fetch bounded public Deribit volatility-index OHLC history for volatility-regime research.",

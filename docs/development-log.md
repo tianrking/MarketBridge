@@ -1489,3 +1489,17 @@ confirmation guarantees or execution. The research lead is [Alex Thorn's public
 X observation about an empty Bitcoin mempool](https://x.com/intangiblecoins/status/2043001350628184497);
 field semantics and limitations are cross-checked against the [official
 mempool.space REST API](https://mempool.space/docs/api/rest) and [FAQ](https://mempool.space/docs/faq).
+
+## 2026-09-14 — Bitcoin mining difficulty/hashrate context
+
+Added the keyless `/v1/onchain/mining` endpoint. It normalizes mempool.space's
+public difficulty-adjustment snapshot and trailing one-week hashrate sample into
+`bitcoin_mining_context`, including difficulty change, retarget progress,
+current hashrate, and the observable seven-day hashrate change. The Python
+monitor/recorder/replay classifies miner-stress, tailwind and ordinary states,
+then compares fixed-record BTC responses without claiming miner identity,
+profitability, capitulation or forced selling.
+
+Provenance: the unverified [CryptoDiffer difficulty-drop discussion on X](https://x.com/CryptoDiffer/status/2021059510106980651)
+is treated only as a research lead. Field semantics are cross-checked against
+the [official mempool.space REST API](https://mempool.space/docs/api/rest).

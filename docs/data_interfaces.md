@@ -439,6 +439,23 @@ provider/node dependent; recommended rates are guidance, not confirmation
 guarantees. Use it as network context, not as a transaction instruction or BTC
 direction signal.
 
+## Bitcoin Mining Context
+
+`GET /v1/onchain/mining` fetches the current public difficulty-adjustment
+snapshot and mempool.space's trailing one-week hashrate sample. The normalized
+`data` fields include `difficulty_change_pct`, `difficulty_progress_pct`,
+`remaining_blocks`, `estimated_retarget_date_ms`, `time_avg_seconds`,
+`current_hashrate_hs`, `current_difficulty`, `hashrate_7d_avg_hs`,
+`hashrate_change_7d_pct`, and `hashrate_samples`.
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/mining" | jq
+```
+
+This is provider-estimated network context. It does not identify miners,
+profitability, reserves, forced selling or capitulation, and does not provide a
+BTC direction, wallet, transaction or execution path.
+
 ## Prediction, Options, External Data
 
 | Data | Endpoint | Notes |
@@ -545,6 +562,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/external/weather` | Read-only weather forecast/archive input for event studies and prediction-market calibration. |
 | GET | `/v1/onchain/transfers` | Large transfer feed. |
 | GET | `/v1/onchain/mempool` | Keyless Bitcoin mempool size, aggregate fee and recommended fee-rate context; no broadcast or confirmation guarantee. |
+| GET | `/v1/onchain/mining` | Keyless Bitcoin difficulty-adjustment and hashrate context; provider estimates only. |
 | GET | `/snapshot` | Legacy latest quote tick snapshot. |
 | GET | `/funding` | Legacy unified funding view. |
 | GET | `/options/deribit/summary` | Live Deribit REST option summary. |

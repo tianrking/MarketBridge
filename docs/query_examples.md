@@ -855,3 +855,15 @@ curl -s "$MB/v1/integration/capabilities" | jq
 ```bash
 open "https://github.com/tianrking/MarketBridge/releases/latest"
 ```
+
+### Q121. Query Bitcoin mempool pressure context
+
+```bash
+curl -s "$MB/v1/onchain/mempool" | jq
+```
+
+### Q122. Query Bitcoin mining difficulty and hashrate context
+
+```bash
+curl -s "$MB/v1/onchain/mining" | jq
+```

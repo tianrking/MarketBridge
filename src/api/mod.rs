@@ -112,6 +112,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/external/weather" => routes::external::v1_external_weather,
         "/v1/onchain/transfers" => routes::onchain::v1_onchain_transfers,
         "/v1/onchain/mempool" => routes::onchain::v1_onchain_mempool,
+        "/v1/onchain/mining" => routes::onchain::v1_onchain_mining,
         "/v1/universe/top-volume" => routes::universe::top_volume,
         "/v1/universe/percent-change" => routes::universe::percent_change,
         "/v1/universe/volatility" => routes::universe::volatility,

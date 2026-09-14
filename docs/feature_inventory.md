@@ -88,6 +88,7 @@ Status labels:
 | Weather observations | `/v1/external/weather` | implemented | keyless | Open-Meteo forecast/archive, explicit coordinates and date mode; not a probability model or market resolver. |
 | Onchain transfers | `/v1/onchain/transfers` | implemented | mixed | Whale Alert, mempool.space, and Etherscan large-transfer collectors. |
 | Bitcoin mempool context | `/v1/onchain/mempool` | implemented | keyless | mempool.space count/vsize, aggregate fee, recommended sat/vB rates and tip height; provider/node snapshot, not a directional signal or confirmation guarantee. |
+| Bitcoin mining context | `/v1/onchain/mining` | implemented | keyless | mempool.space difficulty-adjustment and trailing hashrate snapshot; provider estimates, not miner identity, profitability or capitulation proof. |
 
 ## CEX Connector Coverage
 
@@ -225,6 +226,7 @@ public endpoint is later confirmed.
 | Whale Alert | multi-chain | implemented | required | Global large transfer feed; configured by `WHALE_ALERT_API_KEY` and `min_value_usd`. |
 | mempool.space | Bitcoin | implemented | keyless | Recent mempool transaction poller; filters by `min_value_btc` when payload exposes value. |
 | mempool.space aggregate | Bitcoin | implemented | keyless | On-demand `/v1/onchain/mempool` snapshot with count, virtual size, aggregate fee, recommended fee rates and tip height. |
+| mempool.space mining | Bitcoin | implemented | keyless | On-demand `/v1/onchain/mining` difficulty-adjustment and one-week hashrate context. |
 | Etherscan | Ethereum | implemented | required | Address watchlist transfer poller; configured by `ETHERSCAN_API_KEY` and `onchain.etherscan.addresses`. |
 
 ## Infrastructure Gaps
