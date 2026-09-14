@@ -75,17 +75,17 @@ impl ExchangeSource for JupiterQuotePoller {
                     match fetch_jupiter_quote(&self.client, &self.cfg.base_url, pair, amount).await
                     {
                         Ok(quote) => {
-                            if amount == pair.amount {
-                                if let Some(price) = quote_price(&quote, pair) {
-                                    emit_defi_quote(
-                                        &ctx,
-                                        self.name(),
-                                        &pair.symbol,
-                                        price,
-                                        pair.spread_bps,
-                                    )
-                                    .await?;
-                                }
+                            if amount == pair.amount
+                                && let Some(price) = quote_price(&quote, pair)
+                            {
+                                emit_defi_quote(
+                                    &ctx,
+                                    self.name(),
+                                    &pair.symbol,
+                                    price,
+                                    pair.spread_bps,
+                                )
+                                .await?;
                             }
                             emit_jupiter_route_metrics(&ctx, pair, amount, &quote).await?;
                         }
