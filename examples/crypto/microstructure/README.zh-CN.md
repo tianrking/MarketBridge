@@ -272,6 +272,19 @@ python3 examples/crypto/microstructure/crypto_stochrsi_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_vortex_response_replay.py` 按当前/前一根 K 线计算 `VM+ = |high - prior low|`、`VM- = |low - prior high|`，再用相同窗口的真实波幅总和归一化得到 `VI+` / `VI-`。
+样本分为 `bullish_pressure`、`bearish_pressure`、`balanced`，并单独保留 `bullish_vi_cross` / `bearish_vi_cross` 事件，比较方向压力与平衡控制组的固定窗口响应。
+`minimum-spread`、周期和 horizon 都是敏感性参数；zero-range/缺失窗口保持不可用，不把交叉当成反转、入场、止损或执行规则。
+公式对照 [TradingView 的 Vortex Indicator 说明](https://www.tradingview.com/support/solutions/43000591352-vortex-indicator/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --minimum-spread 0.05 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

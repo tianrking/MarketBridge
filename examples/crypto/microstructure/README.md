@@ -72,6 +72,7 @@ Cases:
 - `crypto_parabolic_sar_response_replay.py`: compares Wilder-style Parabolic SAR flips with persistent trend controls.
 - `crypto_stochastic_response_replay.py`: compares smoothed Stochastic overbought/oversold states, K/D crosses and neutral controls.
 - `crypto_stochrsi_response_replay.py`: compares RSI-relative StochRSI extremes, K/D crosses and neutral controls.
+- `crypto_vortex_response_replay.py`: compares VI+/VI− pressure, cross events and balanced controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -719,6 +720,19 @@ python3 examples/crypto/microstructure/crypto_stochrsi_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --rsi-period 14 --stoch-period 14 \
   --smooth-k 3 --smooth-d 3 --overbought 80 --oversold 20 \
+  --horizon-bars 8 --min-observations 5
+```
+
+`crypto_vortex_response_replay.py` 按当前/前一根 K 线计算 `VM+ = |high - prior low|`、`VM- = |low - prior high|`，再用相同窗口的真实波幅总和归一化得到 `VI+` / `VI-`。
+样本分为 `bullish_pressure`、`bearish_pressure`、`balanced`，并单独保留 `bullish_vi_cross` / `bearish_vi_cross`，比较方向压力与平衡控制组的固定窗口响应。
+`minimum-spread`、周期和 horizon 都是敏感性参数；zero-range/缺失窗口保持不可用，不把交叉当成反转、入场、止损或执行规则。
+公式对照 [TradingView 的 Vortex Indicator 说明](https://www.tradingview.com/support/solutions/43000591352-vortex-indicator/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --minimum-spread 0.05 \
   --horizon-bars 8 --min-observations 5
 ```
 

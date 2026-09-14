@@ -356,6 +356,24 @@ python3 examples/crypto/microstructure/crypto_stochrsi_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_vortex_response_replay.py` computes `VM+ = |high - prior low|` and
+`VM- = |low - prior high|`, then normalizes each sum by the same trailing
+true-range sum to produce `VI+` and `VI-`. Bars are grouped as
+`bullish_pressure`, `bearish_pressure` or `balanced`; `bullish_vi_cross` and
+`bearish_vi_cross` remain separate events, and pressure is compared with
+balanced controls over a fixed horizon. `minimum-spread`, period and horizon
+are sensitivity parameters; zero-range/missing windows stay unavailable and a
+cross is not a reversal, entry, stop or execution rule. Formula boundaries are
+cross-checked against [TradingView's Vortex Indicator documentation](https://www.tradingview.com/support/solutions/43000591352-vortex-indicator/),
+and candle fields use [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --minimum-spread 0.05 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

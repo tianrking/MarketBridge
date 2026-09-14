@@ -2080,3 +2080,15 @@ stop, wallet action or order.
 Provenance: [TradingView's StochRSI calculation](https://www.tradingview.com/support/solutions/43000502333-stochastic-rsi-stoch-rsi/)
 defines the two-stage formula, [Binance Academy's StochRSI guide](https://www.binance.com/en/square/post/511150)
 provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — Vortex response replay
+
+Added `crypto_vortex_response_replay.py` under the microstructure family. The
+Python case computes VM+/VM− from adjacent candle extremes, normalizes both by
+the same trailing true-range sum, labels bullish/bearish/balanced pressure and
+retains VI cross events for fixed-horizon comparison. Spread thresholds,
+missing-window behavior and coverage remain visible; no cross becomes a
+reversal, stop, wallet action or order.
+
+Provenance: [TradingView's Vortex Indicator calculation](https://www.tradingview.com/support/solutions/43000591352-vortex-indicator/)
+defines the formula, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
