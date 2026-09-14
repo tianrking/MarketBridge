@@ -863,6 +863,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/basis` | Spot-perp basis derived from quote snapshots |
 | GET | `/v1/market/funding` | Funding-rate snapshots from public perp feeds |
 | GET | `/v1/market/perpetual-funding` | On-demand current funding rows for supported perpetual markets |
+| GET | `/v1/market/predicted-funding` | Hyperliquid named-venue predicted funding estimates; kept separate from settled funding |
 | GET | `/v1/market/open-interest` | Open-interest snapshots from public feeds/REST |
 | GET | `/v1/market/adl-risk` | Binance symbol-level ADL risk rating snapshot |
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
@@ -1215,6 +1216,28 @@ curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx
   | sort_by(.funding_rate_pct)
   | .[]
   | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
+```
+
+### `GET /v1/market/predicted-funding`
+
+Read-only Hyperliquid `predictedFundings` context. The response keeps each
+provider venue estimate (`HlPerp`, `BinPerp`, and others when published)
+separate from settled funding history; it is useful for testing dispersion
+hypotheses but is not a funding cash-flow or hedge quote.
+
+Query params:
+
+- `exchange=hyperliquid`, default `hyperliquid`
+- `symbols=BTC,ETH`, optional Hyperliquid coin filter
+- `venues=HlPerp,BinPerp`, optional provider-venue filter
+- `limit`, default `5000`, max `50000`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/predicted-funding?symbols=BTC,ETH&venues=HlPerp,BinPerp" | jq
+python3 examples/crypto/carry/crypto_predicted_funding_monitor.py \
+  --symbols BTC,ETH --threshold-bps 5
 ```
 
 ### `GET /v1/market/klines`

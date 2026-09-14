@@ -172,6 +172,17 @@ which documents adjusted cap, floor and interval fields. The public X lead is
 [this funding-extremes discussion](https://x.com/instaclaws/status/2038363051213181035);
 it is treated only as an unverified hypothesis source, not as performance evidence.
 
+`crypto_predicted_funding_monitor.py` consumes Hyperliquid's `predictedFundings`
+snapshot, keeps named provider venues separate for each coin, and reports the
+current dispersion or an explicit single-venue observe-only state. It tests
+whether a prediction gap is worth recording; it does not treat estimates as
+settled funding, a fixed schedule, cash flow, or an executable hedge.
+
+Provenance: the public [cross-venue funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
+and [cross-venue funding/arbitrage discussion](https://x.com/ranger_finance/status/2013284430174212491)
+are unverified research leads. Field semantics come from Hyperliquid's official
+[`predictedFundings` documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-predicted-funding-rates-for-different-venues).
+
 `/v1/history/candles?exchange=hyperliquid&candle_type=funding_rate` now maps
 Hyperliquid's public `fundingHistory` response into the same point-in-time
 funding-candle shape. This closes a real replay gap for cross-venue funding
@@ -186,6 +197,7 @@ Useful inputs:
 
 - `/v1/market/basis`
 - `/v1/market/perpetual-funding`
+- `/v1/market/predicted-funding`
 - `/v1/history/candles?candle_type=funding_rate`
 - `/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate`
 - Binance rows' `funding_rate_cap` and `funding_rate_floor` fields
@@ -288,6 +300,17 @@ cap 或 floor 时，之后固定窗口的响应是否不同于普通观测？它
 的调整后 cap、floor 和 interval 字段；公开 X 的[资金费率极值讨论](https://x.com/instaclaws/status/2038363051213181035)
 只作为未经验证的研究假设来源，不作为收益证据。
 
+`crypto_predicted_funding_monitor.py` 使用 Hyperliquid 的 `predictedFundings`，保留同一 coin
+下不同 provider venue 的预测资金费率，计算当前 dispersion，并把单一 venue 或缺失 venue 明确为
+observe-only。它只测试“预测价差是否值得继续记录”的数据假设，不把预测值当作已结算 funding、
+固定周期、现金流或可执行对冲。
+
+出处：公开 X 上的[跨 venue funding 差异讨论](https://x.com/leondoteth/status/2012127303850213817)
+和[跨 venue funding/arbitrage 讨论](https://x.com/ranger_finance/status/2013284430174212491)
+只作为未经验证的研究线索；字段语义以 Hyperliquid 官方
+[`predictedFundings` 文档](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-predicted-funding-rates-for-different-venues)
+为准。
+
 盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
 这些资料支持测量深度和结算摩擦，不支持把单次快照 edge 当成可执行机会。
@@ -320,6 +343,8 @@ python3 examples/crypto/carry/funding_convergence_monitor.py \
 python3 examples/crypto/carry/funding_convergence_replay.py \
   --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200 \
   --paper-cost-bps-per-hour 0.25 --min-net-spread-bps-per-hour 0.5
+python3 examples/crypto/carry/crypto_predicted_funding_monitor.py \
+  --symbols BTC,ETH --venues HlPerp,BinPerp --threshold-bps 5
 python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
   --symbol BTCUSDT --exchange-a binance --exchange-b hyperliquid --days 7
 python3 examples/crypto/carry/crypto_basis_recorder.py \

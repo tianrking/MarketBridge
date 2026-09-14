@@ -488,6 +488,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/basis` | spot-perp basis。 |
 | GET | `/v1/market/funding` | funding rate。 |
 | GET | `/v1/market/perpetual-funding` | 按需查询支持交易所的当前永续资金费率。 |
+| GET | `/v1/market/predicted-funding` | 查询 Hyperliquid 按 venue 命名的预测资金费率；与已结算 funding 分开，不代表现金流。 |
 | GET | `/v1/market/open-interest` | open interest。 |
 | GET | `/v1/market/liquidations` | liquidation events。 |
 | GET | `/v1/market/order-books` | L2 order book snapshots。 |
@@ -717,6 +718,27 @@ curl -s "http://127.0.0.1:8080/v1/market/perpetual-funding?exchanges=binance,okx
   | sort_by(.funding_rate_pct)
   | .[]
   | {exchange, symbol, funding_rate_pct, mark_price, next_funding_time_ms}'
+```
+
+#### `GET /v1/market/predicted-funding`
+
+只读查询 Hyperliquid 官方 `predictedFundings`。返回会保留每个 provider venue
+的预测值（例如 `HlPerp`、`BinPerp`），不会把它们和已结算 funding history 合并。
+它适合研究预测价差是否持续，不是资金费现金流、对冲报价或执行信号。
+
+参数：
+
+- `exchange=hyperliquid`，默认就是 `hyperliquid`。
+- `symbols=BTC,ETH`：可选的 Hyperliquid coin 筛选。
+- `venues=HlPerp,BinPerp`：可选的 provider venue 筛选。
+- `limit`：默认 `5000`，最大 `50000`。
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/market/predicted-funding?symbols=BTC,ETH&venues=HlPerp,BinPerp" | jq
+python3 examples/crypto/carry/crypto_predicted_funding_monitor.py \
+  --symbols BTC,ETH --threshold-bps 5
 ```
 
 ### Spot-perp basis

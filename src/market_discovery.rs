@@ -48,6 +48,14 @@ pub struct PerpetualFundingQuery {
     pub limit: Option<usize>,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PredictedFundingQuery {
+    pub exchange: Option<String>,
+    pub symbols: Option<String>,
+    pub venues: Option<String>,
+    pub limit: Option<usize>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct MarketListing {
     pub exchange: String,
@@ -87,6 +95,18 @@ pub struct PerpetualFundingRow {
     pub mark_price: Option<f64>,
     pub index_price: Option<f64>,
     pub active: Option<bool>,
+    pub source: String,
+    pub ts_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PredictedFundingRow {
+    pub exchange: String,
+    pub symbol: String,
+    pub venue: String,
+    pub funding_rate: f64,
+    pub funding_rate_pct: f64,
+    pub next_funding_time_ms: Option<u64>,
     pub source: String,
     pub ts_ms: u64,
 }
@@ -301,6 +321,123 @@ pub async fn fetch_perpetual_funding(
     rows.sort_by(|a, b| a.exchange.cmp(&b.exchange).then(a.symbol.cmp(&b.symbol)));
     rows.truncate(query.limit.unwrap_or(5000).clamp(1, 50_000));
     (rows, errors)
+}
+
+pub async fn fetch_predicted_funding(
+    http: &reqwest::Client,
+    query: &PredictedFundingQuery,
+) -> (Vec<PredictedFundingRow>, Vec<DiscoveryError>) {
+    let exchange = query
+        .exchange
+        .as_deref()
+        .unwrap_or("hyperliquid")
+        .trim()
+        .to_ascii_lowercase();
+    if exchange != "hyperliquid" {
+        return (
+            Vec::new(),
+            vec![DiscoveryError {
+                exchange,
+                error: "predicted funding is currently available only from hyperliquid".to_string(),
+            }],
+        );
+    }
+    let payload = match http
+        .post("https://api.hyperliquid.xyz/info")
+        .timeout(DISCOVERY_HTTP_TIMEOUT)
+        .json(&serde_json::json!({"type": "predictedFundings"}))
+        .send()
+        .await
+        .and_then(|response| response.error_for_status())
+    {
+        Ok(response) => match response.json::<Value>().await {
+            Ok(payload) => payload,
+            Err(error) => {
+                return (
+                    Vec::new(),
+                    vec![DiscoveryError {
+                        exchange,
+                        error: format!("invalid hyperliquid predicted funding JSON: {error}"),
+                    }],
+                );
+            }
+        },
+        Err(error) => {
+            return (
+                Vec::new(),
+                vec![DiscoveryError {
+                    exchange,
+                    error: format!("hyperliquid predicted funding request failed: {error}"),
+                }],
+            );
+        }
+    };
+    let mut rows = normalize_hyperliquid_predicted_funding(&payload, query, crate::types::now_ms());
+    rows.truncate(query.limit.unwrap_or(5000).clamp(1, 50_000));
+    (rows, Vec::new())
+}
+
+fn normalize_hyperliquid_predicted_funding(
+    payload: &Value,
+    query: &PredictedFundingQuery,
+    ts_ms: u64,
+) -> Vec<PredictedFundingRow> {
+    let symbols = query.symbols.as_deref().map(csv_upper_set);
+    let venues = query.venues.as_deref().map(|raw| {
+        raw.split(',')
+            .map(normalize_lower)
+            .filter(|x| !x.is_empty())
+            .collect::<HashSet<_>>()
+    });
+    let mut rows = payload
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| {
+            let pair = entry.as_array()?;
+            let symbol = pair.first()?.as_str()?.to_ascii_uppercase();
+            if symbols.as_ref().is_some_and(|set| !set.contains(&symbol)) {
+                return None;
+            }
+            let venues_payload = pair.get(1)?.as_array()?;
+            let mut parsed = Vec::new();
+            for venue_entry in venues_payload {
+                let Some(venue_pair) = venue_entry.as_array() else {
+                    continue;
+                };
+                let Some(venue) = venue_pair.first().and_then(Value::as_str) else {
+                    continue;
+                };
+                let venue = venue.to_string();
+                if venues
+                    .as_ref()
+                    .is_some_and(|set| !set.contains(&venue.to_ascii_lowercase()))
+                {
+                    continue;
+                }
+                let Some(metrics) = venue_pair.get(1) else {
+                    continue;
+                };
+                let Some(funding_rate) = number(metrics, "fundingRate") else {
+                    continue;
+                };
+                parsed.push(PredictedFundingRow {
+                    exchange: "hyperliquid".to_string(),
+                    symbol: symbol.clone(),
+                    venue,
+                    funding_rate,
+                    funding_rate_pct: funding_rate * 100.0,
+                    next_funding_time_ms: u64_value(metrics, "nextFundingTime"),
+                    source: "hyperliquid_predicted_fundings".to_string(),
+                    ts_ms,
+                });
+            }
+            Some(parsed)
+        })
+        .flatten()
+        .collect::<Vec<_>>();
+    rows.sort_by(|a, b| a.symbol.cmp(&b.symbol).then(a.venue.cmp(&b.venue)));
+    rows
 }
 
 async fn discover_exchange_markets(
@@ -1553,5 +1690,26 @@ mod tests {
         let parsed = bybit_funding_intervals_from_value(bybit.get("result"));
         assert_eq!(parsed.get("BTCUSDT"), Some(&28_800_000));
         assert_eq!(parsed.get("ETHUSDT"), Some(&14_400_000));
+    }
+
+    #[test]
+    fn normalizes_hyperliquid_predicted_funding_without_merging_venues() {
+        let payload = serde_json::json!([
+            ["BTC", [["HlPerp", {"fundingRate": "0.0001", "nextFundingTime": 1234}],
+                      ["BinPerp", {"fundingRate": "0.0002", "nextFundingTime": 5678}]]],
+            ["ETH", [["HlPerp", {"fundingRate": "-0.00005", "nextFundingTime": 1234}]]]
+        ]);
+        let query = PredictedFundingQuery {
+            symbols: Some("BTC".to_string()),
+            venues: Some("hlperp".to_string()),
+            ..Default::default()
+        };
+        let rows = normalize_hyperliquid_predicted_funding(&payload, &query, 9999);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].symbol, "BTC");
+        assert_eq!(rows[0].venue, "HlPerp");
+        assert_eq!(rows[0].funding_rate_pct, 0.01);
+        assert_eq!(rows[0].next_funding_time_ms, Some(1234));
+        assert_eq!(rows[0].source, "hyperliquid_predicted_fundings");
     }
 }

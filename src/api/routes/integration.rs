@@ -144,6 +144,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Fetch on-demand spot/futures/mark/index/premiumIndex/funding_rate candles and optionally persist them.",
         },
         IntegrationCapability {
+            name: "predicted_funding",
+            endpoint: "/v1/market/predicted-funding",
+            purpose: "Inspect Hyperliquid's named-venue predicted funding estimates without treating them as settled rates.",
+        },
+        IntegrationCapability {
             name: "storage_manifest",
             endpoint: "/v1/storage/manifest",
             purpose: "Inspect local lake coverage, file paths, watermarks, gaps, duplicates, and stale metrics.",

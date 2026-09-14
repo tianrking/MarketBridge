@@ -13,7 +13,8 @@ use crate::core::schema::ProductType;
 use crate::domains::market::quote::QuotePayload;
 use crate::klines::KlineQuery;
 use crate::market_discovery::{
-    PerpetualFundingQuery, fetch_perpetual_funding, supported_perpetual_funding_exchanges,
+    PerpetualFundingQuery, PredictedFundingQuery, fetch_perpetual_funding, fetch_predicted_funding,
+    supported_perpetual_funding_exchanges,
 };
 use crate::order_flow::{FootprintQuery, OrderFlowQuery};
 #[derive(Debug, Deserialize, Default)]
@@ -241,6 +242,25 @@ pub async fn v1_market_perpetual_funding(
         "supported_exchanges": supported_perpetual_funding_exchanges(),
         "funding": rows,
         "errors": errors
+    }))
+}
+
+pub async fn v1_market_predicted_funding(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<PredictedFundingQuery>,
+) -> impl IntoResponse {
+    let (rows, errors) = fetch_predicted_funding(&state.http, &q).await;
+    Json(serde_json::json!({
+        "version": "v1",
+        "domain": "market_predicted_funding",
+        "exchange": q.exchange.unwrap_or_else(|| "hyperliquid".to_string()),
+        "funding": rows,
+        "errors": errors,
+        "limitations": [
+            "predicted funding is a provider snapshot across named venue estimates, not a settled funding observation",
+            "provider venue names and next funding timestamps remain explicit; no interpolation or cash-flow estimate is added",
+            "this endpoint is read-only research context and does not place orders or hedge positions"
+        ]
     }))
 }
 

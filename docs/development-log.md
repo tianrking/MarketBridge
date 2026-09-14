@@ -1308,3 +1308,17 @@ it does not estimate cash flow, invent a fixed interval, or add execution.
 Provenance: the unverified [cross-venue funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
 is a research lead, cross-checked against Hyperliquid's official
 [`fundingHistory` API documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-historical-funding-rates).
+## 2026-09-14 — Hyperliquid predicted-funding venue context
+
+Added `/v1/market/predicted-funding` and the Python
+`crypto_predicted_funding_monitor.py` example. The endpoint reads Hyperliquid's
+public `predictedFundings` response, preserves each named provider venue and
+next-funding timestamp, and never merges estimates into settled funding rows.
+The example reports current same-coin dispersion and keeps single-venue or
+missing-venue cases observe-only. This is a provider-context hypothesis and
+does not estimate cash flow, execution, hedge PnL or orders.
+
+Provenance: the unverified [cross-venue funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
+and [cross-venue funding/arbitrage discussion](https://x.com/ranger_finance/status/2013284430174212491)
+motivate the case; field semantics are cross-checked against Hyperliquid's
+official [`predictedFundings` documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-predicted-funding-rates-for-different-venues).
