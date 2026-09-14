@@ -1334,3 +1334,16 @@ scope; no position ledger, execution path or direction claim was added.
 
 Provenance: Binance defines the endpoint as the long/short position share of
 the top 20% of users by margin balance in its [official market-data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+## 2026-09-14 — options skew monitor delta buckets
+
+Extended `crypto_options_skew_monitor.py` with an explicit
+`--bucket-mode delta` path. When normalized option greeks expose `delta`, the
+monitor can compare ATM and approximately 25-delta put/call IV wings; missing
+delta rows remain outside the comparable sample. The existing moneyness mode
+remains the compatibility default, and no cross-venue delta convention is
+assumed. This improves the falsifiable skew-response case without adding
+option pricing, hedge construction or execution.
+
+Provenance: the unverified [options brief on X](https://x.com/Gate_Launch/status/2063810805552845140)
+motivates the 25-delta observation; normalized option fields are cross-checked
+against [Binance's public options market-data documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data).

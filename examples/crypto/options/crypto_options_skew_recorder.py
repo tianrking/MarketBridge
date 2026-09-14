@@ -18,6 +18,8 @@ def main():
     parser.add_argument("--atm-band", type=float, default=0.03)
     parser.add_argument("--wing-min", type=float, default=0.85)
     parser.add_argument("--wing-max", type=float, default=1.15)
+    parser.add_argument("--bucket-mode", choices=("moneyness", "delta"), default="moneyness")
+    parser.add_argument("--delta-band", type=float, default=0.05)
     parser.add_argument("--min-skew-iv", type=float, default=3.0)
     parser.add_argument("--min-term-slope-iv", type=float, default=3.0)
     parser.add_argument("--iterations", type=int, default=1)
@@ -27,7 +29,8 @@ def main():
     options = parser.parse_args()
     if (options.expiry_days <= 0 or not 0 < options.atm_band < 0.25
             or not 0 < options.wing_min < 1 or options.wing_max <= 1
-            or options.wing_min >= options.wing_max or options.min_skew_iv < 0
+            or options.wing_min >= options.wing_max or not 0 < options.delta_band <= 0.25
+            or options.min_skew_iv < 0
             or options.min_term_slope_iv < 0 or options.iterations <= 0
             or options.interval_secs < 0):
         parser.error("invalid expiry, moneyness, threshold, iteration or interval arguments")
@@ -40,6 +43,8 @@ def main():
         "atm_band": options.atm_band,
         "wing_min": options.wing_min,
         "wing_max": options.wing_max,
+        "bucket_mode": options.bucket_mode,
+        "delta_band": options.delta_band,
         "min_skew_iv": options.min_skew_iv,
         "min_term_slope_iv": options.min_term_slope_iv,
     }
@@ -48,7 +53,8 @@ def main():
             observation = observe(options.base_url, options.currency, options.venue,
                                   options.expiry_days, options.atm_band, options.wing_min,
                                   options.wing_max, options.min_skew_iv,
-                                  options.min_term_slope_iv, options.timeout)
+                                  options.min_term_slope_iv, options.timeout,
+                                  options.bucket_mode, options.delta_band)
             handle.write(json.dumps({
                 "recorded_at_ms": int(time.time() * 1000),
                 "iteration": iteration + 1,

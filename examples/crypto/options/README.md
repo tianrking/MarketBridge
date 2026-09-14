@@ -40,7 +40,15 @@ synchronized MarketBridge BTC quote. Its replay compares fixed-record BTC
 signed and absolute returns after `downside_protection_demand`,
 `upside_call_demand` and `balanced_wing_iv` states. This is a descriptive
 response study: moneyness buckets are not a universal 25-delta surface, and
-the output is not an option PnL, hedge or execution signal.
+the output is not an option PnL, hedge or execution signal. The skew monitor
+also accepts `--bucket-mode delta` to use provider `delta` greeks for ATM and
+25-delta wings when available; missing greeks stay out of the comparable
+sample rather than falling back silently.
+
+Provenance: the public [options brief on X](https://x.com/Gate_Launch/status/2063810805552845140)
+is an unverified research lead. Delta-field semantics are cross-checked against
+[Binance's public options market-data documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data);
+the monitor does not claim a complete cross-venue surface or executable skew.
 
 The bull-call-spread monitor selects two calls from one expiry near configurable
 moneyness targets, uses the lower call ask and higher call bid when available
@@ -122,6 +130,12 @@ VRP 的 recorder/replay 会先把 IV 减 RV 的快照冻结，再检验同一到
 skew-response recorder 会把目标到期日的翼部 IV 快照与同步 MarketBridge BTC 报价配对；replay 比较
 `downside_protection_demand`、`upside_call_demand` 和 `balanced_wing_iv` 状态之后固定记录窗口的 BTC
 有符号/绝对收益。这只是描述性响应研究：moneyness 分桶不等于通用 25-delta 曲面，也不是期权 PnL、对冲或执行信号。
+skew monitor 另支持 `--bucket-mode delta`，在 provider 暴露 `delta` greeks 时使用 ATM 和 25-delta 翼部；
+缺少 greeks 的合约会留在可比样本之外，不会静默回退成另一种语义。
+
+出处：公开的 [期权市场简报 X 线索](https://x.com/Gate_Launch/status/2063810805552845140)
+只作为未经验证的研究假设；字段语义对照 [Binance 官方期权市场数据文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)。
+这不代表完整跨交易所曲面或可执行 skew。
 
 牛市看涨价差监控会在同一到期日内，按可配置的 moneyness 目标挑选较低和较高执行价的看涨期权；
 优先使用低执行价 ask 与高执行价 bid，缺失时才回退到并明确标记 mark。输出 debit、价差宽度、
@@ -181,6 +195,9 @@ python3 examples/crypto/options/crypto_options_gamma_response_replay.py \
   --min-near-share 0.50 --min-concentration 0.10 --min-observations 5
 python3 examples/crypto/options/crypto_options_skew_monitor.py \
   --currency BTC --venue deribit --expiry-days 30
+python3 examples/crypto/options/crypto_options_skew_monitor.py \
+  --currency BTC --venue deribit --expiry-days 30 \
+  --bucket-mode delta --delta-band 0.05
 python3 examples/crypto/options/crypto_options_skew_recorder.py \
   --currency BTC --venue deribit --iterations 20 --interval-secs 30 \
   --output work/crypto-options-skew.jsonl

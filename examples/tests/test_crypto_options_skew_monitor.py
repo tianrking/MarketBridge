@@ -38,6 +38,19 @@ class OptionsSkewTests(unittest.TestCase):
         self.assertEqual(classify_term_structure(50.0, 55.0, 3.0), "upward_iv_term_structure")
         self.assertEqual(classify_term_structure(None, 55.0, 3.0), "observe_only_missing_term_points")
 
+    def test_delta_buckets_use_provider_greeks_when_requested(self):
+        rows = [
+            {"mark_iv": 50.0, "delta": 0.50, "option_type": "call"},
+            {"mark_iv": 60.0, "delta": -0.25, "option_type": "put"},
+            {"mark_iv": 52.0, "delta": 0.25, "option_type": "call"},
+            {"mark_iv": 80.0, "delta": -0.80, "option_type": "put"},
+        ]
+        result = bucket_rows(rows, 100.0, 0.03, 0.85, 1.15,
+                             bucket_mode="delta", delta_band=0.03)
+        self.assertEqual(result["atm"], [50.0])
+        self.assertEqual(result["put_wing"], [60.0])
+        self.assertEqual(result["call_wing"], [52.0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -40,6 +40,8 @@ def main():
     parser.add_argument("--atm-band", type=float, default=0.03)
     parser.add_argument("--wing-min", type=float, default=0.85)
     parser.add_argument("--wing-max", type=float, default=1.15)
+    parser.add_argument("--bucket-mode", choices=("moneyness", "delta"), default="moneyness")
+    parser.add_argument("--delta-band", type=float, default=0.05)
     parser.add_argument("--min-skew-iv", type=float, default=3.0)
     parser.add_argument("--min-term-slope-iv", type=float, default=3.0)
     parser.add_argument("--price-exchange", default="binance")
@@ -53,7 +55,8 @@ def main():
     args = parser.parse_args()
     if (args.expiry_days <= 0 or not 0 < args.atm_band < 0.25
             or not 0 < args.wing_min < 1 or args.wing_max <= 1
-            or args.wing_min >= args.wing_max or args.min_skew_iv < 0
+            or args.wing_min >= args.wing_max or not 0 < args.delta_band <= 0.25
+            or args.min_skew_iv < 0
             or args.min_term_slope_iv < 0 or args.iterations <= 0
             or args.interval_secs < 0 or args.timeout <= 0):
         parser.error("invalid expiry, moneyness, threshold, iteration, interval or timeout arguments")
@@ -62,6 +65,7 @@ def main():
         "currency": args.currency.upper(), "venue": args.venue,
         "expiry_days": args.expiry_days, "atm_band": args.atm_band,
         "wing_min": args.wing_min, "wing_max": args.wing_max,
+        "bucket_mode": args.bucket_mode, "delta_band": args.delta_band,
         "min_skew_iv": args.min_skew_iv, "min_term_slope_iv": args.min_term_slope_iv,
         "price_exchange": args.price_exchange.lower(), "price_symbol": args.price_symbol.upper(),
         "product_type": args.product_type,
@@ -70,7 +74,8 @@ def main():
         for iteration in range(args.iterations):
             options = observe(args.base_url, args.currency, args.venue, args.expiry_days,
                               args.atm_band, args.wing_min, args.wing_max,
-                              args.min_skew_iv, args.min_term_slope_iv, args.timeout)
+                              args.min_skew_iv, args.min_term_slope_iv, args.timeout,
+                              args.bucket_mode, args.delta_band)
             quote_payload = fetch(args.base_url, "/v1/market/quotes", {
                 "symbols": args.price_symbol, "exchanges": args.price_exchange,
                 "product_type": args.product_type, "include_stale": "false",
