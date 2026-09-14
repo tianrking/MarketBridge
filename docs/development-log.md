@@ -2105,3 +2105,16 @@ orders.
 Provenance: [TradingView's Pivot Points Standard formulas](https://www.tradingview.com/support/solutions/43000521824-pivot-points-standard/)
 define the traditional levels, [Binance's pivot/support-resistance note](https://www.binance.com/en/square/post/375172)
 provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — Heikin-Ashi response replay
+
+Added `crypto_heikin_ashi_response_replay.py` under the microstructure family.
+The Python case recursively builds synthetic Heikin-Ashi candles, labels
+wickless trend, mixed and doji states, and measures forward responses using
+the original market candle close. This explicitly avoids treating transformed
+OHLC as a fill price; wick/doji thresholds, coverage and missing bars remain
+visible, with no stop, wallet action or order.
+
+Provenance: [TradingView's Heikin-Ashi construction and price caveat](https://www.tradingview.com/support/solutions/43000619436-understanding-heikin-ashi-charts/)
+defines the transformation, [Binance's Heikin-Ashi guide](https://www.binance.com/en/square/post/474846)
+provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

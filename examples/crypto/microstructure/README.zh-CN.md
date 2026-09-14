@@ -297,6 +297,19 @@ python3 examples/crypto/microstructure/crypto_pivot_response_replay.py \
   --days 180 --tolerance-bps 10 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_heikin_ashi_response_replay.py` 按 Heikin-Ashi 公式递推合成 OHLC，区分 `bullish_no_lower_wick`、`bearish_no_upper_wick`、混合方向和 `doji`，并保留 bullish/bearish flip 事件。
+关键边界是：合成蜡烛只用于状态标签，所有未来响应都用 MarketBridge 原始 K 线 close 计算，不把平均价当成交价。影线容差、doji 阈值和 horizon 是显式敏感性参数，不生成止损、入场或执行规则。
+公式和合成价格限制对照 [TradingView 的 Heikin-Ashi 说明](https://www.tradingview.com/support/solutions/43000619436-understanding-heikin-ashi-charts/)，加密语境参考
+[Binance 的 Heikin-Ashi 指南](https://www.binance.com/en/square/post/474846)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_heikin_ashi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --wick-tolerance-bps 1 --doji-body-bps 5 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

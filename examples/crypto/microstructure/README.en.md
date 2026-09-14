@@ -392,6 +392,24 @@ python3 examples/crypto/microstructure/crypto_pivot_response_replay.py \
   --days 180 --tolerance-bps 10 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_heikin_ashi_response_replay.py` recursively builds synthetic
+Heikin-Ashi OHLC, separates `bullish_no_lower_wick`, `bearish_no_upper_wick`,
+mixed-direction and `doji` states, and retains bullish/bearish flips. The
+critical boundary is that synthetic candles are labels only: every forward
+response uses the MarketBridge source-candle close, never a synthetic price.
+Wick tolerance, doji threshold and horizon are explicit sensitivity parameters;
+no stop, entry or execution rule is produced. Formula and synthetic-price
+limits are cross-checked against [TradingView's Heikin-Ashi documentation](https://www.tradingview.com/support/solutions/43000619436-understanding-heikin-ashi-charts/),
+crypto context against [Binance's Heikin-Ashi guide](https://www.binance.com/en/square/post/474846),
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_heikin_ashi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --wick-tolerance-bps 1 --doji-body-bps 5 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

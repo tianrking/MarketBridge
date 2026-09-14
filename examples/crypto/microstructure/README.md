@@ -74,6 +74,7 @@ Cases:
 - `crypto_stochrsi_response_replay.py`: compares RSI-relative StochRSI extremes, K/D crosses and neutral controls.
 - `crypto_vortex_response_replay.py`: compares VI+/VI− pressure, cross events and balanced controls.
 - `crypto_pivot_response_replay.py`: compares prior-UTC-day traditional pivot touches/reclaims with inside-range controls.
+- `crypto_heikin_ashi_response_replay.py`: compares synthetic Heikin-Ashi wickless trend states with mixed/doji controls using real closes.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -747,6 +748,19 @@ python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
 python3 examples/crypto/microstructure/crypto_pivot_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --tolerance-bps 10 --horizon-bars 8 --min-observations 5
+```
+
+`crypto_heikin_ashi_response_replay.py` 按 Heikin-Ashi 公式递推合成 OHLC，区分 `bullish_no_lower_wick`、`bearish_no_upper_wick`、混合方向和 `doji`，并保留 bullish/bearish flip 事件。
+关键边界是：合成蜡烛只用于状态标签，所有未来响应都用 MarketBridge 原始 K 线 close 计算；因此不会把平均价当成交价。影线容差、doji 阈值和 horizon 是显式敏感性参数，不生成止损、入场或执行规则。
+公式和合成价格限制对照 [TradingView 的 Heikin-Ashi 说明](https://www.tradingview.com/support/solutions/43000619436-understanding-heikin-ashi-charts/)，加密语境参考
+[Binance 的 Heikin-Ashi 指南](https://www.binance.com/en/square/post/474846)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_heikin_ashi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --wick-tolerance-bps 1 --doji-body-bps 5 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 ```bash
