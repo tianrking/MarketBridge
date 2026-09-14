@@ -68,6 +68,7 @@ Status labels:
 | Historical taker buy/sell volume | `/v1/history/taker-volume` | implemented | keyless | Binance public aggregate taker buy/sell volume normalized with total value and imbalance; not trader identity or intent. |
 | Historical account ratio | `/v1/history/account-ratio` | implemented | keyless | Binance top-trader account share plus Bybit holder-count buy/sell ratio; provider semantics, cursor and coverage metadata remain explicit; not notional positioning. |
 | Historical option volatility | `/v1/history/historical-volatility` | implemented | keyless | Bybit public hourly option historical volatility with bounded time window and period; not implied volatility or a forecast. |
+| Historical basis | `/v1/history/basis` | implemented | keyless | Binance public futures/index basis with basis rate, annualized rate and coverage metadata; not simultaneous executable legs or carry PnL. |
 | Historical trades | `/v1/history/trades` | implemented | keyless | Bounded Binance/OKX public trades normalized with taker side for CVD research; retention is provider-controlled. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |

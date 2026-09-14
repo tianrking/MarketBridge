@@ -66,6 +66,14 @@ Funding is carried only from the latest point within a bounded age window, and
 missing alignment stays observe-only. This is not an executable carry trade,
 funding-income estimate or directional signal.
 
+`crypto_historical_basis_replay.py` consumes Binance's historical basis series
+(`basis`, `basisRate`, index price and futures price) and asks whether an
+unusually wide absolute basis rate contracts over the next fixed provider
+window more often or by more basis points than ordinary observations. It is
+the historical counterpart to the live basis recorder: provider snapshots are
+not simultaneous bid/ask legs, so the output is a convergence study, not an
+arbitrage, carry PnL, hedge or execution model.
+
 `crypto_cross_venue_price_gap_replay.py` isolates same-asset price
 fragmentation: it aligns two venue candle series, detects an extreme log-price
 gap relative to a frozen trailing mean, and measures subsequent contraction.
@@ -129,6 +137,10 @@ funding differential discussion on X](https://x.com/leondoteth/status/2012127303
 and uses Binance's official [Premium Index Kline API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Premium-Index-Kline-Data).
 The premium index is exchange-derived market context; the case does not infer
 funding cash flow, trader intent or executable convergence.
+The historical basis case uses Binance's official [Basis API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Basis)
+and preserves the public [CryptoCred basis discussion on X](https://x.com/CryptoCred/status/1777720296297975952)
+only as an unverified research lead. Provider basis is not a simultaneous
+executable bid/ask or proof of convergence arbitrage.
 The cross-venue gap decomposition is cross-checked against the academic
 [Trading and Arbitrage in Cryptocurrency Markets](https://www.sciencedirect.com/science/article/pii/S0304405X19301746)
 and [Arbitrage across different Bitcoin exchange venues](https://onlinelibrary.wiley.com/doi/10.1111/acfi.13102).
@@ -190,6 +202,11 @@ Useful inputs:
 并与普通价差窗口对照。价差这里只是 carry 上下文/压力特征，不是方向信号；不会计算实际资金费收入，
 也不会声称对冲一定可成交。
 
+`crypto_historical_basis_replay.py` 使用 Binance 历史 basis 序列（`basis`、`basisRate`、指数价和期货价），
+检验极端绝对 basis rate 是否在下一个固定提供方窗口收敛，以及收敛幅度是否不同于普通观测。
+它是 live basis recorder 的历史版本；提供方快照不是同步可成交的 bid/ask，因此只是收敛研究，不是套利、carry PnL、
+对冲或执行模型。
+
 `crypto_premium_funding_response_replay.py` 使用 Binance 历史 premium index、资金费率点和永续 K 线，
 检验更窄的市场数据假设：当 premium 与 funding 出现明显相反符号时，之后固定窗口的有符号或绝对收益，
 是否不同于普通对齐观测？资金费率只在限定的最大陈旧时间内按最近点对齐，缺失对齐保持 observe-only。
@@ -225,6 +242,9 @@ triangular response recorder 还会记录同步的 MarketBridge BTC 报价；rep
 premium/funding 拆解参考公开的 [跨交易所资金费率差异讨论](https://x.com/leondoteth/status/2012127303850213817)，
 并使用 Binance 官方 [Premium Index Kline API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Premium-Index-Kline-Data)。
 premium index 是交易所衍生的市场上下文，不代表资金费现金流、交易者意图或可执行收敛。
+历史 basis 案例使用 Binance 官方 [Basis API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Basis)，
+并只把公开的 [CryptoCred 基差讨论](https://x.com/CryptoCred/status/1777720296297975952) 当作未经验证的研究线索。
+provider basis 不是同步可成交的 bid/ask，也不证明收敛套利收益。
 
 盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
@@ -280,6 +300,9 @@ python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
   --price-exchange binance --interval 1h --days 14 \
   --min-abs-spread-bps-per-year 1000 --shock-bps-per-year 0 \
   --horizon-bars 3 --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/carry/crypto_historical_basis_replay.py \
+  --symbol BTCUSDT --contract-type PERPETUAL --period 1h --days 14 \
+  --extreme-threshold-bps 50 --horizon-bars 3 --min-observations 5
 python3 examples/crypto/carry/crypto_premium_funding_response_replay.py \
   --symbol BTCUSDT --exchange binance --interval 1h --days 14 \
   --premium-threshold-bps 1 --funding-threshold-bps 1 \

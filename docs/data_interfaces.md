@@ -165,6 +165,7 @@ Short version:
 | Historical open interest | `/v1/history/open-interest` | Binance/Bybit public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; not a long/short split. |
 | Historical account ratio | `/v1/history/account-ratio` | Binance/Bybit public positioning context | raw normalized | Provider-specific account/holder ratios with normalized imbalance, source semantics and bounded coverage; not notional positioning or trader intent. |
 | Historical option volatility | `/v1/history/historical-volatility` | Bybit public option market | raw normalized | Hourly provider historical-volatility values by base/quote coin and supported period; paired time bounds and coverage are explicit; not implied volatility or a forecast. |
+| Historical basis | `/v1/history/basis` | Binance public futures data | raw normalized | Provider basis, index/futures prices, basis rate and annualized rate with bounded coverage; not simultaneous bid/ask execution. |
 | Historical trades | `/v1/history/trades` | Binance aggregate trades / OKX history-trades | raw normalized | Bounded public trades with taker side, price, quantity, notional and timestamp for CVD research; `pages` requests bounded provider pages and `coverage_detail` reports partial/truncated windows. |
 | Basis | `/v1/market/basis` | quote snapshots | derived | Spot-perp basis per exchange/symbol. |
 | Order flow | `/v1/market/order-flow` | trade events | derived | Buy/sell pressure buckets and CVD. |

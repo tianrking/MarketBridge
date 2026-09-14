@@ -375,6 +375,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 历史主动买卖量 | Binance 聚合 taker buy/sell、总量、imbalance | `GET /v1/history/taker-volume` | 暂无直接流 | 按需请求，保留提供方覆盖状态 | 否 |
 | 历史账户多空比 | Binance 大户账户占比与 Bybit holder-count buy/sell ratio、imbalance、分页覆盖 | `GET /v1/history/account-ratio` | 暂无直接流 | 按提供方保留语义和 coverage；不是名义持仓方向 | 否 |
 | 历史期权波动率 | Bybit option historical volatility、周期、时间戳 | `GET /v1/history/historical-volatility` | 暂无直接流 | 按需请求，保留覆盖范围；不是隐含波动率或预测 | 否 |
+| 历史基差 | Binance futures/index basis、basisRate、年化基差率 | `GET /v1/history/basis` | 暂无直接流 | 按需请求，保留 provider coverage；不是同步可成交套利 | 否 |
 | Liquidations 爆仓 | 公共强平事件 | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | 有稳定公共 feed 才推送 | 否 |
 | Klines K 线 | SQLite OHLCV，REST 回补 + live ticks 聚合 | `GET /v1/market/klines` | 暂无直接流 | 默认 `1m/5m/15m/1h` | 否 |
 | Basis | spot-perp basis、basis bps | `GET /v1/market/basis` | 暂无直接流 | 从最新 quote cache 派生 | 否 |
@@ -498,6 +499,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/history/open-interest` | Binance/Bybit 公开历史 OI 观察，保留 provider unit 和 `coverage_detail`；不代表多空方向。 |
 | GET | `/v1/history/account-ratio` | Binance 大户账户占比与 Bybit holder-count 多空比历史；保留提供方语义、分页和覆盖信息，不代表名义持仓或交易者意图。 |
 | GET | `/v1/history/historical-volatility` | Bybit 公开期权历史波动率，保留周期和时间覆盖；不是隐含波动率、预测或期权 PnL。 |
+| GET | `/v1/history/basis` | Binance 公开历史期货基差、basisRate、指数价和期货价；不是同步 bid/ask 或套利 PnL。 |
 | GET | `/v1/history/trades` | Binance/OKX bounded public trades，保留 taker side，供 CVD/order-flow 回放。 |
 | GET | `/v1/storage/manifest` | 本地 Arrow IPC lake manifest 和质量元数据。 |
 | DELETE | `/v1/storage/partitions` | 按过滤条件删除本地 lake partitions。 |

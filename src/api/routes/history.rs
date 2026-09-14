@@ -74,6 +74,17 @@ pub struct HistoryHistoricalVolatilityQuery {
 }
 
 #[derive(Debug, Deserialize, Default)]
+pub struct HistoryBasisQuery {
+    exchange: String,
+    symbol: String,
+    contract_type: Option<String>,
+    period: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct HistoryTradesQuery {
     exchange: String,
     symbol: String,
@@ -331,6 +342,59 @@ pub async fn historical_volatility(
         }))
         .into_response(),
     }
+}
+
+pub async fn basis(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryBasisQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "binance" => fetch_binance_basis(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported historical basis exchange: {other}; public history is currently available for binance"
+        )),
+    };
+    match result {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_basis",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "contract_type": q.contract_type.clone().unwrap_or_else(|| "PERPETUAL".to_string()),
+            "period": q.period.clone().unwrap_or_else(|| "1h".to_string()),
+            "coverage": "bounded_public_history",
+            "coverage_detail": basis_coverage_detail(&rows, &q),
+            "rows": rows,
+            "limitations": [
+                "basis observations are provider snapshots and not simultaneous executable bid/ask legs",
+                "provider retention and page limits are bounded; spot/perp fees, borrow, transfer and inventory are absent",
+                "basis convergence is a descriptive response test, not an arbitrage or hedge PnL claim"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_basis",
+            "exchange": q.exchange,
+            "symbol": q.symbol,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+fn basis_coverage_detail(rows: &[Value], q: &HistoryBasisQuery) -> Value {
+    let page_limit = q.limit.unwrap_or(30).clamp(1, 500);
+    serde_json::json!({
+        "status": if rows.is_empty() { "empty_or_provider_limited" } else if rows.len() >= page_limit { "provider_page_may_be_truncated" } else { "bounded_single_page" },
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+    })
 }
 
 fn historical_volatility_coverage_detail(
@@ -1374,6 +1438,75 @@ async fn fetch_bybit_historical_volatility(
         .collect()
 }
 
+async fn fetch_binance_basis(http: &reqwest::Client, q: &HistoryBasisQuery) -> Result<Vec<Value>> {
+    let pair = q.symbol.trim().to_ascii_uppercase();
+    let contract_type = q
+        .contract_type
+        .as_deref()
+        .unwrap_or("PERPETUAL")
+        .trim()
+        .to_ascii_uppercase();
+    if !matches!(
+        contract_type.as_str(),
+        "PERPETUAL" | "CURRENT_QUARTER" | "NEXT_QUARTER"
+    ) {
+        bail!("unsupported Binance basis contract_type: {contract_type}");
+    }
+    let period = match q.period.as_deref().unwrap_or("1h") {
+        "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "12h" | "1d" => {
+            q.period.as_deref().unwrap_or("1h")
+        }
+        other => bail!("unsupported Binance basis period: {other}"),
+    };
+    let limit = q.limit.unwrap_or(30).clamp(1, 500).to_string();
+    let mut request = http
+        .get("https://fapi.binance.com/futures/data/basis")
+        .query(&[
+            ("pair", pair.as_str()),
+            ("contractType", contract_type.as_str()),
+            ("period", period),
+            ("limit", limit.as_str()),
+        ]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Value>>()
+        .await
+        .context("failed to parse binance historical basis")?;
+    payload
+        .into_iter()
+        .map(normalize_binance_basis_row)
+        .collect()
+}
+
+fn normalize_binance_basis_row(row: Value) -> Result<Value> {
+    let ts_ms = value_u64(row.get("timestamp")).context("missing Binance basis timestamp")?;
+    let basis = value_f64(row.get("basis")).context("missing Binance basis")?;
+    let basis_rate = value_f64(row.get("basisRate")).context("missing Binance basisRate")?;
+    let annualized_basis_rate = value_f64(row.get("annualizedBasisRate"));
+    Ok(serde_json::json!({
+        "exchange": "binance",
+        "symbol": row.get("pair").or_else(|| row.get("symbol")),
+        "contract_type": row.get("contractType"),
+        "index_price": value_f64(row.get("indexPrice")),
+        "futures_price": value_f64(row.get("futuresPrice")),
+        "basis": basis,
+        "basis_rate": basis_rate,
+        "basis_rate_bps": basis_rate * 10_000.0,
+        "annualized_basis_rate": annualized_basis_rate,
+        "annualized_basis_rate_bps": annualized_basis_rate.map(|value| value * 10_000.0),
+        "ts_ms": ts_ms,
+        "source": "binance_basis_history"
+    }))
+}
+
 fn normalize_bybit_historical_volatility_row(
     row: Value,
     base_coin: &str,
@@ -1940,6 +2073,37 @@ mod tests {
         assert_eq!(row["buy_ratio"], serde_json::json!(0.63));
         assert_eq!(row["sell_ratio"], serde_json::json!(0.37));
         assert_eq!(row["long_short_ratio"], serde_json::json!(1.70));
+    }
+
+    #[test]
+    fn normalizes_binance_basis_and_reports_bounded_coverage() {
+        let row = normalize_binance_basis_row(serde_json::json!({
+            "pair": "BTCUSDT",
+            "contractType": "PERPETUAL",
+            "indexPrice": "100.0",
+            "futuresPrice": "100.5",
+            "basis": "0.5",
+            "basisRate": "0.005",
+            "annualizedBasisRate": "0.5475",
+            "timestamp": 1234
+        }))
+        .expect("normalized basis row");
+        assert_eq!(row["symbol"], serde_json::json!("BTCUSDT"));
+        assert_eq!(row["basis"], serde_json::json!(0.5));
+        assert_eq!(row["basis_rate_bps"], serde_json::json!(50.0));
+        assert_eq!(row["annualized_basis_rate_bps"], serde_json::json!(5475.0));
+        let query = HistoryBasisQuery {
+            exchange: "binance".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            contract_type: Some("PERPETUAL".to_string()),
+            period: Some("1h".to_string()),
+            start_ms: Some(1000),
+            end_ms: Some(2000),
+            limit: Some(30),
+        };
+        let detail = basis_coverage_detail(&[row], &query);
+        assert_eq!(detail["covered_start_ms"], serde_json::json!(1234));
+        assert_eq!(detail["status"], serde_json::json!("bounded_single_page"));
     }
 
     #[test]

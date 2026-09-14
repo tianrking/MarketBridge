@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Binance historical basis convergence input
+
+Added the read-only `/v1/history/basis` endpoint for Binance's public futures
+basis history. Rows normalize provider basis, basis rate, annualized basis rate,
+index/futures prices and timestamp with bounded coverage metadata. Added the
+Python `crypto_historical_basis_replay.py` case, which compares contraction
+after extreme basis-rate observations with ordinary observations. Provenance:
+[Binance Basis API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Basis)
+and the public [CryptoCred basis discussion on X](https://x.com/CryptoCred/status/1777720296297975952).
+No simultaneous fill, hedge, carry PnL, order, wallet, signing or execution path
+is included.
+
 ## 2026-09-14 — Binance top-trader account ratio coverage
 
 Extended `/v1/history/account-ratio` to Binance's public top-trader account
