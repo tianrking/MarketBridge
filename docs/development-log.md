@@ -972,6 +972,19 @@ is an unverified research lead. Formula and warmup boundaries are cross-checked
 against [TradingView's DMI calculation](https://www.tradingview.com/support/solutions/43000502250-directional-movement-dmi/)
 and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 
+## 2026-09-14 — Aroon response replay
+
+Added `crypto_aroon_response_replay.py` under the microstructure family. The
+Python case measures how recently an inclusive OHLC lookback made its highest
+high or lowest low, labels recent-extreme, balanced and consolidation states,
+keeps Aroon crosses as events, and compares fixed-horizon responses with a
+consolidation control. The lookback, thresholds and tie convention are
+explicit; no state becomes a forecast, entry, stop, wallet action or order.
+
+Provenance: [TradingView's Aroon documentation](https://www.tradingview.com/support/solutions/43000501801-aroon-indicator/)
+defines the recency calculation, [CoinMarketCap's Aroon glossary](https://coinmarketcap.com/academy/glossary/aroon-indicator/)
+provides crypto terminology, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — footprint imbalance persistence monitor
 
 Added Python monitor/recorder/replay entrypoints for the existing

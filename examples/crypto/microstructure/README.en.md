@@ -236,6 +236,26 @@ python3 examples/crypto/microstructure/crypto_adx_dmi_response_replay.py \
   --min-observations 5
 ```
 
+`crypto_aroon_response_replay.py` tests whether the recency of the latest
+lookback high or low is followed by a different response. Using an inclusive
+as-of OHLC window, it computes Aroon Up/Down and their oscillator, separates
+`bullish_recent_extreme`, `bearish_recent_extreme`, `consolidation` and
+`balanced`, and keeps Aroon direction crosses as separate events. Strong
+recent-extreme states are compared with consolidation controls using fixed-
+horizon signed, direction-aligned, absolute and path responses. “Trend age” is
+not a price forecast, entry, stop or execution rule; the window, 70/50
+thresholds and most-recent tie rule are explicit parameters. Formula boundaries
+are cross-checked against [TradingView's Aroon documentation](https://www.tradingview.com/support/solutions/43000501801-aroon-indicator/),
+crypto terminology against [CoinMarketCap's Aroon glossary](https://coinmarketcap.com/academy/glossary/aroon-indicator/),
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_aroon_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --trend-threshold 70 \
+  --consolidation-threshold 50 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

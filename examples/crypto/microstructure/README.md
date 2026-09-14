@@ -66,6 +66,7 @@ Cases:
 - `crypto_donchian_channel_response_replay.py`: compares prior-range Donchian breakouts, persistent outside states and inside controls.
 - `crypto_supertrend_response_replay.py`: compares ATR-band Supertrend flips and persistent trend states with later fixed-horizon responses.
 - `crypto_adx_dmi_response_replay.py`: compares Wilder-style ADX strength and +DI/-DI direction states with weak-direction/range controls.
+- `crypto_aroon_response_replay.py`: compares recent-high/recent-low Aroon states, crossovers and consolidation controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -629,6 +630,20 @@ python3 examples/crypto/microstructure/crypto_adx_dmi_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --period 14 --strength-threshold 25 --horizon-bars 8 \
   --min-observations 5
+```
+
+`crypto_aroon_response_replay.py` 研究“最近一次创新高/低距今多久”是否对应不同的后续响应：在包含当前 K 线的回看窗口中计算 Aroon Up/Down 和 oscillator，
+把样本分为 `bullish_recent_extreme`、`bearish_recent_extreme`、`consolidation` 与 `balanced`，并单独保留 Aroon 方向交叉事件。
+强方向状态与盘整控制组比较固定窗口的有符号、方向对齐、绝对和路径响应。这里的“趋势新鲜度”不是价格预测、入场、止损或执行规则；窗口、70/50 阈值以及相同高低点的最近优先规则都明确输出。
+公式边界对照 [TradingView 的 Aroon 说明](https://www.tradingview.com/support/solutions/43000501801-aroon-indicator/)，加密语义参考
+[CoinMarketCap 的 Aroon 词典](https://coinmarketcap.com/academy/glossary/aroon-indicator)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_aroon_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --trend-threshold 70 \
+  --consolidation-threshold 50 --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

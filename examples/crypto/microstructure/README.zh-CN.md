@@ -187,6 +187,20 @@ python3 examples/crypto/microstructure/crypto_adx_dmi_response_replay.py \
   --min-observations 5
 ```
 
+`crypto_aroon_response_replay.py` 研究“最近一次创新高/低距今多久”是否对应不同的后续响应：使用包含当前 K 线的 point-in-time OHLC 回看窗口计算 Aroon Up/Down 及 oscillator，
+把样本分为 `bullish_recent_extreme`、`bearish_recent_extreme`、`consolidation` 和 `balanced`，并单独保留 Aroon 方向交叉事件。
+强的近期极值状态与盘整控制组比较固定窗口的有符号、方向对齐、绝对和路径响应。“趋势新鲜度”不是价格预测、入场、止损或执行规则；窗口、70/50 阈值以及相同高低点选择最近出现的规则都会显式输出。
+公式边界对照 [TradingView 的 Aroon 说明](https://www.tradingview.com/support/solutions/43000501801-aroon-indicator/)，加密语义参考
+[CoinMarketCap 的 Aroon 词典](https://coinmarketcap.com/academy/glossary/aroon-indicator/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_aroon_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --trend-threshold 70 \
+  --consolidation-threshold 50 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。
