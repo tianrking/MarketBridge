@@ -78,6 +78,8 @@ categorized command is the recommended one.
 | `crypto/options/crypto_options_bull_call_spread_response_recorder.py` / `crypto_options_bull_call_spread_response_replay.py` | Observable bull-call-spread quote states may have different later BTC responses than unvalidated snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; quote structure is not option PnL, fill, hedge or execution |
 | `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
 | `crypto/defi/crypto_jupiter_route_impact_monitor.py` / recorder / replay | A configured Jupiter quote-size ladder may reveal persistent high router-reported price impact at larger input sizes | `/v1/external/signals?categories=defi_native_state&sources=jupiter`, configured `route_amounts` | Read-only route-impact ladder; no complete pool depth, gas, MEV, wallet or swap execution |
+| `crypto/defi/crypto_raydium_pool_concentration_monitor.py` / recorder / replay | High Raydium 24h volume/TVL with a low top-pool TVL share may identify persistent fragmented liquidity pressure | `/v1/external/signals?categories=defi_native_state&sources=raydium`, configured Raydium mint pairs | Read-only API-v3 pool aggregate; incomplete pagination, LP PnL, route depth, gas, wallet and swap execution remain explicit |
+| `crypto/defi/crypto_raydium_pool_concentration_response_recorder.py` / replay | Compare later BTC response after fragmented/concentrated Raydium turnover states versus ordinary states | Raydium native-state signals, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, LP-income, fill or execution claim |
 | `crypto/defi/crypto_stablecoin_depeg_monitor.py` / recorder / replay | Stablecoin quote deviation and spread stress may coincide with larger later absolute BTC movement | `/v1/market/quotes` for selected CEX/DEX pairs and BTCUSDT, plus JSONL archive | Depeg-risk event study; no reserve, redemption, solvency, mean-reversion or execution model |
 | `crypto/defi/crypto_stablecoin_rotation_response_replay.py` | A normalized USDC discount/premium versus USDT may align with later BTC direction | JSONL from `crypto_stablecoin_depeg_recorder.py` | Directional response study; one-venue quote, flow causality, conversion, redemption and execution remain explicit gaps |
 | `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
@@ -312,6 +314,20 @@ python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
   --output work/crypto-jupiter-route-impact.jsonl
 python3 examples/crypto/defi/crypto_jupiter_route_impact_replay.py \
   --input work/crypto-jupiter-route-impact.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_monitor.py \
+  --symbols SOLUSDC --min-turnover-ratio 1.0 --max-top-share 0.65
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_recorder.py \
+  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
+  --output work/crypto-raydium-pool-concentration.jsonl
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_replay.py \
+  --input work/crypto-raydium-pool-concentration.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_recorder.py \
+  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 60 \
+  --output work/crypto-raydium-pool-concentration-response.jsonl
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_replay.py \
+  --input work/crypto-raydium-pool-concentration-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/onchain/crypto_onchain_transfer_burst_replay.py \
   --source whale_alert --asset USDT --min-transfer-usd 100000 \
   --price-exchange binance --symbol BTCUSDT --interval 5m \

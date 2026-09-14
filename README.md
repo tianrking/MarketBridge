@@ -256,6 +256,11 @@ recorder and replay. Configure optional `route_amounts` under
 of router-reported `priceImpactPct`, route hops and normalized route price.
 This uses the read-only quote surface and adds no transaction construction,
 wallet signing or swap execution.
+Raydium now exposes a second native-state case: API v3 pool pagination is
+normalized into page coverage, TVL, 24-hour volume/fee, top-pool concentration,
+price and turnover metrics. The Python monitor/recorder/replay tests whether
+fragmented or concentrated high-turnover states persist and reports a bounded
+BTC response study; incomplete pages remain observe-only.
 The stablecoin family also includes a directional USDC/USDT rotation replay:
 it normalizes both quote orientations and tests whether USDC discounts/premiums
 align with later BTC direction, without claiming capital-flow causality or

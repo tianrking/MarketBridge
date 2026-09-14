@@ -221,6 +221,11 @@ defi:
   raydium:
     enabled: false
     price_url: "https://api.raydium.io/v2/main/price"
+    pool_info_url: "https://api-v3.raydium.io/pools/info/mint"
+    pool_type: all
+    pool_sort_field: liquidity
+    sort_type: desc
+    pool_page_size: 1000
     poll_secs: 10
     pairs:
       - symbol: SOLUSDC

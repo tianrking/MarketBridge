@@ -50,6 +50,16 @@ pub struct RaydiumConfig {
     pub enabled: bool,
     #[serde(default = "default_raydium_price_url")]
     pub price_url: String,
+    #[serde(default = "default_raydium_pool_info_url")]
+    pub pool_info_url: String,
+    #[serde(default = "default_raydium_pool_type")]
+    pub pool_type: String,
+    #[serde(default = "default_raydium_pool_sort_field")]
+    pub pool_sort_field: String,
+    #[serde(default = "default_raydium_sort_type")]
+    pub sort_type: String,
+    #[serde(default = "default_raydium_pool_page_size")]
+    pub pool_page_size: u32,
     #[serde(default = "default_defi_poll_secs")]
     pub poll_secs: u64,
     #[serde(default = "default_raydium_pairs")]
@@ -181,6 +191,26 @@ fn default_raydium_price_url() -> String {
     "https://api.raydium.io/v2/main/price".to_string()
 }
 
+fn default_raydium_pool_info_url() -> String {
+    "https://api-v3.raydium.io/pools/info/mint".to_string()
+}
+
+fn default_raydium_pool_type() -> String {
+    "all".to_string()
+}
+
+fn default_raydium_pool_sort_field() -> String {
+    "liquidity".to_string()
+}
+
+fn default_raydium_sort_type() -> String {
+    "desc".to_string()
+}
+
+fn default_raydium_pool_page_size() -> u32 {
+    1000
+}
+
 fn default_uniswap_v3_subgraph_url() -> String {
     "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3".to_string()
 }
@@ -273,6 +303,11 @@ impl Default for RaydiumConfig {
         Self {
             enabled: false,
             price_url: default_raydium_price_url(),
+            pool_info_url: default_raydium_pool_info_url(),
+            pool_type: default_raydium_pool_type(),
+            pool_sort_field: default_raydium_pool_sort_field(),
+            sort_type: default_raydium_sort_type(),
+            pool_page_size: default_raydium_pool_page_size(),
             poll_secs: default_defi_poll_secs(),
             pairs: default_raydium_pairs(),
         }

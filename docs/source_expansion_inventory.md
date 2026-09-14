@@ -5,7 +5,7 @@ into its roadmap. It is intentionally an inventory, not an implementation claim.
 Only sources listed as `implemented` in `docs/feature_inventory.md` are wired
 into the runtime/API today.
 
-Last checked: 2026-05-21
+Last checked: 2026-09-14
 
 ## Source References
 
@@ -15,6 +15,8 @@ Last checked: 2026-05-21
 - Hummingbot GitHub `hummingbot/connector/exchange`: 27 spot connector folders.
 - Hummingbot GitHub `hummingbot/connector/derivative`: 18 perpetual connector folders.
 - Hummingbot Gateway docs: 6 active DEX connectors and 6 legacy DEX connectors.
+- Raydium API v3 docs: public pool-by-mint endpoint with pagination, TVL, volume,
+  fee, price, and pool-type fields.
 
 The CCXT package and wiki counts can differ because package exports include
 aliases or transitional ids such as `gateio`, `huobi`, and `coinbaseadvanced`.
@@ -36,7 +38,7 @@ visibility. A source enters the runtime only after it has at least:
 | Priority | Scope | Rationale |
 |---|---|---|
 | P0 | Credentialed validation for Architect/Decibel OI | OI normalization is wired when keyed payloads expose OI fields; live validation still requires venue credentials. |
-| P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Jupiter configured quote-size/route-impact ladder is implemented; remaining protocol-native pool routes and swap streams require chain-specific APIs or indexers. |
+| P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Jupiter quote-size/route-impact ladder and Raydium API v3 pool aggregates are implemented; remaining protocol-native pool routes and swap streams require chain-specific APIs or indexers. |
 | P2 | Extend options websocket depth/trade parity when needed | REST chains, per-instrument depth, and low-latency WS ticker/summary cache updates are wired for Deribit/OKX/Bybit/Binance. Native WS option book/trade streams are a latency upgrade, not a missing research input. |
 | P3 | Add new long-tail centralized venues as native REST snapshot sources only when they add useful coverage | Broad coverage is useful for research, but schema quality and operational behavior come first. |
 | P4 | Wallet/order/account-only capabilities | Out of scope unless MarketBridge grows an execution subsystem. |

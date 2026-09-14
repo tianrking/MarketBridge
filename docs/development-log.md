@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Raydium native pool concentration
+
+Added a read-only Raydium API v3 pool-info poller. Each configured mint pair
+now emits page count/coverage, page TVL, 24-hour volume and fees, top-pool TVL
+and volume shares, top price/fee rate, and page/top turnover as
+`defi_native_state` metrics. Added bilingual Python monitor, recorder and
+replay plus a BTC response recorder/replay for fragmented versus concentrated
+high-turnover states. The source is the official [Raydium pool-by-mint API documentation](https://docs.raydium.io/api-reference/api-v3-endpoints/pools/get-pools-by-token-mint);
+pagination remains explicit and no swap, transaction, wallet, signing or LP
+PnL path is included.
+
 ## 2026-09-14 — Jupiter route-impact ladder
 
 Closed the Jupiter DeFi data gap by adding optional `route_amounts` to each

@@ -179,7 +179,7 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=meteora,orca,uniswap_
 | Source | Quote | Native state currently emitted | Key |
 |---|---:|---|---|
 | Jupiter | implemented | Quote plus read-only route hops, price-impact ratio, normalized route price, output amount and optional configured input-size ladder as `defi_native_state` metrics. | keyless |
-| Raydium | implemented | Token price map; protocol-native pool state is future work. | keyless |
+| Raydium | implemented | Token price map plus API v3 pool-page count, coverage, TVL, 24h volume/fee, top-pool share, price, fee rate and turnover as `defi_native_state`. | keyless |
 | Uniswap V3 | implemented | Pool liquidity, TVL, volume, txCount from subgraph. | keyless by default subgraph |
 | ParaSwap | implemented | Route quote only. | keyless by default base URL |
 | 1inch | implemented configurable | Route quote only; newer gateways may need a different `base_url` or provider key. | keyless/config-dependent |

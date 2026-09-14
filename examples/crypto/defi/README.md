@@ -62,6 +62,20 @@ which documents `priceImpactPct` and `routePlan` in a quote response. Those
 fields are evidence for a bounded route-impact hypothesis, not an executable
 price guarantee.
 
+`crypto_raydium_pool_concentration_monitor.py` / recorder / replay consume
+Raydium API v3 pool-page metrics emitted as `defi_native_state`. The test asks
+whether high 24-hour volume relative to page TVL is persistent, and whether a
+low top-pool TVL share marks a fragmented state distinct from a concentrated
+state. `crypto_raydium_pool_concentration_response_recorder.py` pairs those
+states with a synchronized BTC quote; its replay reports fixed-record forward
+responses. A page with unknown or incomplete pagination is never promoted to a
+strategy state.
+
+Provenance: the native fields follow the official [Raydium pool-by-mint API](https://docs.raydium.io/api-reference/api-v3-endpoints/pools/get-pools-by-token-mint)
+and its documented `tvl`, `day.volume`, `day.volumeFee`, `price`, `feeRate`
+and `hasNextPage` fields. They are provider snapshots, not complete on-chain
+swap history, LP income, realized slippage or executable route depth.
+
 The stablecoin case follows the unverified [DEWS-style early-warning discussion
 on X](https://x.com/crazydnekana/status/2030633787462242588), which describes
 price drift, thinning liquidity and trading pressure as a sequence to monitor.
@@ -108,6 +122,15 @@ redemptions, solvency or executable mean reversion.
 出处：Jupiter 官方 [Quote API 文档](https://developers.jup.ag/docs/swap/v1/get-quote) 明确记录 quote 返回的
 `priceImpactPct` 与 `routePlan`。这些字段只能支撑有界的路由冲击假设，不能当作可执行价格保证。
 
+`crypto_raydium_pool_concentration_monitor.py` / recorder / replay 消费 Raydium API v3 池分页指标（以
+`defi_native_state` 输出）。假设很窄：24 小时交易量相对页面 TVL 较高的状态是否持续，以及头部池 TVL 占比较低时是否形成
+与集中状态不同的“流动性分散压力”。`crypto_raydium_pool_concentration_response_recorder.py` 会把这些状态与同步 BTC 报价配对，
+replay 输出固定记录窗口的后续响应。分页未知或不完整时不会晋级为策略状态。
+
+出处：原生字段遵循 [Raydium 按 token mint 查池的官方 API 文档](https://docs.raydium.io/api-reference/api-v3-endpoints/pools/get-pools-by-token-mint)，
+包括文档中的 `tvl`、`day.volume`、`day.volumeFee`、`price`、`feeRate` 和 `hasNextPage`。它们是提供方快照，不是完整链上
+swap 历史、LP 收入、实际滑点或可执行路由深度。
+
 ## Commands / 命令
 
 ```bash
@@ -133,6 +156,20 @@ python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
   --output work/crypto-jupiter-route-impact.jsonl
 python3 examples/crypto/defi/crypto_jupiter_route_impact_replay.py \
   --input work/crypto-jupiter-route-impact.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_monitor.py \
+  --symbols SOLUSDC --min-turnover-ratio 1.0 --max-top-share 0.65
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_recorder.py \
+  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
+  --output work/crypto-raydium-pool-concentration.jsonl
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_replay.py \
+  --input work/crypto-raydium-pool-concentration.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_recorder.py \
+  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 60 \
+  --output work/crypto-raydium-pool-concentration-response.jsonl
+python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_replay.py \
+  --input work/crypto-raydium-pool-concentration-response.jsonl \
+  --horizon-records 3 --min-observations 5
 python3 examples/crypto/defi/crypto_stablecoin_depeg_monitor.py \
   --exchange binance --stable-symbols USDTUSDC,USDCUSDT,DAIUSDT \
   --risk-symbol BTCUSDT --watch-bps 20 --stress-bps 50

@@ -574,7 +574,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "implemented",
         priority: "P0",
-        notes: "Basic price poller is wired; expand AMM/CLMM pool state.",
+        notes: "Price poller plus read-only API v3 pool pagination now emit page TVL, 24h volume/fee, top-pool concentration and turnover metrics; no swap construction or wallet signing.",
     },
     RoadmapSource {
         source: "orca",

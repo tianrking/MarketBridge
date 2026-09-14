@@ -993,6 +993,8 @@ BTC 绝对波动；不推断储备、赎回、偿付能力，也不把它变成�
 DeFi 系列现在还新增 Jupiter 路由冲击梯度 monitor/recorder/replay：在
 `defi.jupiter.pairs[]` 下配置可选的 `route_amounts`，保留多个输入量的 quote，检验路由器报告的
 `priceImpactPct`、路由跳数和归一化路由价格是否持续。它只使用只读 quote 数据，不构造交易、不做钱包签名，也不执行 swap。
+Raydium 现在也有一组原生状态案例：将 API v3 的池分页归一化为页面覆盖率、TVL、24 小时交易量/手续费、头部池集中度、价格和换手率。
+Python monitor/recorder/replay 检验高换手的分散或集中状态是否持续，并提供有界 BTC 响应研究；分页不完整时始终保持 observe-only。
 同时新增稳定币 USDC/USDT rotation replay：统一处理 `USDCUSDT` 与 `USDTUSDC` 两种报价方向，检验 USDC 折溢价与 BTC
 之后方向是否对齐；不声称资金流因果，也不执行兑换。
 同系列还提供 `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short、
