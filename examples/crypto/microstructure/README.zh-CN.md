@@ -173,6 +173,20 @@ python3 examples/crypto/microstructure/crypto_supertrend_response_replay.py \
   --min-observations 5
 ```
 
+`crypto_adx_dmi_response_replay.py` 把公开的 ADX/DMI 叙事拆成可证伪的趋势强度研究：按明确的 Wilder 风格递推平滑真实波幅、+DM、-DM、+DI、-DI、DX 和 ADX，
+再把每个时点分为 `strong_bullish`、`strong_bearish`、`strong_mixed`、弱方向状态或 `range_or_mixed`。+DI/-DI 方向改变会单独保留为
+`bullish_di_cross` / `bearish_di_cross` 事件，并把强趋势与弱方向/区间控制组分开比较固定窗口的有符号、方向对齐和绝对响应。ADX 只描述历史方向性强度，不能证明延续、交易者意图、入场、止损或执行；周期 14 和阈值 25 只是敏感性起点。
+研究线索来自 [Binance Square 的 ADX/DMI 说明](https://www.binance.com/en/square/post/15751696197586)，预热与平滑边界对照
+[TradingView 的 DMI 计算说明](https://www.tradingview.com/support/solutions/43000502250-directional-movement-dmi/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_adx_dmi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --strength-threshold 25 --horizon-bars 8 \
+  --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

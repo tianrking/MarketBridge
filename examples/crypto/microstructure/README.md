@@ -65,6 +65,7 @@ Cases:
 - `crypto_keltner_channel_response_replay.py`: compares EMA/ATR channel breakouts, persistent outside states and inside-channel controls.
 - `crypto_donchian_channel_response_replay.py`: compares prior-range Donchian breakouts, persistent outside states and inside controls.
 - `crypto_supertrend_response_replay.py`: compares ATR-band Supertrend flips and persistent trend states with later fixed-horizon responses.
+- `crypto_adx_dmi_response_replay.py`: compares Wilder-style ADX strength and +DI/-DI direction states with weak-direction/range controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -613,6 +614,20 @@ python3 examples/crypto/microstructure/crypto_donchian_channel_response_replay.p
 python3 examples/crypto/microstructure/crypto_supertrend_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --atr-period 10 --multiplier 3 --horizon-bars 8 \
+  --min-observations 5
+```
+
+`crypto_adx_dmi_response_replay.py` 把公开的 ADX/DMI 叙事拆成可证伪的强度问题：按明确的 Wilder 风格递推平滑真实波幅、+DM、-DM、+DI、-DI、DX 和 ADX，
+再把当前时点分为 `strong_bullish`、`strong_bearish`、`strong_mixed`、弱方向或 `range_or_mixed`。+DI/-DI 方向改变会单独标记为
+`bullish_di_cross` / `bearish_di_cross`，并把强趋势与弱方向/区间控制组分开比较固定窗口的有符号、方向对齐和绝对响应。ADX 只描述历史方向性强度，不证明延续、意图、入场或执行；周期和 25 阈值只是敏感性起点。
+研究线索来自 [Binance Square 的 ADX/DMI 说明](https://www.binance.com/en/square/post/15751696197586)，公式和预热/平滑边界对照
+[TradingView 的 DMI 计算说明](https://www.tradingview.com/support/solutions/43000502250-directional-movement-dmi/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_adx_dmi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --strength-threshold 25 --horizon-bars 8 \
   --min-observations 5
 ```
 

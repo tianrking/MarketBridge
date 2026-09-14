@@ -216,6 +216,26 @@ python3 examples/crypto/microstructure/crypto_supertrend_response_replay.py \
   --min-observations 5
 ```
 
+`crypto_adx_dmi_response_replay.py` turns the public ADX/DMI story into a
+falsifiable strength study. It applies an explicit Wilder-style recursive
+smoothing convention to true range, +DM, -DM, +DI, -DI, DX and ADX, then groups
+each as-of bar into `strong_bullish`, `strong_bearish`, `strong_mixed`, weak
+directional states, or `range_or_mixed`. A +DI/-DI direction change is retained
+as a separate `bullish_di_cross` or `bearish_di_cross` event; strong states are
+compared with weak-direction/range controls over a fixed horizon. ADX describes historical directional
+strength; it does not prove continuation, intent, entry, stop or execution.
+Period 14 and threshold 25 are sensitivity starting points. The research lead
+is [Binance Square's ADX/DMI note](https://www.binance.com/en/square/post/15751696197586);
+warmup and smoothing boundaries are cross-checked against [TradingView's DMI calculation](https://www.tradingview.com/support/solutions/43000502250-directional-movement-dmi/),
+and candle fields use [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_adx_dmi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 14 --strength-threshold 25 --horizon-bars 8 \
+  --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

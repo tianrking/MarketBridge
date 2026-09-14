@@ -957,6 +957,21 @@ execution edge. Provenance: the unverified [anchored VWAP discussion on
 X](https://x.com/Jake__Wujastyk/status/1873917626638098894), cross-checked with
 [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 
+## 2026-09-14 — ADX/DMI response replay
+
+Added `crypto_adx_dmi_response_replay.py` under the microstructure family.
+The Python case uses an explicit Wilder-style smoothing convention for true
+range, directional movement, DI, DX and ADX. It keeps strength and direction
+separate, labels +DI/-DI crosses, and compares strong directional states with
+weak-direction/range controls over a fixed future horizon. Periods, the ADX
+threshold and provider coverage remain visible; the example never turns a
+cross into an entry, stop, forecast, wallet action or order.
+
+Provenance: the public [Binance Square ADX/DMI note](https://www.binance.com/en/square/post/15751696197586)
+is an unverified research lead. Formula and warmup boundaries are cross-checked
+against [TradingView's DMI calculation](https://www.tradingview.com/support/solutions/43000502250-directional-movement-dmi/)
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — footprint imbalance persistence monitor
 
 Added Python monitor/recorder/replay entrypoints for the existing
