@@ -252,7 +252,7 @@ local pacing, not proof of a provider's undocumented account or IP policy. It
 does not rotate proxies or promise zero throttling. Configuration remains
 startup-only; hot reload and general event/pagination mappings are not
 implemented yet.
-# Continuous research workspace (unreleased extension)
+## Continuous research workspace (unreleased extension)
 
 In addition to the original endpoints below, the current source exposes:
 
