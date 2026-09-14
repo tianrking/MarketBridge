@@ -13,6 +13,7 @@
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
 | Session-range replay | `crypto_opening_range_breakout_response_replay.py` |
 | Profile/VWAP/OI confluence | `crypto_profile_vwap_oi_response_replay.py` |
+| Weekend reference replay | `crypto_weekend_gap_response_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
@@ -132,6 +133,29 @@ python3 examples/crypto/microstructure/crypto_profile_vwap_oi_response_replay.py
   --lookback-bars 48 --bins 24 --value-area-fraction 0.70 \
   --min-oi-change-pct 0.10 --oi-lookback-bars 12 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_weekend_gap_response_replay.py` treats the familiar CME-gap story as
+a historical reference-window test, not a live gap-filling strategy. In
+`America/Chicago`, it pairs the Friday 15:00 candle close (the 16:00 reference
+close) with the Sunday 17:00 candle open, measures the continuous-venue
+dislocation, and checks whether the next complete fixed-bar path touches the
+Friday reference. Large up/down dislocations are compared with small-
+dislocation controls. Missing candles are skipped, daylight-saving conversion
+is explicit, and the output keeps the gap direction, touch label and forward
+path separate.
+
+This boundary matters because [CME's 24/7 cryptocurrency derivatives
+discussion](https://www.cmegroup.com/articles/2026/aligning-cryptocurrency-derivatives-with-spot-markets-measuring-the-247-trading-opportunity.html)
+describes a changing schedule; MarketBridge does not claim that a live CME gap
+still exists. The research lead is [Daan Crypto Trades' public X observation](https://x.com/DaanCrypto/status/2036105463964590562),
+and candle fields follow [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_weekend_gap_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --timezone America/Chicago --days 730 --limit 1500 --pages 12 --min-gap-bps 50 \
+  --fill-tolerance-bps 5 --horizon-bars 24 --min-observations 5
 ```
 
 `crypto_ichimoku_cloud_response_replay.py` implements an as-of Ichimoku

@@ -51,6 +51,7 @@ Cases:
 - `crypto_session_filter.py`: VWAP/EMA/MACD/volume session-window filter replay.
 - `crypto_session_momentum_replay.py`: historical fixed-horizon test of the session VWAP/EMA/MACD/volume confluence.
 - `crypto_weekday_hour_effect_replay.py`: matched-clock test of a selected UTC weekday/hour against other weekdays at the same hour.
+- `crypto_weekend_gap_response_replay.py`: compares historical Friday-close/Sunday-open reference dislocations and reference-touch rates with small-dislocation controls.
 - `crypto_vwap_deviation_reversion_replay.py`: prior UTC-session VWAP deviation followed by a cross-back versus fixed-horizon directional response.
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.

@@ -13,6 +13,7 @@
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`liquidation_reversal_replay.py` |
 | 时段区间回放 | `crypto_opening_range_breakout_response_replay.py` |
 | Profile/VWAP/OI 共振 | `crypto_profile_vwap_oi_response_replay.py` |
+| 周末参考位移回放 | `crypto_weekend_gap_response_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
@@ -106,6 +107,24 @@ python3 examples/crypto/microstructure/crypto_profile_vwap_oi_response_replay.py
   --lookback-bars 48 --bins 24 --value-area-fraction 0.70 \
   --min-oi-change-pct 0.10 --oi-lookback-bars 12 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_weekend_gap_response_replay.py` 把常见的 CME gap 叙述收窄成历史参考时段检验，
+不是当前可执行的缺口回补策略。在 `America/Chicago` 时区，它把周五 15:00 开始、16:00
+结束的 K 线收盘价与周日 17:00 K 线开盘价配对，测量连续交易所价格位移，再检查后续完整
+固定窗口是否触及周五参考价。大幅向上/向下位移与小位移控制组分开，缺失 K 线跳过，夏令时
+转换显式输出，位移方向、触及标签和未来路径不会混为一谈。
+
+这个边界很重要：[CME 关于加密产品转向 24/7 的说明](https://www.cmegroup.com/articles/2026/aligning-cryptocurrency-derivatives-with-spot-markets-measuring-the-247-trading-opportunity.html)
+表明交易时段正在变化，MarketBridge 不声称当前仍存在实时 CME gap。研究线索来自
+[Daan Crypto Trades 在 X 的公开观察](https://x.com/DaanCrypto/status/2036105463964590562)，
+K 线字段对照 [Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_weekend_gap_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --timezone America/Chicago --days 730 --limit 1500 --pages 12 --min-gap-bps 50 \
+  --fill-tolerance-bps 5 --horizon-bars 24 --min-observations 5
 ```
 
 `crypto_ichimoku_cloud_response_replay.py` 实现 point-in-time Ichimoku 响应表：同时观察价格相对云层的位置、Tenkan/Kijun 关系、云颜色和 Chikou 对比；当前可见的 Senkou 云值只读取位移以前已经计算出的历史线，避免把未来投影云层当成当前已知数据。

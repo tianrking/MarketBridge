@@ -1030,6 +1030,7 @@ EMA(9/21), MACD acceleration and volume confirmation, then measures the next
 fixed candle horizon with an explicit paper-cost hurdle. Provenance: the
 unverified [15-minute VWAP/EMA/MACD/volume discussion on X](https://x.com/Gustafssonkotte/status/2030566353178882122)
 and [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 No execution path was added.
 
 ## 2026-09-14 — stablecoin depeg-risk event study
@@ -2164,3 +2165,31 @@ VWAP and OI reference on X](https://x.com/Yuriy_Biko/status/2019758474754691106)
 Definitions are bounded by [TradingView's volume-profile concepts](https://www.tradingview.com/support/solutions/43000502040-volume-profile-indicators-basic-concepts/),
 [TradingView's VWAP calculation](https://www.tradingview.com/support/solutions/43000502018-volume-weighted-average-price-vwap/),
 and [Binance's official open-interest statistics documentation](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics).
+
+## 2026-09-14 — Historical weekend-reference dislocation replay
+
+Added `crypto_weekend_gap_response_replay.py` under the microstructure family.
+The Python case pairs a Friday 16:00 America/Chicago reference close with a
+Sunday 17:00 reference open using continuous Binance candles, then compares
+large up/down dislocations with small-dislocation controls and reports whether
+the Friday reference was touched during a complete forward window. It is a
+historical schedule proxy, not CME market data or a live gap-fill strategy;
+timezone/DST conversion, missing bars, reference-touch semantics and sample
+coverage remain explicit.
+
+Provenance: the public lead is [Daan Crypto Trades' CME-gap observation on X](https://x.com/DaanCrypto/status/2036105463964590562),
+while [CME's 24/7 cryptocurrency derivatives discussion](https://www.cmegroup.com/articles/2026/aligning-cryptocurrency-derivatives-with-spot-markets-measuring-the-247-trading-opportunity.html)
+is used as a schedule-change warning. Continuous candle fields follow
+[Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — bounded Binance history pagination for research windows
+
+The weekend replay exposed that a long requested range could silently arrive
+as one provider page. Added read-only `pages` support to the Rust history data
+plane for Binance OHLC candle variants (1–48 sequential windows) and Binance
+historical open interest (1–96 windows). Each request is bounded by the
+caller-supplied `limit`, windows are non-overlapping and filtered back to the
+requested timestamps, and `coverage_detail` now reports `requested_pages`.
+Other providers retain their existing provider-specific limits. Added route
+tests for window partitioning, default bounds and coverage metadata; no order,
+wallet, signing or execution capability was introduced.

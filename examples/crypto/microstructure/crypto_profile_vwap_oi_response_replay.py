@@ -263,7 +263,9 @@ def main():
     parser.add_argument("--oi-interval", default="5m")
     parser.add_argument("--days", type=float, default=30.0)
     parser.add_argument("--limit", type=int, default=1500)
-    parser.add_argument("--oi-limit", type=int, default=1500)
+    parser.add_argument("--pages", type=int, default=1)
+    parser.add_argument("--oi-limit", type=int, default=500)
+    parser.add_argument("--oi-pages", type=int, default=1)
     parser.add_argument("--lookback-bars", type=int, default=48)
     parser.add_argument("--bins", type=int, default=24)
     parser.add_argument("--value-area-fraction", type=float, default=0.70)
@@ -277,7 +279,8 @@ def main():
     args = parser.parse_args()
     candle_ms = interval_millis(args.interval)
     oi_ms = interval_millis(args.oi_interval)
-    if (args.days <= 0 or not 2 <= args.limit <= 1500 or not 2 <= args.oi_limit <= 1500
+    if (args.days <= 0 or not 2 <= args.limit <= 1500 or not 1 <= args.pages <= 48
+            or not 2 <= args.oi_limit <= 500 or not 1 <= args.oi_pages <= 96
             or args.lookback_bars < 2 or args.bins < 2 or not 0 < args.value_area_fraction <= 1
             or not 0 <= args.low_volume_quantile <= 1 or args.min_oi_change_pct < 0
             or args.oi_lookback_bars <= 0 or args.max_oi_age_bars < 0
@@ -290,10 +293,12 @@ def main():
         "exchange": args.exchange, "market": args.market, "symbol": args.symbol,
         "candle_type": "perp", "interval": args.interval, "start_ms": start_ms,
         "end_ms": end_ms, "limit": args.limit,
+        "pages": args.pages,
     }, args.timeout)
     oi_payload = fetch(args.base_url, "/v1/history/open-interest", {
         "exchange": args.oi_exchange, "symbol": args.symbol, "start_ms": start_ms,
         "end_ms": end_ms, "interval": args.oi_interval, "limit": args.oi_limit,
+        "pages": args.oi_pages,
     }, args.timeout)
     rows = candle_rows(candle_payload)
     oi = oi_points(oi_payload)
@@ -322,6 +327,7 @@ def main():
                    "oi_exchange": args.oi_exchange, "oi_interval": args.oi_interval},
         "window": {"start_ms": start_ms, "end_ms": end_ms, "days": args.days},
         "filters": {"lookback_bars": args.lookback_bars, "bins": args.bins,
+                    "pages": args.pages, "oi_pages": args.oi_pages,
                     "value_area_fraction": args.value_area_fraction,
                     "low_volume_quantile": args.low_volume_quantile,
                     "min_oi_change_pct": args.min_oi_change_pct,

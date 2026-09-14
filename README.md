@@ -1375,6 +1375,7 @@ Query params:
 - `interval=1m|3m|5m|15m|30m|1h|4h|1d`, where supported by the venue
 - `start_ms`, `end_ms`
 - `limit`
+- `pages` (Binance candle history only; bounded sequential windows, 1–48)
 - `persist=true|false`
 
 Examples:
@@ -1386,6 +1387,13 @@ curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&ca
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=coinbase&symbol=BTCUSDT&candle_type=spot&interval=1h&limit=300" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate&limit=100" | jq
 ```
+
+For longer Binance candle studies, use `pages=N` with explicit time bounds;
+each page requests another non-overlapping provider window and the response's
+`coverage_detail` reports the requested page count. Historical Binance OI uses
+the same bounded `pages` parameter with a 1–96 limit. These are data-retrieval
+windows, not completeness guarantees: provider retention and truncation remain
+visible in the response.
 
 ### `GET /v1/history/volatility-index`
 

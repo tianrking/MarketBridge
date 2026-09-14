@@ -22,6 +22,7 @@ pub struct HistoryCandlesQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
     persist: Option<bool>,
 }
 
@@ -50,6 +51,7 @@ pub struct HistoryOpenInterestQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -734,9 +736,10 @@ fn taker_volume_coverage_detail(rows: &[Value], q: &HistoryTakerVolumeQuery) -> 
 }
 
 fn open_interest_coverage_detail(rows: &[Value], q: &HistoryOpenInterestQuery) -> Value {
-    let page_limit = q.limit.unwrap_or(100);
+    let page_limit = q.limit.unwrap_or(100).clamp(1, 500);
     serde_json::json!({
         "status": open_interest_coverage_status(rows.len(), page_limit),
+        "requested_pages": q.pages.unwrap_or(1).clamp(1, 96),
         "requested_start_ms": q.start_ms,
         "requested_end_ms": q.end_ms,
         "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
@@ -881,6 +884,7 @@ fn candle_coverage_detail(rows: &[KlineBar], q: &HistoryCandlesQuery) -> Value {
     };
     serde_json::json!({
         "status": candle_coverage_status(rows.len(), page_limit),
+        "requested_pages": q.pages.unwrap_or(1).clamp(1, 48),
         "requested_start_ms": q.start_ms,
         "requested_end_ms": q.end_ms,
         "covered_start_ms": rows.iter().map(|row| row.open_time_ms).min(),
@@ -1019,7 +1023,10 @@ async fn fetch_binance_history(
         return fetch_binance_funding_rate(http, q).await;
     }
     let interval = q.interval.as_deref().unwrap_or("1m");
-    let limit = q.limit.unwrap_or(500).clamp(1, 1500).to_string();
+    let interval_ms = interval_to_ms(interval).context("unsupported Binance candle interval")?;
+    let page_limit = q.limit.unwrap_or(500).clamp(1, 1500);
+    let limit = page_limit.to_string();
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
     let symbol = q.symbol.trim().to_ascii_uppercase();
     let (url, symbol_key, market, source) = match candle_type {
         "spot" => (
@@ -1054,38 +1061,85 @@ async fn fetch_binance_history(
         ),
         other => bail!("unsupported binance candle_type: {other}"),
     };
-    let mut request = http.get(url).query(&[
-        (symbol_key, symbol.as_str()),
-        ("interval", interval),
-        ("limit", limit.as_str()),
-    ]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, interval_ms, page_limit, pages)
+    {
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let request = http.get(url).query(&[
+            (symbol_key, symbol.as_str()),
+            ("interval", interval),
+            ("limit", limit.as_str()),
+            ("startTime", start_query.as_str()),
+            ("endTime", end_query.as_str()),
+        ]);
+        let payload = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Vec<Value>>>()
+            .await
+            .context("failed to parse binance historical candles")?;
+        let parsed = payload
+            .into_iter()
+            .map(|row| {
+                parse_binance_array_row(
+                    "binance",
+                    market,
+                    &symbol,
+                    interval,
+                    source,
+                    row,
+                    matches!(candle_type, "spot" | "futures" | "perp"),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        rows.extend(parsed.into_iter().filter(|row| {
+            q.start_ms.is_none_or(|start| row.open_time_ms >= start)
+                && q.end_ms.is_none_or(|end| row.open_time_ms <= end)
+        }));
     }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
+    Ok(rows)
+}
+
+fn history_windows(
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    interval_ms: u64,
+    page_limit: usize,
+    pages: usize,
+) -> Vec<(u64, u64)> {
+    if interval_ms == 0 || page_limit == 0 || pages == 0 {
+        return Vec::new();
     }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Vec<Value>>>()
-        .await
-        .context("failed to parse binance historical candles")?;
-    payload
-        .into_iter()
-        .map(|row| {
-            parse_binance_array_row(
-                "binance",
-                market,
-                &symbol,
-                interval,
-                source,
-                row,
-                matches!(candle_type, "spot" | "futures" | "perp"),
-            )
-        })
-        .collect()
+    let end = end_ms.unwrap_or_else(now_ms);
+    let total_bars = (page_limit as u64).saturating_mul(pages as u64);
+    let default_start =
+        end.saturating_sub(interval_ms.saturating_mul(total_bars.saturating_sub(1)));
+    let start = start_ms.unwrap_or(default_start);
+    if start > end {
+        return Vec::new();
+    }
+    let window_span = interval_ms.saturating_mul((page_limit.saturating_sub(1)) as u64);
+    let mut cursor = start;
+    let mut windows = Vec::with_capacity(pages);
+    for _ in 0..pages {
+        if cursor > end {
+            break;
+        }
+        let window_end = cursor.saturating_add(window_span).min(end);
+        windows.push((cursor, window_end));
+        if window_end >= end {
+            break;
+        }
+        let next = window_end.saturating_add(interval_ms);
+        if next <= cursor {
+            break;
+        }
+        cursor = next;
+    }
+    windows
 }
 
 async fn fetch_binance_funding_rate(
@@ -1613,35 +1667,42 @@ async fn fetch_binance_open_interest(
 ) -> Result<Vec<Value>> {
     let symbol = q.symbol.trim().to_ascii_uppercase();
     let interval = q.interval.as_deref().unwrap_or("5m");
-    let limit = q.limit.unwrap_or(100).clamp(1, 500).to_string();
-    let mut request = http
-        .get("https://fapi.binance.com/futures/data/openInterestHist")
-        .query(&[
-            ("symbol", symbol.as_str()),
-            ("period", interval),
-            ("contractType", "PERPETUAL"),
-            ("limit", limit.as_str()),
-        ]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
-    }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Value>>()
-        .await
-        .context("failed to parse binance open-interest history")?;
-    payload
-        .into_iter()
-        .map(|row| {
+    let interval_ms = interval_to_ms(interval).context("unsupported Binance OI interval")?;
+    let page_limit = q.limit.unwrap_or(100).clamp(1, 500);
+    let pages = q.pages.unwrap_or(1).clamp(1, 96);
+    let limit_query = page_limit.to_string();
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, interval_ms, page_limit, pages)
+    {
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let payload = http
+            .get("https://fapi.binance.com/futures/data/openInterestHist")
+            .query(&[
+                ("symbol", symbol.as_str()),
+                ("period", interval),
+                ("contractType", "PERPETUAL"),
+                ("limit", limit_query.as_str()),
+                ("startTime", start_query.as_str()),
+                ("endTime", end_query.as_str()),
+            ])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Value>>()
+            .await
+            .context("failed to parse binance open-interest history")?;
+        for row in payload {
             let ts_ms = value_u64(row.get("timestamp")).context("missing binance OI timestamp")?;
+            if q.start_ms.is_some_and(|start| ts_ms < start)
+                || q.end_ms.is_some_and(|end| ts_ms > end)
+            {
+                continue;
+            }
             let open_interest =
                 value_f64(row.get("sumOpenInterest")).context("missing binance open interest")?;
-            Ok(serde_json::json!({
+            rows.push(serde_json::json!({
                 "exchange": "binance",
                 "symbol": symbol,
                 "open_interest": open_interest,
@@ -1649,9 +1710,10 @@ async fn fetch_binance_open_interest(
                 "unit": "provider_contracts",
                 "ts_ms": ts_ms,
                 "source": "binance_open_interest_hist"
-            }))
-        })
-        .collect()
+            }));
+        }
+    }
+    Ok(rows)
 }
 
 async fn fetch_binance_taker_volume(
@@ -2842,6 +2904,7 @@ mod tests {
             start_ms: Some(1),
             end_ms: Some(3),
             limit: Some(2),
+            pages: None,
         };
         let rows = vec![
             serde_json::json!({"ts_ms": 1, "open_interest": 1.0}),
@@ -2854,6 +2917,19 @@ mod tests {
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")
         );
+        assert_eq!(detail["requested_pages"], serde_json::json!(1));
+    }
+
+    #[test]
+    fn history_windows_partition_requested_candle_range_without_overlap() {
+        let windows = history_windows(Some(0), Some(9), 1, 4, 3);
+        assert_eq!(windows, vec![(0, 3), (4, 7), (8, 9)]);
+    }
+
+    #[test]
+    fn history_windows_default_range_is_bounded_by_page_count() {
+        let windows = history_windows(None, Some(9), 1, 4, 2);
+        assert_eq!(windows, vec![(2, 5), (6, 9)]);
     }
 
     #[test]
@@ -3074,6 +3150,7 @@ mod tests {
             start_ms: Some(10),
             end_ms: Some(30),
             limit: Some(2),
+            pages: None,
             persist: None,
         };
         let first = KlineBar {
@@ -3101,6 +3178,7 @@ mod tests {
         let detail = candle_coverage_detail(&rows, &query);
         assert_eq!(detail["covered_start_ms"], serde_json::json!(10));
         assert_eq!(detail["covered_end_ms"], serde_json::json!(30));
+        assert_eq!(detail["requested_pages"], serde_json::json!(1));
         assert_eq!(
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")

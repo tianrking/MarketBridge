@@ -161,9 +161,9 @@ Short version:
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
 | Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |
 | Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to the local Arrow IPC lake. |
-| History candles | `/v1/history/candles` | Binance/OKX/Bybit/Coinbase public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; Coinbase is spot-only with the public Exchange candles page capped at 300 rows. Bounded `coverage_detail` reports requested/covered range and possible page truncation. |
+| History candles | `/v1/history/candles` | Binance/OKX/Bybit/Coinbase public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; Binance OHLC candle requests accept bounded `pages` (1–48) for sequential time windows, while Coinbase is spot-only and capped at 300 rows. `coverage_detail` reports requested/covered range, requested pages and possible truncation. |
 | Historical liquidations | `/v1/history/liquidations` | OKX/CoinEx public liquidation history | raw normalized | Bounded recent liquidation details with normalized side, position side, price, quantity and timestamp; `coverage_detail` reports the requested/covered range and possible page truncation. |
-| Historical open interest | `/v1/history/open-interest` | Binance/Bybit/OKX public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; OKX contract history is a base-currency aggregate with provider USD units; not a long/short split. |
+| Historical open interest | `/v1/history/open-interest` | Binance/Bybit/OKX public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; Binance accepts bounded `pages` (1–96) for sequential windows; OKX contract history is a base-currency aggregate with provider USD units; not a long/short split. |
 | Historical account ratio | `/v1/history/account-ratio` | Binance/Bybit public positioning context | raw normalized | Provider-specific account/holder ratios with normalized imbalance, source semantics and bounded coverage; Binance accepts `scope=global / top_trader`; not notional positioning or trader intent. |
 | Historical option volatility | `/v1/history/historical-volatility` | Bybit public option market | raw normalized | Hourly provider historical-volatility values by base/quote coin and supported period; paired time bounds and coverage are explicit; not implied volatility or a forecast. |
 | Historical volatility index | `/v1/history/volatility-index` | Deribit public volatility index | raw normalized | Bounded OHLC candles for supported currencies and resolutions; provider regime context, not a complete surface or forecast. |
@@ -305,6 +305,21 @@ Examples:
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark&interval=1m&limit=1000&persist=true" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
 ```
+
+For long Binance OHLCV research windows, pass `pages=N`. Each page is a
+non-overlapping provider time window of at most `limit` candles; the endpoint
+still returns bounded public history and never promises provider retention.
+For example, twelve 1h pages of 1,500 candles cover roughly 750 days when the
+provider has that history:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=perp&interval=1h&start_ms=1726314906341&end_ms=1789386906341&limit=1500&pages=12" | jq '.coverage_detail'
+```
+
+`/v1/history/open-interest` uses the same `start_ms`, `end_ms`, `limit` and
+`pages` concept for Binance (up to 96 bounded windows). Other providers keep
+their provider-specific pagination behavior; always inspect `coverage_detail`
+before treating a sample as complete.
 
 Manifest and deletion:
 
