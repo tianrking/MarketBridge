@@ -75,6 +75,15 @@ pub struct HistoryHistoricalVolatilityQuery {
 }
 
 #[derive(Debug, Deserialize, Default)]
+pub struct HistoryVolatilityIndexQuery {
+    currency: String,
+    resolution: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct HistoryBasisQuery {
     exchange: String,
     symbol: String,
@@ -114,6 +123,11 @@ struct HistoricalTradesResult {
 struct AccountRatioResult {
     rows: Vec<Value>,
     next_page_cursor: Option<String>,
+}
+
+struct VolatilityIndexResult {
+    rows: Vec<Value>,
+    continuation: Option<u64>,
 }
 
 pub async fn trades(
@@ -346,6 +360,39 @@ pub async fn historical_volatility(
     }
 }
 
+pub async fn volatility_index(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryVolatilityIndexQuery>,
+) -> impl IntoResponse {
+    match fetch_deribit_volatility_index(&state.http, &q).await {
+        Ok(result) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_volatility_index",
+            "exchange": "deribit",
+            "currency": q.currency,
+            "resolution": q.resolution.clone().unwrap_or_else(|| "3600".to_string()),
+            "coverage": "bounded_public_history",
+            "coverage_detail": volatility_index_coverage_detail(&result.rows, &q, result.continuation),
+            "rows": result.rows,
+            "limitations": [
+                "Deribit volatility-index candles are provider observations, not an implied-volatility surface or forecast",
+                "provider retention, resolution and continuation are bounded; inspect coverage_detail before treating a page as complete",
+                "the endpoint does not model option positions, hedges, fees, PnL or execution"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_volatility_index",
+            "exchange": "deribit",
+            "currency": q.currency,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
 pub async fn basis(
     State(state): State<Arc<ApiState>>,
     Query(q): Query<HistoryBasisQuery>,
@@ -411,6 +458,24 @@ fn historical_volatility_coverage_detail(
         "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
         "returned_rows": rows.len(),
         "period_days": q.period,
+    })
+}
+
+fn volatility_index_coverage_detail(
+    rows: &[Value],
+    q: &HistoryVolatilityIndexQuery,
+    continuation: Option<u64>,
+) -> Value {
+    let page_limit = q.limit.unwrap_or(500).clamp(1, 1_000);
+    serde_json::json!({
+        "status": if continuation.is_some() || rows.len() >= page_limit { "provider_page_may_be_truncated" } else if rows.is_empty() { "empty_or_provider_limited" } else { "bounded_single_page" },
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+        "continuation": continuation,
     })
 }
 
@@ -1545,6 +1610,109 @@ async fn fetch_bybit_historical_volatility(
         .collect()
 }
 
+async fn fetch_deribit_volatility_index(
+    http: &reqwest::Client,
+    q: &HistoryVolatilityIndexQuery,
+) -> Result<VolatilityIndexResult> {
+    let currency = q.currency.trim().to_ascii_uppercase();
+    if !matches!(currency.as_str(), "BTC" | "ETH" | "USDC" | "USDT" | "EURR") {
+        bail!("unsupported Deribit volatility-index currency: {currency}");
+    }
+    let resolution = q.resolution.as_deref().unwrap_or("3600").trim().to_string();
+    if !matches!(resolution.as_str(), "1" | "60" | "3600" | "43200" | "1D") {
+        bail!("unsupported Deribit volatility-index resolution: {resolution}");
+    }
+    let end_ms = q.end_ms.unwrap_or_else(now_ms);
+    let start_ms = q
+        .start_ms
+        .unwrap_or_else(|| end_ms.saturating_sub(30 * 86_400_000));
+    if end_ms < start_ms {
+        bail!("Deribit volatility-index end_ms must be >= start_ms");
+    }
+    let payload = http
+        .post("https://www.deribit.com/api/v2/public/get_volatility_index_data")
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "public/get_volatility_index_data",
+            "params": {
+                "currency": currency,
+                "start_timestamp": start_ms,
+                "end_timestamp": end_ms,
+                "resolution": resolution,
+            }
+        }))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse Deribit volatility-index response")?;
+    if let Some(error) = payload.get("error") {
+        bail!(
+            "Deribit volatility-index error: {}",
+            error
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let raw_rows = payload
+        .pointer("/result/data")
+        .and_then(Value::as_array)
+        .context("Deribit volatility-index response missing result.data")?;
+    let mut rows = raw_rows
+        .iter()
+        .map(|row| normalize_deribit_volatility_index_row(row, &currency, &resolution))
+        .collect::<Result<Vec<_>>>()?;
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    let limit = q.limit.unwrap_or(500).clamp(1, 1_000);
+    if rows.len() > limit {
+        rows.drain(..rows.len() - limit);
+    }
+    Ok(VolatilityIndexResult {
+        rows,
+        continuation: payload
+            .pointer("/result/continuation")
+            .and_then(|value| value_u64(Some(value))),
+    })
+}
+
+fn normalize_deribit_volatility_index_row(
+    row: &Value,
+    currency: &str,
+    resolution: &str,
+) -> Result<Value> {
+    let values = row
+        .as_array()
+        .context("Deribit volatility-index candle must be an array")?;
+    if values.len() < 5 {
+        bail!("Deribit volatility-index candle must contain timestamp and OHLC values");
+    }
+    let ts_ms = value_u64(values.first()).context("missing Deribit volatility-index timestamp")?;
+    let open = value_f64(values.get(1)).context("missing Deribit volatility-index open")?;
+    let high = value_f64(values.get(2)).context("missing Deribit volatility-index high")?;
+    let low = value_f64(values.get(3)).context("missing Deribit volatility-index low")?;
+    let close = value_f64(values.get(4)).context("missing Deribit volatility-index close")?;
+    if [open, high, low, close]
+        .iter()
+        .any(|value| !value.is_finite() || *value < 0.0)
+    {
+        bail!("Deribit volatility-index OHLC values must be finite and non-negative");
+    }
+    Ok(serde_json::json!({
+        "exchange": "deribit",
+        "currency": currency,
+        "resolution": resolution,
+        "ts_ms": ts_ms,
+        "open": open,
+        "high": high,
+        "low": low,
+        "close": close,
+        "source": "deribit_volatility_index"
+    }))
+}
+
 async fn fetch_binance_basis(http: &reqwest::Client, q: &HistoryBasisQuery) -> Result<Vec<Value>> {
     let pair = q.symbol.trim().to_ascii_uppercase();
     let contract_type = q
@@ -2442,5 +2610,45 @@ mod tests {
         assert_eq!(detail["returned_rows"], serde_json::json!(1));
         assert_eq!(detail["covered_start_ms"], serde_json::json!(1234));
         assert_eq!(detail["status"], serde_json::json!("bounded_single_page"));
+    }
+
+    #[test]
+    fn normalizes_deribit_volatility_index_ohlc_and_continuation() {
+        let row = normalize_deribit_volatility_index_row(
+            &serde_json::json!([1234, "40.0", 45.0, 39.5, "42.0"]),
+            "BTC",
+            "3600",
+        )
+        .expect("normalized Deribit volatility-index row");
+        assert_eq!(row["exchange"], serde_json::json!("deribit"));
+        assert_eq!(row["currency"], serde_json::json!("BTC"));
+        assert_eq!(row["ts_ms"], serde_json::json!(1234));
+        assert_eq!(row["close"], serde_json::json!(42.0));
+        let query = HistoryVolatilityIndexQuery {
+            currency: "BTC".to_string(),
+            resolution: Some("3600".to_string()),
+            start_ms: Some(1000),
+            end_ms: Some(2000),
+            limit: Some(10),
+        };
+        let detail = volatility_index_coverage_detail(&[row], &query, Some(3000));
+        assert_eq!(detail["returned_rows"], serde_json::json!(1));
+        assert_eq!(detail["covered_start_ms"], serde_json::json!(1234));
+        assert_eq!(detail["continuation"], serde_json::json!(3000));
+        assert_eq!(
+            detail["status"],
+            serde_json::json!("provider_page_may_be_truncated")
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_deribit_volatility_index_candle() {
+        let error = normalize_deribit_volatility_index_row(
+            &serde_json::json!([1234, 40.0, 45.0]),
+            "BTC",
+            "3600",
+        )
+        .expect_err("short volatility-index candle must be rejected");
+        assert!(error.to_string().contains("must contain timestamp"));
     }
 }

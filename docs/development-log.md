@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — Deribit volatility-index history and response replay
+
+Added the read-only `/v1/history/volatility-index` endpoint backed by
+Deribit's public `public/get_volatility_index_data` JSON-RPC method. It
+normalizes bounded OHLC candles, supported currencies/resolutions, provider
+continuation and explicit coverage metadata. Added
+`crypto_deribit_volatility_index_response_replay.py`, which classifies high,
+low and ordinary index states and compares later fixed-window BTC absolute
+responses against the ordinary bucket. It does not claim a complete option
+surface, a forecast, option PnL, hedging or execution.
+
+Provenance: the public [options-volatility regime lead on X](https://x.com/Gate_Launch/status/2063810805552845140)
+is an unverified research lead. Field and resolution semantics are cross-checked
+against [Deribit's official volatility-index history documentation](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data).
+
 ## 2026-09-14 — Binance global account-ratio scope
 
 Extended `/v1/history/account-ratio` with `scope=global|top_trader` for

@@ -79,6 +79,13 @@ provider volatility is followed by a different absolute movement distribution
 than ordinary observations. The provider value is not treated as implied
 volatility, a forecast, option PnL or a trade instruction.
 
+`crypto_deribit_volatility_index_response_replay.py` adds the separate Deribit
+volatility-index input. It classifies public index closes into configurable
+high, low and ordinary states, joins them to a fixed Binance price horizon, and
+compares absolute BTC responses against the ordinary bucket. It deliberately
+does not treat the index as a complete surface, a forecast, an option position
+or an execution signal.
+
 Provenance: the public [IV-minus-realized-volatility discussion on
 X](https://x.com/isellpremium/status/2072350364385349678) is treated as a
 research lead and cross-checked against the [Bitcoin-options risk-premia
@@ -103,6 +110,10 @@ and uses Bybit's first-party [Get Historical Volatility API](https://bybit-excha
 which documents hourly option historical-volatility values and bounded time windows.
 The X post is a research lead, not a performance claim; provider volatility is
 kept separate from implied volatility and no option position is modeled.
+The Deribit index response lead is cross-checked against Deribit's official
+[`public/get_volatility_index_data` documentation](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data),
+which defines the public OHLC candle fields, supported resolutions and bounded
+timestamps. The index remains provider context; no volatility trade is modeled.
 
 ## 中文
 
@@ -166,9 +177,15 @@ Gamma 响应案例保留公开的 [X 上 gamma wall 讨论](https://x.com/david_
 把每个小时的提供方波动率观测和有界 Binance 永续价格窗口配对，检验高/低波动率状态之后的绝对波动分布
 是否不同于普通状态。这里的 provider volatility 不是隐含波动率、预测、期权 PnL 或交易指令。
 
+`crypto_deribit_volatility_index_response_replay.py` 使用新增的 Deribit 公开波动率指数历史接口，
+把指数收盘值分成可配置的高、低和普通状态，再与固定窗口的 Binance BTC 价格响应配对，
+只比较绝对波动分布。它不会把指数当成完整曲面、预测、期权仓位或执行信号。
+
 出处：研究线索参考 [Glassnode 在 X 上的实现波动率状态观察](https://x.com/glassnode/status/1955218957490594099)，
 数据字段和小时频率以 Bybit 官方 [Get Historical Volatility API](https://bybit-exchange.github.io/docs/v5/market/iv)
 为准。X 内容不被当作收益证明，跨交易所价格只是响应对照。
+Deribit 指数字段、分辨率和时间窗口对照官方 [`public/get_volatility_index_data` 文档](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data)；
+它仍然只是提供方波动率上下文，不构造卖波动率、对冲或执行路径。
 
 ## Commands / 命令
 
@@ -178,6 +195,11 @@ python3 examples/crypto/options/crypto_historical_volatility_response_replay.py 
   --base-coin BTC --quote-coin USD --period 30 --days 30 \
   --price-symbol BTCUSDT --price-interval 1h \
   --low-threshold-pct 25 --high-threshold-pct 50 \
+  --horizon-bars 3 --min-observations 5
+python3 examples/crypto/options/crypto_deribit_volatility_index_response_replay.py \
+  --currency BTC --resolution 3600 --days 30 \
+  --price-symbol BTCUSDT --price-interval 1h \
+  --low-threshold 25 --high-threshold 75 \
   --horizon-bars 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_gamma_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 --max-book-fetches 24

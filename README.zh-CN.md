@@ -15,6 +15,10 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 永续合约的负资金费率筛选、逼空结构复核与归档流程见
 [逼空雷达实战指南](docs/user-guide/11-squeeze-radar.md)。
 
+期权系列还提供 Deribit 波动率指数历史响应回放：通过
+`/v1/history/volatility-index` 比较高、低和普通 provider 状态之后的 BTC 绝对波动，
+只做描述性研究，不建模波动率仓位或执行。
+
 [English README](README.md)
 
 ![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust)
@@ -514,6 +518,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles；支持 Binance、OKX、Bybit 和 Hyperliquid funding history，返回 `coverage_detail`，并附逐点 schedule。 |
 | GET | `/v1/history/liquidations` | OKX/CoinEx bounded recent public liquidation history，供回放使用；其他 venue 缺口保持显式。 |
 | GET | `/v1/history/open-interest` | Binance/Bybit 公开历史 OI 观察，保留 provider unit 和 `coverage_detail`；不代表多空方向。 |
+| GET | `/v1/history/volatility-index` | Deribit 公开波动率指数 OHLC 历史，用于波动率状态研究；不是预测或期权 PnL。 |
 | GET | `/v1/history/account-ratio` | Binance 全体账户/大户账户/大户仓位占比与 Bybit holder-count 多空比历史；用 `scope` 选择 Binance 语义，保留分页和覆盖信息，不是完整名义仓位账本。 |
 | GET | `/v1/history/historical-volatility` | Bybit 公开期权历史波动率，保留周期和时间覆盖；不是隐含波动率、预测或期权 PnL。 |
 | GET | `/v1/history/basis` | Binance 公开历史期货基差、basisRate、指数价和期货价；不是同步 bid/ask 或套利 PnL。 |
@@ -789,6 +794,30 @@ curl -s "http://127.0.0.1:8080/v1/market/order-flow?exchange=binance&market=perp
 ```bash
 curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&symbol=BTCUSDT&interval=1m&limit=100" | jq
 ```
+
+### `GET /v1/history/volatility-index`
+
+只读查询 Deribit 波动率指数 OHLC 历史。接口返回有界时间窗口、provider continuation
+和 `coverage_detail`，研究代码必须据此判断页面是否可能被截断。
+
+参数：
+
+- `currency=BTC|ETH|USDC|USDT|EURR`
+- `resolution=1|60|3600|43200|1D`，默认 `3600`
+- `start_ms`、`end_ms`：可选 Unix 毫秒；省略时查询最近 30 天
+- `limit`：默认 `500`，最大 `1000`
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/history/volatility-index?currency=BTC&resolution=3600&limit=500" | jq
+python3 examples/crypto/options/crypto_deribit_volatility_index_response_replay.py \
+  --currency BTC --resolution 3600 --days 30 --price-symbol BTCUSDT \
+  --price-interval 1h --low-threshold 25 --high-threshold 75 \
+  --horizon-bars 3 --min-observations 5
+```
+
+这是 provider 波动率上下文，不是完整期权曲面、预测、期权仓位、对冲、PnL 或执行模型。
 
 ### Options
 

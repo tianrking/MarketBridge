@@ -122,6 +122,10 @@ include carry/funding, microstructure/liquidation/liquidity stress,
 options/volatility, DeFi pool, on-chain transfer and cross-asset research. Each runner requests only the
 selected strategy's normalized inputs; the Rust server may still ingest every
 feed enabled in its runtime config.
+The options family also includes a Deribit volatility-index response replay
+over `/v1/history/volatility-index`; it compares high/low/ordinary provider
+index states with later BTC absolute movement and does not model a volatility
+position or execution.
 The carry family now also includes a funding-regime persistence replay: it
 tests consecutive extreme funding runs against later perp returns while
 keeping schedule gaps and the no-order boundary explicit.
@@ -896,6 +900,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars; can persist selected rows to the local Arrow IPC lake |
 | GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
 | GET | `/v1/history/open-interest` | Bounded public Binance/Bybit open-interest history |
+| GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC history |
 | GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance |
 | GET | `/v1/history/account-ratio` | Bounded public Binance global/top-trader account or top-trader position ratio (`scope`) and Bybit holder-count ratio with provider semantics and coverage metadata |
 | GET | `/v1/history/historical-volatility` | Bounded public Bybit option historical-volatility observations |
@@ -1330,6 +1335,32 @@ curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSD
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate&limit=100" | jq
 ```
+
+### `GET /v1/history/volatility-index`
+
+Read-only Deribit volatility-index OHLC history for a bounded timestamp
+window. The response keeps the provider continuation and coverage metadata so
+research code can distinguish a complete-looking page from a truncated one.
+
+Query params:
+
+- `currency=BTC|ETH|USDC|USDT|EURR`
+- `resolution=1|60|3600|43200|1D`, default `3600`
+- `start_ms`, `end_ms`, optional Unix milliseconds; defaults to the recent 30 days
+- `limit`, default `500`, maximum `1000`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/history/volatility-index?currency=BTC&resolution=3600&limit=500" | jq
+python3 examples/crypto/options/crypto_deribit_volatility_index_response_replay.py \
+  --currency BTC --resolution 3600 --days 30 --price-symbol BTCUSDT \
+  --price-interval 1h --low-threshold 25 --high-threshold 75 \
+  --horizon-bars 3 --min-observations 5
+```
+
+This is provider volatility context, not a complete option surface, forecast,
+option position, hedge, PnL or execution model.
 
 ### Local Arrow IPC Lake
 

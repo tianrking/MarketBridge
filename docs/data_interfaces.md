@@ -166,6 +166,7 @@ Short version:
 | Historical open interest | `/v1/history/open-interest` | Binance/Bybit public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; not a long/short split. |
 | Historical account ratio | `/v1/history/account-ratio` | Binance/Bybit public positioning context | raw normalized | Provider-specific account/holder ratios with normalized imbalance, source semantics and bounded coverage; Binance accepts `scope=global / top_trader`; not notional positioning or trader intent. |
 | Historical option volatility | `/v1/history/historical-volatility` | Bybit public option market | raw normalized | Hourly provider historical-volatility values by base/quote coin and supported period; paired time bounds and coverage are explicit; not implied volatility or a forecast. |
+| Historical volatility index | `/v1/history/volatility-index` | Deribit public volatility index | raw normalized | Bounded OHLC candles for supported currencies and resolutions; provider regime context, not a complete surface or forecast. |
 | Historical basis | `/v1/history/basis` | Binance public futures data | raw normalized | Provider basis, index/futures prices, basis rate and annualized rate with bounded coverage; not simultaneous bid/ask execution. |
 | Historical trades | `/v1/history/trades` | Binance aggregate trades / OKX history-trades | raw normalized | Bounded public trades with taker side, price, quantity, notional and timestamp for CVD research; `pages` requests bounded provider pages and `coverage_detail` reports partial/truncated windows. |
 | Basis | `/v1/market/basis` | quote snapshots | derived | Spot-perp basis per exchange/symbol. |
@@ -492,6 +493,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | On-demand special candle history; inspect `coverage_detail` before treating a bounded page as complete. |
 | GET | `/v1/history/liquidations` | Bounded public OKX/CoinEx liquidation history for research replay. |
 | GET | `/v1/history/open-interest` | Binance/Bybit historical open-interest observations. |
+| GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC candles for volatility-regime research. |
 | GET | `/v1/history/trades` | Binance/OKX historical public trades for order-flow/CVD research; use `pages=N` for bounded pagination and inspect `coverage_detail`. |
 | GET | `/v1/storage/manifest` | Local Arrow IPC lake manifest and quality metadata. |
 | DELETE | `/v1/storage/partitions` | Delete local lake partitions by filter. |

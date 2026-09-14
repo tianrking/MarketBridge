@@ -154,6 +154,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Inspect DefiLlama circulating stablecoin supply and chain distribution as read-only liquidity context.",
         },
         IntegrationCapability {
+            name: "deribit_volatility_index_history",
+            endpoint: "/v1/history/volatility-index",
+            purpose: "Fetch bounded public Deribit volatility-index OHLC history for volatility-regime research.",
+        },
+        IntegrationCapability {
             name: "storage_manifest",
             endpoint: "/v1/storage/manifest",
             purpose: "Inspect local lake coverage, file paths, watermarks, gaps, duplicates, and stale metrics.",
