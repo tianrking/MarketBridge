@@ -119,6 +119,19 @@ The ratio-based research lead is a [liquidation-aware backtesting framework](htt
 Event fields are cross-checked against [Binance's liquidation stream documentation](https://developers.binance.com/en/docs/derivatives/coin-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
 and [official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 
+## 2026-09-14 — Added cross-asset correlation response replay
+
+Added `crypto_cross_asset_correlation_response_replay.py` under the universe
+family. It aligns two candle series exactly, computes a point-in-time rolling
+Pearson correlation of close returns, labels low/middle/high co-movement, and
+compares later relative return and absolute relative movement. It does not
+choose a leader, infer causality, estimate a hedge ratio, or route a pairs
+trade.
+
+Research context is [CME's BTC/ETH correlation analysis](https://www.cmegroup.com/insights/economic-research/2023/three-factors-driving-the-ether-bitcoin-price-nexus.html)
+and [rolling-correlation research](https://www.tandfonline.com/doi/full/10.1080/01605682.2026.2671242);
+field semantics follow [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.

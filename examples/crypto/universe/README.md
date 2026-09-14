@@ -25,6 +25,21 @@ then starts the follower return only after the current timestamp. This keeps
 future follower information out of the feature; the output is an association
 study, not Granger causality, a portfolio or an execution signal.
 
+`crypto_cross_asset_correlation_response_replay.py` is complementary: it does
+not choose a leader. It computes point-in-time rolling Pearson correlation on
+aligned close returns, labels low/middle/high co-movement, and compares the
+next relative return and absolute relative movement. It does not imply a stable
+hedge ratio, mean reversion, causality or an executable pairs trade. Context:
+[CME's BTC/ETH correlation analysis](https://www.cmegroup.com/insights/economic-research/2023/three-factors-driving-the-ether-bitcoin-price-nexus.html)
+and [rolling-correlation research](https://www.tandfonline.com/doi/full/10.1080/01605682.2026.2671242).
+
+```bash
+python3 examples/crypto/universe/crypto_cross_asset_correlation_response_replay.py \
+  --exchange binance --first-symbol BTCUSDT --second-symbol ETHUSDT \
+  --interval 1h --days 365 --correlation-window 30 --horizon-bars 6 \
+  --low-correlation 0.30 --high-correlation 0.70 --min-observations 20
+```
+
 `crypto_global_market_regime_monitor.py` adds a provider-level macro snapshot:
 it classifies CoinGecko total-market change and BTC dominance as stress,
 BTC-dominant risk-on, broad risk-on or mixed context. This is a regime label to

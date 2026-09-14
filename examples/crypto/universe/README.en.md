@@ -13,6 +13,8 @@
   holdout studies.
 - `crypto_cross_asset_lead_lag_response_replay.py`: exact-timestamp leader
   return versus follower forward-response study.
+- `crypto_cross_asset_correlation_response_replay.py`: exact-timestamp rolling
+  return-correlation regimes versus later relative-response study.
 - `crypto_altcoin_breadth_replay.py` and `crypto_global_market_regime_*`:
   participation and provider-level global-market context.
 - `crypto_pairs_mean_reversion_replay.py`: fixed-parameter spread deviation and
@@ -52,6 +54,22 @@ The lead-lag replay uses only exact timestamp intersections. A leader move is
 known at the current candle, while the follower return starts afterward; this
 prevents using future follower information. It tests an association, not
 Granger causality, a tradable edge, or a portfolio rule.
+
+`crypto_cross_asset_correlation_response_replay.py` is complementary: it does
+not choose a leader. It computes Pearson correlation on current-and-prior
+aligned close returns, labels low/middle/high co-movement, and compares the
+next relative return and absolute relative movement. It does not imply a
+stable hedge ratio, mean reversion, causality, or executable pairs trade. The
+research context is [CME's BTC/ETH correlation analysis](https://www.cmegroup.com/insights/economic-research/2023/three-factors-driving-the-ether-bitcoin-price-nexus.html)
+and [rolling-correlation research](https://www.tandfonline.com/doi/full/10.1080/01605682.2026.2671242); candle fields follow
+[Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/universe/crypto_cross_asset_correlation_response_replay.py \
+  --exchange binance --first-symbol BTCUSDT --second-symbol ETHUSDT \
+  --interval 1h --days 365 --correlation-window 30 --horizon-bars 6 \
+  --low-correlation 0.30 --high-correlation 0.70 --min-observations 20
+```
 
 ```bash
 python3 examples/crypto/universe/crypto_trend_template_response_replay.py \
