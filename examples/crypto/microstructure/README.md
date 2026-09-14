@@ -25,6 +25,7 @@ Cases:
 - `crypto_trade_imbalance_bar_replay.py`: closes event bars at a fixed quote-notional threshold and compares strong signed taker imbalance with balanced bars over the next event bars.
 - `crypto_vpin_response_replay.py`: averages absolute signed imbalance across fixed-volume buckets and compares high-VPIN-proxy buckets with normal buckets by later absolute movement.
 - `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
+- `crypto_adl_risk_monitor.py`: observes Binance symbol-level high/medium/low ADL risk as liquidation-risk context, never as a directional signal.
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`: freeze aggregate CoinGlass context and require consecutive crowding states before promoting persistence.
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`: freeze the same context beside a price snapshot and compare signed fixed-record responses after long/short crowding, with a separate liquidation-qualified bucket.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
@@ -175,6 +176,11 @@ Provenance: the unverified public [OI/order-flow microstructure discussion on X]
 motivates the falsifiable pressure/response split, while the normalized fields
 are cross-checked against [Binance's official order-book documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)
 and [funding-rate documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+
+The ADL-risk monitor is grounded in Binance's first-party [ADL Risk API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/ADL-Risk),
+which describes a high/medium/low symbol-level provider rating updated about
+every 30 minutes. It is a liquidation-risk context snapshot, not a forecast,
+private account metric or execution signal.
 
 The spot/perp depth-gap response recorder/replay is a separate temporal test.
 It adds a perpetual MarketBridge quote to each depth/basis snapshot, then
@@ -328,6 +334,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_trade_imbalance_bar_replay.py`：按固定名义金额阈值（或交易笔数上限）构造事件条，比较强主动买卖不平衡与普通平衡事件条之后的事件时间收益。
 - `crypto_vpin_response_replay.py`：按固定成交量桶计算滚动绝对主动买卖不平衡均值，比较高 VPIN 代理状态与普通状态之后的绝对波动。
 - `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short 与清算上下文，不把聚合指标解释成持仓归属。
+- `crypto_adl_risk_monitor.py`：读取 Binance symbol-level 高/中/低 ADL 风险等级，只作为清算风险上下文，不作为方向信号。
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`：记录 CoinGlass 聚合情绪并要求连续拥挤状态后才报告持续性。
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`：把同一聚合上下文和价格快照一起冻结，比较多头/空头拥挤后的固定记录窗口签名收益，并单独统计伴随清算的样本。
 - `crypto_spot_perp_depth_gap_monitor.py`：比较同交易所现货/永续的目标规模深度与冲击。
@@ -400,6 +407,10 @@ generic microstructure response recorder/replay 与目标规模深度差和流�
 出处：未经验证的 [X 上 OI/订单流微结构讨论](https://x.com/xwinfinance/status/2023155692916646257)
 只用于提出压力/响应的可证伪拆分；盘口字段对照 [Binance 官方 order-book 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Order-Book)，
 资金费率字段对照 [官方 funding-rate 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
+
+ADL 风险监控依据 Binance 官方 [ADL Risk API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/ADL-Risk)，
+文档说明它是约每 30 分钟更新的 symbol-level 高/中/低提供方等级。这里仅作为清算风险上下文，
+不是价格预测、私人账户风险或执行信号。
 
 spot/perp depth-gap response recorder/replay 是独立的时间检验：为每个深度/basis 快照补充永续 MarketBridge 报价，
 再按 `perp_depth_advantage_observation`、`spot_depth_advantage_observation` 和 `no_material_depth_gap` 比较固定记录窗口的

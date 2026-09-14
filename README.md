@@ -863,6 +863,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/funding` | Funding-rate snapshots from public perp feeds |
 | GET | `/v1/market/perpetual-funding` | On-demand current funding rows for supported perpetual markets |
 | GET | `/v1/market/open-interest` | Open-interest snapshots from public feeds/REST |
+| GET | `/v1/market/adl-risk` | Binance symbol-level ADL risk rating snapshot |
 | GET | `/v1/market/liquidations` | Latest public liquidation events |
 | GET | `/v1/market/order-books` | Latest L2 book snapshots |
 | GET | `/v1/market/trades` | Latest public trade snapshots |

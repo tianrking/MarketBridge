@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Binance ADL-risk context monitor
+
+Added the read-only `/v1/market/adl-risk` endpoint for Binance's public
+symbol-level ADL risk rating. The normalized snapshot preserves high/medium/low
+provider state, update time and coverage; it is explicitly kept separate from
+directional strategy signals. Added the Python
+`crypto_adl_risk_monitor.py` observer and tests. Provenance: [Binance ADL Risk API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/ADL-Risk),
+which describes the rating as a provider risk context updated about every 30
+minutes. No private account data, order, wallet, signing or execution path is
+included.
+
 ## 2026-09-14 — Binance historical basis convergence input
 
 Added the read-only `/v1/history/basis` endpoint for Binance's public futures

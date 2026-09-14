@@ -68,6 +68,7 @@ Primary endpoints:
 | Perp contract discovery | `/v1/catalog/perpetuals`, `/v1/catalog/markets` | none | Keyless where public REST exists |
 | On-demand perp funding | `/v1/market/perpetual-funding` | none | Keyless where public REST exists |
 | Open interest | `/v1/market/open-interest` | `open_interest` | Mixed by source, mostly keyless |
+| ADL risk rating | `/v1/market/adl-risk` | none | Keyless Binance symbol-level provider risk snapshot; not a directional signal or private account risk |
 | Liquidations | `/v1/market/liquidations` | `liquidation` | Keyless where public feeds exist |
 | Historical liquidations | `/v1/history/liquidations` | none | Keyless bounded OKX/CoinEx public filled-liquidation history; provider retention and other venue gaps remain explicit |
 | Historical open interest | `/v1/history/open-interest` | none | Keyless Binance/Bybit public OI history where provider retention allows |

@@ -84,6 +84,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/market/funding" => routes::market::v1_market_funding,
         "/v1/market/perpetual-funding" => routes::market::v1_market_perpetual_funding,
         "/v1/market/open-interest" => routes::market::v1_market_open_interest,
+        "/v1/market/adl-risk" => routes::market::v1_market_adl_risk,
         "/v1/market/trades" => routes::market::v1_market_trades,
         "/v1/market/order-flow" => routes::market::v1_market_order_flow,
         "/v1/market/order-flow/windows" => routes::market::v1_market_order_flow_windows,

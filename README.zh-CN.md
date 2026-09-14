@@ -372,6 +372,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 永续合约发现 | 某交易所当前公开列出的永续合约清单 | `GET /v1/catalog/perpetuals`、`GET /v1/catalog/markets` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | 按需永续资金费率 | 支持交易所的当前永续资金费率全量行，不限于配置 symbol | `GET /v1/market/perpetual-funding` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | Open interest | OI 数量/名义金额 | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | WS 或交易所 poller | 否 |
+| ADL 风险 | Binance symbol-level ADL risk rating | `GET /v1/market/adl-risk` | 按需 provider snapshot，每 30 分钟更新 | 否 |
 | 历史主动买卖量 | Binance 聚合 taker buy/sell、总量、imbalance | `GET /v1/history/taker-volume` | 暂无直接流 | 按需请求，保留提供方覆盖状态 | 否 |
 | 历史账户多空比 | Binance 大户账户占比与 Bybit holder-count buy/sell ratio、imbalance、分页覆盖 | `GET /v1/history/account-ratio` | 暂无直接流 | 按提供方保留语义和 coverage；不是名义持仓方向 | 否 |
 | 历史期权波动率 | Bybit option historical volatility、周期、时间戳 | `GET /v1/history/historical-volatility` | 暂无直接流 | 按需请求，保留覆盖范围；不是隐含波动率或预测 | 否 |

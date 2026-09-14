@@ -156,6 +156,7 @@ Short version:
 | Funding | `/v1/market/funding` | CEX perp feeds | raw normalized | Latest funding-rate rows. |
 | Perpetual funding | `/v1/market/perpetual-funding` | CEX public REST tickers/contracts | raw normalized on demand | Pulls current funding rows for supported perp markets; includes `funding_interval_ms` when the provider exposes an explicit schedule. |
 | Open interest | `/v1/market/open-interest` | CEX perp feeds | raw normalized | Latest OI rows. |
+| ADL risk | `/v1/market/adl-risk` | Binance public futures | raw normalized | Symbol-level high/medium/low provider rating with update timestamp; not a directional forecast or private account metric. |
 | Liquidations | `/v1/market/liquidations` | CEX feeds/REST | raw normalized | Venue support varies. |
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
 | Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |

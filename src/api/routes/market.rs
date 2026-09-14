@@ -4,6 +4,7 @@ use axum::Json;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::cmp::Ordering;
 
 use crate::api::ApiState;
@@ -28,6 +29,12 @@ pub struct MarketDataQuery {
     symbols: Option<String>,
     exchanges: Option<String>,
     market: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct AdlRiskQuery {
+    exchange: Option<String>,
+    symbol: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -250,6 +257,92 @@ pub async fn v1_market_open_interest(
         |a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange),
     );
     Json(serde_json::json!({"version":"v1","domain":"market_open_interest","open_interest":rows}))
+}
+
+pub async fn v1_market_adl_risk(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<AdlRiskQuery>,
+) -> impl IntoResponse {
+    let exchange = q
+        .exchange
+        .as_deref()
+        .unwrap_or("binance")
+        .trim()
+        .to_ascii_lowercase();
+    if exchange != "binance" {
+        return Json(serde_json::json!({
+            "version": "v1",
+            "domain": "market_adl_risk",
+            "exchange": exchange,
+            "error": "public ADL risk is currently available for binance",
+            "rows": []
+        }));
+    }
+    let mut request = state
+        .http
+        .get("https://fapi.binance.com/fapi/v1/symbolAdlRisk");
+    if let Some(symbol) = q.symbol.as_deref() {
+        let symbol = symbol.trim().to_ascii_uppercase();
+        request = request.query(&[("symbol", symbol.as_str())]);
+    }
+    match request
+        .send()
+        .await
+        .and_then(|response| response.error_for_status())
+    {
+        Ok(response) => match response.json::<Value>().await {
+            Ok(payload) => {
+                let rows = payload
+                    .as_array()
+                    .cloned()
+                    .or_else(|| Some(vec![payload]))
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(normalize_binance_adl_risk)
+                    .collect::<Vec<_>>();
+                Json(serde_json::json!({
+                    "version": "v1",
+                    "domain": "market_adl_risk",
+                    "exchange": "binance",
+                    "coverage": "provider_snapshot",
+                    "updated_every_minutes": 30,
+                    "rows": rows,
+                    "limitations": [
+                        "ADL risk is a provider risk rating, not a directional price signal",
+                        "the snapshot does not expose private account risk or guarantee an ADL event",
+                        "no order, wallet, signing or execution path is included"
+                    ]
+                }))
+            }
+            Err(error) => Json(serde_json::json!({
+                "version": "v1",
+                "domain": "market_adl_risk",
+                "exchange": "binance",
+                "error": format!("failed to parse Binance ADL risk: {error}"),
+                "rows": []
+            })),
+        },
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "market_adl_risk",
+            "exchange": "binance",
+            "error": format!("Binance ADL risk request failed: {error}"),
+            "rows": []
+        })),
+    }
+}
+
+fn normalize_binance_adl_risk(row: Value) -> Option<Value> {
+    let symbol = row.get("symbol")?.as_str()?.to_ascii_uppercase();
+    let risk = row.get("adlRisk")?.as_str()?.to_ascii_lowercase();
+    let update_time_ms = row.get("updateTime").and_then(Value::as_u64);
+    Some(serde_json::json!({
+        "exchange": "binance",
+        "symbol": symbol,
+        "adl_risk": risk,
+        "update_time_ms": update_time_ms,
+        "source": "binance_symbol_adl_risk"
+    }))
 }
 
 pub async fn v1_market_trades(
@@ -525,4 +618,22 @@ fn parse_windows_ms(raw: Option<&str>) -> Vec<u64> {
         .filter_map(|value| value.parse::<u64>().ok())
         .filter(|value| *value > 0)
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_binance_adl_risk;
+
+    #[test]
+    fn normalizes_adl_risk_as_non_directional_provider_context() {
+        let row = normalize_binance_adl_risk(serde_json::json!({
+            "symbol": "btcusdt",
+            "adlRisk": "HIGH",
+            "updateTime": 1234
+        }))
+        .expect("normalized ADL row");
+        assert_eq!(row["symbol"], serde_json::json!("BTCUSDT"));
+        assert_eq!(row["adl_risk"], serde_json::json!("high"));
+        assert_eq!(row["source"], serde_json::json!("binance_symbol_adl_risk"));
+    }
 }
