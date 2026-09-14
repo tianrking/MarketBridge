@@ -76,6 +76,20 @@ python3 examples/crypto/microstructure/crypto_ichimoku_cloud_response_replay.py 
   --min-observations 5
 ```
 
+`crypto_rsi_bollinger_extreme_response_replay.py` 是组合极值案例：把 RSI-only 极值、Bollinger-only 越界、共同超买/超卖以及普通 K 线分开，再比较后续响应。
+它不假设极值必然反转；强趋势持续、指标口径和参数敏感性都会保留。研究线索来自
+[X 上 BTC RSI + 上轨讨论](https://x.com/MichaelMOTTCM/status/1944846581611814956)，定义对照
+[Binance RSI 词典](https://www.binance.com/en/academy/glossary/relative-strength-index)
+和 [Bollinger Bands 说明](https://www.binance.com/en/square/post/42841)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_rsi_bollinger_extreme_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --rsi-period 14 --band-period 20 --deviations 2 \
+  --overbought 70 --oversold 30 --horizon-bars 12 \
+  --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
 RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
 也不会把 X 帖子里的回撤描述变成预测。

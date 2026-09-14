@@ -98,6 +98,23 @@ python3 examples/crypto/microstructure/crypto_ichimoku_cloud_response_replay.py 
   --min-observations 5
 ```
 
+`crypto_rsi_bollinger_extreme_response_replay.py` is the combined-extreme
+case. It separates RSI-only extremes, Bollinger-only band breaches, joint
+overbought/oversold confluence, and ordinary candles before measuring later
+responses. It does not assume that an extreme must reverse; persistent trends,
+indicator conventions and parameter sensitivity remain visible. The research
+lead is [a public BTC RSI-plus-upper-Bollinger discussion on X](https://x.com/MichaelMOTTCM/status/1944846581611814956),
+with definitions cross-checked against [Binance's RSI glossary](https://www.binance.com/en/academy/glossary/relative-strength-index)
+and [Bollinger Bands explanation](https://www.binance.com/en/square/post/42841).
+
+```bash
+python3 examples/crypto/microstructure/crypto_rsi_bollinger_extreme_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --rsi-period 14 --band-period 20 --deviations 2 \
+  --overbought 70 --oversold 30 --horizon-bars 12 \
+  --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
 hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
 average, does the next fixed number of weekly closes show a different signed

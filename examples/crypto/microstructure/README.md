@@ -57,6 +57,7 @@ Cases:
 - `crypto_atr_regime_response_replay.py`: separates compressed, ordinary and expanded ATR states and compares later signed, absolute and path-risk responses.
 - `crypto_breakout_retest_response_replay.py`: tests a prior-range breakout followed by a bounded touch-and-reclaim retest against later aligned returns.
 - `crypto_ichimoku_cloud_response_replay.py`: groups as-of cloud, Tenkan/Kijun and Chikou alignment states for later BTC response analysis.
+- `crypto_rsi_bollinger_extreme_response_replay.py`: separates joint RSI/Bollinger extremes from one-indicator and ordinary states.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -534,6 +535,12 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 它只是响应分布研究，不是预测或执行规则。研究线索来自未经验证的
 [X 上 Ichimoku/云层讨论](https://x.com/Invst_Informant/status/2014788740992929906)，公式对照
 [Binance Academy Ichimoku 说明](https://www.binance.com/en/academy/articles/ichimoku-clouds-explained)。
+
+`crypto_rsi_bollinger_extreme_response_replay.py` 把 RSI 和 Bollinger 的组合极值单独拆出：RSI-only、Bollinger-only、共同超买/超卖和 ordinary 四类，比较各自未来响应。
+它不把极值当成必然反转，也不生成下单规则。研究线索来自
+[X 上 BTC RSI + 上轨讨论](https://x.com/MichaelMOTTCM/status/1944846581611814956)，定义对照
+[Binance RSI 词典](https://www.binance.com/en/academy/glossary/relative-strength-index)
+和 [Bollinger Bands 说明](https://www.binance.com/en/square/post/42841)。
 匹配时钟只是证伪工具，不识别行为主体、不证明因果，也不生成择时指令。
 
 `crypto_anchored_vwap_replay.py` 与 session VWAP 分开：每根 K 线只从前置回看窗口选择 swing low 或 swing high，
@@ -783,6 +790,11 @@ python3 examples/crypto/microstructure/crypto_ichimoku_cloud_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --conversion-period 9 --base-period 26 \
   --span-b-period 52 --displacement 26 --horizon-bars 6 \
+  --min-observations 5
+python3 examples/crypto/microstructure/crypto_rsi_bollinger_extreme_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --rsi-period 14 --band-period 20 --deviations 2 \
+  --overbought 70 --oversold 30 --horizon-bars 12 \
   --min-observations 5
 python3 examples/crypto/microstructure/crypto_footprint_imbalance_monitor.py \
   --exchange binance --market perp --symbol BTCUSDT --interval-ms 60000 \

@@ -38,6 +38,19 @@ forecast, allocation, stop or execution path.
 The research lead is the unverified [public Ichimoku/cloud discussion on X](https://x.com/Invst_Informant/status/2014788740992929906),
 and formulas are cross-checked against [Binance Academy's Ichimoku guide](https://www.binance.com/en/academy/articles/ichimoku-clouds-explained).
 
+## 2026-09-14 — Added RSI/Bollinger extreme response replay
+
+Added `crypto_rsi_bollinger_extreme_response_replay.py` under microstructure.
+It separates simple-average RSI-only extremes, close-only Bollinger breaches,
+joint overbought/oversold confluence and ordinary candles, then reports later
+signed, absolute and path responses. The case explicitly keeps strong-trend
+persistence, indicator conventions and parameter sensitivity visible; it does
+not assume an extreme must reverse or create an execution path.
+
+The research lead is the public [BTC RSI-plus-Bollinger discussion on X](https://x.com/MichaelMOTTCM/status/1944846581611814956).
+Definitions are cross-checked against [Binance's RSI glossary](https://www.binance.com/en/academy/glossary/relative-strength-index)
+and [Bollinger Bands explanation](https://www.binance.com/en/square/post/42841).
+
 ## 2026-09-14 — Added OHLCV liquidity-sweep response replay
 
 Added `crypto_liquidity_sweep_response_replay.py` under microstructure. The
