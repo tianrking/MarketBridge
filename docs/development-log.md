@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Added price-only trend-template response replay
+
+Added `crypto_trend_template_response_replay.py` to the universe family. It
+tests the price-only subset of a public trend-template discussion: ordered
+short/medium/long moving averages, a rising long average, and a trailing
+52-week range location. It reports fixed-horizon close returns and future path
+minima while explicitly excluding unavailable fundamental-growth, earnings and
+sponsorship criteria. No allocation or execution path is created.
+
+The research lead is the public [trend-template discussion on X](https://x.com/RebellioMarket/status/2018972895309894065),
+treated as an unverified hypothesis rather than a performance claim.
+
 ## 2026-09-14 — Added weekly RSI crossover response replay
 
 Added `crypto_weekly_rsi_cross_response_replay.py` under microstructure. It

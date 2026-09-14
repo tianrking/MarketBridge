@@ -10,6 +10,7 @@
 - `crypto_altcoin_breadth_replay.py`、`crypto_global_market_regime_*`：市场参与度和提供方级全市场上下文。
 - `crypto_pairs_mean_reversion_replay.py`：固定参数价差偏离和收敛诊断。
 - `crypto_universe_delist_risk_monitor.py`：报价缺失/过期的数据质量护栏。
+- `crypto_trend_template_response_replay.py`：价格-only 的 50/150/200 日趋势模板与 52 周区间响应研究。
 
 ## 快速开始
 
@@ -26,6 +27,14 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward
 “Top-k”不是资金分配指令，也不保证 Sharpe；breadth 案例是近似，不是官方指数。
 
 完整命令矩阵和出处见 [`README.md`](README.md)。
+
+```bash
+python3 examples/crypto/universe/crypto_trend_template_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 1825 \
+  --sma-short-days 50 --sma-medium-days 150 --sma-long-days 200 \
+  --slope-days 22 --range-days 252 --horizon-days 30 \
+  --min-observations 5
+```
 
 ## 边界
 

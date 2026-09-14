@@ -16,6 +16,8 @@
 - `crypto_pairs_mean_reversion_replay.py`: fixed-parameter spread deviation and
   convergence diagnostic.
 - `crypto_universe_delist_risk_monitor.py`: missing/stale quote data-quality guard.
+- `crypto_trend_template_response_replay.py`: a price-only 50/150/200-day
+  trend-template response study with a trailing 52-week range filter.
 
 ## Quickstart
 
@@ -34,6 +36,14 @@ hurdles must be explicit. “Top-k” is not an allocation instruction or a Shar
 guarantee; the breadth case is an approximation, not an official index.
 
 The complete command matrix and provenance links are in [`README.md`](README.md).
+
+```bash
+python3 examples/crypto/universe/crypto_trend_template_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 1825 \
+  --sma-short-days 50 --sma-medium-days 150 --sma-long-days 200 \
+  --slope-days 22 --range-days 252 --horizon-days 30 \
+  --min-observations 5
+```
 
 ## Boundary
 

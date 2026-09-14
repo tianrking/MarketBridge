@@ -69,6 +69,13 @@ standard deviation at each signal, and tests whether an extreme deviation
 shrinks over a fixed future horizon. A fixed hedge ratio is a transparent
 diagnostic parameter, not a cointegration certification or paired execution.
 
+`crypto_trend_template_response_replay.py` isolates the price-only subset of a
+public trend-template discussion: close above ordered 50/150/200-day averages,
+a rising long average, and a caller-defined 52-week range location. Fundamental
+growth, earnings and sponsorship fields are unavailable and remain outside the
+case. The replay reports later returns and path minima; it is not a portfolio
+allocator or a buy signal.
+
 `crypto_universe_delist_risk_monitor.py` is a data-quality guard for all other
 universe cases. It surfaces historical markets whose current quote is missing
 or stale, but deliberately does not call that proof of delisting or perform an
