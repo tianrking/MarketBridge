@@ -335,6 +335,27 @@ python3 examples/crypto/microstructure/crypto_stochastic_response_replay.py \
   --overbought 80 --oversold 20 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_stochrsi_response_replay.py` first computes RSI with an explicit Wilder
+smoothing convention, then places the current RSI inside its own trailing
+RSI high/low range and applies contiguous SMAs for StochRSI `%K/%D`. Bars are
+classified as `overbought`, `oversold` or `neutral`; `bullish_kd_cross` and
+`bearish_kd_cross` remain separate events and extremes are compared with
+neutral controls over a fixed horizon. It is an indicator of an indicator and
+can be noisier than RSI: constant-RSI and incomplete smoothing windows stay
+missing. The 80/20, 14/14/3/3 and horizon values are sensitivity parameters,
+not reversal, entry, stop or execution rules. Formula boundaries are
+cross-checked against [TradingView's StochRSI documentation](https://www.tradingview.com/support/solutions/43000502333-stochastic-rsi-stoch-rsi/),
+crypto context against [Binance Academy's StochRSI guide](https://www.binance.com/en/square/post/511150),
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_stochrsi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --rsi-period 14 --stoch-period 14 \
+  --smooth-k 3 --smooth-d 3 --overbought 80 --oversold 20 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

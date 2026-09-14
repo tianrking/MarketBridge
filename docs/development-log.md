@@ -2067,3 +2067,16 @@ order.
 Provenance: [TradingView's Stochastic calculation](https://www.tradingview.com/support/solutions/43000502332-stochastic-stoch/)
 defines the formula, [Binance's overbought/oversold note](https://www.binance.com/en/square/post/684815)
 provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — StochRSI response replay
+
+Added `crypto_stochrsi_response_replay.py` under the microstructure family.
+The Python case applies explicit Wilder RSI smoothing, then a trailing RSI
+range and contiguous SMA K/D smoothing to create StochRSI states and cross
+events. Constant-RSI and incomplete windows stay missing; the sensitive
+oscillator is compared with neutral controls and never becomes a reversal,
+stop, wallet action or order.
+
+Provenance: [TradingView's StochRSI calculation](https://www.tradingview.com/support/solutions/43000502333-stochastic-rsi-stoch-rsi/)
+defines the two-stage formula, [Binance Academy's StochRSI guide](https://www.binance.com/en/square/post/511150)
+provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

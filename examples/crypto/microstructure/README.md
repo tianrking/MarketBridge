@@ -71,6 +71,7 @@ Cases:
 - `crypto_cmf_response_replay.py`: compares close-location-weighted Chaikin Money Flow pressure, zero crosses and neutral controls.
 - `crypto_parabolic_sar_response_replay.py`: compares Wilder-style Parabolic SAR flips with persistent trend controls.
 - `crypto_stochastic_response_replay.py`: compares smoothed Stochastic overbought/oversold states, K/D crosses and neutral controls.
+- `crypto_stochrsi_response_replay.py`: compares RSI-relative StochRSI extremes, K/D crosses and neutral controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -704,6 +705,21 @@ python3 examples/crypto/microstructure/crypto_stochastic_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --k-period 14 --smooth-k 3 --smooth-d 3 \
   --overbought 80 --oversold 20 --horizon-bars 8 --min-observations 5
+```
+
+`crypto_stochrsi_response_replay.py` 先用明确的 Wilder 平滑计算 RSI，再把当前 RSI 放入自己的 trailing RSI 高低区间，最后用连续 SMA 得到 StochRSI `%K/%D`。
+样本分为 `overbought`、`oversold`、`neutral`，并单独保留 `bullish_kd_cross` / `bearish_kd_cross`，比较极值与中性控制组的固定窗口响应。
+它是“指标的指标”，比普通 RSI 更敏感，常数 RSI 窗口和不完整平滑保持缺失，不跨缺口拼接；80/20、14/14/3/3 和 horizon 只是敏感性参数，不生成反转、入场、止损或执行规则。
+公式对照 [TradingView 的 StochRSI 说明](https://www.tradingview.com/support/solutions/43000502333-stochastic-rsi-stoch-rsi/)，加密语境参考
+[Binance Academy 的 StochRSI 指南](https://www.binance.com/en/square/post/511150)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_stochrsi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --rsi-period 14 --stoch-period 14 \
+  --smooth-k 3 --smooth-d 3 --overbought 80 --oversold 20 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

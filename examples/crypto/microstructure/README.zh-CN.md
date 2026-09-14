@@ -257,6 +257,21 @@ python3 examples/crypto/microstructure/crypto_stochastic_response_replay.py \
   --overbought 80 --oversold 20 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_stochrsi_response_replay.py` 先按明确的 Wilder 平滑计算 RSI，再把当前 RSI 放入自己的 trailing RSI 高低区间，最后用连续 SMA 得到 StochRSI `%K/%D`。
+样本分为 `overbought`、`oversold`、`neutral`，并单独保留 `bullish_kd_cross` / `bearish_kd_cross`，比较极值与中性控制组的固定窗口响应。
+它是“指标的指标”，比普通 RSI 更敏感；常数 RSI 窗口和不完整平滑保持缺失，不跨缺口拼接。80/20、14/14/3/3 和 horizon 只是敏感性参数，不生成反转、入场、止损或执行规则。
+公式对照 [TradingView 的 StochRSI 说明](https://www.tradingview.com/support/solutions/43000502333-stochastic-rsi-stoch-rsi/)，加密语境参考
+[Binance Academy 的 StochRSI 指南](https://www.binance.com/en/square/post/511150)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_stochrsi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --rsi-period 14 --stoch-period 14 \
+  --smooth-k 3 --smooth-d 3 --overbought 80 --oversold 20 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。
