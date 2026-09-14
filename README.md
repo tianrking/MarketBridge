@@ -364,6 +364,11 @@ It now also has a stress-response recorder/replay that joins each risk-context
 snapshot to a perpetual quote and compares later BTC movement after stress,
 watch and normal states; it does not turn execution cost into a directional or
 routing signal.
+The microstructure family also includes a liquidity-sandwich response pair:
+it tests whether symmetric near-touch bid/ask depth with a tight spread is
+followed by a different absolute BTC response than ordinary books. Displayed
+walls remain snapshot evidence, not persistent liquidity, price direction or a
+range-trading instruction.
 Funding convergence replay also supports an explicit paper cost-per-hour
 hurdle and reports gross versus after-cost persistence without pretending to
 model venue fees, borrow or hedge fills.

@@ -31,6 +31,7 @@ Cases:
 - `crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py`: freeze the rolling burst beside a quote and compare later BTC responses with ordinary snapshots.
 - `crypto_liquidation_price_cluster_replay.py`: observed liquidation prints grouped into price bands, compared with ordinary forward absolute movement.
 - `crypto_liquidation_price_cluster_response_recorder.py` / `crypto_liquidation_price_cluster_response_replay.py`: freeze observed price-band concentration beside a quote and compare later BTC movement.
+- `crypto_liquidity_sandwich_monitor.py` / response recorder / replay: test whether symmetric near-touch bid/ask depth with a tight spread is followed by a different absolute BTC response than ordinary books.
 - `crypto_microstructure_monitor.py`: top-of-book imbalance with funding context.
 - `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`: freeze imbalance/funding states beside a quote and compare later BTC responses.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.

@@ -1546,3 +1546,17 @@ the result is not funding income, a hedge, a price forecast or an execution mode
 Provenance: Binance's [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info)
 defines the provider band fields; the public [funding discussion on X](https://x.com/instaclaws/status/2038363051213181035)
 is treated only as an unverified research lead.
+
+## 2026-09-14 — two-sided liquidity-sandwich response study
+
+Added `crypto_liquidity_sandwich_monitor.py` and its response recorder/replay
+under the microstructure family. The monitor measures near-touch bid and ask
+notional depth, depth symmetry and spread from `/v1/market/order-books`; the
+response study freezes the state beside `/v1/market/quotes` and compares later
+absolute BTC movement with ordinary book snapshots. Displayed walls remain a
+point-in-time observation: no persistence, range, direction, fill or routing
+claim is made.
+
+Provenance: the unverified [public liquidity-sandwich discussion on X](https://x.com/snowinjon/status/1995863059165053368)
+motivates the hypothesis. Field shape and semantics are cross-checked against
+Binance's official [USDⓈ-M Order Book API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Order-Book).

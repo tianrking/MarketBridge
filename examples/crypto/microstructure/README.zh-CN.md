@@ -9,12 +9,15 @@
 |---|---|
 | Confluence 监控 | `short_squeeze_monitor.py`、`exhaustion_short_monitor.py`、`liquidation_reversal_monitor.py`、`crypto_microstructure_monitor.py` |
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
+| 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`liquidation_reversal_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_session_*`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
 ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL，也不推断私人账户风险。
+liquidity-sandwich pair 只检验一个更窄的公开 X 假设：当买卖两侧近盘口深度都明显、点差较窄时，
+后续 BTC 绝对波动是否不同于普通快照；不会把显示深度称为持续墙体，也不推导区间交易机会。
 
 ## 快速开始
 
@@ -27,6 +30,15 @@ python3 examples/crypto/microstructure/crypto_adl_risk_response_recorder.py \
 python3 examples/crypto/microstructure/crypto_adl_risk_response_replay.py \
   --input work/crypto-adl-risk-response.jsonl --horizon-records 3 \
   --min-observations 5
+python3 examples/crypto/microstructure/crypto_liquidity_sandwich_monitor.py \
+  --symbol BTCUSDT --exchange binance --depth-band-bps 10 \
+  --min-side-depth-notional 100000 --min-symmetry-ratio 0.5
+python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 60 --interval-secs 30 \
+  --output work/crypto-liquidity-sandwich-response.jsonl
+python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay.py \
+  --input work/crypto-liquidity-sandwich-response.jsonl \
+  --horizon-records 3 --min-observations 5
 ```
 
 完整命令保留在 [`README.md`](README.md)。首次轮询可能没有 OI 基线；清算 side、成交 side
