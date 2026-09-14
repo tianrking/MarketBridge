@@ -1,5 +1,9 @@
 # Crypto sentiment extremes / 加密情绪极值
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## English
 
 This family tests a narrow, falsifiable question: after the public Fear &

@@ -1,5 +1,9 @@
 # Macro context for crypto research / 加密研究的宏观上下文
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## English
 
 This family exposes configured DXY, VIX and US10Y reference quotes alongside a

@@ -1,5 +1,9 @@
 # Microstructure, squeeze and liquidation / 微结构、逼空与清算
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## English
 
 These observers combine funding, OI change, spot/perp order flow, book depth,

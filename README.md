@@ -10,7 +10,8 @@ metadata, and APIs. Strategy examples are Python-first. Every result must keep
 provider, timestamp, coverage, cost, and look-ahead limitations visible.
 
 Current version: `v0.0.6` · [中文文档](README.zh-CN.md) ·
-[Examples](examples/README.md) · [Documentation index](docs/README.md)
+[Examples](examples/README.en.md) · [完整案例目录](examples/README.md) ·
+[Documentation index](docs/README.md)
 
 Unreleased research API/CLI: [usage and limitations](docs/research-api.md).
 Start with `config.research.yaml` for a localhost-only, zero-collector service;
@@ -319,6 +320,9 @@ context while preserving missing-key and missing-metric evidence.
 It also includes an ADL-risk response recorder/replay that freezes Binance's
 symbol-level high/medium/low provider rating beside a BTC quote and compares
 later responses without claiming a realized ADL event or private account risk.
+The carry family also includes a provider funding-band response recorder/replay:
+it compares later BTC movement after near-cap, near-floor and ordinary funding
+states, while keeping provider-band changes and execution gaps explicit.
 It now includes a Python recorder/replay pair that tests whether aggregate
 long/short crowding states persist across snapshots; ratios remain provider
 context, not position ownership, and the replay has no allocation or execution

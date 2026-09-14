@@ -1,5 +1,9 @@
 # On-chain transfer pressure / 链上转账压力
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## Bitcoin mempool pressure / 比特币 mempool 费率压力
 
 ### English

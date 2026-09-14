@@ -1,5 +1,9 @@
 # Options and volatility / 期权与波动率
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## English
 
 This family separates observable surface features from unobservable position

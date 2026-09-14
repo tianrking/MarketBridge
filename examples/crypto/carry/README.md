@@ -1,5 +1,9 @@
 # Carry and funding / 套利与资金费率
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## English
 
 This family studies relative prices and funding transfers without assuming a
@@ -340,6 +344,12 @@ python3 examples/crypto/carry/basis_carry_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
 python3 examples/crypto/carry/funding_convergence_monitor.py \
   --symbol BTCUSDT --exchanges binance,okx,bybit --iterations 3
+python3 examples/crypto/carry/crypto_funding_band_response_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 600 \
+  --output work/crypto-funding-band-response.jsonl
+python3 examples/crypto/carry/crypto_funding_band_response_replay.py \
+  --input work/crypto-funding-band-response.jsonl --horizon-records 3 \
+  --min-observations 5
 python3 examples/crypto/carry/funding_convergence_replay.py \
   --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200 \
   --paper-cost-bps-per-hour 0.25 --min-net-spread-bps-per-hour 0.5

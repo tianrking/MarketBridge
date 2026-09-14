@@ -1,5 +1,7 @@
 # Prediction markets / 预测市场
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+
 ## English
 
 These Python examples observe public market, book, trade and settlement data

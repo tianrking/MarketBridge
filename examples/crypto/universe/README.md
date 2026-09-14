@@ -1,5 +1,9 @@
 # Universe and cross-asset research / 资产宇宙与跨资产研究
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> For the polished quickstart and boundary notes, start with the language-specific guide.
+
 ## English
 
 These cases discover candidates rather than allocate capital. The universe

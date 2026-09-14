@@ -1,5 +1,7 @@
 # Weather observations / 天气观察
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+
 ## English
 
 Weather examples compare public Open-Meteo observations with explicit market

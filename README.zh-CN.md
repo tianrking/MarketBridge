@@ -9,7 +9,8 @@
 前视偏差限制。
 
 当前版本：`v0.0.6` · [English README](README.md) ·
-[案例索引](examples/README.md) · [文档索引](docs/README.md)
+[中文案例入口](examples/README.zh-CN.md) · [完整案例目录](examples/README.md) ·
+[文档索引](docs/README.md)
 
 未发布的研究 API / CLI 见[使用与限制](docs/research-api.md)。先用
 `config.research.yaml` 启动仅监听本机、不开启采集器的研究服务；启动后打开
@@ -1187,6 +1188,8 @@ ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配�
 报告固定记录窗口的签名响应，并单独保留伴随清算的样本；不会把聚合 ratio 解释成持仓归属或交易信号。
 同系列还新增 ADL 风险 response recorder/replay：把 Binance 高/中/低 provider 等级与 BTC 报价冻结，比较之后固定窗口响应；
 不声称发生了真实 ADL，也不访问私有账户风险。
+carry 系列还新增提供方资金费率上下限 response recorder/replay：比较接近上限、接近下限和普通区间状态之后的 BTC 响应，
+并明确保留提供方参数变化和执行缺口。
 同系列还新增 anchored VWAP 回放：只用前置窗口选择 swing 锚点，避免未来数据泄漏，检验历史 K 线中的新夺回/跌破响应，
 并明确保留 OHLCV 近似和事件身份限制。
 Universe 系列还新增 altcoin breadth 回放：按调用者选择的等计数山寨币篮子，比较低/中性/高参与度状态下

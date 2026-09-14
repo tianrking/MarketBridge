@@ -1533,3 +1533,16 @@ profitability, capitulation or forced selling.
 Provenance: the unverified [CryptoDiffer difficulty-drop discussion on X](https://x.com/CryptoDiffer/status/2021059510106980651)
 is treated only as a research lead. Field semantics are cross-checked against
 the [official mempool.space REST API](https://mempool.space/docs/api/rest).
+
+## 2026-09-14 — funding provider-band response replay
+
+Added `crypto_funding_band_response_recorder.py` and
+`crypto_funding_band_response_replay.py` under the carry family. The recorder
+freezes Binance provider cap/floor proximity beside a MarketBridge BTC quote;
+replay compares later fixed-record signed and absolute responses for near-upper,
+near-lower and ordinary funding-band states. Provider parameters can change and
+the result is not funding income, a hedge, a price forecast or an execution model.
+
+Provenance: Binance's [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info)
+defines the provider band fields; the public [funding discussion on X](https://x.com/instaclaws/status/2038363051213181035)
+is treated only as an unverified research lead.

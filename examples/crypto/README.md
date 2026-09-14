@@ -1,5 +1,10 @@
 # Crypto strategy families / 加密策略系列
 
+> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
+>
+> The existing bilingual catalog below remains the source-level inventory;
+> language-specific guides provide a cleaner reading path.
+
 ## English
 
 Runnable Python research cases are grouped by hypothesis and required data:
