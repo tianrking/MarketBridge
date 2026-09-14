@@ -1560,6 +1560,10 @@ Example:
 curl -s "http://127.0.0.1:8080/v1/external/defi-yields?stablecoin=true&min_tvl_usd=10000000&limit=20" | jq
 python3 examples/crypto/defi/crypto_defi_yield_context_monitor.py \
   --stablecoin-only --min-tvl-usd 10000000 --min-apy 2 --limit 50
+python3 examples/crypto/defi/crypto_defi_funding_yield_risk_monitor.py \
+  --projects ethena-usde,aave-v3,morpho-blue,pendle-v2,curve-dex,convex-finance \
+  --symbols USDE,SUSDE \
+  --funding-symbols BTCUSDT,ETHUSDT,SOLUSDT --limit 50
 ```
 
 ### `GET /v1/prediction/books`

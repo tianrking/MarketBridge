@@ -44,6 +44,14 @@ reward-dependent pools, non-positive APY and missing-metric states. APY/TVL are
 provider observations rather than guaranteed return or redemption liquidity;
 the monitor never deposits, withdraws, signs a wallet or executes a strategy.
 
+`crypto_defi_funding_yield_risk_monitor.py` / recorder / replay make one
+additional hypothesis explicit: reward-dependent yield deserves extra review
+when the selected BTC/ETH/SOL perpetual funding basket is negative. The
+monitor annualizes each funding rate only with the provider-reported interval,
+then labels `funding_sensitive_yield_risk`; the recorder/replay checks whether
+that state persists. The basket is a transparent proxy, not Ethena's hedge
+book, and APY is not protocol accounting.
+
 Provenance: the unverified [stablecoin liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494)
 and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352)
 motivate the hypothesis. Fields are cross-checked against DefiLlama's
@@ -150,6 +158,15 @@ redemptions, solvency or executable mean reversion.
 `crypto_defi_yield_context_monitor.py` 新增收益池上下文案例：读取 DefiLlama 公开 `/pools` 快照，区分基础收益主导、
 奖励依赖、非正 APY 和指标缺失状态。APY/TVL 只是提供方观察，不是保证收益或赎回流动性；监控不会存款、提款、签名钱包或执行策略。
 
+`crypto_defi_funding_yield_risk_monitor.py` / recorder / replay 把一个额外假设写清楚：当选定的 BTC/ETH/SOL 永续资金费率篮子为负时，
+奖励依赖型收益池应当进入额外复核状态。监控只使用提供方公布的 funding interval 做年化，并标记 `funding_sensitive_yield_risk`；
+recorder/replay 检验该状态是否持续。资金费率篮子只是透明代理，不是 Ethena 的真实对冲账本，APY 也不是协议会计数据。
+
+出处：X 上关于 sUSDe 退出/资金费率风险的[公开讨论](https://x.com/CIAN_protocol/status/2032403312621007326)，以及 Ethena 官方
+[USDe 机制说明](https://docs.ethena.fi/how-usde-works)、[Funding Risk](https://docs.ethena.fi/solution-overview/risks/funding-risk)
+和[收益机制说明](https://docs.ethena.fi/solution-overview/protocol-revenue-explanation/susde-rewards-mechanism)。这些资料只用于提出可证伪假设，
+不代表 MarketBridge 认证协议安全性或收益。
+
 出处：未经验证的 [稳定币净流入 X 讨论](https://x.com/Cointelegraph/status/2029519994652942494)
 和[稳定币增长讨论](https://x.com/wintermute_t/status/1985631560021000352)只作为研究线索；字段对照 DefiLlama
 [稳定币数据说明](https://docs.llama.fi/)，不推断资金流或执行结果。
@@ -190,6 +207,15 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_monitor.py \
   --min-turnover-h1 0.25
 python3 examples/crypto/defi/crypto_defi_yield_context_monitor.py \
   --stablecoin-only --min-tvl-usd 10000000 --min-apy 2 --limit 50
+python3 examples/crypto/defi/crypto_defi_funding_yield_risk_monitor.py \
+  --projects ethena-usde,aave-v3,morpho-blue,pendle-v2,curve-dex,convex-finance \
+  --symbols USDE,SUSDE \
+  --funding-symbols BTCUSDT,ETHUSDT,SOLUSDT --limit 50
+python3 examples/crypto/defi/crypto_defi_funding_yield_risk_recorder.py \
+  --iterations 30 --interval-secs 600 \
+  --output work/crypto-defi-funding-yield-risk.jsonl
+python3 examples/crypto/defi/crypto_defi_funding_yield_risk_replay.py \
+  --input work/crypto-defi-funding-yield-risk.jsonl --min-run 3
 python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
   --sources uniswap_v3,meteora --iterations 30 --interval-secs 30 \
   --output work/crypto-defi-pool-flow.jsonl

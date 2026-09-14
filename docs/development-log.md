@@ -1,5 +1,23 @@
 # Development log
 
+## 2026-09-14 — Funding-sensitive DeFi yield risk context
+
+Added `crypto_defi_funding_yield_risk_monitor.py`, its JSONL recorder/replay,
+and deterministic tests. The case joins the existing DefiLlama yield context
+with on-demand perpetual funding rows, annualizing each rate only when the
+provider reports a funding interval. Reward-heavy pools are labeled
+`funding_sensitive_yield_risk` when the selected funding basket is negative;
+the replay requires a persistent run before reporting a candidate.
+
+Provenance: the public [CIAN sUSDe funding/exit-risk discussion](https://x.com/CIAN_protocol/status/2032403312621007326)
+is an unverified research lead. The mechanism is cross-checked against
+[Ethena's USDe documentation](https://docs.ethena.fi/how-usde-works),
+[Funding Risk](https://docs.ethena.fi/solution-overview/risks/funding-risk),
+and the [sUSDe rewards mechanism](https://docs.ethena.fi/solution-overview/protocol-revenue-explanation/susde-rewards-mechanism).
+The selected funding symbols are a transparent proxy, not a protocol hedge
+book; no accounting, yield guarantee, deposit, redemption, wallet or execution
+path is added.
+
 ## 2026-09-14 — DeFi yield context and bilingual boundary cleanup
 
 Added the read-only `/v1/external/defi-yields` endpoint backed by DefiLlama's
