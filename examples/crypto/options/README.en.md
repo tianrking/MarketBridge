@@ -9,6 +9,8 @@
   slope persistence or BTC response.
 - `crypto_options_panic_regime_response_replay.py`: a joint high-ATM-IV and
   positive put-minus-call-skew response study.
+- `crypto_options_skew_vol_regime_response_replay.py`: a joint quiet-price-path
+  and downside-skew response study.
 - `crypto_options_put_call_oi_*`: provider open-interest composition as defensive,
   call-dominant, or balanced context.
 - `crypto_options_gamma_*`, `crypto_options_max_pain_*`, and
@@ -42,6 +44,20 @@ python3 examples/crypto/options/crypto_options_panic_regime_response_replay.py \
   --input work/crypto-options-skew-response.jsonl \
   --horizon-records 3 --high-atm-iv 60 --downside-skew-iv 3 \
   --min-observations 5
+```
+
+The skew/volatility replay uses the same archive but computes a trailing,
+unannualized standard deviation of log quote returns. It compares a
+caller-defined low-volatility threshold plus positive put-minus-call skew with
+one-dimensional and ordinary states. Because recorder cadence is configurable,
+the threshold is a per-record proxy, not a 30-day or annualized volatility
+claim.
+
+```bash
+python3 examples/crypto/options/crypto_options_skew_vol_regime_response_replay.py \
+  --input work/crypto-options-skew-response.jsonl \
+  --vol-window 6 --low-vol-pct 1.0 --downside-skew-iv 3 \
+  --horizon-records 3 --min-observations 5
 ```
 
 ## Evidence rules

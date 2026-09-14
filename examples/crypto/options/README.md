@@ -56,6 +56,12 @@ The public [options market brief on X](https://x.com/Gate_Launch/status/20638108
 is only a research lead; no panic forecast, dealer sign, option PnL or hedge is
 inferred.
 
+`crypto_options_skew_vol_regime_response_replay.py` tests a different joint
+state: a trailing, unannualized log-return volatility proxy plus positive
+`put_call_skew_iv`. It keeps the recorder cadence visible and compares the
+joint state with low-volatility-only, skew-only and ordinary observations;
+the result is not an annualized volatility forecast or an option trade.
+
 `crypto_options_put_call_oi_monitor.py` / recorder / replay adds a separate
 open-interest composition case. It sums provider-reported call and put OI by
 expiry window, labels `defensive_put_oi`, `call_dominant_oi` or `balanced_oi`,

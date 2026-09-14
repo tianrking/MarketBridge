@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — Added low-volatility plus downside-skew response replay
+
+Added `crypto_options_skew_vol_regime_response_replay.py` under the options
+family. It reuses the skew-response JSONL archive, computes a trailing
+unannualized log-return volatility proxy from synchronized MarketBridge
+quotes, and compares low-volatility plus positive `put_call_skew_iv` against
+one-dimensional and ordinary states. The cadence-dependent proxy, expiry roll,
+dealer sign, option PnL, hedging and execution limits remain explicit.
+
+The research lead is [Decrypt's public X summary](https://x.com/DecryptMedia/status/2035126047637692884)
+that described subdued Bitcoin volatility alongside demand for downside
+protection; it is treated as an unverified hypothesis, not a forecast.
+
 ## 2026-09-14 — Added joint option-IV panic regime replay
 
 Added `crypto_options_panic_regime_response_replay.py` using the existing

@@ -8,6 +8,8 @@
 - `crypto_options_skew_*` 与期限结构回放：翼部 IV、近/远端 ATM slope 的持续性或 BTC 响应。
 - `crypto_options_panic_regime_response_replay.py`：联合高 ATM IV 与正的
   put-minus-call skew 响应研究。
+- `crypto_options_skew_vol_regime_response_replay.py`：联合平静价格路径与
+  下行 skew 的响应研究。
 - `crypto_options_put_call_oi_*`：把提供方 OI 构成为 defensive、call-dominant 或 balanced 上下文。
 - `crypto_options_gamma_*`、`crypto_options_max_pain_*`、`crypto_options_bull_call_spread_*`：
   透明的曲面/报价几何研究。
@@ -38,6 +40,17 @@ python3 examples/crypto/options/crypto_options_panic_regime_response_replay.py \
   --input work/crypto-options-skew-response.jsonl \
   --horizon-records 3 --high-atm-iv 60 --downside-skew-iv 3 \
   --min-observations 5
+```
+
+Skew/volatility 回放沿用同一份归档，并计算报价对数收益的滚动、未年化标准差，
+再把调用者定义的低波动阈值与正的 put-minus-call skew 组合起来，与单一条件和普通状态比较。
+由于 recorder 的采样间隔可配置，该阈值只是“每条记录”的波动代理，不是 30 日或年化波动率结论。
+
+```bash
+python3 examples/crypto/options/crypto_options_skew_vol_regime_response_replay.py \
+  --input work/crypto-options-skew-response.jsonl \
+  --vol-window 6 --low-vol-pct 1.0 --downside-skew-iv 3 \
+  --horizon-records 3 --min-observations 5
 ```
 
 ## 证据规则
