@@ -54,6 +54,7 @@ Cases:
 - `crypto_vwap_deviation_reversion_replay.py`: prior UTC-session VWAP deviation followed by a cross-back versus fixed-horizon directional response.
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
+- `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
 - `liquidity_stress_monitor.py`: target-size executable impact + spread + short-horizon EWMA volatility.
@@ -529,6 +530,11 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 [Liquidity-Driven Breakout Reliability 研究](https://papers.ssrn.com/sol3/Delivery.cfm/5962358.pdf?abstractid=5962358&mirid=1)。
 由于接口没有 tick 级 volume-at-price，这里明确把每根 K 线成交量分配到 typical price，只是近似，不是订单簿事实。
 
+`crypto_liquidity_sweep_response_replay.py` 只检验公开“扫损/收回”叙事中能从 OHLCV 看见的部分：当前 K 线刺破前序回看区间的高点或低点，收盘重新穿回该水平，且实体/波动达到阈值，随后比较方向对齐的固定窗口收益。
+它不声称看到了真实止损池、挂单流动性、CISD 或 displacement 意图。研究线索来自
+[KM Trading 在 X 的 setup 拆解](https://x.com/KMTrading_SMC/status/2032428981040103847)，字段语义对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
 `crypto_footprint_imbalance_monitor.py` 使用已有 `/v1/market/footprint`，读取价格分桶的 bid/ask delta 和 stacked
 imbalance，并由 recorder/replay 检验压力状态是否连续出现。研究线索参考公开的
 [OI/订单流确认讨论](https://x.com/xwinfinance/status/2023155692916646257)；这里不把它解释成挂单流动性、清算墙、
@@ -740,6 +746,11 @@ python3 examples/crypto/microstructure/crypto_volume_profile_breakout_replay.py 
   --low-volume-quantile 0.25 --breakout-buffer-bps 2 \
   --volume-multiplier 1.2 --horizon-bars 30 \
   --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/microstructure/crypto_liquidity_sweep_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 15m \
+  --days 15 --lookback-bars 20 --sweep-buffer-bps 0 \
+  --min-body-fraction 0.50 --min-range-bps 5 \
+  --horizon-bars 8 --paper-cost-bps 10 --min-observations 5
 python3 examples/crypto/microstructure/crypto_footprint_imbalance_monitor.py \
   --exchange binance --market perp --symbol BTCUSDT --interval-ms 60000 \
   --scale 1 --imbalance-ratio 3 --stacked-imbalance-range 3 \

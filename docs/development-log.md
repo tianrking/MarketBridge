@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — Added OHLCV liquidity-sweep response replay
+
+Added `crypto_liquidity_sweep_response_replay.py` under microstructure. The
+case finds candles that trade beyond a prior lookback high or low, reclaim that
+level at the close, and meet explicit body/range thresholds; it then reports
+direction-aligned fixed-horizon returns with an optional paper-cost hurdle.
+This is deliberately only an OHLCV proxy: it does not infer resting stops,
+latent liquidity pools, CISD, displacement intent, trader intent or execution.
+
+The research lead is [KM Trading's public X setup breakdown](https://x.com/KMTrading_SMC/status/2032428981040103847).
+Field semantics follow [Binance's official kline/candlestick documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data);
+the X terminology is narrowed to observable, falsifiable candle conditions.
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.

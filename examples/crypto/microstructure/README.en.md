@@ -28,6 +28,26 @@ near-touch bid and ask depth with a tight spread is followed by a different
 absolute BTC move than ordinary snapshots. It does not call the displayed
 levels persistent walls or infer a range-trading opportunity.
 
+`crypto_liquidity_sweep_response_replay.py` tests the measurable OHLCV subset
+of a public liquidity-sweep/reclaim discussion. It finds a current candle that
+trades beyond the prior lookback high or low, closes back through that level,
+and has a directional body/range. It then reports direction-aligned forward
+returns. This is not proof of resting stop liquidity, a true liquidity pool,
+CISD, displacement intent, or an executable setup.
+
+```bash
+python3 examples/crypto/microstructure/crypto_liquidity_sweep_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 15m \
+  --days 15 --lookback-bars 20 --sweep-buffer-bps 0 \
+  --min-body-fraction 0.50 --min-range-bps 5 \
+  --horizon-bars 8 --paper-cost-bps 10 --min-observations 5
+```
+
+The research lead is [KM Trading's public X setup breakdown](https://x.com/KMTrading_SMC/status/2032428981040103847).
+MarketBridge uses the official [Binance kline/candlestick field semantics](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)
+and keeps the X terminology narrower than the post: only prior-range breach,
+reclaim and candle geometry are tested.
+
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
 hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
 average, does the next fixed number of weekly closes show a different signed

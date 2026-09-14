@@ -22,6 +22,21 @@ ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL
 liquidity-sandwich pair 只检验一个更窄的公开 X 假设：当买卖两侧近盘口深度都明显、点差较窄时，
 后续 BTC 绝对波动是否不同于普通快照；不会把显示深度称为持续墙体，也不推导区间交易机会。
 
+`crypto_liquidity_sweep_response_replay.py` 检验公开“流动性扫损/收回”叙事中可以从 OHLCV 观察到的子集：当前 K 线刺破前序回看窗口的高点或低点，
+随后收盘重新穿回该水平，并且实体/波动达到阈值；然后报告按方向对齐的未来收益。这不能证明真实止损流动性、潜在 liquidity pool、CISD、displacement 意图或可执行形态。
+
+```bash
+python3 examples/crypto/microstructure/crypto_liquidity_sweep_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 15m \
+  --days 15 --lookback-bars 20 --sweep-buffer-bps 0 \
+  --min-body-fraction 0.50 --min-range-bps 5 \
+  --horizon-bars 8 --paper-cost-bps 10 --min-observations 5
+```
+
+研究线索来自 [KM Trading 在 X 的 setup 拆解](https://x.com/KMTrading_SMC/status/2032428981040103847)。
+MarketBridge 的字段语义对照 [Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)，
+并主动收窄 X 帖子术语：只检验前序区间突破、收回和 K 线几何，不把术语变成订单执行规则。
+
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
 RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
 也不会把 X 帖子里的回撤描述变成预测。
