@@ -1185,6 +1185,8 @@ Meteora 现在也接入官方 DLMM `/pools` API：将分页、TVL、24 小时 vo
 ratio 仍只是提供方上下文，不是持仓归属，也没有资金分配或执行路径。
 微结构系列还新增独立的拥挤响应 recorder/replay：把 CoinGlass 上下文与 MarketBridge 价格快照一起冻结，
 报告固定记录窗口的签名响应，并单独保留伴随清算的样本；不会把聚合 ratio 解释成持仓归属或交易信号。
+同系列还新增 ADL 风险 response recorder/replay：把 Binance 高/中/低 provider 等级与 BTC 报价冻结，比较之后固定窗口响应；
+不声称发生了真实 ADL，也不访问私有账户风险。
 同系列还新增 anchored VWAP 回放：只用前置窗口选择 swing 锚点，避免未来数据泄漏，检验历史 K 线中的新夺回/跌破响应，
 并明确保留 OHLCV 近似和事件身份限制。
 Universe 系列还新增 altcoin breadth 回放：按调用者选择的等计数山寨币篮子，比较低/中性/高参与度状态下

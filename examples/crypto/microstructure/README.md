@@ -8,6 +8,15 @@ signals. The first polling cycle intentionally has no OI change baseline. A
 venue-specific liquidation side is not universal, so the replay keeps source
 and coverage metadata visible and downgrades missing data to `observe_only`.
 
+The ADL response pair treats Binance's public rating as provider context only.
+It compares high, medium and low snapshots with later BTC signed and absolute
+movement, but does not claim that an ADL event occurred or that the rating
+predicts price. Binance describes the rating as a symbol-level measure that
+incorporates insurance-fund balance, concentration, depth, volatility, leverage
+and margin utilization; private account risk remains outside this repository.
+Research provenance includes a public [liquidation discussion on X](https://x.com/angustias87/status/2039147109228925373)
+and Binance's [ADL risk API documentation](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/ADL-Risk).
+
 Cases:
 
 - `short_squeeze_monitor.py`: negative funding + rising OI + spot/perp flow divergence.
@@ -26,6 +35,7 @@ Cases:
 - `crypto_vpin_response_replay.py`: averages absolute signed imbalance across fixed-volume buckets and compares high-VPIN-proxy buckets with normal buckets by later absolute movement.
 - `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
 - `crypto_adl_risk_monitor.py`: observes Binance symbol-level high/medium/low ADL risk as liquidation-risk context, never as a directional signal.
+- `crypto_adl_risk_response_recorder.py` / `crypto_adl_risk_response_replay.py`: freeze ADL-risk states beside a BTC quote and compare later fixed-record responses by provider-risk bucket.
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`: freeze aggregate CoinGlass context and require consecutive crowding states before promoting persistence.
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`: freeze the same context beside a price snapshot and compare signed fixed-record responses after long/short crowding, with a separate liquidation-qualified bucket.
 - `crypto_spot_perp_depth_gap_monitor.py`: compares same-venue spot/perp target-size depth and impact.
@@ -329,6 +339,12 @@ page cannot silently look like a complete replay window.
 这些观察器组合资金费率、OI 变化、现货/永续订单流、盘口深度、价格上下文和清算事件，
 输出的是共振证据，不是入场信号。第一次轮询没有 OI 基线是有意设计；不同交易所的清算
 side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺失数据降级为 `observe_only`。
+
+ADL response 案例只把 Binance 公布的等级当作 provider 上下文，按高、中、低状态比较
+之后 BTC 有符号和绝对波动；不声称发生了 ADL，也不把等级当成价格预测。Binance 说明该等级
+会综合保险基金、仓位集中、深度、波动率、杠杆和保证金利用率，私有账户风险仍不在本项目内。
+研究线索参考 [X 上的公开清算讨论](https://x.com/angustias87/status/2039147109228925373)
+和 [Binance ADL 风险 API 文档](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/ADL-Risk)。
 
 案例包括：
 

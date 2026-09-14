@@ -316,6 +316,9 @@ align with later BTC direction, without claiming capital-flow causality or
 conversion execution.
 The microstructure family also exposes optional CoinGlass aggregate derivatives
 context while preserving missing-key and missing-metric evidence.
+It also includes an ADL-risk response recorder/replay that freezes Binance's
+symbol-level high/medium/low provider rating beside a BTC quote and compares
+later responses without claiming a realized ADL event or private account risk.
 It now includes a Python recorder/replay pair that tests whether aggregate
 long/short crowding states persist across snapshots; ratios remain provider
 context, not position ownership, and the replay has no allocation or execution

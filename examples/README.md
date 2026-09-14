@@ -56,6 +56,7 @@ there are no root-level compatibility copies.
 | `crypto/microstructure/crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py` | Footprint bid/ask pressure may align with later signed or absolute BTC movement | `/v1/market/footprint`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; rolling buffer, side semantics, causality, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_derivatives_sentiment_monitor.py` | Aggregate funding/OI/long-short/liquidation context should remain visible without inferring position ownership | `/v1/external/signals?sources=coinglass` | Optional keyed snapshot context; missing metrics remain observe-only and no execution model |
 | `crypto/microstructure/crypto_adl_risk_monitor.py` | Binance symbol-level ADL risk rating can identify a liquidation-risk context that should be monitored separately from direction | `/v1/market/adl-risk` | Provider risk snapshot; no price forecast, private account risk, order, wallet or execution claim |
+| `crypto/microstructure/crypto_adl_risk_response_recorder.py` / `crypto_adl_risk_response_replay.py` | High, medium and low Binance ADL-risk ratings may have different later BTC response distributions | `/v1/market/adl-risk`, `/v1/market/quotes`, JSONL archive | Provider-rating response study; no realized ADL, private account risk, direction or execution claim |
 | `crypto/microstructure/crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py` | Repeated aggregate derivatives crowding states should be tested for persistence rather than promoted from one snapshot | `/v1/external/signals?sources=coinglass`, JSONL archive | Consecutive-state diagnostic; aggregate ratios are not ownership and no price, allocation or execution model |
 | `crypto/microstructure/crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py` | Long/short crowding plus optional liquidation activity can be compared with a later fixed-record price response | `/v1/external/signals?sources=coinglass`, `/v1/market/quotes`, JSONL archive | Signed response study; record-count horizon, provider semantics, costs and execution remain explicit gaps |
 | `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
@@ -200,6 +201,13 @@ python3 examples/crypto/microstructure/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange okx --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000 \
   --oi-exchange bybit --trades-exchange okx
+python3 examples/crypto/microstructure/crypto_adl_risk_response_recorder.py \
+  --symbol BTCUSDT --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 1800 \
+  --output work/crypto-adl-risk-response.jsonl
+python3 examples/crypto/microstructure/crypto_adl_risk_response_replay.py \
+  --input work/crypto-adl-risk-response.jsonl \
+  --horizon-records 2 --min-observations 3
 python3 examples/prediction/polymarket_complement_monitor.py --min-edge-bps 10
 python3 examples/prediction/polymarket_price_shock_replay.py \
   --market-query "temperature" --outcome Yes --interval 1m \

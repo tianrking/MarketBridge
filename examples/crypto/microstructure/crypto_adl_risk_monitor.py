@@ -4,8 +4,16 @@
 import argparse
 import json
 import time
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-from crypto_funding_spread_response_replay import fetch
+
+def fetch(base_url, path, params, timeout):
+    query = urlencode({key: value for key, value in params.items() if value is not None})
+    suffix = f"?{query}" if query else ""
+    request = Request(f"{base_url.rstrip('/')}{path}{suffix}")
+    with urlopen(request, timeout=timeout) as response:
+        return json.load(response)
 
 
 def classify_risk(risk):

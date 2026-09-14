@@ -1489,6 +1489,21 @@ Provenance remains the [stablecoin liquidity discussion on X](https://x.com/Coin
 and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352),
 with fields cross-checked against DefiLlama's [stablecoin documentation](https://docs.llama.fi/).
 
+## 2026-09-14 — Binance ADL-risk response replay
+
+Extended the Binance ADL context case with
+`crypto_adl_risk_response_recorder.py` and
+`crypto_adl_risk_response_replay.py`. The recorder freezes the public
+high/medium/low symbol-level rating beside a MarketBridge BTC quote; replay
+compares fixed-record signed and absolute responses by provider-risk bucket.
+The study does not claim a realized ADL event, private account risk, forced
+deleveraging, price direction or execution.
+
+Provenance: [Binance's ADL Risk API documentation](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/ADL-Risk)
+and [ADL explanation](https://www.binance.com/en-AU/support/faq/detail/360033525471)
+define the provider rating and its limitations; a public [liquidation discussion on X](https://x.com/angustias87/status/2039147109228925373)
+is used only as an unverified research lead.
+
 ## 2026-09-14 — Bitcoin mempool fee-pressure context
 
 Added the keyless `/v1/onchain/mempool` endpoint. It combines mempool.space's
