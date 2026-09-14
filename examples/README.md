@@ -2,12 +2,13 @@
 
 The maintained crypto entrypoints are grouped under [`crypto/`](crypto/README.md)
 with bilingual (English/中文) guides for carry, DeFi, macro, microstructure,
-on-chain, options, sentiment and universe research. The root scripts remain compatibility entrypoints and shared
-Python implementations; there are no Rust strategy examples in `examples/`.
+on-chain, options, sentiment and universe research. Prediction and weather
+observers live in their own top-level families; Python tests live under
+[`tests/`](tests/). The `examples/` root contains documentation only.
 
 维护中的加密策略入口统一放在 [`crypto/`](crypto/README.md)，每个系列目录都有中英文
-说明，覆盖套利/资金费率、DeFi、宏观、微结构/清算、链上、期权/波动率、情绪和资产宇宙。根目录脚本保留为兼容
-入口和共享 Python 实现；`examples/` 中不再放 Rust 策略示例。
+说明，覆盖套利/资金费率、DeFi、宏观、微结构/清算、链上、期权/波动率、情绪和资产宇宙；预测市场和天气观察器
+也各自独立。Python 测试集中在 [`tests/`](tests/)，`examples/` 根目录只保留文档。
 
 These examples are research observers. They call the running MarketBridge HTTP
 API, print evidence and a bounded hypothesis score, and never place orders.
@@ -16,14 +17,11 @@ Each demo must state its data assumptions and keep missing data visible.
 Strategy code is Python-first. Rust remains the framework/runtime layer for
 connectors, normalization, caches, history, replay primitives and API serving.
 New strategy experiments should start from the relevant categorized Python
-launcher or `python_strategy_runner.py`; Rust remains the data/runtime layer.
-The `crypto/` paths are canonical for new users. Unqualified `crypto_*.py`
-rows below are retained compatibility entrypoints to the same Python
-implementations, not separate strategies; when both forms appear, the
-categorized command is the recommended one.
+launcher or `crypto/strategy/python_strategy_runner.py`; Rust remains the
+data/runtime layer. Every runnable strategy path shown below is categorized;
+there are no root-level compatibility copies.
 
-新用户应优先使用 `crypto/` 下的分类入口。下表中不带目录的 `crypto_*.py` 是保留的兼容入口，
-与分类入口共享同一份 Python 实现，不代表另一套策略；同时出现两种路径时，以分类命令为准。
+新用户应直接使用 `crypto/` 下的分类入口。策略实现不再复制到根目录，避免打开 `examples/` 时混乱。
 
 ## Current cases
 
@@ -137,7 +135,7 @@ categorized command is the recommended one.
 | `crypto_liquidity_stress_monitor.py` | Target-size book impact, quoted spread and short-horizon EWMA volatility can identify a stressed unwind regime | `/v1/market/order-books`, `/v1/history/candles` | Two-of-three risk context; no direction, routing or sizing decision |
 | `crypto/microstructure/crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py` | Test whether a two-of-three liquidity-stress state persists across snapshots | JSONL from order-book and candle observations | Persistence diagnostic; missing inputs stay outside coverage, no routing or execution model |
 | `crypto/microstructure/crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py` | Compare later BTC movement after liquidity-stress, watch and normal snapshots | `/v1/market/order-books`, `/v1/history/candles`, `/v1/market/quotes`, JSONL archive | Fixed-record risk-context response study; no directional, routing or execution claim |
-| `python_strategy_runner.py` | Shared Python implementation for categorized crypto observers, including liquidity stress | normalized MarketBridge endpoints | Primary strategy implementation; read-only JSON output; requests only the selected strategy's inputs |
+| `crypto/strategy/python_strategy_runner.py` | Shared Python implementation for categorized crypto observers, including liquidity stress | normalized MarketBridge endpoints | Primary strategy implementation; read-only JSON output; requests only the selected strategy's inputs |
 | `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
 | `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
 
@@ -171,11 +169,11 @@ python3 examples/crypto/carry/crypto_basis_replay.py \
   --input work/crypto-basis.jsonl --symbol BTCUSDT --lookback 20 --horizon 3
 python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
   --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/liquidation_reversal_replay.py \
+python3 examples/crypto/microstructure/liquidation_reversal_replay.py \
   --exchange okx --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000 \
   --oi-exchange bybit --trades-exchange okx
-python3 examples/liquidation_reversal_replay.py \
+python3 examples/crypto/microstructure/liquidation_reversal_replay.py \
   --exchange coinex --price-exchange okx --symbol BTCUSDT --limit 100 \
   --horizon-bars 3 --min-notional 100000 \
   --oi-exchange bybit --trades-exchange okx
@@ -452,29 +450,29 @@ python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_recorder.py 
 python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_replay.py \
   --input work/crypto-cross-venue-orderbook-response.jsonl \
   --horizon-records 3 --min-net-edge-bps 0 --min-observations 5
-python3 examples/crypto_microstructure_monitor.py \
+python3 examples/crypto/microstructure/crypto_microstructure_monitor.py \
   --symbol BTCUSDT --exchange binance --top-levels 5 \
   --imbalance-threshold 0.30 --funding-extreme-pct 0.01
-python3 examples/crypto_flow_book_confirmation.py \
+python3 examples/crypto/microstructure/crypto_flow_book_confirmation.py \
   --symbol BTCUSDT --exchange binance --window-ms 60000 \
   --imbalance-threshold 0.30 --flow-threshold 0.20
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy options_skew --currency BTC --options-venue deribit \
   --expiry-days 30 --iterations 2 --interval-secs 30
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy options_vrp --currency BTC --options-venue deribit \
   --symbol BTCUSDT --exchange binance --rv-interval 1h --rv-bars 168
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy volatility_breakout --symbol BTCUSDT --exchange binance \
   --breakout-interval 5m --breakout-limit 100 \
   --range-bars 12 --compression-window 12 --baseline-window 48
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy funding_convergence --symbol BTCUSDT \
   --funding-exchanges binance,okx,bybit \
   --min-spread-bps-per-hour 0.5
-python3 examples/python_strategy_runner.py \
+python3 examples/crypto/strategy/python_strategy_runner.py \
   --strategy cross_asset_momentum --exchange binance \
   --cross-asset-symbols BTCUSDT,ETHUSDT,SOLUSDT \
   --cross-asset-interval 1h --cross-asset-lookback 8 \

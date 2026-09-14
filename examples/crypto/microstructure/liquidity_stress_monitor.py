@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Python-first executable liquidity-stress research monitor."""
-
+"""Compatibility alias for the categorized liquidity-stress monitor."""
+import runpy
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from strategy_entrypoint import run  # noqa: E402
-
-
 if __name__ == "__main__":
-    run("liquidity_stress")
+    target = Path(__file__).with_name("crypto_liquidity_stress_monitor.py")
+    sys.argv[0] = str(target)
+    runpy.run_path(str(target), run_name="__main__")

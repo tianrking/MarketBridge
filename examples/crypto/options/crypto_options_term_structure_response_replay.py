@@ -1,10 +1,115 @@
 #!/usr/bin/env python3
-import runpy
-import sys
+"""Replay BTC response after recorded option IV term-structure states."""
+
+import argparse
+import json
+import statistics
 from pathlib import Path
 
 
+def load_records(path):
+    records, invalid_lines = [], 0
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                invalid_lines += 1
+                continue
+            if isinstance(row, dict) and isinstance(row.get("observation"), dict):
+                records.append(row)
+            else:
+                invalid_lines += 1
+    return records, invalid_lines
+
+
+def number(value):
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def term_state(observation, min_slope_iv):
+    term = observation.get("term_structure") or {}
+    slope = number(term.get("atm_iv_slope_iv"))
+    if slope is None:
+        return "missing_term_points"
+    if slope >= min_slope_iv:
+        return "upward_iv_term_structure"
+    if slope <= -min_slope_iv:
+        return "inverted_iv_term_structure"
+    return "flat_iv_term_structure"
+
+
+def bucket_stats(rows):
+    returns = [row["forward_return_pct"] for row in rows]
+    return {
+        "observations": len(returns),
+        "mean_forward_return_pct": statistics.mean(returns) if returns else None,
+        "mean_absolute_forward_return_pct": statistics.mean(abs(value) for value in returns)
+        if returns else None,
+        "positive_fraction": (sum(value > 0 for value in returns) / len(returns)) if returns else None,
+    }
+
+
+def summarize_records(records, horizon_records, min_slope_iv, min_observations):
+    ordered = sorted(records, key=lambda item: item.get("recorded_at_ms", 0))
+    observations = []
+    for index, record in enumerate(ordered):
+        future_index = index + horizon_records
+        if future_index >= len(ordered):
+            continue
+        current = number((((record.get("observation") or {}).get("price") or {}).get("price")))
+        future = number((((ordered[future_index].get("observation") or {}).get("price") or {}).get("price")))
+        if current is None or future is None or current <= 0 or future <= 0:
+            continue
+        observation = record.get("observation") or {}
+        slope = number((observation.get("term_structure") or {}).get("atm_iv_slope_iv"))
+        observations.append({
+            "recorded_at_ms": record.get("recorded_at_ms"),
+            "state": term_state(observation, min_slope_iv),
+            "atm_iv_slope_iv": slope,
+            "forward_return_pct": (future / current - 1.0) * 100.0,
+        })
+    states = ("upward_iv_term_structure", "inverted_iv_term_structure",
+              "flat_iv_term_structure", "missing_term_points")
+    by_state = {state: bucket_stats([row for row in observations if row["state"] == state])
+                for state in states}
+    directional = by_state["upward_iv_term_structure"]["observations"] + by_state["inverted_iv_term_structure"]["observations"]
+    return {
+        "by_state": by_state, "aligned_forward_windows": len(observations),
+        "directional_term_windows": directional,
+        "verdict": ("options_term_structure_response_reported" if directional >= min_observations
+                    else "observe_only_insufficient_aligned_term_structure_windows"),
+        "research_only": True,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument("--horizon-records", type=int, default=3)
+    parser.add_argument("--min-slope-iv", type=float, default=3.0)
+    parser.add_argument("--min-observations", type=int, default=5)
+    args = parser.parse_args()
+    if args.horizon_records <= 0 or args.min_slope_iv < 0 or args.min_observations <= 0:
+        parser.error("horizon and minimum observations must be positive; slope cannot be negative")
+    records, invalid_lines = load_records(args.input)
+    print(json.dumps({
+        "strategy": "crypto_options_term_structure_response_replay", "input": str(args.input),
+        "invalid_lines": invalid_lines,
+        "filters": {"horizon_records": args.horizon_records, "min_slope_iv": args.min_slope_iv,
+                    "min_observations": args.min_observations},
+        "summary": summarize_records(records, args.horizon_records, args.min_slope_iv,
+                                      args.min_observations),
+        "limitations": [
+            "near/far expiry identities can roll and ATM buckets are venue snapshots",
+            "future BTC response is descriptive, not calendar-spread PnL or hedge return",
+            "no option quote, carry, margin, settlement, cost or execution model",
+        ],
+        "execution": "research_only_no_orders",
+    }, ensure_ascii=False, sort_keys=True))
+
+
 if __name__ == "__main__":
-    target = Path(__file__).resolve().parents[2] / "crypto_options_term_structure_response_replay.py"
-    sys.argv[0] = str(target)
-    runpy.run_path(str(target), run_name="__main__")
+    main()
