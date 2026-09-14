@@ -91,6 +91,7 @@ python3 -m compileall -q examples
 - `crypto_funding_band_response_recorder.py`
 - `crypto_funding_band_response_replay.py`
 - `crypto_funding_carry_accrual_replay.py`
+- `crypto_funding_interval_change_response_replay.py`
 - `crypto_funding_cross_section_replay.py`
 - `crypto_funding_oi_replay.py`
 - `crypto_funding_regime_replay.py`

@@ -2266,3 +2266,14 @@ accrual replay now exposes `--funding-pages` for Binance, Bybit and OKX. Provide
 funding intervals remain point-in-time facts; no annualized fill, order, wallet,
 signing or execution path was added. Provenance: [Bybit funding-rate history](https://bybit-exchange.github.io/docs/v5/market/history-fund-rate)
 and [OKX funding-rate history](https://app.okx.com/docs-v5/zh/).
+
+## 2026-09-14 — funding interval-change response study
+
+Added `crypto_funding_interval_change_response_replay.py`. It derives each
+settlement interval only from adjacent provider funding timestamps, compares
+`interval_change` with `stable_interval` observations, and measures later BTC
+responses without annualizing rates or claiming funding income. The case is
+motivated by [OKX's automatic funding settlement-frequency update](https://www.okx.com/en-eu/help/okx-to-enable-automatic-updates-for-funding-fee-settlement-period)
+and the public cross-venue funding differential discussion
+([X](https://x.com/leondoteth/status/2012127303850213817)); both are research
+leads/context, not performance evidence.

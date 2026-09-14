@@ -54,6 +54,15 @@ python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
 Binance、Bybit 和 OKX 的 funding-rate candle 也支持有界分页；carry 账本通过
 `--funding-pages` 暴露该参数，提供方结算周期和覆盖范围继续原样保留。
 
+`crypto_funding_interval_change_response_replay.py` 使用提供方相邻 funding 时间戳，检验结算周期发生变化时，
+后续 BTC 响应是否不同于周期稳定的观察。它不假设所有 venue 都是 8 小时结算，也不把费率转换成年化收入。
+
+```bash
+python3 examples/crypto/carry/crypto_funding_interval_change_response_replay.py \
+  --exchange okx --symbol BTCUSDT --period 8h --days 30 \
+  --funding-pages 4 --price-pages 4 --horizon-bars 3 --min-observations 5
+```
+
 ## 完整运行示例
 
 ```bash

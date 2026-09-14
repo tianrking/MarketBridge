@@ -67,6 +67,18 @@ Funding-rate candles on Binance, Bybit and OKX also accept bounded pagination;
 the carry ledger exposes it as `--funding-pages`. Provider settlement intervals
 and coverage remain explicit.
 
+`crypto_funding_interval_change_response_replay.py` uses adjacent provider
+funding timestamps to test whether a changed settlement interval has a different
+later BTC response from stable-interval observations. It does not assume every
+venue settles every eight hours or convert the observed rate into annualized
+income.
+
+```bash
+python3 examples/crypto/carry/crypto_funding_interval_change_response_replay.py \
+  --exchange okx --symbol BTCUSDT --period 8h --days 30 \
+  --funding-pages 4 --price-pages 4 --horizon-bars 3 --min-observations 5
+```
+
 ## Run a complete case
 
 ```bash
