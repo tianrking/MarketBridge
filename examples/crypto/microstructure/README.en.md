@@ -10,7 +10,7 @@
 | Confluence monitors | `short_squeeze_monitor.py`, `exhaustion_short_monitor.py`, `liquidation_reversal_monitor.py`, `crypto_microstructure_monitor.py` |
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
-| Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `liquidation_reversal_replay.py` |
+| Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
@@ -166,6 +166,23 @@ python3 examples/crypto/microstructure/crypto_obv_divergence_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --lookback-bars 20 --price-threshold-bps 20 \
   --obv-threshold 0.10 --horizon-bars 6 --min-observations 5
+```
+
+`crypto_liquidation_intensity_response_replay.py` is the normalized companion
+to the absolute liquidation-burst and price-cluster cases. It divides observed
+liquidation notional by typical-price times base-volume turnover over the same
+trailing candle window, then compares high-intensity and ordinary windows by
+later absolute movement. The event venue and price venue remain explicit;
+side labels are metadata, and bounded history is not a complete cascade ledger.
+The ratio-based research lead is [a liquidation-aware backtesting framework](https://candlefeed.ai/blog/liquidation-aware-backtesting/),
+with event semantics cross-checked against [Binance's liquidation stream documentation](https://developers.binance.com/en/docs/derivatives/coin-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
+and [official kline fields](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_liquidation_intensity_response_replay.py \
+  --liquidation-exchange okx --price-exchange okx --symbol BTCUSDT \
+  --interval 5m --window-bars 12 --horizon-bars 12 \
+  --min-intensity-ratio 0.01 --min-observations 3
 ```
 
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only

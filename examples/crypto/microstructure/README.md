@@ -61,6 +61,7 @@ Cases:
 - `crypto_fibonacci_retracement_response_replay.py`: groups point-in-time 38.2%, 50% and 61.8% retracement zones against control ranges.
 - `crypto_fair_value_gap_response_replay.py`: tests three-candle wick non-overlap zones, later touches/fills and ordinary-bar responses.
 - `crypto_obv_divergence_response_replay.py`: compares close-signed volume-flow divergence, confirmation and mixed controls.
+- `crypto_liquidation_intensity_response_replay.py`: normalizes observed liquidation notional by OHLCV quote turnover and compares stress windows with ordinary controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -565,6 +566,13 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 它不观察主动成交方向、持仓归属或鲸鱼意图；缺失 volume 保留为 `missing_volume`，不会填零。
 定义对照 [Binance 官方 OBV 说明](https://www.binance.com/en/square/post/1218711) 和
 [Fidelity 的 OBV 公式与限制](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/OBV)。
+
+`crypto_liquidation_intensity_response_replay.py` 把清算名义额按同一窗口的 typical-price × base-volume 成交额归一化，
+与绝对 burst/price-cluster 案例互补，比较 high-intensity 和 ordinary 窗口的后续绝对波动。
+清算 venue、价格 venue、提供方覆盖和 side 字段都会保留；比例不是完整清算账本，也不预测 cascade 或生成执行规则。
+比例化线索来自[清算感知回测框架](https://candlefeed.ai/blog/liquidation-aware-backtesting/)，字段对照
+[Binance 清算流文档](https://developers.binance.com/en/docs/derivatives/coin-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
+和 [官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
 
 ```bash
 python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \

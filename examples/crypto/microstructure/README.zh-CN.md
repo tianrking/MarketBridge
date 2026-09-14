@@ -10,7 +10,7 @@
 | Confluence 监控 | `short_squeeze_monitor.py`、`exhaustion_short_monitor.py`、`liquidation_reversal_monitor.py`、`crypto_microstructure_monitor.py` |
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
-| 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`liquidation_reversal_replay.py` |
+| 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`liquidation_reversal_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
@@ -132,6 +132,20 @@ python3 examples/crypto/microstructure/crypto_obv_divergence_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --lookback-bars 20 --price-threshold-bps 20 \
   --obv-threshold 0.10 --horizon-bars 6 --min-observations 5
+```
+
+`crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
+把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
+清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。
+比例化研究线索来自[清算感知回测框架](https://candlefeed.ai/blog/liquidation-aware-backtesting/)，事件语义对照
+[Binance 清算流文档](https://developers.binance.com/en/docs/derivatives/coin-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
+和 [官方 K 线字段文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_liquidation_intensity_response_replay.py \
+  --liquidation-exchange okx --price-exchange okx --symbol BTCUSDT \
+  --interval 5m --window-bars 12 --horizon-bars 12 \
+  --min-intensity-ratio 0.01 --min-observations 3
 ```
 
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的

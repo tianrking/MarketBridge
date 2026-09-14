@@ -106,6 +106,19 @@ accumulation, causality or execution.
 Definitions are cross-checked against [Binance's OBV explanation](https://www.binance.com/en/square/post/1218711)
 and [Fidelity's OBV formula and limitations](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/OBV).
 
+## 2026-09-14 — Added liquidation-intensity response replay
+
+Added `crypto_liquidation_intensity_response_replay.py` under microstructure.
+It normalizes observed liquidation notional by a same-window OHLCV quote-volume
+proxy, then compares high-intensity and ordinary windows by later absolute
+movement. The liquidation venue, price venue, provider coverage, side labels
+and bounded-history caveat remain explicit; this is not a complete cascade
+ledger, directional forecast or execution model.
+
+The ratio-based research lead is a [liquidation-aware backtesting framework](https://candlefeed.ai/blog/liquidation-aware-backtesting/).
+Event fields are cross-checked against [Binance's liquidation stream documentation](https://developers.binance.com/en/docs/derivatives/coin-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
+and [official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.
