@@ -94,6 +94,18 @@ The research lead is [a public FVG discussion on X](https://x.com/Bradgohtrades/
 Candlestick context is cross-checked against [Binance Academy's guidance](https://www.binance.com/en/square/post/492082)
 and the [official kline field documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 
+## 2026-09-14 — Added OBV divergence response replay
+
+Added `crypto_obv_divergence_response_replay.py` under microstructure. It
+implements close-signed OBV from candle volume, normalizes the as-of change by
+the lookback window's total volume, and compares bullish/bearish price-OBV
+divergence with same-direction and mixed controls. Missing volume remains
+`missing_volume`; the case does not infer aggressive flow, ownership,
+accumulation, causality or execution.
+
+Definitions are cross-checked against [Binance's OBV explanation](https://www.binance.com/en/square/post/1218711)
+and [Fidelity's OBV formula and limitations](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/OBV).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.

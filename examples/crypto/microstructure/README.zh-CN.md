@@ -11,7 +11,7 @@
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`liquidation_reversal_replay.py` |
-| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
+| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
@@ -119,6 +119,19 @@ python3 examples/crypto/microstructure/crypto_fair_value_gap_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 90 --min-gap-bps 5 --min-middle-body-fraction 0.50 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_obv_divergence_response_replay.py` 与 CVD 明确分开：它按经典规则在收盘上涨时给整根 K 线成交量加分、收盘下跌时减分，
+再用回看窗口总成交量归一化，比较 bullish/bearish divergence、价格与 OBV 同向确认以及 mixed/缺失状态的后续响应。
+它不观察主动成交方向、持仓归属、资金“积累”或鲸鱼意图；缺失 volume 会保留为 `missing_volume`，不会填零。
+定义对照 [Binance 官方 OBV 说明](https://www.binance.com/en/square/post/1218711) 和
+[Fidelity 的 OBV 公式与限制](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/OBV)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_obv_divergence_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --lookback-bars 20 --price-threshold-bps 20 \
+  --obv-threshold 0.10 --horizon-bars 6 --min-observations 5
 ```
 
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的

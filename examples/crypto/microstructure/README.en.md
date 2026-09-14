@@ -11,7 +11,7 @@
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `liquidation_reversal_replay.py` |
-| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
+| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
@@ -150,6 +150,22 @@ python3 examples/crypto/microstructure/crypto_fair_value_gap_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 90 --min-gap-bps 5 --min-middle-body-fraction 0.50 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_obv_divergence_response_replay.py` is deliberately separate from CVD:
+it applies the classic close-signed OBV rule to candle volume, normalizes the
+change by total volume in an as-of lookback window, and compares bullish/bearish
+divergence with price/OBV agreement and mixed controls. It does not observe
+aggressive trade side, ownership, accumulation, or whale intent. Missing volume
+is retained as `missing_volume`, not replaced with zero. Definitions are
+cross-checked against [Binance's OBV explanation](https://www.binance.com/en/square/post/1218711)
+and [Fidelity's OBV formula and limitations](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/OBV).
+
+```bash
+python3 examples/crypto/microstructure/crypto_obv_divergence_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --lookback-bars 20 --price-threshold-bps 20 \
+  --obv-threshold 0.10 --horizon-bars 6 --min-observations 5
 ```
 
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
