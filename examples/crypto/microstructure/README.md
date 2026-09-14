@@ -70,6 +70,7 @@ Cases:
 - `crypto_mfi_response_replay.py`: compares volume-weighted Money Flow Index extremes, reclaims and neutral controls.
 - `crypto_cmf_response_replay.py`: compares close-location-weighted Chaikin Money Flow pressure, zero crosses and neutral controls.
 - `crypto_parabolic_sar_response_replay.py`: compares Wilder-style Parabolic SAR flips with persistent trend controls.
+- `crypto_stochastic_response_replay.py`: compares smoothed Stochastic overbought/oversold states, K/D crosses and neutral controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -689,6 +690,20 @@ python3 examples/crypto/microstructure/crypto_parabolic_sar_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --start-af 0.02 --step 0.02 --max-af 0.20 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_stochastic_response_replay.py` 用当前收盘价相对包含当前 K 线的最高/最低区间计算 raw `%K`，再用连续 trailing SMA 得到平滑 `%K/%D`。
+样本分为 `overbought`、`oversold`、`neutral`，并单独保留 `bullish_kd_cross` / `bearish_kd_cross`，比较极值与中性控制组的固定窗口有符号、方向对齐、绝对和路径响应。
+zero-range 或不完整平滑窗口保持缺失，不跨缺口拼接；80/20、14/3/3 和 horizon 只是敏感性参数，不生成反转、入场、止损或执行规则。
+公式对照 [TradingView 的 Stochastic 说明](https://www.tradingview.com/support/solutions/43000502332-stochastic-stoch/)，加密语境参考
+[Binance 的超买/超卖说明](https://www.binance.com/en/square/post/684815)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_stochastic_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --k-period 14 --smooth-k 3 --smooth-d 3 \
+  --overbought 80 --oversold 20 --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

@@ -2053,3 +2053,17 @@ order is submitted, and initialization plus parameter sensitivity remain visible
 Provenance: [TradingView's Parabolic SAR calculation](https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/)
 defines the algorithm, [Binance Academy's SAR guide](https://www.binance.com/en/square/post/43032)
 provides crypto usage context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — Stochastic response replay
+
+Added `crypto_stochastic_response_replay.py` under the microstructure family.
+The Python case computes inclusive-window raw %K, contiguous SMA-smoothed %K/%D,
+overbought/oversold/neutral states and K/D cross events, then compares fixed-
+horizon responses with neutral controls. Zero-range and incomplete smoothing
+windows remain missing; thresholds and periods are sensitivity parameters, and
+the case never turns an oscillator label into a reversal, stop, wallet action or
+order.
+
+Provenance: [TradingView's Stochastic calculation](https://www.tradingview.com/support/solutions/43000502332-stochastic-stoch/)
+defines the formula, [Binance's overbought/oversold note](https://www.binance.com/en/square/post/684815)
+provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

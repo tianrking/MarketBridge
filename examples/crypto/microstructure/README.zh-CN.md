@@ -243,6 +243,20 @@ python3 examples/crypto/microstructure/crypto_parabolic_sar_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_stochastic_response_replay.py` 用当前收盘价相对包含当前 K 线的最高/最低区间计算 raw `%K`，再用连续 trailing SMA 得到平滑 `%K/%D`。
+样本分为 `overbought`、`oversold`、`neutral`，并单独保留 `bullish_kd_cross` / `bearish_kd_cross`，比较极值与中性控制组的固定窗口有符号、方向对齐、绝对和路径响应。
+zero-range 或不完整平滑窗口保持缺失，不跨缺口拼接；80/20、14/3/3 和 horizon 只是敏感性参数，不生成反转、入场、止损或执行规则。
+公式对照 [TradingView 的 Stochastic 说明](https://www.tradingview.com/support/solutions/43000502332-stochastic-stoch/)，加密语境参考
+[Binance 的超买/超卖说明](https://www.binance.com/en/square/post/684815)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_stochastic_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --k-period 14 --smooth-k 3 --smooth-d 3 \
+  --overbought 80 --oversold 20 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

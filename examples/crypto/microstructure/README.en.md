@@ -316,6 +316,25 @@ python3 examples/crypto/microstructure/crypto_parabolic_sar_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_stochastic_response_replay.py` computes raw `%K` from the current close
+inside an inclusive high/low window, then applies contiguous trailing SMAs for
+smoothed `%K` and `%D`. Bars are classified as `overbought`, `oversold` or
+`neutral`; `bullish_kd_cross` and `bearish_kd_cross` remain separate events,
+and extremes are compared with neutral controls over a fixed horizon. A
+zero-range or incomplete smoothing window stays missing rather than crossing a
+gap. The 80/20 thresholds, 14/3/3 periods and horizon are sensitivity
+parameters, not reversal, entry, stop or execution rules. Formula boundaries
+are cross-checked against [TradingView's Stochastic documentation](https://www.tradingview.com/support/solutions/43000502332-stochastic-stoch/),
+crypto usage context against [Binance's overbought/oversold note](https://www.binance.com/en/square/post/684815),
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_stochastic_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --k-period 14 --smooth-k 3 --smooth-d 3 \
+  --overbought 80 --oversold 20 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same
