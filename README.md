@@ -1264,10 +1264,12 @@ Supported candle types:
 - Binance: `spot`, `futures`, `perp`, `mark`, `index`, `premiumIndex`,
   `funding_rate`
 - OKX: `spot`, `perp`, `mark`, `index`, `funding_rate`
+- Bybit: `funding_rate`
+- Hyperliquid: `funding_rate` via the public `fundingHistory` info request
 
 Query params:
 
-- `exchange=binance|okx`
+- `exchange=binance|okx|bybit|hyperliquid`
 - `symbol=BTCUSDT`
 - `candle_type=spot|futures|perp|mark|index|premiumIndex|funding_rate`
 - `interval=1m|3m|5m|15m|30m|1h|4h|1d`, where supported by the venue
@@ -1281,6 +1283,7 @@ Examples:
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark&interval=1m&limit=1000&persist=true" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=premiumIndex&interval=1m&limit=500&persist=true" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate&limit=100" | jq
 ```
 
 ### Local Arrow IPC Lake

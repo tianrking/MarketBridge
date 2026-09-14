@@ -546,6 +546,7 @@ pub async fn candles(
         "binance" => fetch_binance_history(&state.http, &q, &candle_type).await,
         "okx" => fetch_okx_history(&state.http, &q, &candle_type).await,
         "bybit" => fetch_bybit_history(&state.http, &q, &candle_type).await,
+        "hyperliquid" => fetch_hyperliquid_history(&state.http, &q, &candle_type).await,
         other => Err(anyhow::anyhow!("unsupported history exchange: {other}")),
     };
 
@@ -928,6 +929,82 @@ async fn fetch_bybit_history(
             })
         })
         .collect()
+}
+
+async fn fetch_hyperliquid_history(
+    http: &reqwest::Client,
+    q: &HistoryCandlesQuery,
+    candle_type: &str,
+) -> Result<Vec<KlineBar>> {
+    if candle_type != "funding_rate" {
+        bail!("unsupported hyperliquid candle_type: {candle_type}");
+    }
+    let coin = hyperliquid_coin(&q.symbol);
+    let end_ms = q.end_ms.unwrap_or_else(now_ms);
+    let start_ms = q
+        .start_ms
+        .unwrap_or_else(|| end_ms.saturating_sub(30 * 86_400_000));
+    if start_ms > end_ms {
+        bail!("hyperliquid funding start_ms must not exceed end_ms");
+    }
+    let payload = http
+        .post("https://api.hyperliquid.xyz/info")
+        .json(&serde_json::json!({
+            "type": "fundingHistory",
+            "coin": coin,
+            "startTime": start_ms,
+            "endTime": end_ms,
+        }))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Value>>()
+        .await
+        .context("failed to parse hyperliquid funding history")?;
+    let interval = q.interval.as_deref().unwrap_or("1h").to_string();
+    let limit = q.limit.unwrap_or(500).clamp(1, 500);
+    let mut rows = payload
+        .into_iter()
+        .filter_map(|row| {
+            let open_time_ms = value_u64(row.get("time"))?;
+            let funding_rate = value_f64(row.get("fundingRate"))?;
+            Some(KlineBar {
+                exchange: "hyperliquid".to_string(),
+                market: "perp".to_string(),
+                symbol: coin.clone(),
+                interval: interval.clone(),
+                open_time_ms,
+                close_time_ms: open_time_ms,
+                open: funding_rate,
+                high: funding_rate,
+                low: funding_rate,
+                close: funding_rate,
+                volume: None,
+                source: "hyperliquid_funding_history".to_string(),
+                updated_at_ms: now_ms(),
+            })
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|row| row.open_time_ms);
+    if rows.len() > limit {
+        rows.drain(..rows.len() - limit);
+    }
+    Ok(rows)
+}
+
+fn hyperliquid_coin(symbol: &str) -> String {
+    let symbol = symbol.trim().to_ascii_uppercase();
+    if symbol.contains(':') {
+        return symbol;
+    }
+    for quote in ["USDT", "USDC", "USD"] {
+        if let Some(base) = symbol.strip_suffix(quote)
+            && !base.is_empty()
+        {
+            return base.to_string();
+        }
+    }
+    symbol
 }
 
 async fn fetch_okx_liquidations(
@@ -2231,6 +2308,14 @@ mod tests {
         assert_eq!(schedule["points"][0]["interval_ms"], 28_800_000);
         assert_eq!(schedule["points"][1]["interval_ms"], 14_400_000);
         assert_eq!(schedule["point_in_time"], true);
+    }
+
+    #[test]
+    fn hyperliquid_coin_preserves_provider_symbol_semantics() {
+        assert_eq!(hyperliquid_coin("BTCUSDT"), "BTC");
+        assert_eq!(hyperliquid_coin("ETHUSDC"), "ETH");
+        assert_eq!(hyperliquid_coin("xyz:XYZ100"), "XYZ:XYZ100");
+        assert_eq!(hyperliquid_coin("BTC"), "BTC");
     }
 
     #[test]

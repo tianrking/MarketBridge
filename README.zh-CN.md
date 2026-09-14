@@ -496,7 +496,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow/windows` | 多窗口 order-flow 和 CVD。 |
 | GET | `/v1/market/footprint` | footprint / orderflow profile。 |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV。 |
-| GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles；返回 `coverage_detail`，funding history 另附逐点 schedule。 |
+| GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles；支持 Binance、OKX、Bybit 和 Hyperliquid funding history，返回 `coverage_detail`，并附逐点 schedule。 |
 | GET | `/v1/history/liquidations` | OKX/CoinEx bounded recent public liquidation history，供回放使用；其他 venue 缺口保持显式。 |
 | GET | `/v1/history/open-interest` | Binance/Bybit 公开历史 OI 观察，保留 provider unit 和 `coverage_detail`；不代表多空方向。 |
 | GET | `/v1/history/account-ratio` | Binance 全体/大户账户占比与 Bybit holder-count 多空比历史；用 `scope=global / top_trader` 选择 Binance 语义，保留分页和覆盖信息，不代表名义持仓或交易者意图。 |

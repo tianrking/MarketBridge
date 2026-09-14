@@ -77,6 +77,7 @@ Primary endpoints:
 | Historical account ratio | `/v1/history/account-ratio` | none | Keyless Binance global or top-trader account share (`scope`) and Bybit holder-count long/short ratio; provider semantics and coverage remain explicit, not notional positioning |
 | Historical option volatility | `/v1/history/historical-volatility` | none | Keyless Bybit hourly option historical volatility by base/quote coin and period; not implied volatility or a forecast |
 | Historical basis | `/v1/history/basis` | none | Keyless Binance public futures/index basis, basis rate and annualized basis rate; provider snapshots are not executable legs |
+| Historical funding | `/v1/history/candles?candle_type=funding_rate` | none | Keyless Binance/OKX/Bybit plus Hyperliquid `fundingHistory`; timestamps and inferred adjacent schedule stay explicit |
 | Historical trades | `/v1/history/trades` | none | Keyless bounded Binance/OKX public trade history; Bybit recent-trade is not advertised as arbitrary history |
 
 Implemented keyless CEX/perp sources include:

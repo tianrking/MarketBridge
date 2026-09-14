@@ -71,6 +71,7 @@ Status labels:
 | Historical account ratio | `/v1/history/account-ratio` | implemented | keyless | Binance global or top-trader account share (`scope`) plus Bybit holder-count buy/sell ratio; provider semantics, cursor and coverage metadata remain explicit; not notional positioning. |
 | Historical option volatility | `/v1/history/historical-volatility` | implemented | keyless | Bybit public hourly option historical volatility with bounded time window and period; not implied volatility or a forecast. |
 | Historical basis | `/v1/history/basis` | implemented | keyless | Binance public futures/index basis with basis rate, annualized rate and coverage metadata; not simultaneous executable legs or carry PnL. |
+| Historical funding | `/v1/history/candles?candle_type=funding_rate` | implemented | keyless | Binance/OKX/Bybit and Hyperliquid public funding history; provider timestamps and inferred adjacent schedules remain explicit. |
 | Historical trades | `/v1/history/trades` | implemented | keyless | Bounded Binance/OKX public trades normalized with taker side for CVD research; retention is provider-controlled. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |

@@ -172,11 +172,22 @@ which documents adjusted cap, floor and interval fields. The public X lead is
 [this funding-extremes discussion](https://x.com/instaclaws/status/2038363051213181035);
 it is treated only as an unverified hypothesis source, not as performance evidence.
 
+`/v1/history/candles?exchange=hyperliquid&candle_type=funding_rate` now maps
+Hyperliquid's public `fundingHistory` response into the same point-in-time
+funding-candle shape. This closes a real replay gap for cross-venue funding
+spreads while preserving Hyperliquid's coin symbol and provider timestamps;
+the endpoint does not infer a fixed cash-flow schedule or executable hedge.
+
+Provenance: the cross-venue lead is the unverified [funding differential
+discussion on X](https://x.com/leondoteth/status/2012127303850213817),
+cross-checked against Hyperliquid's official [`fundingHistory` documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-historical-funding-rates).
+
 Useful inputs:
 
 - `/v1/market/basis`
 - `/v1/market/perpetual-funding`
 - `/v1/history/candles?candle_type=funding_rate`
+- `/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate`
 - Binance rows' `funding_rate_cap` and `funding_rate_floor` fields
 
 Example:
@@ -264,6 +275,12 @@ premium index 是交易所衍生的市场上下文，不代表资金费现金流
 并只把公开的 [CryptoCred 基差讨论](https://x.com/CryptoCred/status/1777720296297975952) 当作未经验证的研究线索。
 provider basis 不是同步可成交的 bid/ask，也不证明收敛套利收益。
 
+Hyperliquid 历史资金费率现在通过同一 candles 接口接入：`exchange=hyperliquid`、
+`candle_type=funding_rate` 会调用官方 `fundingHistory`，把 `time`、`fundingRate` 和
+provider coin 保留为逐点研究数据。默认未给出时间范围时只请求最近 30 天；这只是有界查询，
+不是完整历史保证。它让跨 venue funding spread replay 可以纳入 Hyperliquid，但不推断资金费
+现金流、固定结算周期、对冲可成交性或收益。
+
 `crypto_funding_band_monitor.py` 检验更窄的提供方上下文假设：当 Binance 当前资金费率接近公开的调整后
 cap 或 floor 时，之后固定窗口的响应是否不同于普通观测？它输出费率、明确结算间隔、上下限和接近程度；
 不会推断方向、资金费收入、清算风险或可成交性。
@@ -283,6 +300,7 @@ cap 或 floor 时，之后固定窗口的响应是否不同于普通观测？它
 - `/v1/market/basis`
 - `/v1/market/perpetual-funding`
 - `/v1/history/candles?candle_type=funding_rate`
+- `/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate`
 - Binance 行的 `funding_rate_cap`、`funding_rate_floor` 字段
 
 示例：
@@ -302,6 +320,8 @@ python3 examples/crypto/carry/funding_convergence_monitor.py \
 python3 examples/crypto/carry/funding_convergence_replay.py \
   --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200 \
   --paper-cost-bps-per-hour 0.25 --min-net-spread-bps-per-hour 0.5
+python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
+  --symbol BTCUSDT --exchange-a binance --exchange-b hyperliquid --days 7
 python3 examples/crypto/carry/crypto_basis_recorder.py \
   --symbol BTCUSDT --exchanges binance,okx --iterations 120 --interval-secs 30 \
   --output work/crypto-basis.jsonl

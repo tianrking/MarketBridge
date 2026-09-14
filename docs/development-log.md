@@ -1295,3 +1295,16 @@ Provenance: the public [CoinGlass liquidation-heatmap post on X](https://x.com/c
 and [Glassnode's liquidation-heatmap research](https://research.glassnode.com/liquidation-heatmaps/)
 motivate the falsifiable concentration hypothesis; event semantics remain
 bounded by [Binance's liquidation-order stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-coin-futures/websocket-market-streams/Liquidation-Order-Streams).
+## 2026-09-14 — Hyperliquid historical funding replay input
+
+Added a read-only Hyperliquid `fundingHistory` adapter to
+`/v1/history/candles?candle_type=funding_rate`. It normalizes public funding
+timestamps and rates into the existing `KlineBar` shape, preserves provider coin
+semantics, bounds an omitted window to the latest 30 days, and keeps the
+adjacent-timestamp funding schedule visible to replay callers. This enables the
+existing cross-venue funding-spread research examples to include Hyperliquid;
+it does not estimate cash flow, invent a fixed interval, or add execution.
+
+Provenance: the unverified [cross-venue funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
+is a research lead, cross-checked against Hyperliquid's official
+[`fundingHistory` API documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-historical-funding-rates).
