@@ -51,6 +51,13 @@ funding observations, and compares the next-window returns of the lowest- and
 highest-funding groups. It reports the low-minus-high spread with an optional
 paper hurdle; it does not turn the ranking into a portfolio or hedge.
 
+`crypto_funding_spread_response_replay.py` closes a different research gap. It
+annualizes each venue's historical funding rate using its point-in-time
+interval, aligns the two fresh series, and compares the next fixed BTC absolute
+return after an extreme or shocked cross-venue spread with ordinary spread
+windows. The spread is a carry-context/stress feature, not a direction signal;
+the result does not estimate funding cash flow or claim a hedge can be filled.
+
 `crypto_cross_venue_price_gap_replay.py` isolates same-asset price
 fragmentation: it aligns two venue candle series, detects an extreme log-price
 gap relative to a frozen trailing mean, and measures subsequent contraction.
@@ -102,6 +109,13 @@ liquidation forecast.
 The cross-sectional funding lead is also informed by the public [cross-venue
 funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
 and cross-checked against [Binance's official funding-history API documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+The spread-response decomposition uses the same public [cross-venue funding
+spread discussion on X](https://x.com/leondoteth/status/2012127303850213817),
+and preserves each venue's interval semantics using [Binance's funding-history
+documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
+and [OKX's funding-rate-history documentation](https://app.okx.com/docs-v5/zh/#rest-api-public-data-get-funding-rate-history).
+Those sources document public funding observations; they do not establish a
+profitable spread trade or a price-volatility forecast.
 The cross-venue gap decomposition is cross-checked against the academic
 [Trading and Arbitrage in Cryptocurrency Markets](https://www.sciencedirect.com/science/article/pii/S0304405X19301746)
 and [Arbitrage across different Bitcoin exchange venues](https://onlinelibrary.wiley.com/doi/10.1111/acfi.13102).
@@ -158,6 +172,11 @@ Useful inputs:
 排名，只保留新鲜费率，再比较低费率组与高费率组的下一窗口收益。它输出低减高的差异并允许加入纸面
 门槛，但不会把排名变成组合或对冲。
 
+`crypto_funding_spread_response_replay.py` 解决的是另一个研究缺口：按各交易所逐点资金费率结算间隔
+年化，在两个交易所之间对齐新鲜数据，再比较极端或突然扩大的资金费率价差之后固定 BTC 窗口的绝对收益，
+并与普通价差窗口对照。价差这里只是 carry 上下文/压力特征，不是方向信号；不会计算实际资金费收入，
+也不会声称对冲一定可成交。
+
 `crypto_cross_venue_orderbook_monitor.py` 是更窄的盘口快照案例：读取两边 ask/bid，按目标名义金额计算
 两边 VWAP，拒绝超出时间偏差阈值的快照，并扣除调用者提供的纸面双边成本。recorder/replay 再检验盘口
 edge 是否连续出现。它仍不模拟预存库存、结算、队列位置、转账费或执行。
@@ -181,6 +200,10 @@ triangular response recorder 还会记录同步的 MarketBridge BTC 报价；rep
 状态矩阵线索也参考了公开的 [OI/资金费率/价格上下文简报](https://x.com/ImCryptOpus/status/1949195275903410571)。
 横截面资金费率线索也参考了公开的 [跨交易所资金费率差异讨论](https://x.com/leondoteth/status/2012127303850213817)，
 并对照 [Binance 官方资金费率历史 API 文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
+价差响应拆解同样参考公开的 [跨交易所资金费率差异讨论](https://x.com/leondoteth/status/2012127303850213817)，
+并以 [Binance 资金费率历史文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
+和 [OKX 资金费率历史文档](https://app.okx.com/docs-v5/zh/#rest-api-public-data-get-funding-rate-history)
+保留各平台逐点结算间隔语义。这些资料只证明公开资金费率可观察，不证明价差交易有收益，也不证明它能预测价格波动。
 
 盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
@@ -231,6 +254,11 @@ python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
   --price-exchange binance --interval 1h --days 14 --top-k 1 \
   --min-dispersion-bps 1 --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
+  --symbol BTCUSDT --exchange-a binance --exchange-b bybit \
+  --price-exchange binance --interval 1h --days 14 \
+  --min-abs-spread-bps-per-year 1000 --shock-bps-per-year 0 \
+  --horizon-bars 3 --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
   --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
   --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \

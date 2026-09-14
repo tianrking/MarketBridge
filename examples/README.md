@@ -111,6 +111,7 @@ categorized command is the recommended one.
 | `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` | Venue and schedule gaps remain explicit; forward return is not a hedge PnL |
 | `crypto/carry/crypto_funding_regime_replay.py` | Persistent same-direction extreme funding may precede a move against the crowded side | `/v1/history/candles` for funding-rate and perp candles | Funding-only persistence replay; no OI, funding income, hedge or execution model |
 | `crypto/carry/crypto_funding_cross_section_replay.py` | At wide funding dispersion, low-funding assets may have different next-window returns from high-funding assets | `/v1/history/candles` for funding-rate and perp candles across a caller-selected universe | Cross-sectional diagnostic with freshness, exact price intersections and optional paper cost; no allocation or hedge execution |
+| `crypto/carry/crypto_funding_spread_response_replay.py` | An extreme or shocked annualized funding spread across two venues may be followed by a different absolute BTC response than ordinary spread windows | `/v1/history/candles` for funding-rate histories on two venues plus perp candles for the response | Non-directional spread-stress response study; point-in-time freshness, provider coverage, carry cash flow and execution remain explicit gaps |
 | `crypto/carry/crypto_cross_venue_price_gap_replay.py` | An extreme same-asset log-price gap across two venues may contract toward its frozen trailing mean | `/v1/history/candles` for the same symbol on two venues, exact timestamp intersection | Price-fragmentation diagnostic; synchronized fills, inventory, transfers, fees and execution remain explicit gaps |
 | `crypto/carry/crypto_cross_venue_orderbook_monitor.py` / recorder / replay | A synchronized target-notional ask/bid VWAP gap may persist after a paper round-trip cost hurdle | `/v1/market/order-books` and JSONL archive | Snapshot depth diagnostic; timestamp skew, inventory, settlement, transfer and execution remain explicit gaps |
 | `crypto/carry/crypto_cross_venue_orderbook_response_recorder.py` / `crypto_cross_venue_orderbook_response_replay.py` | A qualifying synchronized book edge may have a different later BTC response than an unqualified snapshot | `/v1/market/order-books`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no simultaneous fills, arbitrage PnL, inventory or execution claim |
@@ -349,6 +350,11 @@ python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
   --price-exchange binance --interval 1h --days 14 --top-k 1 \
   --min-dispersion-bps 1 --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
+  --symbol BTCUSDT --exchange-a binance --exchange-b bybit \
+  --price-exchange binance --interval 1h --days 14 \
+  --min-abs-spread-bps-per-year 1000 --shock-bps-per-year 0 \
+  --horizon-bars 3 --paper-cost-bps 10 --min-edge-bps 0
 python3 examples/crypto/carry/crypto_oi_impulse_response_recorder.py \
   --symbol BTCUSDT --exchange binance --iterations 60 --interval-secs 30 \
   --min-oi-change-pct 0.25 --output work/crypto-oi-impulse-response.jsonl

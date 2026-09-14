@@ -109,6 +109,11 @@ keeping schedule gaps and the no-order boundary explicit.
 It also includes a cross-sectional funding replay that compares fresh
 low-funding and high-funding asset groups at exact price timestamps with an
 optional paper cost hurdle; it does not allocate or hedge.
+It now also includes a funding-spread response replay: each venue's funding
+rate is annualized with its point-in-time settlement interval, and extreme or
+shocked two-venue spreads are compared with ordinary windows using later
+absolute BTC movement. This is carry-context research, not a directional
+forecast, funding-income calculation or executable hedge.
 The carry family now also includes an OI-impulse recorder/replay: it compares
 unusually expanding, contracting and ordinary OI snapshots with later absolute
 BTC movement as liquidation-risk context. It only requests current OI and a

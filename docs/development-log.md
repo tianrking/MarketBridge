@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — cross-venue funding-spread response replay
+
+Added `crypto_funding_spread_response_replay.py` under the carry family. It
+annualizes each venue's historical funding with its point-in-time settlement
+interval, rejects stale as-of values, and compares fixed-horizon absolute BTC
+returns after extreme or shocked two-venue spreads with ordinary spread
+windows. The research lead comes from the public [cross-venue funding-spread
+discussion on X](https://x.com/leondoteth/status/2012127303850213817); funding
+semantics are cross-checked with [Binance's funding-history documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
+and [OKX's funding-rate-history documentation](https://app.okx.com/docs-v5/zh/#rest-api-public-data-get-funding-rate-history).
+It does not estimate carry cash flow, fills, hedges or execution.
+
 ## 2026-09-14 — options term-structure response replay
 
 Added `crypto_options_term_structure_response_replay.py` under the options
