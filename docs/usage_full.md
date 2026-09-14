@@ -178,6 +178,18 @@ curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&ca
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=bybit&symbol=BTCUSDT&candle_type=funding_rate&limit=200" | jq
 ```
 
+Historical stablecoin supply is available separately from the current
+`/v1/external/stablecoins` snapshot. It returns DefiLlama's UTC
+`peggedUSD` circulating series and preserves `coverage_detail`:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/history/stablecoins?chain=all&limit=5000" | jq
+```
+
+Use `chain=Ethereum` (or another provider chain name) to request a chain-level
+series, and `start_ms` / `end_ms` for explicit UTC bounds. The values are
+circulating market-cap context, not exchange inventory or bridge-flow evidence.
+
 ## Local Lake Manifest And Delete
 
 List local partitions:

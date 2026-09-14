@@ -49,6 +49,13 @@ absolute responses after expansion, contraction and flat states. The result is
 a fixed-record association study; it does not convert supply into exchange
 inflows, a price forecast, a redemption model or an execution path.
 
+`crypto_stablecoin_historical_response_replay.py` closes the historical gap by
+using `/v1/history/stablecoins` backed by DefiLlama's public
+`stablecoincharts/all` (or a selected chain) and joining it to MarketBridge BTC
+daily candles. It classifies trailing expansion, contraction and flat supply
+changes, while keeping provider revisions, UTC alignment and circulating-market
+cap semantics explicit.
+
 `crypto_defi_yield_context_monitor.py` adds a pool-yield context case using
 DefiLlama's public `/pools` snapshot. It separates base-yield-dominant pools,
 reward-dependent pools, non-positive APY and missing-metric states. APY/TVL are

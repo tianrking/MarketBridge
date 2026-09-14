@@ -26,6 +26,14 @@ pub struct HistoryCandlesQuery {
 }
 
 #[derive(Debug, Deserialize, Default)]
+pub struct HistoryStablecoinQuery {
+    chain: Option<String>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct HistoryLiquidationsQuery {
     exchange: String,
     symbol: String,
@@ -434,6 +442,52 @@ pub async fn basis(
     }
 }
 
+pub async fn stablecoins(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryStablecoinQuery>,
+) -> impl IntoResponse {
+    match fetch_stablecoin_history(&state.http, &q).await {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_stablecoin_supply",
+            "provider": "defillama",
+            "chain": q.chain.clone().unwrap_or_else(|| "all".to_string()),
+            "coverage": "bounded_public_history",
+            "coverage_detail": stablecoin_coverage_detail(&rows, &q),
+            "rows": rows,
+            "limitations": [
+                "circulating supply is a provider market-cap series, not exchange inventory, bridge flow or deployable liquidity",
+                "the public chart endpoint may revise historical values and controls its retention and cadence",
+                "the endpoint exposes the provider peggedUSD aggregate; non-USD pegs require a separate explicit query",
+                "history is descriptive context and does not imply a price forecast, reserve claim or execution path"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_stablecoin_supply",
+            "provider": "defillama",
+            "chain": q.chain.clone().unwrap_or_else(|| "all".to_string()),
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+fn stablecoin_coverage_detail(rows: &[Value], q: &HistoryStablecoinQuery) -> Value {
+    let page_limit = q.limit.unwrap_or(5_000).clamp(1, 5_000);
+    serde_json::json!({
+        "status": if rows.is_empty() { "empty_or_provider_limited" } else if rows.len() >= page_limit { "locally_limited_or_provider_truncated" } else { "bounded_provider_history" },
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "page_limit": page_limit,
+    })
+}
+
 fn basis_coverage_detail(rows: &[Value], q: &HistoryBasisQuery) -> Value {
     let page_limit = q.limit.unwrap_or(30).clamp(1, 500);
     serde_json::json!({
@@ -708,6 +762,89 @@ fn funding_schedule(rows: &[KlineBar]) -> Value {
         "points": points,
         "observed_intervals_ms": observed.into_iter().collect::<Vec<_>>()
     })
+}
+
+async fn fetch_stablecoin_history(
+    http: &reqwest::Client,
+    q: &HistoryStablecoinQuery,
+) -> Result<Vec<Value>> {
+    let chain = q.chain.as_deref().unwrap_or("all").trim();
+    validate_stablecoin_chain(chain)?;
+    if let (Some(start_ms), Some(end_ms)) = (q.start_ms, q.end_ms)
+        && start_ms > end_ms
+    {
+        bail!("stablecoin history start_ms must not exceed end_ms");
+    }
+    let payload = http
+        .get(format!(
+            "https://stablecoins.llama.fi/stablecoincharts/{chain}"
+        ))
+        .header("User-Agent", "MarketBridge/0.0.6")
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse DefiLlama stablecoin history")?;
+    normalize_stablecoin_history(&payload, chain, q)
+}
+
+fn validate_stablecoin_chain(chain: &str) -> Result<()> {
+    if chain.is_empty()
+        || !chain.chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        })
+    {
+        bail!("stablecoin chain must contain only ASCII letters, digits, '-' or '_'");
+    }
+    Ok(())
+}
+
+fn normalize_stablecoin_history(
+    payload: &Value,
+    chain: &str,
+    q: &HistoryStablecoinQuery,
+) -> Result<Vec<Value>> {
+    let rows = payload
+        .as_array()
+        .context("DefiLlama stablecoin history payload is not an array")?;
+    let page_limit = q.limit.unwrap_or(5_000).clamp(1, 5_000);
+    let mut normalized = rows
+        .iter()
+        .filter_map(|row| {
+            let date_secs = value_u64(row.get("date"))?;
+            let ts_ms = date_secs.checked_mul(1_000)?;
+            if q.start_ms.is_some_and(|start| ts_ms < start)
+                || q.end_ms.is_some_and(|end| ts_ms > end)
+            {
+                return None;
+            }
+            let circulating_usd = row
+                .get("totalCirculatingUSD")
+                .and_then(|value| value.get("peggedUSD"))
+                .and_then(|value| value_f64(Some(value)));
+            let circulating = row
+                .get("totalCirculating")
+                .and_then(|value| value.get("peggedUSD"))
+                .and_then(|value| value_f64(Some(value)));
+            if circulating_usd.is_none() && circulating.is_none() {
+                return None;
+            }
+            Some(serde_json::json!({
+                "ts_ms": ts_ms,
+                "chain": chain,
+                "total_circulating_usd": circulating_usd,
+                "total_circulating": circulating,
+                "source": "defillama_stablecoincharts",
+            }))
+        })
+        .collect::<Vec<_>>();
+    normalized.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    if normalized.len() > page_limit {
+        let drop_count = normalized.len() - page_limit;
+        normalized.drain(..drop_count);
+    }
+    Ok(normalized)
 }
 
 async fn fetch_binance_history(
@@ -2317,6 +2454,49 @@ mod tests {
         assert_eq!(bar.low, 99.0);
         assert_eq!(bar.high, 101.0);
         assert_eq!(bar.volume, Some(12.3));
+    }
+
+    #[test]
+    fn normalizes_stablecoin_history_with_time_bounds_and_usd_fields() {
+        let payload = serde_json::json!([
+            {"date":"1700000000","totalCirculating":{"peggedUSD":100.0},"totalCirculatingUSD":{"peggedUSD":101.0}},
+            {"date":"1700086400","totalCirculating":{"peggedUSD":102.0},"totalCirculatingUSD":{"peggedUSD":103.0}},
+            {"date":"1700172800","totalCirculating":{"peggedUSD":104.0},"totalCirculatingUSD":{"peggedUSD":105.0}}
+        ]);
+        let query = HistoryStablecoinQuery {
+            chain: Some("all".to_string()),
+            start_ms: Some(1_700_086_400_000),
+            end_ms: Some(1_700_172_800_000),
+            limit: Some(10),
+        };
+        let rows = normalize_stablecoin_history(&payload, "all", &query).expect("stablecoin rows");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0]["ts_ms"], serde_json::json!(1_700_086_400_000_u64));
+        assert_eq!(rows[0]["total_circulating_usd"], serde_json::json!(103.0));
+        assert_eq!(rows[1]["chain"], serde_json::json!("all"));
+    }
+
+    #[test]
+    fn stablecoin_history_limit_keeps_latest_rows() {
+        let payload = serde_json::json!([
+            {"date":"1700000000","totalCirculatingUSD":{"peggedUSD":101.0}},
+            {"date":"1700086400","totalCirculatingUSD":{"peggedUSD":103.0}},
+            {"date":"1700172800","totalCirculatingUSD":{"peggedUSD":105.0}}
+        ]);
+        let query = HistoryStablecoinQuery {
+            limit: Some(2),
+            ..Default::default()
+        };
+        let rows = normalize_stablecoin_history(&payload, "all", &query).expect("stablecoin rows");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0]["total_circulating_usd"], serde_json::json!(103.0));
+        assert_eq!(rows[1]["total_circulating_usd"], serde_json::json!(105.0));
+    }
+
+    #[test]
+    fn stablecoin_history_rejects_reversed_bounds_and_invalid_chain() {
+        assert!(validate_stablecoin_chain("all/../private").is_err());
+        assert!(validate_stablecoin_chain("Ethereum").is_ok());
     }
 
     #[test]

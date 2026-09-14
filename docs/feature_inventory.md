@@ -74,6 +74,7 @@ Status labels:
 | Historical basis | `/v1/history/basis` | implemented | keyless | Binance public futures/index basis with basis rate, annualized rate and coverage metadata; not simultaneous executable legs or carry PnL. |
 | Historical funding | `/v1/history/candles?candle_type=funding_rate` | implemented | keyless | Binance/OKX/Bybit and Hyperliquid public funding history; provider timestamps and inferred adjacent schedules remain explicit. |
 | Historical spot candles | `/v1/history/candles?exchange=coinbase&candle_type=spot` | implemented | keyless | Coinbase Exchange public `BTC-USD`-style spot candles normalized to caller symbols; interval support follows Coinbase granularity and is capped at 300 rows per page. |
+| Historical stablecoin supply | `/v1/history/stablecoins` | implemented | keyless | DefiLlama public `stablecoincharts/all` or chain history normalized to UTC `peggedUSD` rows with explicit bounds and coverage; circulating market cap is not exchange liquidity or bridge flow. |
 | Historical trades | `/v1/history/trades` | implemented | keyless | Bounded Binance/OKX public trades normalized with taker side for CVD research; retention is provider-controlled. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |

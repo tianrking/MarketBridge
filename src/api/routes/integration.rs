@@ -144,6 +144,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Fetch on-demand spot/futures/mark/index/premiumIndex/funding_rate candles and optionally persist them.",
         },
         IntegrationCapability {
+            name: "history_stablecoin_supply",
+            endpoint: "/v1/history/stablecoins",
+            purpose: "Fetch bounded DefiLlama peggedUSD stablecoin circulating-supply history for time-aligned research.",
+        },
+        IntegrationCapability {
             name: "predicted_funding",
             endpoint: "/v1/market/predicted-funding",
             purpose: "Inspect Hyperliquid's named-venue predicted funding estimates without treating them as settled rates.",

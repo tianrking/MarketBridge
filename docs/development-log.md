@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-09-14 — Historical stablecoin supply endpoint and replay
+
+Added read-only `/v1/history/stablecoins`, backed by DefiLlama's public
+`stablecoincharts/all` or chain-specific chart. It normalizes UTC timestamps,
+`peggedUSD` circulating units and circulating USD market cap, applies explicit
+time bounds and local limits, and reports coverage metadata. Added
+`crypto_stablecoin_historical_response_replay.py` to align the historical
+series with MarketBridge BTC daily candles and compare later responses after
+trailing expansion, contraction and flat windows. This closes the gap where
+the prior stablecoin case could only repeat current snapshots.
+
+Provenance: [DefiLlama API documentation](https://defillama.com/docs/api) and
+the [stablecoin chart endpoint inventory](https://github.com/DefiLlama/api-docs/blob/main/llms-pro.txt).
+Circulating market cap remains provider context, not exchange inventory,
+bridge flow, reserve proof or execution evidence.
+
 ## 2026-09-14 — Multi-channel liquidity confirmation response study
 
 Added the Python-first `crypto_liquidity_confirmation_monitor.py` family under

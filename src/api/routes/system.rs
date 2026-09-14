@@ -78,6 +78,7 @@ pub async fn info() -> impl IntoResponse {
             "basis",
             "order_flow",
             "history_candles",
+            "history_stablecoin_supply",
             "storage_manifest",
             "options",
             "prediction_markets",

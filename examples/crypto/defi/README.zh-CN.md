@@ -13,6 +13,8 @@
   稳定币偏离及后续 BTC 响应诊断。
 - `crypto_stablecoin_liquidity_*` 与 `crypto_stablecoin_liquidity_response_*`：
   DefiLlama 供应量快照和供应变化响应研究。
+- `crypto_stablecoin_historical_response_replay.py`：把 DefiLlama `peggedUSD` 历史序列与
+  MarketBridge BTC 日 K 线对齐，避免把重复的当前快照冒充历史数据。
 - `crypto_defi_funding_yield_risk_*`、`crypto_defi_yield_context_monitor.py`：
   保留提供方和覆盖字段的收益/资金费率上下文。
 
@@ -30,6 +32,18 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
 
 需要 BTC 响应研究时，使用对应的 `*_response_recorder.py` 和 `*_response_replay.py`。
 完整命令矩阵和提供方出处见 [`README.md`](README.md)。
+
+历史供应回放：
+
+```bash
+python3 examples/crypto/defi/crypto_stablecoin_historical_response_replay.py \
+  --chain all --exchange binance --symbol BTCUSDT --interval 1d \
+  --days 1825 --change-window-bars 7 --threshold-pct 1 \
+  --horizon-bars 7 --min-observations 5
+```
+
+回放读取 `/v1/history/stablecoins` 和 `/v1/history/candles`，按 UTC 日历日期对齐，
+并保留两个接口的 coverage 元数据。
 
 ## 证据契约
 

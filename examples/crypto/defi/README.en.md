@@ -16,6 +16,9 @@
   pair deviation and later BTC-response diagnostics.
 - `crypto_stablecoin_liquidity_*` and `crypto_stablecoin_liquidity_response_*`:
   DefiLlama supply snapshots and supply-change response research.
+- `crypto_stablecoin_historical_response_replay.py`: bounded DefiLlama
+  `peggedUSD` history aligned to MarketBridge BTC daily candles, so supply
+  change can be tested without treating repeated current snapshots as history.
 - `crypto_defi_funding_yield_risk_*` and `crypto_defi_yield_context_monitor.py`:
   yield/funding context with provider and coverage fields preserved.
 
@@ -34,6 +37,18 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
 For a BTC response study, use the matching `*_response_recorder.py` and
 `*_response_replay.py` pair. The full command matrix and provider links remain
 in [`README.md`](README.md).
+
+Historical supply replay:
+
+```bash
+python3 examples/crypto/defi/crypto_stablecoin_historical_response_replay.py \
+  --chain all --exchange binance --symbol BTCUSDT --interval 1d \
+  --days 1825 --change-window-bars 7 --threshold-pct 1 \
+  --horizon-bars 7 --min-observations 5
+```
+
+The replay consumes `/v1/history/stablecoins` and `/v1/history/candles`,
+aligns by UTC calendar date, and preserves both endpoint coverage details.
 
 ## Evidence contract
 

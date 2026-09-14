@@ -529,6 +529,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/footprint` | Footprint/orderflow profile. |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars with optional Arrow IPC persistence. |
 | GET | `/v1/history/candles` | On-demand special candle history; inspect `coverage_detail` before treating a bounded page as complete. |
+| GET | `/v1/history/stablecoins` | Bounded DefiLlama `peggedUSD` circulating-supply history, optionally filtered by chain and UTC timestamp bounds. |
 | GET | `/v1/history/liquidations` | Bounded public OKX/CoinEx liquidation history for research replay. |
 | GET | `/v1/history/open-interest` | Binance/Bybit historical open-interest observations. |
 | GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC candles for volatility-regime research. |

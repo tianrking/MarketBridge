@@ -360,6 +360,12 @@ curl -s "$MB/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark
 curl -s "$MB/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100" | jq
 ```
 
+### Q046a. Query historical stablecoin circulating supply
+
+```bash
+curl -s "$MB/v1/history/stablecoins?chain=all&start_ms=1704067200000&limit=1000" | jq
+```
+
 ## Basis, Open Interest, And Derivatives Context
 
 ### Q046. Query BTCUSDT spot-perp basis
