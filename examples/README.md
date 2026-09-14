@@ -77,6 +77,7 @@ categorized command is the recommended one.
 | `crypto/options/crypto_options_bull_call_spread_monitor.py` / recorder / replay | A lower-call ask plus higher-call bid can form a paper debit below strike width for one expiry | `/v1/options/chains`, JSONL archive | Leg-selection and payoff-geometry persistence diagnostic; mark-only quotes, settlement, margin, costs and execution remain explicit gaps |
 | `crypto/options/crypto_options_bull_call_spread_response_recorder.py` / `crypto_options_bull_call_spread_response_replay.py` | Observable bull-call-spread quote states may have different later BTC responses than unvalidated snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; quote structure is not option PnL, fill, hedge or execution |
 | `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
+| `crypto/defi/crypto_jupiter_route_impact_monitor.py` / recorder / replay | A configured Jupiter quote-size ladder may reveal persistent high router-reported price impact at larger input sizes | `/v1/external/signals?categories=defi_native_state&sources=jupiter`, configured `route_amounts` | Read-only route-impact ladder; no complete pool depth, gas, MEV, wallet or swap execution |
 | `crypto/defi/crypto_stablecoin_depeg_monitor.py` / recorder / replay | Stablecoin quote deviation and spread stress may coincide with larger later absolute BTC movement | `/v1/market/quotes` for selected CEX/DEX pairs and BTCUSDT, plus JSONL archive | Depeg-risk event study; no reserve, redemption, solvency, mean-reversion or execution model |
 | `crypto/defi/crypto_stablecoin_rotation_response_replay.py` | A normalized USDC discount/premium versus USDT may align with later BTC direction | JSONL from `crypto_stablecoin_depeg_recorder.py` | Directional response study; one-venue quote, flow causality, conversion, redemption and execution remain explicit gaps |
 | `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
@@ -304,6 +305,13 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
 python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
   --input work/crypto-defi-pool-flow-response.jsonl \
   --horizon-records 3 --min-observations 10
+python3 examples/crypto/defi/crypto_jupiter_route_impact_monitor.py \
+  --symbols SOLUSDC --min-impact-ratio 0.005
+python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
+  --symbols SOLUSDC --iterations 30 --interval-secs 30 \
+  --output work/crypto-jupiter-route-impact.jsonl
+python3 examples/crypto/defi/crypto_jupiter_route_impact_replay.py \
+  --input work/crypto-jupiter-route-impact.jsonl --min-run 3
 python3 examples/crypto/onchain/crypto_onchain_transfer_burst_replay.py \
   --source whale_alert --asset USDT --min-transfer-usd 100000 \
   --price-exchange binance --symbol BTCUSDT --interval 5m \

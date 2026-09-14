@@ -554,7 +554,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "implemented",
         priority: "P0",
-        notes: "Quote poller is wired; expand route metadata and slippage curves.",
+        notes: "Quote poller emits route hops, price-impact ratio, normalized route price, and an optional configured input-size ladder as read-only native-state metrics; transaction building/signing remains out of scope.",
     },
     RoadmapSource {
         source: "meteora",

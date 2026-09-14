@@ -250,6 +250,12 @@ joins normalized `defi_native_state` pressure snapshots with a synchronized BTC
 quote and compares fixed-record forward responses for pressure versus ordinary
 pool states. This remains a descriptive study; it adds no route, gas, LP-PnL,
 wallet or swap-execution path.
+The DeFi family now also includes a Jupiter route-impact ladder monitor,
+recorder and replay. Configure optional `route_amounts` under
+`defi.jupiter.pairs[]` to preserve multiple quote sizes, then test persistence
+of router-reported `priceImpactPct`, route hops and normalized route price.
+This uses the read-only quote surface and adds no transaction construction,
+wallet signing or swap execution.
 The stablecoin family also includes a directional USDC/USDT rotation replay:
 it normalizes both quote orientations and tests whether USDC discounts/premiums
 align with later BTC direction, without claiming capital-flow causality or

@@ -189,6 +189,9 @@ defi:
         input_mint: "So11111111111111111111111111111111111111112"
         output_mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         amount: 1000000000
+        # Optional exact-input ladder for read-only route-impact research.
+        # The primary amount above is always queried as well.
+        route_amounts: [5000000000, 10000000000]
         input_decimals: 9
         output_decimals: 6
         spread_bps: 5.0

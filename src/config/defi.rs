@@ -124,6 +124,10 @@ pub struct SolanaQuotePair {
     pub output_decimals: u8,
     #[serde(default = "default_defi_spread_bps")]
     pub spread_bps: f64,
+    /// Optional exact-input quote sizes used to expose a read-only Jupiter
+    /// route/impact ladder. The primary `amount` is always queried too.
+    #[serde(default)]
+    pub route_amounts: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -198,6 +202,7 @@ fn default_solana_quote_pairs() -> Vec<SolanaQuotePair> {
         input_decimals: 9,
         output_decimals: 6,
         spread_bps: default_defi_spread_bps(),
+        route_amounts: Vec::new(),
     }]
 }
 

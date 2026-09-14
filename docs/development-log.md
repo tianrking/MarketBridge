@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Jupiter route-impact ladder
+
+Closed the Jupiter DeFi data gap by adding optional `route_amounts` to each
+configured quote pair. The Rust connector now preserves the primary quote and
+emits size-suffixed `defi_native_state` metrics for route hops, raw
+`priceImpactPct`, normalized route price, and output amount. Added the Python
+`crypto_jupiter_route_impact_monitor.py`, recorder and replay under the DeFi
+family, with bilingual documentation and catalog coverage. The implementation
+is grounded in the official [Jupiter quote API documentation](https://developers.jup.ag/docs/swap/v1/get-quote),
+which exposes `priceImpactPct` and `routePlan`; it remains read-only and does
+not construct transactions, sign wallets, or execute swaps.
+
 ## 2026-09-14 — VPIN-proxy response replay
 
 Added `crypto_vpin_response_replay.py` under microstructure. It builds fixed

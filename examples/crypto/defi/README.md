@@ -32,11 +32,35 @@ with positive BTC movement and a premium with negative movement? It reports
 aligned-return statistics only; it does not infer capital flows, redemption
 pressure or an executable conversion.
 
+`crypto_jupiter_route_impact_monitor.py` / `crypto_jupiter_route_impact_recorder.py` /
+`crypto_jupiter_route_impact_replay.py` consume Jupiter's read-only quote
+diagnostics from `defi_native_state`. When `defi.jupiter.pairs[].route_amounts`
+is configured, each input-size ladder point is kept separate and the case
+tests whether router-reported price impact and route-hop states persist at
+larger sizes. The replay is a route-observation study: it does not claim full
+pool depth, gas, MEV, fill probability, wallet access, or swap execution.
+Enable the Jupiter source and add a ladder in `config.yaml`, for example:
+
+```yaml
+defi:
+  jupiter:
+    enabled: true
+    pairs:
+      - symbol: SOLUSDC
+        amount: 1000000000
+        route_amounts: [5000000000, 10000000000]
+```
+
 Provenance: the decomposition follows the public [Uniswap explanation of pool
 liquidity and price impact](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
 and [swap execution](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps).
 MarketBridge currently uses bounded provider snapshots and does not claim a
 complete on-chain swap ledger or protocol-native route depth.
+
+The Jupiter case uses the official [Jupiter quote API documentation](https://developers.jup.ag/docs/swap/v1/get-quote),
+which documents `priceImpactPct` and `routePlan` in a quote response. Those
+fields are evidence for a bounded route-impact hypothesis, not an executable
+price guarantee.
 
 The stablecoin case follows the unverified [DEWS-style early-warning discussion
 on X](https://x.com/crazydnekana/status/2030633787462242588), which describes
@@ -74,6 +98,16 @@ redemptions, solvency or executable mean reversion.
 `USDTUSDC` 归一化为“USDC 以 USDT 计价”后，USDC 折价是否与 BTC 上涨、USDC 溢价是否与 BTC 下跌对齐？输出只包含
 方向对齐收益统计，不推断资金流、赎回压力或可执行兑换。
 
+`crypto_jupiter_route_impact_monitor.py` / `crypto_jupiter_route_impact_recorder.py` /
+`crypto_jupiter_route_impact_replay.py` 消费 `defi_native_state` 中 Jupiter 的只读报价诊断。
+在 `defi.jupiter.pairs[].route_amounts` 配置输入量梯度后，每个规模会独立保留，回放检验较大输入量下
+路由器报告的 price impact 与跳数状态是否持续。它只是路由观察研究，不声称完整池深度、gas、MEV、成交概率、钱包权限或 swap 执行。
+先在 `config.yaml` 启用 Jupiter，并在对应 pair 添加例如 `route_amounts: [5000000000, 10000000000]`；主 `amount`
+仍会始终查询。这样可以清楚区分 1、5、10 SOL 等输入规模（原子单位），但不会自动扩展成完整池深度。
+
+出处：Jupiter 官方 [Quote API 文档](https://developers.jup.ag/docs/swap/v1/get-quote) 明确记录 quote 返回的
+`priceImpactPct` 与 `routePlan`。这些字段只能支撑有界的路由冲击假设，不能当作可执行价格保证。
+
 ## Commands / 命令
 
 ```bash
@@ -92,6 +126,13 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
 python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
   --input work/crypto-defi-pool-flow-response.jsonl \
   --horizon-records 3 --min-observations 10
+python3 examples/crypto/defi/crypto_jupiter_route_impact_monitor.py \
+  --symbols SOLUSDC --min-impact-ratio 0.005
+python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
+  --symbols SOLUSDC --iterations 30 --interval-secs 30 \
+  --output work/crypto-jupiter-route-impact.jsonl
+python3 examples/crypto/defi/crypto_jupiter_route_impact_replay.py \
+  --input work/crypto-jupiter-route-impact.jsonl --min-run 3
 python3 examples/crypto/defi/crypto_stablecoin_depeg_monitor.py \
   --exchange binance --stable-symbols USDTUSDC,USDCUSDT,DAIUSDT \
   --risk-symbol BTCUSDT --watch-bps 20 --stress-bps 50
