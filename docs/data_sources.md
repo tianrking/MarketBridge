@@ -74,7 +74,7 @@ Primary endpoints:
 | Historical liquidations | `/v1/history/liquidations` | none | Keyless bounded OKX/CoinEx public filled-liquidation history; provider retention and other venue gaps remain explicit |
 | Historical open interest | `/v1/history/open-interest` | none | Keyless Binance/Bybit public OI history where provider retention allows |
 | Historical taker buy/sell volume | `/v1/history/taker-volume` | none | Keyless Binance public aggregate taker buy/sell volume with explicit imbalance and bounded provider coverage |
-| Historical account ratio | `/v1/history/account-ratio` | none | Keyless Binance top-trader account share and Bybit holder-count long/short ratio; provider semantics and coverage remain explicit, not notional positioning |
+| Historical account ratio | `/v1/history/account-ratio` | none | Keyless Binance global or top-trader account share (`scope`) and Bybit holder-count long/short ratio; provider semantics and coverage remain explicit, not notional positioning |
 | Historical option volatility | `/v1/history/historical-volatility` | none | Keyless Bybit hourly option historical volatility by base/quote coin and period; not implied volatility or a forecast |
 | Historical basis | `/v1/history/basis` | none | Keyless Binance public futures/index basis, basis rate and annualized basis rate; provider snapshots are not executable legs |
 | Historical trades | `/v1/history/trades` | none | Keyless bounded Binance/OKX public trade history; Bybit recent-trade is not advertised as arbitrary history |

@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Binance global account-ratio scope
+
+Extended `/v1/history/account-ratio` with `scope=global|top_trader` for
+Binance. The normalized rows retain distinct `source` and `semantics` values,
+so all-account long/short shares cannot be merged with top-trader account
+shares. Updated `crypto_account_ratio_oi_response_replay.py` to select the
+Binance scope while preserving its OI-aligned, fixed-horizon response study.
+Provenance: [Binance Long/Short Ratio](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio)
+and [Binance Top Trader Long/Short Account Ratio](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Top-Long-Short-Account-Ratio).
+No notional-position inference, order, wallet, signing or execution path is included.
+
 ## 2026-09-14 — CoinGecko global market context monitor
 
 Added the read-only `/v1/external/global-market` endpoint, normalizing

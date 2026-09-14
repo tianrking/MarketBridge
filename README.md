@@ -875,7 +875,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
 | GET | `/v1/history/open-interest` | Bounded public Binance/Bybit open-interest history |
 | GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance |
-| GET | `/v1/history/account-ratio` | Bounded public Binance top-trader account ratio and Bybit holder-count ratio with provider semantics and coverage metadata |
+| GET | `/v1/history/account-ratio` | Bounded public Binance global/top-trader account ratio (`scope=global / top_trader`) and Bybit holder-count ratio with provider semantics and coverage metadata |
 | GET | `/v1/history/historical-volatility` | Bounded public Bybit option historical-volatility observations |
 | GET | `/v1/history/basis` | Bounded public Binance historical futures basis and basis-rate observations |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
@@ -1994,3 +1994,32 @@ cargo test
 2. Implement `ExchangeSource`
 3. Convert payloads into `MarketTick` (`Spot` or `Perp`)
 4. Register source in `src/connectors/cex/registry.rs`
+
+## Boundary Notes
+
+MarketBridge is a market-data and research foundation, not an execution engine.
+
+- Rust owns connectors, normalization, caches, historical inputs, replay
+  primitives and the stable API; strategy research is Python-first.
+- Every example is an observer, falsifiable hypothesis test or paper replay.
+  It is not proof of alpha, profitability, fillability or live-account PnL.
+- The project does not sign wallets, place/cancel orders, move funds or connect
+  a live-account execution path.
+- Missing data, provider semantics, timestamp coverage, fees, funding, borrow,
+  slippage, inventory and queue position remain explicit evidence gaps.
+
+Start with the categorized examples:
+
+```bash
+python3 examples/crypto/strategy/python_strategy_runner.py \
+  --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
+python3 examples/crypto/microstructure/crypto_session_filter.py \
+  --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
+```
+
+Documentation entrypoints:
+
+- [`examples/README.md`](examples/README.md): categorized demo index
+- [`examples/crypto/README.md`](examples/crypto/README.md): crypto research families
+- [`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md): strategy intake rules
+- [`docs/data_interfaces.md`](docs/data_interfaces.md): API contracts and field semantics

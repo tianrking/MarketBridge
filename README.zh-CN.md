@@ -372,9 +372,9 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 永续合约发现 | 某交易所当前公开列出的永续合约清单 | `GET /v1/catalog/perpetuals`、`GET /v1/catalog/markets` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | 按需永续资金费率 | 支持交易所的当前永续资金费率全量行；Binance 有公开时附带 cap/floor 元数据 | `GET /v1/market/perpetual-funding` | 暂无直接流 | 按需请求交易所公开 REST | 否 |
 | Open interest | OI 数量/名义金额 | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | WS 或交易所 poller | 否 |
-| ADL 风险 | Binance symbol-level ADL risk rating | `GET /v1/market/adl-risk` | 按需 provider snapshot，每 30 分钟更新 | 否 |
+| ADL 风险 | Binance symbol-level ADL risk rating | `GET /v1/market/adl-risk` | 按需 provider snapshot，每 30 分钟更新 | 否 | 否 |
 | 历史主动买卖量 | Binance 聚合 taker buy/sell、总量、imbalance | `GET /v1/history/taker-volume` | 暂无直接流 | 按需请求，保留提供方覆盖状态 | 否 |
-| 历史账户多空比 | Binance 大户账户占比与 Bybit holder-count buy/sell ratio、imbalance、分页覆盖 | `GET /v1/history/account-ratio` | 暂无直接流 | 按提供方保留语义和 coverage；不是名义持仓方向 | 否 |
+| 历史账户多空比 | Binance 全体账户或大户账户占比（`scope=global / top_trader`）与 Bybit holder-count buy/sell ratio、imbalance、分页覆盖 | `GET /v1/history/account-ratio` | 暂无直接流 | 按提供方保留语义和 coverage；不是名义持仓方向 | 否 |
 | 历史期权波动率 | Bybit option historical volatility、周期、时间戳 | `GET /v1/history/historical-volatility` | 暂无直接流 | 按需请求，保留覆盖范围；不是隐含波动率或预测 | 否 |
 | 历史基差 | Binance futures/index basis、basisRate、年化基差率 | `GET /v1/history/basis` | 暂无直接流 | 按需请求，保留 provider coverage；不是同步可成交套利 | 否 |
 | Liquidations 爆仓 | 公共强平事件 | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | 有稳定公共 feed 才推送 | 否 |
@@ -388,7 +388,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 聚合行情/衍生品信号 | CoinGecko/CoinCap/CMC price、CoinGlass derivatives metrics | `GET /v1/external/signals`，价格源也走 quote surface | `external_signal` | 通常 60 秒或更慢 | 部分需要 |
 | 全市场加密上下文 | CoinGecko 总市值/成交量、BTC/ETH dominance、活跃币和市场数量 | `GET /v1/external/global-market` | 暂无直接流 | 按需公共 REST 快照 | 公共无 key 路径；受提供方额度限制 |
 | 情绪/新闻 | Fear & Greed、CryptoPanic、Santiment、LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | source-specific poll | Fear & Greed 不需要，其余多需要 |
-| 天气观察 | Open-Meteo forecast/archive | `GET /v1/external/weather` | 按需只读 | keyless；坐标、模型、市场 bucket 与结算规则需调用者明确 |
+| 天气观察 | Open-Meteo forecast/archive | `GET /v1/external/weather` | 按需只读 | keyless；坐标、模型、market bucket 与结算规则需调用者明确 | 否 |
 | 链上大额转账 | Whale Alert、mempool.space BTC、Etherscan watched addresses | `GET /v1/onchain/transfers` | 暂无直接流 | 默认 60 秒 | Whale Alert/Etherscan 需要 |
 | Catalog / Health | 数据源状态、key 状态、domain、instrument、freshness | `/v1/catalog/*`、`/coverage`、`/metrics` | 暂无 | 来自 runtime cache/metrics | 否 |
 | Redis Stream | 标准化事件流导出 | `runtime.redis_url` | Redis Streams | batched XADD + JSONL dead letter | 需要 Redis |
@@ -499,7 +499,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles；返回 `coverage_detail`，funding history 另附逐点 schedule。 |
 | GET | `/v1/history/liquidations` | OKX/CoinEx bounded recent public liquidation history，供回放使用；其他 venue 缺口保持显式。 |
 | GET | `/v1/history/open-interest` | Binance/Bybit 公开历史 OI 观察，保留 provider unit 和 `coverage_detail`；不代表多空方向。 |
-| GET | `/v1/history/account-ratio` | Binance 大户账户占比与 Bybit holder-count 多空比历史；保留提供方语义、分页和覆盖信息，不代表名义持仓或交易者意图。 |
+| GET | `/v1/history/account-ratio` | Binance 全体/大户账户占比与 Bybit holder-count 多空比历史；用 `scope=global / top_trader` 选择 Binance 语义，保留分页和覆盖信息，不代表名义持仓或交易者意图。 |
 | GET | `/v1/history/historical-volatility` | Bybit 公开期权历史波动率，保留周期和时间覆盖；不是隐含波动率、预测或期权 PnL。 |
 | GET | `/v1/history/basis` | Binance 公开历史期货基差、basisRate、指数价和期货价；不是同步 bid/ask 或套利 PnL。 |
 | GET | `/v1/history/trades` | Binance/OKX bounded public trades，保留 taker side，供 CVD/order-flow 回放。 |
@@ -878,14 +878,28 @@ data/redis_dead_letters.jsonl
 
 ## 边界说明
 
-MarketBridge 是数据层。它可以给策略系统提供实时、统一、可检查的数据，但不代表任何因子已经有效，也不代表可以直接实盘交易。
+MarketBridge 是数据与研究基础设施，不是交易执行器。以下边界是硬约束：
 
-策略层采用 Python-first：Rust 负责连接器、标准化、缓存、历史、回放基础和稳定 API；量化研究者可以直接在 `examples/` 中用 Python 编写策略、参数扫描、纸面验证和校准报告，不需要修改 Rust。可直接从以下入口开始：
+- Rust 负责连接器、标准化、缓存、历史、回放基础和稳定 API；策略代码优先使用 Python。
+- 所有 examples 都是数据观察、假设检验或纸面回放，不代表因子有效、收益保证或可成交。
+- 不接入钱包签名、下单、撤单、资金划转或实盘账户 PnL。
+- 缺失数据、提供方语义、时间覆盖、手续费、滑点、库存和成交约束必须保留为证据缺口。
+
+快速入口：
 
 ```bash
-python3 examples/python_strategy_runner.py --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/crypto_session_filter.py --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
+python3 examples/crypto/strategy/python_strategy_runner.py --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
+python3 examples/crypto/microstructure/crypto_session_filter.py --exchange binance --market perp --symbol BTCUSDT --interval 1m --limit 60
 ```
+
+完整案例与限制说明：
+
+- [`examples/README.md`](examples/README.md)：根索引与分类入口
+- [`examples/crypto/README.md`](examples/crypto/README.md)：加密案例总览
+- [`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md)：策略接入规范
+
+<details>
+<summary>展开：历史案例与研究边界记录</summary>
 
 完整案例与限制说明见 [`examples/README.md`](examples/README.md) 和
 [`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md)。
@@ -1062,3 +1076,5 @@ carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状�
 4. 只有在策略层明确验证后，才考虑独立的执行系统。
 
 不要把 MarketBridge 当成交易执行器。它现在不签名、不下单、不撤单。
+
+</details>

@@ -57,6 +57,7 @@ pub struct HistoryTakerVolumeQuery {
 pub struct HistoryAccountRatioQuery {
     exchange: String,
     symbol: String,
+    scope: Option<String>,
     period: Option<String>,
     start_ms: Option<u64>,
     end_ms: Option<u64>,
@@ -280,6 +281,7 @@ pub async fn account_ratio(
             "exchange": q.exchange,
             "symbol": q.symbol,
             "period": q.period.clone().unwrap_or_else(|| "1h".to_string()),
+            "scope": q.scope.clone().unwrap_or_else(|| "top_trader".to_string()),
             "coverage": "bounded_public_history",
             "coverage_detail": account_ratio_coverage_detail(&result.rows, &q, result.next_page_cursor.as_deref()),
             "next_page_cursor": result.next_page_cursor,
@@ -1307,6 +1309,27 @@ async fn fetch_binance_account_ratio(
     q: &HistoryAccountRatioQuery,
 ) -> Result<AccountRatioResult> {
     let symbol = q.symbol.trim().to_ascii_uppercase();
+    let scope = q
+        .scope
+        .as_deref()
+        .unwrap_or("top_trader")
+        .trim()
+        .to_ascii_lowercase();
+    let (endpoint, source, semantics) = match scope.as_str() {
+        "top_trader" => (
+            "https://fapi.binance.com/futures/data/topLongShortAccountRatio",
+            "binance_top_trader_account_ratio",
+            "top_trader_account_share",
+        ),
+        "global" => (
+            "https://fapi.binance.com/futures/data/globalLongShortAccountRatio",
+            "binance_global_account_ratio",
+            "global_account_share",
+        ),
+        other => {
+            bail!("unsupported Binance account-ratio scope: {other}; use top_trader or global")
+        }
+    };
     let period = match q.period.as_deref().unwrap_or("1h") {
         "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "12h" | "1d" => {
             q.period.as_deref().unwrap_or("1h")
@@ -1314,13 +1337,11 @@ async fn fetch_binance_account_ratio(
         other => bail!("unsupported Binance account-ratio period: {other}"),
     };
     let limit = q.limit.unwrap_or(30).clamp(1, 500).to_string();
-    let mut request = http
-        .get("https://fapi.binance.com/futures/data/topLongShortAccountRatio")
-        .query(&[
-            ("symbol", symbol.as_str()),
-            ("period", period),
-            ("limit", limit.as_str()),
-        ]);
+    let mut request = http.get(endpoint).query(&[
+        ("symbol", symbol.as_str()),
+        ("period", period),
+        ("limit", limit.as_str()),
+    ]);
     if let Some(start_ms) = q.start_ms {
         request = request.query(&[("startTime", start_ms.to_string())]);
     }
@@ -1336,7 +1357,7 @@ async fn fetch_binance_account_ratio(
         .context("failed to parse binance top account-ratio history")?;
     let rows = payload
         .into_iter()
-        .map(normalize_binance_account_ratio_row)
+        .map(|row| normalize_binance_account_ratio_row(row, source, semantics))
         .collect::<Result<Vec<_>>>()?;
     Ok(AccountRatioResult {
         rows,
@@ -1344,7 +1365,7 @@ async fn fetch_binance_account_ratio(
     })
 }
 
-fn normalize_binance_account_ratio_row(row: Value) -> Result<Value> {
+fn normalize_binance_account_ratio_row(row: Value, source: &str, semantics: &str) -> Result<Value> {
     let ts_ms =
         value_u64(row.get("timestamp")).context("missing Binance account-ratio timestamp")?;
     let buy_ratio = value_f64(row.get("longAccount")).context("missing Binance longAccount")?;
@@ -1359,8 +1380,8 @@ fn normalize_binance_account_ratio_row(row: Value) -> Result<Value> {
         "imbalance": buy_ratio - sell_ratio,
         "long_short_ratio": long_short_ratio,
         "ts_ms": ts_ms,
-        "source": "binance_top_trader_account_ratio",
-        "semantics": "top_trader_account_share"
+        "source": source,
+        "semantics": semantics
     }))
 }
 
@@ -2035,6 +2056,7 @@ mod tests {
         let query = HistoryAccountRatioQuery {
             exchange: "bybit".to_string(),
             symbol: "BTCUSDT".to_string(),
+            scope: None,
             period: Some("1h".to_string()),
             start_ms: None,
             end_ms: None,
@@ -2054,13 +2076,17 @@ mod tests {
 
     #[test]
     fn normalizes_binance_top_trader_account_ratio_without_merging_semantics() {
-        let row = normalize_binance_account_ratio_row(serde_json::json!({
-            "symbol": "BTCUSDT",
-            "longAccount": "0.63",
-            "shortAccount": "0.37",
-            "longShortRatio": "1.70",
-            "timestamp": 1234
-        }))
+        let row = normalize_binance_account_ratio_row(
+            serde_json::json!({
+                "symbol": "BTCUSDT",
+                "longAccount": "0.63",
+                "shortAccount": "0.37",
+                "longShortRatio": "1.70",
+                "timestamp": 1234
+            }),
+            "binance_top_trader_account_ratio",
+            "top_trader_account_share",
+        )
         .expect("normalized Binance row");
         assert_eq!(
             row["source"],
@@ -2073,6 +2099,28 @@ mod tests {
         assert_eq!(row["buy_ratio"], serde_json::json!(0.63));
         assert_eq!(row["sell_ratio"], serde_json::json!(0.37));
         assert_eq!(row["long_short_ratio"], serde_json::json!(1.70));
+    }
+
+    #[test]
+    fn normalizes_binance_global_account_ratio_with_distinct_semantics() {
+        let row = normalize_binance_account_ratio_row(
+            serde_json::json!({
+                "symbol": "BTCUSDT",
+                "longAccount": "0.55",
+                "shortAccount": "0.45",
+                "longShortRatio": "1.22",
+                "timestamp": 5678
+            }),
+            "binance_global_account_ratio",
+            "global_account_share",
+        )
+        .expect("normalized global Binance row");
+        assert_eq!(
+            row["source"],
+            serde_json::json!("binance_global_account_ratio")
+        );
+        assert_eq!(row["semantics"], serde_json::json!("global_account_share"));
+        assert_eq!(row["long_short_ratio"], serde_json::json!(1.22));
     }
 
     #[test]
