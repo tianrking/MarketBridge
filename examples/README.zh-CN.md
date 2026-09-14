@@ -17,7 +17,7 @@
 | 加密链上 | 转账、mempool 和矿工压力 | [`crypto/onchain/`](crypto/onchain/README.zh-CN.md) |
 | 加密期权 | IV 曲面、skew、gamma、VRP 和 max-pain 近似 | [`crypto/options/`](crypto/options/README.zh-CN.md) |
 | 加密情绪 | 恐惧贪婪、新闻关注度和社交指标 | [`crypto/sentiment/`](crypto/sentiment/README.zh-CN.md) |
-| 加密资产宇宙 | breadth、跨资产排名和相对价值 | [`crypto/universe/`](crypto/universe/README.zh-CN.md) |
+| 加密资产宇宙 | breadth、跨资产排名、回撤响应和相对价值 | [`crypto/universe/`](crypto/universe/README.zh-CN.md) |
 | 预测市场 | 公开成交流、校准和结算回放 | [`prediction/`](prediction/README.zh-CN.md) |
 | 天气 | 确定性观测和市场校准输入 | [`weather/`](weather/README.zh-CN.md) |
 

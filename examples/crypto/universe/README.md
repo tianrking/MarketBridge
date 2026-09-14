@@ -82,6 +82,15 @@ growth, earnings and sponsorship fields are unavailable and remain outside the
 case. The replay reports later returns and path minima; it is not a portfolio
 allocator or a buy signal.
 
+`crypto_drawdown_recovery_response_replay.py` is a separate path study. At each
+timestamp it computes the running high from observed candles only, classifies
+the close as near-ATH, mild, moderate or deep drawdown, and measures fixed-
+horizon return, worst path move and recovery of that prior high. It does not
+implement buy-the-dip, DCA, allocation or execution. The research lead is
+[CoinShares' drawdown context note](https://etp.coinshares.com/us/insights/research-data/bitcoins-drawdown-in-context/);
+[Cryptera's drawdown history](https://cryptera.app/bitcoin-drawdown-history) is
+an unverified descriptive lead, not performance evidence.
+
 `crypto_universe_delist_risk_monitor.py` is a data-quality guard for all other
 universe cases. It surfaces historical markets whose current quote is missing
 or stale, but deliberately does not call that proof of delisting or perform an
@@ -192,6 +201,12 @@ breadth 定义对照 [BlockchainCenter 的 Altcoin Season Index 说明](https://
 `crypto_universe_delist_risk_monitor.py` 是其他 universe 案例前的数据质量护栏：它显示历史市场当前报价缺失或
 过期，但不把这直接解释为退市证明，也不自动排除标的。
 
+`crypto_drawdown_recovery_response_replay.py` 是独立的路径研究：每个 timestamp 只用当时已经出现的 K 线计算运行高点，
+把收盘价分为接近历史高点、轻度、中度和深度回撤，并报告固定窗口的未来收益、路径最差表现以及是否重新触及此前高点。
+它不实现抄底、定投、资金分配或执行。研究线索来自
+[CoinShares 的回撤背景说明](https://etp.coinshares.com/us/insights/research-data/bitcoins-drawdown-in-context/)；
+[Cryptera 的回撤历史](https://cryptera.app/bitcoin-drawdown-history)仅作为未经验证的描述性线索，不是收益证据。
+
 Rust 聚合研究状态文件位于 `crypto/macro/`：`crypto_market_regime_monitor.py` 将 Rust 聚合研究状态（fragmented、high_volatility、leveraged、normal）
 作为 Python JSON 上下文输出。提示只告诉研究者应该检查哪些证据，不选择策略，也不执行交易。
 
@@ -235,6 +250,11 @@ python3 examples/crypto/universe/crypto_universe_opportunity_response_replay.py 
 python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
   --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
   --lookback-bars 8 --horizon-bars 8 --top-k 1
+python3 examples/crypto/universe/crypto_drawdown_recovery_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 3650 \
+  --horizon-bars 90 --mild-drawdown-pct 10 \
+  --moderate-drawdown-pct 20 --deep-drawdown-pct 40 \
+  --min-observations 5
 python3 examples/crypto/universe/crypto_altcoin_breadth_replay.py \
   --btc-symbol BTCUSDT --alt-symbols ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT \
   --exchange binance --market perp --interval 1d --lookback-bars 90 \

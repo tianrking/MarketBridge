@@ -10,6 +10,7 @@
 - `crypto_cross_asset_lead_lag_response_replay.py`：严格按时间戳对齐的领先资产收益与跟随资产未来响应研究。
 - `crypto_altcoin_breadth_replay.py`、`crypto_global_market_regime_*`：市场参与度和提供方级全市场上下文。
 - `crypto_pairs_mean_reversion_replay.py`：固定参数价差偏离和收敛诊断。
+- `crypto_drawdown_recovery_response_replay.py`：运行高点回撤分桶，以及固定窗口的恢复/未来响应研究。
 - `crypto_universe_delist_risk_monitor.py`：报价缺失/过期的数据质量护栏。
 - `crypto_trend_template_response_replay.py`：价格-only 的 50/150/200 日趋势模板与 52 周区间响应研究。
 
@@ -46,6 +47,19 @@ python3 examples/crypto/universe/crypto_trend_template_response_replay.py \
   --slope-days 22 --range-days 252 --horizon-days 30 \
   --min-observations 5
 ```
+
+```bash
+python3 examples/crypto/universe/crypto_drawdown_recovery_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 3650 \
+  --horizon-bars 90 --mild-drawdown-pct 10 \
+  --moderate-drawdown-pct 20 --deep-drawdown-pct 40 \
+  --min-observations 5
+```
+
+回撤回放只用当前 timestamp 之前已经出现的 K 线计算运行高点，然后按回撤区间报告未来收益、未来路径最差移动和窗口内是否回到此前高点。
+它是可证伪的响应表，不是抄底、定投、资金分配或预测规则。研究线索来自
+[CoinShares 的回撤背景说明](https://etp.coinshares.com/us/insights/research-data/bitcoins-drawdown-in-context/)；
+[Cryptera 的回撤历史页](https://cryptera.app/bitcoin-drawdown-history)仅作为未经验证的描述性线索保留。
 
 ## 边界
 

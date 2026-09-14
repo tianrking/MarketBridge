@@ -1,5 +1,20 @@
 # Development log
 
+## 2026-09-14 — Added drawdown/recovery response replay
+
+Added `crypto_drawdown_recovery_response_replay.py` under the universe family.
+For each candle it computes a running high from information available at that
+timestamp, classifies near-ATH, mild, moderate and deep drawdown states, and
+reports fixed-horizon return, worst path move and recovery of the prior high.
+The implementation keeps the thresholds, horizon, coverage and small samples
+visible. It is a response table only: no buy-the-dip, DCA, allocation,
+forecast or execution path is created.
+
+The research lead is [CoinShares' drawdown context note](https://etp.coinshares.com/us/insights/research-data/bitcoins-drawdown-in-context/);
+[Cryptera's drawdown history](https://cryptera.app/bitcoin-drawdown-history) is
+treated as an unverified descriptive lead. Candle semantics remain grounded
+in [Binance's public market-data documentation](https://developers.binance.com/en/docs/products/spot/rest-api).
+
 ## 2026-09-14 — Added cross-asset lead-lag response replay
 
 Added `crypto_cross_asset_lead_lag_response_replay.py` under the universe

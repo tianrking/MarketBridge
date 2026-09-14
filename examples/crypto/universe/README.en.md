@@ -17,6 +17,8 @@
   participation and provider-level global-market context.
 - `crypto_pairs_mean_reversion_replay.py`: fixed-parameter spread deviation and
   convergence diagnostic.
+- `crypto_drawdown_recovery_response_replay.py`: running-high drawdown buckets
+  and fixed-horizon recovery/forward-response study.
 - `crypto_universe_delist_risk_monitor.py`: missing/stale quote data-quality guard.
 - `crypto_trend_template_response_replay.py`: a price-only 50/150/200-day
   trend-template response study with a trailing 52-week range filter.
@@ -58,6 +60,22 @@ python3 examples/crypto/universe/crypto_trend_template_response_replay.py \
   --slope-days 22 --range-days 252 --horizon-days 30 \
   --min-observations 5
 ```
+
+```bash
+python3 examples/crypto/universe/crypto_drawdown_recovery_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1d --days 3650 \
+  --horizon-bars 90 --mild-drawdown-pct 10 \
+  --moderate-drawdown-pct 20 --deep-drawdown-pct 40 \
+  --min-observations 5
+```
+
+The drawdown replay computes each running high from candles available at that
+timestamp, then reports forward return, worst path move and whether the prior
+high was revisited inside the horizon. It is a falsifiable response table,
+not a buy-the-dip, DCA, allocation or forecast rule. The research lead is
+[CoinShares' drawdown context note](https://etp.coinshares.com/us/insights/research-data/bitcoins-drawdown-in-context/);
+the [Cryptera drawdown history](https://cryptera.app/bitcoin-drawdown-history)
+is retained as an unverified descriptive lead.
 
 ## Boundary
 

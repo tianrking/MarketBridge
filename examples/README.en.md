@@ -19,7 +19,7 @@ Chinese guide at `README.zh-CN.md`.
 | Crypto on-chain | transfers, mempool and mining pressure | [`crypto/onchain/`](crypto/onchain/README.en.md) |
 | Crypto options | IV surface, skew, gamma, VRP and max-pain proxies | [`crypto/options/`](crypto/options/README.en.md) |
 | Crypto sentiment | fear/greed, news attention and social metrics | [`crypto/sentiment/`](crypto/sentiment/README.en.md) |
-| Crypto universe | breadth, cross-asset ranking and relative value | [`crypto/universe/`](crypto/universe/README.en.md) |
+| Crypto universe | breadth, cross-asset ranking, drawdown response and relative value | [`crypto/universe/`](crypto/universe/README.en.md) |
 | Prediction markets | public trade flow, calibration and settlement replay | [`prediction/`](prediction/README.en.md) |
 | Weather | deterministic observations and market-calibration inputs | [`weather/`](weather/README.en.md) |
 
