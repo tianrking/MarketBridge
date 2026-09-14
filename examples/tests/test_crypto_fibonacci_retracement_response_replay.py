@@ -32,6 +32,14 @@ class FibonacciRetracementResponseReplayTests(unittest.TestCase):
         self.assertEqual(classify_ratio(0.382, 0.01), "fib_382")
         self.assertEqual(classify_ratio(0.50, 0.01), "fib_500")
         self.assertEqual(classify_ratio(1.10, 0.03), "outside_swing_range")
+        self.assertEqual(classify_ratio(None, 0.03), "missing_swing")
+
+    def test_same_candle_extrema_do_not_invent_direction(self):
+        rows = [
+            {"ts_ms": 0, "high": 110.0, "low": 90.0, "close": 100.0},
+            {"ts_ms": 1, "high": 105.0, "low": 95.0, "close": 100.0},
+        ]
+        self.assertIsNone(swing_levels(rows, 1, 1))
 
     def test_summary_reports_level_buckets(self):
         observations = build_observations(self.rows, 3, 0.05, 1)

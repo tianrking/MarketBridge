@@ -125,6 +125,8 @@ is support/resistance or create an entry, stop, or order rule. The research lead
 is [a public WIF Fibonacci discussion on X](https://x.com/CryptoJournaal/status/2026693734063075685),
 with definitions cross-checked against [Binance Academy's Fibonacci guide](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
 and [glossary](https://www.binance.com/en/academy/glossary/fibonacci-retracement).
+Windows with ambiguous same-candle extrema remain visible as `missing_swing`
+instead of being assigned an arbitrary direction.
 
 ```bash
 python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \

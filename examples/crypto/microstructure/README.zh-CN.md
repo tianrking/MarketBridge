@@ -98,6 +98,7 @@ python3 examples/crypto/microstructure/crypto_rsi_bollinger_extreme_response_rep
 [X 上 WIF 的 Fibonacci 讨论](https://x.com/CryptoJournaal/status/2026693734063075685)，定义对照
 [Binance Academy Fibonacci 指南](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
 和 [Binance 词典](https://www.binance.com/en/academy/glossary/fibonacci-retracement)。
+如果窗口内最高点和最低点出现在同一根 K 线，方向不确定，结果会保留为 `missing_swing`，不会人为指定方向。
 
 ```bash
 python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \

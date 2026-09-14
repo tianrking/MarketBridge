@@ -549,6 +549,7 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 研究线索来自 [X 上 WIF Fibonacci 讨论](https://x.com/CryptoJournaal/status/2026693734063075685)，
 定义对照 [Binance Academy Fibonacci 指南](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
 和 [Binance 词典](https://www.binance.com/en/academy/glossary/fibonacci-retracement)。
+最高点和最低点若落在同一根 K 线，则保留为 `missing_swing`，不人为补方向。
 
 ```bash
 python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \

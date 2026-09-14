@@ -71,8 +71,10 @@ For each candle it selects a high and low from a trailing window that ends
 before the candle, infers their chronological direction, and groups the
 direction-aware retracement ratio near 38.2%, 50% and 61.8% against control
 ranges. It reports later signed, direction-aligned and absolute responses while
-keeping the anchor proxy, tolerance, horizon and small samples explicit. The
-case does not claim support/resistance, discretionary chart intent or execution.
+keeping the anchor proxy, tolerance, horizon and small samples explicit. Windows
+whose extrema fall on the same candle remain `missing_swing` rather than being
+assigned an arbitrary direction. The case does not claim support/resistance,
+discretionary chart intent or execution.
 
 The research lead is [a public WIF Fibonacci discussion on X](https://x.com/CryptoJournaal/status/2026693734063075685).
 Definitions are cross-checked against [Binance Academy's Fibonacci guide](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)

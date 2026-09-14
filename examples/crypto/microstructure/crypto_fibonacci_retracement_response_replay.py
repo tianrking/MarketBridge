@@ -51,7 +51,7 @@ def swing_levels(rows, index, lookback_bars):
     high_index = max(range(len(window)), key=lambda offset: window[offset]["high"])
     low_index = min(range(len(window)), key=lambda offset: window[offset]["low"])
     swing_high, swing_low = window[high_index]["high"], window[low_index]["low"]
-    if swing_high <= swing_low:
+    if swing_high <= swing_low or high_index == low_index:
         return None
     direction = 1 if low_index < high_index else -1
     return {"high": swing_high, "low": swing_low,
@@ -71,7 +71,9 @@ def retracement_ratio(close, levels):
 
 
 def classify_ratio(ratio, level_tolerance):
-    if ratio is None or ratio < 0.0 or ratio > 1.0:
+    if ratio is None:
+        return "missing_swing"
+    if ratio < 0.0 or ratio > 1.0:
         return "outside_swing_range"
     candidates = ((0.382, "fib_382"), (0.500, "fib_500"), (0.618, "fib_618"))
     nearest = min(candidates, key=lambda item: abs(ratio - item[0]))
@@ -123,7 +125,7 @@ def bucket_stats(rows):
 
 def summarize(observations, min_observations):
     states = ("fib_382", "fib_500", "fib_618", "inside_swing_range_other",
-              "outside_swing_range")
+              "outside_swing_range", "missing_swing")
     by_state = {state: bucket_stats([row for row in observations if row["state"] == state])
                 for state in states}
     return {
@@ -182,6 +184,7 @@ def main():
         "upstream_errors": [payload["error"]] if payload.get("error") else [],
         "limitations": [
             "swing high and low are a trailing-window proxy, not discretionary chart anchors",
+            "windows whose extrema occur on the same candle remain missing_swing instead of receiving an arbitrary direction",
             "retracement ratios, tolerance, lookback and horizon are caller-supplied sensitivity parameters",
             "levels are not guaranteed support/resistance and no volume or trend confirmation is inferred",
             "row-count horizons omit missing-bar timing, fees, funding, slippage, allocation and fills",
