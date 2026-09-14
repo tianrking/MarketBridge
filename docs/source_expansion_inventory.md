@@ -17,6 +17,8 @@ Last checked: 2026-09-14
 - Hummingbot Gateway docs: 6 active DEX connectors and 6 legacy DEX connectors.
 - Raydium API v3 docs: public pool-by-mint endpoint with pagination, TVL, volume,
   fee, price, and pool-type fields.
+- Orca public API docs: Whirlpool pool search with TVL, time-window volume/fees,
+  yield-over-TVL, warning, adaptive-fee and cursor fields.
 
 The CCXT package and wiki counts can differ because package exports include
 aliases or transitional ids such as `gateio`, `huobi`, and `coinbaseadvanced`.
@@ -38,7 +40,7 @@ visibility. A source enters the runtime only after it has at least:
 | Priority | Scope | Rationale |
 |---|---|---|
 | P0 | Credentialed validation for Architect/Decibel OI | OI normalization is wired when keyed payloads expose OI fields; live validation still requires venue credentials. |
-| P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Jupiter quote-size/route-impact ladder and Raydium API v3 pool aggregates are implemented; remaining protocol-native pool routes and swap streams require chain-specific APIs or indexers. |
+| P1 | Add native DeFi state beyond quotes: pool liquidity, route depth, swaps/trades for Jupiter/Raydium/Orca/Meteora/Uniswap/Curve/Balancer/SushiSwap/QuickSwap/Trader Joe/ETCSwap | Jupiter quote-size/route-impact ladder, Raydium API v3 pool aggregates and Orca public Whirlpool API context are implemented; remaining protocol-native pool routes and swap streams require chain-specific APIs or indexers. |
 | P2 | Extend options websocket depth/trade parity when needed | REST chains, per-instrument depth, and low-latency WS ticker/summary cache updates are wired for Deribit/OKX/Bybit/Binance. Native WS option book/trade streams are a latency upgrade, not a missing research input. |
 | P3 | Add new long-tail centralized venues as native REST snapshot sources only when they add useful coverage | Broad coverage is useful for research, but schema quality and operational behavior come first. |
 | P4 | Wallet/order/account-only capabilities | Out of scope unless MarketBridge grows an execution subsystem. |

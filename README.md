@@ -261,6 +261,10 @@ normalized into page coverage, TVL, 24-hour volume/fee, top-pool concentration,
 price and turnover metrics. The Python monitor/recorder/replay tests whether
 fragmented or concentrated high-turnover states persist and reports a bounded
 BTC response study; incomplete pages remain observe-only.
+Orca now exposes a native Whirlpool case over its public REST API: TVL,
+24-hour volume/fees, yield-over-TVL, warning, adaptive-fee and cursor context
+are normalized for a Python monitor/recorder/replay and a bounded BTC response
+study. Cursor pages and unknown active tick ranges remain explicit gaps.
 The stablecoin family also includes a directional USDC/USDT rotation replay:
 it normalizes both quote orientations and tests whether USDC discounts/premiums
 align with later BTC direction, without claiming capital-flow causality or
@@ -352,7 +356,7 @@ flowchart LR
     CEX[CEX Spot/Perp\nBBO/L2/Trades/Funding/OI/Liquidations]
     OPT[Options REST\nDeribit/OKX/Bybit/Binance]
     PM[Polymarket\nGamma + CLOB REST/WS]
-    DEFI[DeFi Quotes/Pools\nJupiter/Raydium/Uniswap/ParaSwap/1inch]
+    DEFI[DeFi Quotes/Pools\nJupiter/Raydium/Orca/Uniswap/ParaSwap/1inch]
     EXT[Macro/Aggregates/Sentiment\nDXY/VIX/US10Y/CoinGlass/News/Social]
     ON[On-chain Transfers\nWhale Alert/mempool.space/Etherscan]
   end
@@ -773,6 +777,7 @@ credential is absent.
 |---|---:|---|---|
 | Jupiter quotes | Implemented | `GET /v1/market/quotes?exchanges=jupiter` | Polls public Jupiter quote REST and emits normalized `market_quote` ticks. |
 | Raydium prices | Implemented | `GET /v1/market/quotes?exchanges=raydium` | Polls Raydium public price map and computes configured pair ratios. |
+| Orca Whirlpool context | Implemented | `GET /v1/market/quotes?exchanges=orca`, `GET /v1/external/signals?sources=orca` | Polls official public Whirlpool search and emits normalized quotes plus TVL/volume/fee/warning/adaptive-fee/cursor metrics. |
 | Uniswap V3 pool prices | Implemented | `GET /v1/market/quotes?exchanges=uniswap_v3` | Polls configured V3 pools from a GraphQL subgraph. This is pool price, not routed execution. |
 | ParaSwap quotes | Implemented | `GET /v1/market/quotes?exchanges=paraswap` | Polls public `/prices` route and emits executable quote-derived prices. |
 | 1inch quotes | Implemented configurable | `GET /v1/market/quotes?exchanges=oneinch` | Uses configurable legacy public base URL; newer 1inch gateways may require replacing `base_url`. |

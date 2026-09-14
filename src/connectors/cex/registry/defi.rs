@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::connectors::defi::dexscreener::DexScreenerPoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
+use crate::connectors::defi::orca::OrcaWhirlpoolPoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
 use crate::connectors::defi::raydium::RaydiumPricePoller;
 use crate::connectors::defi::uniswap_v3::UniswapV3PoolPoller;
@@ -22,10 +23,7 @@ pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &Registr
         )));
     }
     if cfg.defi.orca.enabled {
-        out.push(Arc::new(DexScreenerPoller::new(
-            "orca",
-            cfg.defi.orca.clone(),
-        )));
+        out.push(Arc::new(OrcaWhirlpoolPoller::new(cfg.defi.orca.clone())));
     }
     if cfg.defi.raydium.enabled {
         out.push(Arc::new(RaydiumPricePoller::new(cfg.defi.raydium.clone())));

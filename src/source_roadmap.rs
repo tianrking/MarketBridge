@@ -584,7 +584,7 @@ const ROADMAP: &[RoadmapSource] = &[
         upstreams: UP_HB_GATEWAY,
         marketbridge_status: "partial",
         priority: "P1",
-        notes: "DexScreener-backed Solana Orca pool quote snapshots plus liquidity/volume/swap-count metrics wired; Whirlpool-native route depth remains planned.",
+        notes: "Official Orca public Whirlpool API poller emits TVL, 24h volume/fees, yield/TVL, warning and adaptive-fee context with cursor visibility; active tick-range and native swap streams remain outside the read-only connector.",
     },
     RoadmapSource {
         source: "uniswap",

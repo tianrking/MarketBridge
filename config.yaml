@@ -209,12 +209,14 @@ defi:
 
   orca:
     enabled: false
+    # Legacy field retained for older configs; native Orca polling uses this API.
     base_url: "https://api.dexscreener.com/"
+    native_base_url: "https://api.orca.so/v2/solana/"
+    page_size: 50
+    stats: "24h,7d"
     poll_secs: 10
     pairs:
       - symbol: SOLUSDC
-        chain_id: solana
-        dex_id: orca
         query: "SOL USDC"
         spread_bps: 5.0
 

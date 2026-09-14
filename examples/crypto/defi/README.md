@@ -76,6 +76,20 @@ and its documented `tvl`, `day.volume`, `day.volumeFee`, `price`, `feeRate`
 and `hasNextPage` fields. They are provider snapshots, not complete on-chain
 swap history, LP income, realized slippage or executable route depth.
 
+`crypto_orca_whirlpool_monitor.py` / recorder / replay consume the official
+Orca Whirlpool REST snapshot. The case separates
+`warning_or_adaptive_fee_pressure`, `high_turnover_whirlpool`, and
+`ordinary_whirlpool_state` using top-pool 24-hour turnover plus the provider's
+warning/adaptive-fee flags. The response recorder/replay pair the state with
+BTC quotes for a fixed-record descriptive study. Cursor pages remain visible;
+a non-terminal page is observe-only.
+
+Provenance: the fields follow Orca's [public API overview](https://docs.orca.so/api-reference/overview)
+and [Whirlpools endpoint reference](https://docs.orca.so/api-reference/whirlpools),
+which document pool TVL, time-window volume/fees, yield-over-TVL, warnings,
+adaptive fees and cursor pagination. The data is not an active tick-range,
+swap-ledger, LP-PnL or executable route model.
+
 The stablecoin case follows the unverified [DEWS-style early-warning discussion
 on X](https://x.com/crazydnekana/status/2030633787462242588), which describes
 price drift, thinning liquidity and trading pressure as a sequence to monitor.
@@ -121,6 +135,15 @@ redemptions, solvency or executable mean reversion.
 
 出处：Jupiter 官方 [Quote API 文档](https://developers.jup.ag/docs/swap/v1/get-quote) 明确记录 quote 返回的
 `priceImpactPct` 与 `routePlan`。这些字段只能支撑有界的路由冲击假设，不能当作可执行价格保证。
+
+`crypto_orca_whirlpool_monitor.py` / recorder / replay 消费 Orca 官方 Whirlpool REST 快照。案例用头部池 24 小时换手率和提供方
+warning/adaptive-fee 标志，区分 `warning_or_adaptive_fee_pressure`、`high_turnover_whirlpool` 和
+`ordinary_whirlpool_state`；response recorder/replay 再与 BTC 报价配对，做固定记录窗口的描述性研究。cursor 还有下一页时保持
+observe-only，不把部分页面当成完整池状态。
+
+出处遵循 Orca 的[公开 API 总览](https://docs.orca.so/api-reference/overview)和
+[Whirlpools 接口说明](https://docs.orca.so/api-reference/whirlpools)，其中说明池 TVL、时间窗口 volume/fees、yield-over-TVL、
+warning、adaptive fee 与 cursor 分页。它不是 active tick range、swap ledger、LP PnL 或可执行路由模型。
 
 `crypto_raydium_pool_concentration_monitor.py` / recorder / replay 消费 Raydium API v3 池分页指标（以
 `defi_native_state` 输出）。假设很窄：24 小时交易量相对页面 TVL 较高的状态是否持续，以及头部池 TVL 占比较低时是否形成
@@ -169,6 +192,20 @@ python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_recorder
   --output work/crypto-raydium-pool-concentration-response.jsonl
 python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_replay.py \
   --input work/crypto-raydium-pool-concentration-response.jsonl \
+  --horizon-records 3 --min-observations 5
+python3 examples/crypto/defi/crypto_orca_whirlpool_monitor.py \
+  --symbols SOLUSDC --min-turnover-ratio 1.0
+python3 examples/crypto/defi/crypto_orca_whirlpool_recorder.py \
+  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
+  --output work/crypto-orca-whirlpool.jsonl
+python3 examples/crypto/defi/crypto_orca_whirlpool_replay.py \
+  --input work/crypto-orca-whirlpool.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_orca_whirlpool_response_recorder.py \
+  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 60 \
+  --output work/crypto-orca-whirlpool-response.jsonl
+python3 examples/crypto/defi/crypto_orca_whirlpool_response_replay.py \
+  --input work/crypto-orca-whirlpool-response.jsonl \
   --horizon-records 3 --min-observations 5
 python3 examples/crypto/defi/crypto_stablecoin_depeg_monitor.py \
   --exchange binance --stable-symbols USDTUSDC,USDCUSDT,DAIUSDT \

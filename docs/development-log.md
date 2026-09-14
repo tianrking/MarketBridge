@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Orca Whirlpool public API context
+
+Upgraded the Orca source from DexScreener-only snapshots to the official
+public Whirlpool API. The connector filters configured token-pair searches,
+normalizes top-pool price orientation, and emits pool count, TVL, 24-hour
+volume/fees, yield-over-TVL, top turnover, warning, adaptive-fee and cursor
+metrics as `defi_native_state`. Added bilingual monitor/recorder/replay and a
+BTC response study for warning/adaptive-fee versus ordinary states. Provenance:
+[Orca API overview](https://docs.orca.so/api-reference/overview) and
+[Whirlpools reference](https://docs.orca.so/api-reference/whirlpools). No swap,
+transaction, wallet, signing, position or LP-PnL path is included.
+
 ## 2026-09-14 — Raydium native pool concentration
 
 Added a read-only Raydium API v3 pool-info poller. Each configured mint pair

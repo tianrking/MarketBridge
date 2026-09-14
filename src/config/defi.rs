@@ -7,7 +7,7 @@ pub struct DefiConfig {
     #[serde(default)]
     pub meteora: DexScreenerConfig,
     #[serde(default)]
-    pub orca: DexScreenerConfig,
+    pub orca: OrcaConfig,
     #[serde(default)]
     pub raydium: RaydiumConfig,
     #[serde(default)]
@@ -64,6 +64,34 @@ pub struct RaydiumConfig {
     pub poll_secs: u64,
     #[serde(default = "default_raydium_pairs")]
     pub pairs: Vec<RaydiumPair>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OrcaConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Retained for compatibility with the previous DexScreener-backed Orca
+    /// configuration; native polling uses `native_base_url`.
+    #[serde(rename = "base_url", default = "default_dexscreener_base_url")]
+    pub _legacy_base_url: String,
+    #[serde(default = "default_orca_native_base_url")]
+    pub native_base_url: String,
+    #[serde(default = "default_orca_page_size")]
+    pub page_size: u32,
+    #[serde(default = "default_orca_stats")]
+    pub stats: String,
+    #[serde(default = "default_defi_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_orca_pairs")]
+    pub pairs: Vec<OrcaPair>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OrcaPair {
+    pub symbol: String,
+    pub query: String,
+    #[serde(default = "default_defi_spread_bps")]
+    pub spread_bps: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -211,6 +239,18 @@ fn default_raydium_pool_page_size() -> u32 {
     1000
 }
 
+fn default_orca_native_base_url() -> String {
+    "https://api.orca.so/v2/solana/".to_string()
+}
+
+fn default_orca_page_size() -> u32 {
+    50
+}
+
+fn default_orca_stats() -> String {
+    "24h,7d".to_string()
+}
+
 fn default_uniswap_v3_subgraph_url() -> String {
     "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3".to_string()
 }
@@ -241,6 +281,14 @@ fn default_meteora_pairs() -> Vec<DexScreenerPair> {
         symbol: "SOLUSDC".to_string(),
         chain_id: "solana".to_string(),
         dex_id: "meteora".to_string(),
+        query: "SOL USDC".to_string(),
+        spread_bps: default_defi_spread_bps(),
+    }]
+}
+
+fn default_orca_pairs() -> Vec<OrcaPair> {
+    vec![OrcaPair {
+        symbol: "SOLUSDC".to_string(),
         query: "SOL USDC".to_string(),
         spread_bps: default_defi_spread_bps(),
     }]
@@ -294,6 +342,20 @@ impl Default for DexScreenerConfig {
             base_url: default_dexscreener_base_url(),
             poll_secs: default_defi_poll_secs(),
             pairs: default_meteora_pairs(),
+        }
+    }
+}
+
+impl Default for OrcaConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            _legacy_base_url: default_dexscreener_base_url(),
+            native_base_url: default_orca_native_base_url(),
+            page_size: default_orca_page_size(),
+            stats: default_orca_stats(),
+            poll_secs: default_defi_poll_secs(),
+            pairs: default_orca_pairs(),
         }
     }
 }
