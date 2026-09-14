@@ -1968,3 +1968,18 @@ Provenance: the unverified [XWIN flow-confirmation discussion](https://x.com/xwi
 mentions Coinbase premium alongside ETF and spot-demand confirmation. Coinbase
 product candle and market-data semantics are cross-checked against the official
 [Coinbase Exchange candles API](https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles).
+
+## 2026-09-14 — Supertrend response replay
+
+Added `crypto_supertrend_response_replay.py` under the microstructure family.
+The Python case computes a trailing simple ATR from OHLC, applies explicit
+midpoint/multiplier bands with recursive point-in-time clamping, labels bullish
+and bearish flips, and compares them with persistent trend-state controls over
+a fixed future horizon. It is intentionally a transparent proxy: ATR smoothing
+and band conventions can differ across charting platforms, so the output keeps
+parameters and limitations visible and never produces an entry, stop, forecast,
+wallet action or order.
+
+Provenance: the public [Binance Square Supertrend parameter/readout note](https://www.binance.com/en/square/post/24192142459218)
+is treated as an unverified research lead; candle fields are bounded by
+[Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

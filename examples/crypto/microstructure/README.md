@@ -64,6 +64,7 @@ Cases:
 - `crypto_liquidation_intensity_response_replay.py`: normalizes observed liquidation notional by OHLCV quote turnover and compares stress windows with ordinary controls.
 - `crypto_keltner_channel_response_replay.py`: compares EMA/ATR channel breakouts, persistent outside states and inside-channel controls.
 - `crypto_donchian_channel_response_replay.py`: compares prior-range Donchian breakouts, persistent outside states and inside controls.
+- `crypto_supertrend_response_replay.py`: compares ATR-band Supertrend flips and persistent trend states with later fixed-horizon responses.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -599,6 +600,20 @@ python3 examples/crypto/microstructure/crypto_keltner_channel_response_replay.py
 python3 examples/crypto/microstructure/crypto_donchian_channel_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --lookback-bars 20 --horizon-bars 8 --min-observations 5
+```
+
+`crypto_supertrend_response_replay.py` 是 ATR 趋势线的透明回放实现：用当前及前置 K 线的真实波幅计算 trailing simple ATR，
+以 K 线中点和 multiplier 构造上下带，再按前一状态递推 clamp 后的 Supertrend 线。当前收盘穿过前一方向的有效带时标记
+`bullish_flip` 或 `bearish_flip`，其余有效样本分为 `bullish_trend` / `bearish_trend` 控制组，再比较固定窗口的方向对齐、绝对和路径响应。
+参数 `atr-period=10`、`multiplier=3` 只是常见起点，不保证与 TradingView/交易所私有平滑口径完全相同；状态不是入场、止损、预测或下单规则。
+研究线索来自 [Binance Square 的 Supertrend 参数与读法说明](https://www.binance.com/en/square/post/24192142459218)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_supertrend_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --atr-period 10 --multiplier 3 --horizon-bars 8 \
+  --min-observations 5
 ```
 
 ```bash

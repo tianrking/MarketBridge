@@ -197,6 +197,25 @@ python3 examples/crypto/microstructure/crypto_donchian_channel_response_replay.p
   --days 180 --lookback-bars 20 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_supertrend_response_replay.py` is a transparent ATR-band response study.
+It computes a trailing simple true-range ATR, builds midpoint ± multiplier bands,
+and recursively clamps the active band using only the current and prior candles.
+A close crossing the prior active direction is labelled `bullish_flip` or
+`bearish_flip`; remaining valid bars are `bullish_trend` or `bearish_trend`
+controls. The replay compares fixed-horizon aligned, absolute and path responses.
+The commonly used `atr-period=10` and `multiplier=3` are sensitivity starting
+points, not a promise of TradingView/exchange smoothing parity. States are
+descriptive research labels, never entry, stop, forecast or order instructions.
+The research lead is [Binance Square's Supertrend parameter/readout note](https://www.binance.com/en/square/post/24192142459218),
+and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_supertrend_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --atr-period 10 --multiplier 3 --horizon-bars 8 \
+  --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

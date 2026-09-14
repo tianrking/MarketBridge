@@ -159,6 +159,20 @@ python3 examples/crypto/microstructure/crypto_donchian_channel_response_replay.p
   --days 180 --lookback-bars 20 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_supertrend_response_replay.py` 是透明的 ATR 趋势带响应研究：先用当前及前置 K 线的真实波幅计算 trailing simple ATR，
+再用 K 线中点 ± multiplier 构造上下带，并只用当前/历史数据递推 clamp 后的有效带。收盘穿过前一方向的有效带时标记
+`bullish_flip` 或 `bearish_flip`，其余有效 K 线作为 `bullish_trend` / `bearish_trend` 控制组，比较固定窗口的方向对齐、绝对和路径响应。
+常见的 `atr-period=10`、`multiplier=3` 只是敏感性起点，不保证与 TradingView 或交易所私有平滑完全一致；这些标签不是入场、止损、预测或下单指令。
+研究线索来自 [Binance Square 的 Supertrend 参数与读法说明](https://www.binance.com/en/square/post/24192142459218)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_supertrend_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --atr-period 10 --multiplier 3 --horizon-bars 8 \
+  --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。
