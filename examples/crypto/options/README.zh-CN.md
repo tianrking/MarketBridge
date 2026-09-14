@@ -59,7 +59,7 @@ python3 examples/crypto/options/crypto_options_skew_vol_regime_response_replay.p
 Put/call OI 不能推导 dealer sign 或交易者归属；IV-RV spread 不是做空波动率建议。示例不建模保证金、delta 对冲、
 行权、指派、成交、手续费或执行。
 
-完整命令和出处见 [`README.md`](README.md)。
+维护中的命令和出处见本中文指南。
 
 ## 边界
 

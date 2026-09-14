@@ -2206,3 +2206,12 @@ The USDⓈ-M taker-volume path uses Binance's official futures kline taker-buy
 fields (`unit=base_asset`) rather than relying on the provider aggregate route
 that returned 404 in the live smoke test. No execution, order, wallet or
 signing path was added.
+
+## 2026-09-14 — long-window coverage in liquidity impulse replay
+
+Updated `crypto_liquidity_impulse_replay.py` to pass bounded Binance candle
+pagination through to `/v1/history/candles`. The default two pages provide a
+longer daily sample for the ETF-flow/stablecoin-supply matrix while the output
+retains the requested page count and provider coverage. This changes data
+coverage only; it does not alter the nine-state hypothesis, introduce causal
+claims, or add an execution path.

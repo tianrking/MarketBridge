@@ -51,7 +51,7 @@ python3 examples/crypto/onchain/crypto_mayer_multiple_response_replay.py \
   --min-observations 5
 ```
 
-出处在 [`README.md`](README.md) 维护，包括 [mempool.space REST API](https://mempool.space/docs/api/rest)
+出处在本中文指南维护，包括 [mempool.space REST API](https://mempool.space/docs/api/rest)
 和[手续费建议 FAQ](https://mempool.space/docs/faq)。
 
 ## 边界

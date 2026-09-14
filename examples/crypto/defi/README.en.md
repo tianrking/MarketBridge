@@ -35,8 +35,8 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
 ```
 
 For a BTC response study, use the matching `*_response_recorder.py` and
-`*_response_replay.py` pair. The full command matrix and provider links remain
-in [`README.md`](README.md).
+`*_response_replay.py` pair. The maintained command matrix and provider links
+are in this guide.
 
 Historical supply replay:
 

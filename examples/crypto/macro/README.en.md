@@ -17,6 +17,8 @@
 - `crypto_liquidity_impulse_replay.py`: a historical two-channel response
   study that joins a trailing Farside ETF-flow window with exact-date
   DefiLlama stablecoin-supply change before measuring a later BTC candle.
+  It accepts bounded Binance candle pagination so multi-year daily windows do
+  not silently stop at one 1,500-row page.
 - `crypto_market_regime_monitor.py` / recorder / replay: Rust aggregate regime
   labels and fixed-window BTC response distributions.
 
@@ -77,7 +79,7 @@ python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
   --horizon-records 3 --min-observations 5
 python3 examples/crypto/macro/crypto_liquidity_impulse_replay.py \
   --etf-flow-csv work/btc-etf-flows.csv --chain all \
-  --exchange binance --symbol BTCUSDT --interval 1d \
+  --exchange binance --symbol BTCUSDT --interval 1d --candle-pages 2 \
   --flow-window-observations 5 --supply-change-window-days 7 \
   --etf-threshold-musd 100 --supply-threshold-pct 1 \
   --horizon-days 7 --min-observations 5
@@ -90,4 +92,4 @@ decision. The examples do not trade ETFs, rebalance a portfolio, or claim that
 correlation is causal. Keep calendar alignment, publication delay, missing
 observations, sample size and paper costs in every report.
 
-See [`README.md`](README.md) for the CSV schema, full commands and provenance links.
+See this guide for the CSV schema, commands and provenance links.

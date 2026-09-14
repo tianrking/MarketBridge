@@ -1,735 +1,322 @@
-# MarketBridge strategy demo library
+# MarketBridge examples / 示例库
 
-> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
->
-> This page remains the full cross-family catalog. Use the language-specific
-> guides for a shorter, task-oriented entry point.
+> **Language / 语言:** [English guide](README.en.md) · [简体中文指南](README.zh-CN.md)
 
-The maintained crypto entrypoints are grouped under [`crypto/`](crypto/README.md)
-with bilingual (English/中文) guides for carry, DeFi, macro, microstructure,
-on-chain, options, sentiment and universe research. Prediction and weather
-observers live in their own top-level families; Python tests live under
-[`tests/`](tests/). The `examples/` root contains documentation only.
+这是示例库的双语导航页。完整案例说明、运行参数、研究出处和限制分别维护在
+[English guide](README.en.md) 与 [中文指南](README.zh-CN.md)；不要把本页当作策略信号列表。
 
-维护中的加密策略入口统一放在 [`crypto/`](crypto/README.md)，每个系列目录都有中英文
-说明，覆盖套利/资金费率、DeFi、宏观、微结构/清算、链上、期权/波动率、情绪和资产宇宙；预测市场和天气观察器
-也各自独立。Python 测试集中在 [`tests/`](tests/)，`examples/` 根目录只保留文档。
+## Library map / 目录地图
 
-These examples are research observers. They call the running MarketBridge HTTP
-API, print evidence and a bounded hypothesis score, and never place orders.
-Each demo must state its data assumptions and keep missing data visible.
+| Family / 系列 | Research focus / 研究重点 | Bilingual guide / 双语入口 |
+|---|---|---|
+| Crypto carry / 资金费率与套利 | basis、funding、跨 venue、三角价差 | [`English`](crypto/carry/README.en.md) · [`中文`](crypto/carry/README.zh-CN.md) |
+| Crypto DeFi | pool flow、稳定币、路由冲击、流动性 | [`English`](crypto/defi/README.en.md) · [`中文`](crypto/defi/README.zh-CN.md) |
+| Crypto macro / 宏观 | DXY、VIX、US10Y、ETF 流量、市场状态 | [`English`](crypto/macro/README.en.md) · [`中文`](crypto/macro/README.zh-CN.md) |
+| Crypto microstructure / 微结构 | order flow、OI、清算、深度、波动率 | [`English`](crypto/microstructure/README.en.md) · [`中文`](crypto/microstructure/README.zh-CN.md) |
+| Crypto on-chain / 链上 | transfers、mempool、矿工压力 | [`English`](crypto/onchain/README.en.md) · [`中文`](crypto/onchain/README.zh-CN.md) |
+| Crypto options / 期权 | IV、skew、期限结构、gamma、VRP | [`English`](crypto/options/README.en.md) · [`中文`](crypto/options/README.zh-CN.md) |
+| Crypto sentiment / 情绪 | Fear & Greed、新闻、社交指标 | [`English`](crypto/sentiment/README.en.md) · [`中文`](crypto/sentiment/README.zh-CN.md) |
+| Crypto universe / 资产宇宙 | breadth、排名、配对、跨资产响应 | [`English`](crypto/universe/README.en.md) · [`中文`](crypto/universe/README.zh-CN.md) |
+| Prediction markets / 预测市场 | 公开成交流、校准、结算回放 | [`English`](prediction/README.en.md) · [`中文`](prediction/README.zh-CN.md) |
+| Weather / 天气 | 确定性观测与市场校准输入 | [`English`](weather/README.en.md) · [`中文`](weather/README.zh-CN.md) |
 
-Strategy code is Python-first. Rust remains the framework/runtime layer for
-connectors, normalization, caches, history, replay primitives and API serving.
-New strategy experiments should start from the relevant categorized Python
-launcher or `crypto/strategy/python_strategy_runner.py`; Rust remains the
-data/runtime layer. Every runnable strategy path shown below is categorized;
-there are no root-level compatibility copies.
+## Standard research loop / 统一研究流程
 
-新用户应直接使用 `crypto/` 下的分类入口。策略实现不再复制到根目录，避免打开 `examples/` 时混乱。
-
-## Current cases
-
-| Demo | Strategy hypothesis | MarketBridge inputs | Status |
-|---|---|---|---|
-| `crypto/microstructure/short_squeeze_monitor.py` | Negative funding + rising OI + spot/perp flow divergence can identify a squeeze candidate | funding, OI, order flow, liquidations, external liquidation signal | Python research observer |
-| `crypto/microstructure/crypto_short_squeeze_response_recorder.py` / `crypto_short_squeeze_response_replay.py` | The short-squeeze confluence score can be compared with a later fixed-record BTC response instead of being treated as a one-shot signal | `/v1/market/funding`, `/v1/market/open-interest`, `/v1/market/order-flow`, `/v1/market/quotes`, JSONL archive | Score-response study; OI cold start, venue semantics, costs and execution remain explicit gaps |
-| `crypto/microstructure/exhaustion_short_monitor.py` | Positive funding + failed highs + falling OI + weak bids can identify long exhaustion | funding, OI, klines, order flow, L2, optional on-chain transfers | Python research observer |
-| `crypto/carry/basis_carry_monitor.py` | Positive spot/perp basis + positive funding can justify a delta-neutral carry investigation | basis, funding, observed funding interval when available | Python research observer; withholds annualization when interval is unknown |
-| `crypto/carry/crypto_basis_recorder.py` / `crypto_basis_replay.py` | An unusually wide same-venue basis may contract over the next fixed snapshot horizon | `/v1/market/basis`, `/v1/market/perpetual-funding` JSONL archive | Descriptive contraction replay; no carry PnL, hedge, borrow or execution model |
-| `crypto/carry/crypto_historical_basis_replay.py` | An extreme Binance provider basis rate may contract over the next fixed provider window more often than ordinary basis observations | `/v1/history/basis` | Historical provider-basis convergence study; no simultaneous bid/ask, carry PnL, hedge or execution claim |
-| `crypto/carry/crypto_funding_band_monitor.py` | Funding close to an exchange-published cap/floor is a research state worth testing against later returns, not a direction signal | `/v1/market/perpetual-funding` | Uses explicit Binance provider band and interval; observe-only, no funding-income or execution claim |
-| `crypto/carry/crypto_funding_band_response_recorder.py` / `crypto_funding_band_response_replay.py` | Compare later BTC movement after near-upper-cap, near-lower-floor and ordinary provider-band states | `/v1/market/perpetual-funding`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; provider bands can change; no funding income, hedge or execution claim |
-| `crypto/carry/crypto_funding_carry_accrual_replay.py` | A fixed spot/perpetual paper ledger can separate funding transfer from observed basis drift across a holding window | `/v1/history/candles` for funding, spot and perp | Per-unit accounting decomposition only; borrow, margin, fees, fills and execution remain explicit gaps |
-| `crypto/microstructure/liquidation_reversal_monitor.py` | Sell-side liquidation + falling OI + positive CVD and price recovery can identify a flush-reversal candidate | liquidations, OI, order flow, klines | Python research observer; liquidation side semantics must be venue-validated |
-| `crypto/microstructure/crypto_liquidation_burst_replay.py` | A rolling liquidation-notional burst may precede larger absolute price movement than ordinary windows | `/v1/history/liquidations`, `/v1/history/candles` | Non-directional burst replay; bounded provider history and side semantics remain explicit |
-| `crypto/microstructure/crypto_liquidation_burst_response_recorder.py` / `crypto_liquidation_burst_response_replay.py` | A frozen rolling liquidation burst may have a different later BTC response than ordinary snapshots | `/v1/history/liquidations` or retained `/v1/market/liquidations`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; live retention, duplicate-event handling, coverage, side semantics and execution remain explicit |
-| `crypto/microstructure/crypto_liquidation_price_cluster_replay.py` | A concentrated band of observed liquidation prints may precede larger absolute movement | `/v1/history/liquidations`, `/v1/history/candles` | Observed-print cluster only; no latent liquidation heatmap, direction or execution model |
-| `crypto/microstructure/crypto_liquidation_price_cluster_response_recorder.py` / `crypto_liquidation_price_cluster_response_replay.py` | A frozen concentration of observed liquidation prints may have a different later BTC response than ordinary windows | `/v1/history/liquidations`, `/v1/market/quotes`, JSONL archive | Fixed-record observed-print response study; no latent levels, forecast or execution claim |
-| `crypto/microstructure/crypto_volatility_breakout_replay.py` | A compressed range break with volume/flow confirmation may continue after a fixed horizon | `/v1/history/candles`, optional `/v1/history/trades` | Gross and optional after-cost replay; no execution or fill model |
-| `crypto/microstructure/crypto_bollinger_squeeze_replay.py` | A trailing close-only BandWidth squeeze followed by an upper/lower-band break may continue over a fixed horizon | `/v1/history/candles` | Separate Bollinger response study; parameter sensitivity, bounded candles, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_weekly_rsi_cross_response_replay.py` | A weekly RSI crossing below/above its own SMA may separate later BTC return and path-drawdown distributions | `/v1/history/candles` at `1w` | Close-only RSI response study; indicator convention, missing weeks, multiple-testing, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
-| `crypto/microstructure/crypto_trade_imbalance_bar_replay.py` | Completed quote-notional event bars with strong signed taker imbalance may continue over the next event bars versus balanced controls | `/v1/history/trades` | Event-time continuation study; threshold choice, bounded history, side semantics and execution remain explicit gaps |
-| `crypto/microstructure/crypto_vpin_response_replay.py` | Rolling absolute imbalance across fixed-volume buckets may be followed by larger absolute BTC movement than normal-VPIN buckets | `/v1/history/trades` | Non-directional VPIN-proxy stress study; bucket threshold, provider side semantics, coverage and execution remain explicit gaps |
-| `crypto/microstructure/crypto_quarter_hour_flow_replay.py` | UTC quarter-hour opening taker-flow imbalance may align with a fixed-horizon perp return | `/v1/history/candles` at 1m and `/v1/history/trades` | Phase-aligned single-venue replay; bounded history, clock-phase causality, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_taker_oi_response_replay.py` | Taker buy/sell imbalance with rising OI may differ from the same flow with falling OI in later price response | `/v1/history/taker-volume`, `/v1/history/open-interest`, `/v1/history/candles` | Official Binance aggregate history; no trader identity, intent, fill or execution claim |
-| `crypto/microstructure/crypto_oi_price_divergence_response_replay.py` | Rising/falling price and aggregate OI quadrants may have different later BTC response distributions | `/v1/history/candles`, `/v1/history/open-interest` (Binance, Bybit, or OKX) | As-of quadrant study; OI units, staleness, ownership, causality and execution remain explicit gaps |
-| `crypto/microstructure/crypto_account_ratio_oi_response_replay.py` | Provider-specific account/holder long-short imbalance with rising or falling OI may separate crowding and unwinding response states | `/v1/history/account-ratio`, `/v1/history/open-interest`, `/v1/history/candles` | Supports Binance `scope=global` or `scope=top_trader` plus Bybit holder-count share; semantics, coverage, costs and execution remain explicit |
-| `crypto/microstructure/crypto_session_momentum_replay.py` | Session VWAP/EMA(9/21)/MACD/volume confluence may align with a fixed-horizon return | `/v1/history/candles` | Timezone-aware close-to-close replay; session definition, missing bars, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_weekday_hour_effect_replay.py` | A selected weekday/hour may have a different event, bounce and later return than other weekdays at the same UTC hour | `/v1/history/candles` | Matched-clock calendar study; weekday selection, missing bars, sample size, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_weekend_gap_response_replay.py` | Historical Friday-close to Sunday-open reference dislocations may touch the Friday reference more often than small-dislocation controls | `/v1/history/candles` | Continuous-venue proxy for a historical CME schedule; current 24/7 changes, timezone alignment, gaps, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_vwap_deviation_reversion_replay.py` | A prior UTC-session VWAP deviation followed by a cross-back may show directional mean-reversion response | `/v1/history/candles` | OHLCV VWAP-band response study; session reset, parameters, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_anchored_vwap_replay.py` | A reclaim above a prior swing-low anchored VWAP, or rejection below a swing-high anchored VWAP, may align with a fixed-horizon return | `/v1/history/candles` | Prior-window anchor and OHLCV VWAP replay; event identity, tick volume, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_volume_profile_breakout_replay.py` | A close leaving the prior value area into an OHLCV-approximated low-volume node may continue | `/v1/history/candles` | Volume-at-price approximation replay; tick-level profile, thresholds, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_profile_vwap_oi_response_replay.py` | A close outside the prior value area, on the same side of VWAP, with matching OI change may differ from non-confluence controls | `/v1/history/candles`, `/v1/history/open-interest` | OHLCV profile and trailing-VWAP proxies; aggregate OI, threshold sensitivity, causality, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_liquidity_sweep_response_replay.py` | A prior-range high/low sweep followed by a close reclaim and directional candle may separate later aligned returns | `/v1/history/candles` | OHLCV liquidity-sweep proxy; no resting stops, true liquidity pool, CISD, intent or execution claim |
-| `crypto/microstructure/crypto_atr_regime_response_replay.py` | Compressed, ordinary and expanded point-in-time ATR states may have different later signed, absolute and path-risk responses | `/v1/history/candles` | Simple-ATR volatility-context study; no direction forecast, position sizing, stop or execution claim |
-| `crypto/microstructure/crypto_breakout_retest_response_replay.py` | A prior-range breakout followed by a bounded touch-and-reclaim retest may separate later aligned returns | `/v1/history/candles` | OHLCV breakout/retest proxy; no true support/resistance, order-book, volume-confirmation or execution claim |
-| `crypto/microstructure/crypto_ichimoku_cloud_response_replay.py` | As-of Ichimoku cloud, Tenkan/Kijun and Chikou alignment states may have different later BTC responses | `/v1/history/candles` | Displaced historical-cloud study; no future-cloud leakage, forecast, allocation or execution claim |
-| `crypto/microstructure/crypto_rsi_bollinger_extreme_response_replay.py` | Joint RSI and Bollinger extremes may have different later BTC responses from one-indicator and ordinary states | `/v1/history/candles` | Close-only combined-extreme study; persistent trends, indicator conventions, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_fibonacci_retracement_response_replay.py` | Point-in-time 38.2%, 50% and 61.8% retracement zones may have different later BTC responses from control ranges | `/v1/history/candles` | Trailing-window Fibonacci proxy; discretionary anchors, support/resistance, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_fair_value_gap_response_replay.py` | Three-candle wick non-overlap zones may be revisited and show different later responses from ordinary bars | `/v1/history/candles` | OHLCV FVG proxy; no untraded-volume, institutional-intent, causal or execution claim |
-| `crypto/microstructure/crypto_obv_divergence_response_replay.py` | Close-signed OBV flow divergence may have different later responses from price/OBV confirmation and mixed controls | `/v1/history/candles` | Candle-volume OBV proxy; no aggressive-flow, ownership, causal or execution claim |
-| `crypto/microstructure/crypto_liquidation_intensity_response_replay.py` | Observed liquidation notional relative to same-window quote turnover may separate later absolute movement from ordinary windows | `/v1/history/liquidations`, `/v1/history/candles` | Venue/provider-normalized stress ratio; no complete cascade ledger, forecast or execution claim |
-| `crypto/microstructure/crypto_keltner_channel_response_replay.py` | EMA/ATR Keltner channel breakouts may have different later aligned responses from inside-channel controls | `/v1/history/candles` | Explicit Keltner proxy; no platform-specific indicator guarantee, stop, forecast or execution claim |
-| `crypto/microstructure/crypto_donchian_channel_response_replay.py` | Prior-window Donchian breakouts may have different later aligned responses from inside-channel controls | `/v1/history/candles` | Rolling OHLCV range proxy; no true support/resistance, trend guarantee, stop or execution claim |
-| `crypto/microstructure/crypto_supertrend_response_replay.py` | Point-in-time ATR-band trend flips may have different later aligned responses from persistent trend states | `/v1/history/candles` | Transparent Supertrend proxy; smoothing parity, forecast, stop, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_adx_dmi_response_replay.py` | Point-in-time ADX strength with +DI/-DI direction may have different later aligned responses from weak-direction/range controls | `/v1/history/candles` | Wilder-style ADX/DMI proxy; threshold sensitivity, intent, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_aroon_response_replay.py` | Recency of lookback highs/lows may separate later aligned responses from consolidation windows | `/v1/history/candles` | Inclusive OHLC Aroon proxy; tie convention, thresholds, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_mfi_response_replay.py` | Volume-weighted money-flow extremes and threshold reclaims may have different later responses from neutral controls | `/v1/history/candles` | Candle-volume MFI proxy; no aggressive-flow, ownership, reversal, causality, cost or execution claim |
-| `crypto/microstructure/crypto_cmf_response_replay.py` | Close-location-weighted volume pressure and zero-line crosses may have different later responses from neutral controls | `/v1/history/candles` | CMF OHLCV proxy; zero-range gaps, aggressive-flow semantics, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_parabolic_sar_response_replay.py` | Point-in-time Parabolic SAR flips may have different later aligned responses from persistent trend states | `/v1/history/candles` | Explicit SAR proxy; no stop/reversal execution, forecast, causality, cost or fill claim |
-| `crypto/microstructure/crypto_stochastic_response_replay.py` | Point-in-time Stochastic extremes and K/D crosses may have different later responses from neutral controls | `/v1/history/candles` | Smoothed OHLC Stochastic proxy; gap handling, thresholds, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_stochrsi_response_replay.py` | Point-in-time RSI-relative StochRSI extremes and K/D crosses may have different later responses from neutral controls | `/v1/history/candles` | Wilder RSI plus StochRSI proxy; constant-window gaps, sensitivity, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_vortex_response_replay.py` | Point-in-time VI+/VI− pressure and cross events may have different later responses from balanced controls | `/v1/history/candles` | Explicit Vortex OHLC proxy; spread sensitivity, missing windows, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_pivot_response_replay.py` | Prior-UTC-day traditional pivot touches/reclaims may have different later responses from inside-range controls | `/v1/history/candles` | UTC-day OHLC level proxy; no validated support/resistance, causality, cost or execution claim |
-| `crypto/microstructure/crypto_heikin_ashi_response_replay.py` | Synthetic Heikin-Ashi wickless trend states may have different later real-price responses from mixed/doji controls | `/v1/history/candles` | Synthetic-candle label only; real-close response, no synthetic fill, stop, causality or execution claim |
-| `crypto/microstructure/crypto_cci_response_replay.py` | Point-in-time CCI extremes and zero crosses may have different later responses from neutral deviations | `/v1/history/candles` | Typical-price deviation proxy; threshold sensitivity, zero-deviation gaps, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_opening_range_breakout_response_replay.py` | Fixed UTC-day opening-range breakouts may have different later responses from persistent outside states and inside-range controls | `/v1/history/candles` | Session-range proxy; UTC convention, opening-bar sensitivity, gaps, causality, cost and execution remain explicit gaps |
-| `crypto/microstructure/crypto_footprint_imbalance_monitor.py` / recorder / replay | Price-bin bid/ask delta and stacked imbalance may persist across rolling trade-buffer snapshots | `/v1/market/footprint` and JSONL archive | Persistence diagnostic; rolling retention, bin semantics, resting liquidity and forward returns remain explicit gaps |
-| `crypto/microstructure/crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py` | Footprint bid/ask pressure may align with later signed or absolute BTC movement | `/v1/market/footprint`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; rolling buffer, side semantics, causality, costs and execution remain explicit gaps |
-| `crypto/microstructure/crypto_derivatives_sentiment_monitor.py` | Aggregate funding/OI/long-short/liquidation context should remain visible without inferring position ownership | `/v1/external/signals?sources=coinglass` | Optional keyed snapshot context; missing metrics remain observe-only and no execution model |
-| `crypto/microstructure/crypto_adl_risk_monitor.py` | Binance symbol-level ADL risk rating can identify a liquidation-risk context that should be monitored separately from direction | `/v1/market/adl-risk` | Provider risk snapshot; no price forecast, private account risk, order, wallet or execution claim |
-| `crypto/microstructure/crypto_adl_risk_response_recorder.py` / `crypto_adl_risk_response_replay.py` | High, medium and low Binance ADL-risk ratings may have different later BTC response distributions | `/v1/market/adl-risk`, `/v1/market/quotes`, JSONL archive | Provider-rating response study; no realized ADL, private account risk, direction or execution claim |
-| `crypto/microstructure/crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py` | Repeated aggregate derivatives crowding states should be tested for persistence rather than promoted from one snapshot | `/v1/external/signals?sources=coinglass`, JSONL archive | Consecutive-state diagnostic; aggregate ratios are not ownership and no price, allocation or execution model |
-| `crypto/microstructure/crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py` | Long/short crowding plus optional liquidation activity can be compared with a later fixed-record price response | `/v1/external/signals?sources=coinglass`, `/v1/market/quotes`, JSONL archive | Signed response study; record-count horizon, provider semantics, costs and execution remain explicit gaps |
-| `liquidation_reversal_replay.py` | Measure forward price recovery after bounded OKX/CoinEx sell-side liquidation events, optionally joined with public OI | `/v1/history/liquidations`, `/v1/history/candles`, `/v1/history/open-interest` | Partial replay; consumes liquidation `coverage_detail`; CoinEx uses `--price-exchange okx|binance`; historical CVD and execution costs remain explicit gaps |
-| `polymarket_complement_monitor.py` | YES ask + NO ask below one can identify a complement-price candidate | Polymarket Gamma metadata, CLOB books | Snapshot candidate only; no fill, fee, latency or resolution replay |
-| `polymarket_price_shock_replay.py` | A sharp public probability update may continue over the next few history points | `/polymarket/markets`, `/polymarket/prices-history` | Descriptive continuation replay; the causal evidence timestamp and execution costs remain explicit |
-| `polymarket_timing_replay.py` | Early price discovery and late conviction entries may have different resolution-adjusted outcomes | `/polymarket/markets?include_closed=true&order=createdAt`, `/v1/prediction/trades` | Bounded paper replay; earliest observed trade is only a start-time proxy |
-| `prediction_trade_flow.py` | Public trade history can be summarized into side flow and replay inputs | `/v1/prediction/trades` | Descriptive trade-flow summary; not a profitability backtest |
-| `polymarket_settlement_replay.py` | Buy-under-price-cap entries can be scored against a closed market's resolved outcome | closed Gamma metadata + public trades | Bounded paper replay; no fill completeness or queue model |
-| `polymarket_trade_recorder.py` | Bounded pages of public trades can be frozen into a deduplicated research sample | `/v1/prediction/trades` | JSONL observation archive; no private ledger claim |
-| `polymarket_calibration_report.py` | Entry prices can be compared with resolved outcomes using calibration bins and Brier/log loss | recorded trades + resolved outcome | Descriptive calibration, not a prediction model |
-| `weather_event_observer.py` | A daily weather bucket can be compared with a provider observation/forecast | `/v1/external/weather` | Deterministic observation only; no implied probability |
-| `weather_pressure_differential.py` | Compare a weather observation with a matching Polymarket YES ask after an external update | `/v1/external/weather`, `/polymarket/markets`, `/polymarket/books` | Investigation candidate only; identity, probability and fill assumptions remain explicit |
-| `weather_market_calibration.py` | Compare archived weather buckets with verified closed-market outcomes and optional YES prices | `/v1/external/weather` + explicit JSONL manifest | Descriptive calibration; identity and resolution rules are caller-owned |
-| `crypto/microstructure/crypto_session_filter.py` | Test a short session-window hypothesis with VWAP, EMA(9/21), MACD and volume confirmation | `/v1/market/klines` | Research filter; no universal timing edge or fill model |
-| `crypto_volatility_breakout_replay.py` | A range break after compressed realized volatility may continue when candle volume and optional taker flow confirm | `/v1/history/candles`, optional `/v1/history/trades` | Bounded close-to-close replay; no execution, funding or fee model |
-| `crypto_options_skew_monitor.py` | Put-wing IV minus call-wing IV and near/far ATM IV term structure expose options hedging demand and volatility regime | `/v1/options/chains` | Snapshot observer using transparent moneyness buckets; no delta-hedge or execution model |
-| `crypto_options_skew_recorder.py` | Freeze repeated options skew snapshots so persistence can be tested rather than inferred from one quote | `/v1/options/chains` | Append-only JSONL observation archive; no private ledger or order data |
-| `crypto_options_skew_replay.py` | Measure skew persistence and term-state runs from recorded snapshots | explicit JSONL from recorder | Descriptive persistence replay; no option PnL or hedge simulation |
-| `crypto/options/crypto_options_skew_response_recorder.py` / `crypto_options_skew_response_replay.py` | Compare later BTC movement after downside-protection, upside-call or balanced wing-IV states | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; moneyness buckets, expiry roll, option PnL and execution remain explicit gaps |
-| `crypto/options/crypto_options_panic_regime_response_replay.py` | Joint high ATM IV plus positive put-minus-call skew may separate later BTC responses from one-dimensional IV/skew states | JSONL from `crypto_options_skew_response_recorder.py` | Transparent joint-regime study; skew convention, expiry roll, dealer sign, option PnL and execution remain explicit gaps |
-| `crypto/options/crypto_options_skew_vol_regime_response_replay.py` | A quiet trailing quote path plus positive put-minus-call skew may have a different later BTC response than low-volatility or skew-only states | JSONL from `crypto_options_skew_response_recorder.py` | Unannualized cadence-dependent volatility proxy; expiry roll, dealer sign, option PnL and execution remain explicit gaps |
-| `crypto/options/crypto_options_put_call_oi_monitor.py` / recorder / replay | Put/call open-interest composition may persist as defensive-put, call-dominant or balanced option positioning context | `/v1/options/chains`, JSONL archive | Provider OI units, expiry roll and dealer sign remain explicit; no option PnL or execution |
-| `crypto/options/crypto_options_put_call_oi_response_recorder.py` / replay | Compare later BTC movement after put/call OI states | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, hedge, margin, cost or execution model |
-| `crypto/options/crypto_options_max_pain_monitor.py` / recorder / replay | Expiry-level open-interest distribution may place a transparent intrinsic-pain proxy near or away from spot as expiry approaches | `/v1/options/chains`, JSONL archive | Proxy is not settlement PnL or price-pinning proof; expiry roll, TWAP, dealer sign and execution remain explicit |
-| `crypto/options/crypto_options_max_pain_response_recorder.py` / replay | Compare later BTC movement after near-expiry max-pain proximity or dislocation states | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, option PnL, hedge, margin, cost or execution model |
-| `crypto/options/crypto_options_term_structure_replay.py` | Test whether the near/far ATM-IV slope stays in contango or backwardation for a minimum run | JSONL from `crypto_options_skew_recorder.py` | Term-structure persistence diagnostic; expiry roll, quotes, costs and calendar-spread execution remain explicit gaps |
-| `crypto/options/crypto_options_term_structure_response_replay.py` | Compare later BTC movement after upward, inverted or flat near/far ATM-IV states | JSONL from `crypto_options_skew_response_recorder.py` | Fixed-record response study; expiry roll, option PnL, hedge and execution remain explicit gaps |
-| `crypto/options/crypto_options_bull_call_spread_monitor.py` / recorder / replay | A lower-call ask plus higher-call bid can form a paper debit below strike width for one expiry | `/v1/options/chains`, JSONL archive | Leg-selection and payoff-geometry persistence diagnostic; mark-only quotes, settlement, margin, costs and execution remain explicit gaps |
-| `crypto/options/crypto_options_bull_call_spread_response_recorder.py` / `crypto_options_bull_call_spread_response_replay.py` | Observable bull-call-spread quote states may have different later BTC responses than unvalidated snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; quote structure is not option PnL, fill, hedge or execution |
-| `crypto/defi/crypto_defi_pool_flow_monitor.py` | High swap volume relative to reported DEX-pool liquidity may indicate an execution-pressure regime | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes?product_type=dex_pool` | Read-only pool-state monitor; no route, gas, LP PnL or wallet execution |
-| `crypto/defi/crypto_jupiter_route_impact_monitor.py` / recorder / replay | A configured Jupiter quote-size ladder may reveal persistent high router-reported price impact at larger input sizes | `/v1/external/signals?categories=defi_native_state&sources=jupiter`, configured `route_amounts` | Read-only route-impact ladder; no complete pool depth, gas, MEV, wallet or swap execution |
-| `crypto/defi/crypto_raydium_pool_concentration_monitor.py` / recorder / replay | High Raydium 24h volume/TVL with a low top-pool TVL share may identify persistent fragmented liquidity pressure | `/v1/external/signals?categories=defi_native_state&sources=raydium`, configured Raydium mint pairs | Read-only API-v3 pool aggregate; incomplete pagination, LP PnL, route depth, gas, wallet and swap execution remain explicit |
-| `crypto/defi/crypto_raydium_pool_concentration_response_recorder.py` / replay | Compare later BTC response after fragmented/concentrated Raydium turnover states versus ordinary states | Raydium native-state signals, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, LP-income, fill or execution claim |
-| `crypto/defi/crypto_orca_whirlpool_monitor.py` / recorder / replay | High top-pool Whirlpool turnover with Orca warning/adaptive-fee context may persist as a distinct CLMM risk state | `/v1/external/signals?categories=defi_native_state&sources=orca`, configured Orca query pairs | Read-only public API context; cursor pages, active tick ranges, LP PnL, gas, wallet and swap execution remain explicit |
-| `crypto/defi/crypto_orca_whirlpool_response_recorder.py` / replay | Compare later BTC response after warning/adaptive-fee, high-turnover and ordinary Whirlpool states | Orca native-state signals, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causality, active-range slippage, fill or execution claim |
-| `crypto/defi/crypto_meteora_dlmm_monitor.py` / recorder / replay | High DLMM turnover plus fee/TVL or dynamic-fee pressure may persist as a liquidity-risk state | `/v1/external/signals?categories=defi_native_state&sources=meteora`, configured Meteora query pairs | Official public pool-page context; partial pages, active bins, LP PnL, gas, wallet and swap execution remain explicit |
-| `crypto/defi/crypto_meteora_dlmm_response_recorder.py` / replay | Compare later BTC response after high-fee-turnover, high-turnover, blacklisted and ordinary DLMM states | Meteora native-state signals, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causality, routing, fill or execution claim |
-| `crypto/defi/crypto_stablecoin_depeg_monitor.py` / recorder / replay | Stablecoin quote deviation and spread stress may coincide with larger later absolute BTC movement | `/v1/market/quotes` for selected CEX/DEX pairs and BTCUSDT, plus JSONL archive | Depeg-risk event study; no reserve, redemption, solvency, mean-reversion or execution model |
-| `crypto/defi/crypto_stablecoin_rotation_response_replay.py` | A normalized USDC discount/premium versus USDT may align with later BTC direction | JSONL from `crypto_stablecoin_depeg_recorder.py` | Directional response study; one-venue quote, flow causality, conversion, redemption and execution remain explicit gaps |
-| `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
-| `crypto/defi/crypto_stablecoin_liquidity_response_recorder.py` / `crypto_stablecoin_liquidity_response_replay.py` | Compare later BTC responses after DefiLlama stablecoin supply expansion, contraction and flat states | `/v1/external/stablecoins`, `/v1/market/quotes`, JSONL archive | Fixed-record association study; circulating supply is not exchange flow, reserves, redemption or execution evidence |
-| `crypto/defi/crypto_stablecoin_historical_response_replay.py` | Historical trailing stablecoin-supply expansion or contraction may separate later BTC response from flat windows | `/v1/history/stablecoins`, `/v1/history/candles` | UTC-date historical response study; provider revisions, circulating-cap semantics, causality and execution remain explicit gaps |
-| `crypto/defi/crypto_defi_pool_flow_response_recorder.py` / `crypto_defi_pool_flow_response_replay.py` | Compare later BTC movement after pressure versus ordinary DEX-pool snapshots | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, LP-PnL, route, gas or wallet-execution claim |
-| `crypto/defi/crypto_defi_yield_context_monitor.py` | Separate provider-reported base-yield-dominant and reward-dependent DeFi pool states | `/v1/external/defi-yields` | APY/TVL snapshot only; no yield guarantee, pool-safety certification, deposit, withdrawal or execution |
-| `crypto/defi/crypto_defi_funding_yield_risk_monitor.py` / recorder / replay | Negative selected perp funding plus reward-heavy pools may form a persistent yield-risk context | `/v1/external/defi-yields`, `/v1/market/perpetual-funding`, JSONL archive | Funding basket is a transparent proxy; no protocol accounting, causal claim, deposit, redemption or execution |
-| `crypto/onchain/crypto_onchain_transfer_burst_replay.py` | A rolling burst of public large-transfer notional may precede larger absolute price movement | `/v1/onchain/transfers`, `/v1/history/candles` | Non-directional bounded replay; transfer semantics, labels, coverage and execution remain explicit |
-| `crypto/onchain/crypto_onchain_transfer_response_recorder.py` / `crypto_onchain_transfer_response_replay.py` | A frozen rolling transfer burst may have a different later BTC response than ordinary windows | `/v1/onchain/transfers`, `/v1/market/quotes`, JSONL archive | Non-directional response study; provider coverage, deduplication, transfer semantics and execution remain explicit |
-| `crypto/onchain/crypto_onchain_mempool_pressure_monitor.py` | High/low Bitcoin mempool fee pressure may be associated with a different later BTC absolute-move distribution | `/v1/onchain/mempool` | Provider/node-dependent context monitor; no fee selection, direction, confirmation or execution claim |
-| `crypto/onchain/crypto_onchain_mempool_pressure_recorder.py` / `crypto_onchain_mempool_pressure_replay.py` | Compare fixed-record BTC responses after high, low and ordinary mempool pressure states | `/v1/onchain/mempool`, `/v1/market/quotes`, JSONL archive | Non-directional response study; no transaction broadcast, wallet signing, causality or trading path |
-| `crypto/onchain/crypto_onchain_mining_pressure_monitor.py` | Difficulty adjustment or seven-day hashrate stress may be associated with a different later BTC absolute-move distribution | `/v1/onchain/mining` | Provider-estimate context; no miner identity, profitability, capitulation, direction or execution claim |
-| `crypto/onchain/crypto_onchain_mining_pressure_recorder.py` / `crypto_onchain_mining_pressure_replay.py` | Compare fixed-record BTC responses after miner-stress, tailwind and ordinary network states | `/v1/onchain/mining`, `/v1/market/quotes`, JSONL archive | Non-directional response study; no forced-selling, wallet, transaction or trading path |
-| `crypto/onchain/crypto_hash_ribbon_response_replay.py` | A 30/60-day provider-estimated hashrate recovery or capitulation cross may separate later BTC response, with price momentum kept as an explicit filter | `/v1/history/mining`, `/v1/history/candles` | Timestamp-aware hash-ribbon response study; cadence, provider estimates, causality, miner economics and execution remain explicit gaps |
-| `crypto/onchain/crypto_mayer_multiple_response_replay.py` | Price divided by its 200-day close-only SMA may separate later BTC responses across discount, trend-band and premium regimes | `/v1/history/candles` | Historical valuation-regime response study; thresholds, candle gaps, intrinsic value, causality and execution remain explicit gaps |
-| `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
-| `crypto/options/crypto_options_vrp_recorder.py` / `crypto_options_vrp_replay.py` | Test whether an IV-minus-RV premium regime persists for one option expiry | `/v1/options/chains`, `/v1/history/candles`, JSONL archive | Descriptive VRP persistence; no option PnL, delta hedge or short-vol execution model |
-| `crypto/options/crypto_options_vrp_response_replay.py` | Compare later BTC signed/absolute responses after IV-premium, RV-above-IV and aligned regimes | Reuses VRP JSONL from `/v1/options/chains` and `/v1/history/candles` | Fixed-record surface-response study; expiry roll, IV/RV horizon mismatch and execution remain explicit |
-| `crypto/options/crypto_historical_volatility_response_replay.py` | High or low Bybit option-market historical volatility may be followed by a different absolute BTC response than ordinary provider-volatility states | `/v1/history/historical-volatility`, `/v1/history/candles` | Provider-volatility response study; cross-venue price alignment, option PnL, hedge, costs and execution remain explicit |
-| `crypto/options/crypto_deribit_volatility_index_response_replay.py` | High or low Deribit volatility-index closes may be followed by a different absolute BTC response than ordinary states | `/v1/history/volatility-index`, `/v1/history/candles` | Public index response study; not a complete surface, forecast, option PnL or execution model |
-| `crypto/options/crypto_deribit_volatility_index_vrp_response_replay.py` | Deribit volatility-index minus close-to-close RV premium/discount states may have different later absolute BTC responses than aligned states | `/v1/history/volatility-index`, `/v1/history/candles` | DVOL-RV regime study; constructions, horizons, option PnL, hedging and execution remain explicit gaps |
-| `crypto/options/crypto_deribit_cross_asset_volatility_response_replay.py` | ETH DVOL minus BTC DVOL states may have different later ETH-minus-BTC responses than aligned volatility states | Two `/v1/history/volatility-index` currencies plus BTC/ETH `/v1/history/candles` | Cross-asset volatility context study; no dispersion hedge, option PnL or execution model |
-| `crypto_options_gamma_monitor.py` | Map unsigned gamma concentration near spot and dominant strikes without inferring dealer long/short gamma | `/v1/options/chains` plus bounded `/options/deribit/book` enrichment | Snapshot gamma map; relative mass only, partial coverage is reported, not USD exposure or a directional signal |
-| `crypto_options_gamma_recorder.py` / `crypto_options_gamma_replay.py` | Test whether unsigned near-spot gamma concentration persists across snapshots | `/v1/options/chains` JSONL archive | Descriptive persistence replay; no dealer sign, realized-volatility response or hedge PnL |
-| `crypto/options/crypto_options_gamma_response_recorder.py` / `crypto_options_gamma_response_replay.py` | Compare later BTC absolute and signed movement after unsigned near-spot gamma concentration versus other snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no dealer sign, option PnL, hedge, causality or execution |
-| `crypto_universe_opportunity_scan.py` | Rank a bounded perp universe by stored-kline liquidity/realized volatility plus current funding magnitude | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding` | Candidate discovery only; missing joins and unknown funding intervals remain explicit |
-| `crypto/universe/crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py` | Test whether top-k universe candidates persist across snapshots | JSONL from universe and funding endpoints | Persistence diagnostic; no allocation, sizing or execution model |
-| `crypto/universe/crypto_universe_opportunity_response_recorder.py` / `crypto_universe_opportunity_response_replay.py` | Compare the next equal-weight top-k candidate basket with BTC after point-in-time universe ranking | `/v1/universe/top-volume`, `/v1/universe/volatility`, `/v1/market/perpetual-funding`, `/v1/market/quotes`, JSONL archive | Candidate-response paper index; missing prices, turnover, funding and execution remain explicit |
-| `crypto_cross_asset_momentum_replay.py` | Test whether the strongest trailing BTC/ETH/SOL (or caller-selected) assets beat an equal-weight basket over the next fixed horizon | `/v1/history/candles` for each symbol, exact timestamp intersection | Gross close-to-close replay; no fees, funding, slippage, weight drift or execution model |
-| `crypto/universe/crypto_cross_asset_lead_lag_response_replay.py` | A leader asset's past return may separate the follower asset's next fixed-window response from flat or opposite-leader states | `/v1/history/candles` for leader and follower, exact timestamp intersection | Strict timestamp-aligned association study; no causality, portfolio, fees or execution claim |
-| `crypto/universe/crypto_cross_asset_correlation_response_replay.py` | Low, middle and high rolling BTC/ETH (or caller-selected) return-correlation regimes may have different later relative responses | `/v1/history/candles` for two symbols, exact timestamp intersection | Co-movement regime study; no hedge ratio, pairs trade, causality or execution claim |
-| `crypto/universe/crypto_altcoin_breadth_replay.py` | The fraction of selected altcoins beating BTC over a trailing window may separate the next altcoin-basket-versus-BTC relative response | `/v1/history/candles` for BTC and caller-selected altcoins, exact timestamp intersection | Equal-count breadth proxy; not the official market-cap Top-50 index, no allocation or execution model |
-| `crypto/universe/crypto_global_market_regime_monitor.py` / recorder / replay | Total-market stress plus BTC dominance may separate defensive, BTC-dominant and broad-risk-on context states | `/v1/external/global-market`, `/v1/market/quotes`, JSONL archive | CoinGecko context-response study; no historical dominance completeness, allocation or execution model |
-| `crypto_volatility_adjusted_momentum_replay.py` | Test whether trailing return divided by per-bar realized volatility improves cross-asset ranking versus an equal-weight basket | `/v1/history/candles` for each symbol, exact timestamp intersection | Risk-adjusted ranking replay; optional fixed paper cost hurdle, no allocation/fill model |
-| `crypto/universe/crypto_adaptive_cross_asset_replay.py` | Volatility-normalized signed signals may reduce net exposure when BTC/ETH/SOL signals conflict, compared with an equal-weight basket | `/v1/history/candles` for each symbol, exact timestamp intersection | Adaptive paper-index study; neutral threshold, costs, funding, turnover and execution remain explicit gaps |
-| `crypto_volatility_adjusted_momentum_sweep.py` | Expose sensitivity across lookback, volatility and forward-horizon windows without selecting a live parameter | `/v1/history/candles` fetched once per symbol, bounded parameter grid | In-sample diagnostic with optional paper cost hurdle; best row requires time-held-out validation |
-| `crypto_volatility_adjusted_momentum_walkforward.py` | Evaluate one fixed risk-adjusted momentum parameter set on a later chronological holdout | `/v1/history/candles` for each symbol, exact timestamp intersection | Holdout paper diagnostic; one split is not proof of stable alpha |
-| `crypto/universe/crypto_trend_template_response_replay.py` | A price-only 50/150/200-day trend template near a 52-week high may separate later BTC response distributions | `/v1/history/candles` | Price-only trend response study; fundamentals, parameter sensitivity, causality and execution remain explicit gaps |
-| `crypto/universe/crypto_drawdown_recovery_response_replay.py` | Running-high drawdown buckets may separate later forward returns, adverse paths and prior-high recovery rates | `/v1/history/candles` | Point-in-time drawdown response study; no buy-the-dip, DCA, allocation, forecast or execution claim |
-| `crypto/universe/crypto_pairs_mean_reversion_replay.py` | An extreme two-asset log-price spread may shrink toward its frozen trailing mean over a fixed horizon | `/v1/history/candles` for two selected symbols, exact timestamp intersection | Relative-price convergence diagnostic; fixed hedge ratio, costs and paired execution remain explicit gaps |
-| `crypto/universe/crypto_universe_delist_risk_monitor.py` | Missing or stale current quotes should be reviewed before treating a historical market as a research candidate | `/v1/universe/delist-risk` | Data-quality guard only; not a delisting forecast and no automatic exclusion |
-| `crypto/macro/crypto_market_regime_monitor.py` | Aggregate fragmentation, volatility and leverage context should remain visible before a strategy case is interpreted | `/v1/research/market-regime` | Context monitor only; current snapshot, not historical point-in-time data, and no strategy selection |
-| `crypto/macro/crypto_market_regime_recorder.py` / `crypto_market_regime_replay.py` | Fragmented, high-volatility, leveraged and normal aggregate states can be compared with later BTC response distributions | `/v1/research/market-regime`, `/v1/market/quotes`, JSONL archive | Context-response study; current-feature freshness, causality, costs and execution remain explicit gaps |
-| `crypto/universe/crypto_global_market_regime_recorder.py` / `crypto_global_market_regime_replay.py` | CoinGecko global stress/dominance states can be compared with later BTC response distributions | `/v1/external/global-market`, `/v1/market/quotes`, JSONL archive | Provider-context response study; no historical dominance completeness, allocation or execution model |
-| `crypto/macro/crypto_macro_context_monitor.py` | Macro reference snapshots should remain visible beside crypto funding before interpreting a market case | `/v1/market/quotes?exchanges=dxy,vix,us10y`, `/v1/market/perpetual-funding` | Context monitor only; no macro forecast or execution model |
-| `crypto/macro/crypto_macro_context_recorder.py` / `crypto_macro_context_replay.py` | Elevated VIX/macro context and funding crowding can be compared with later BTC return and absolute-move distributions | `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Snapshot response study; macro timestamps, causality, costs and execution remain explicit gaps |
-| `crypto/macro/crypto_etf_flow_response_recorder.py` / `crypto_etf_flow_response_replay.py` | Large daily or complete trailing BTC ETF flow windows may have a different next-window BTC response than ordinary flow days | MarketBridge `farside_etf` external signals, `/v1/market/quotes`, `/v1/history/candles`, or Farside-style CSV | External-flow response study; rolling windows are current/prior rows only; historical ingestion, NAV timing, revisions, causality and execution remain explicit gaps |
-| `crypto/macro/crypto_liquidity_confirmation_monitor.py` / recorder / replay | ETF flow, stablecoin supply, Coinbase premium and funding crowding may form a different later BTC response when multiple channels agree | `/v1/external/signals`, `/v1/external/stablecoins`, `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Transparent context matrix; publication clocks, USD/USDT basis, supply semantics, causality and execution remain explicit gaps |
-| `crypto/macro/crypto_liquidity_impulse_replay.py` | A trailing ETF-flow impulse and exact-date stablecoin-supply impulse may separate the next fixed BTC response across a transparent 3×3 state matrix | Caller-supplied Farside-style CSV/JSONL, `/v1/history/stablecoins`, `/v1/history/candles` | Historical two-channel response study; publication clocks, supply semantics, missing dates, causality and execution remain explicit gaps |
-| `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
-| `crypto/sentiment/crypto_news_attention_monitor.py` / recorder / replay | A burst of high-score CryptoPanic items may precede larger absolute BTC movement than ordinary windows | `/v1/external/signals?sources=cryptopanic&categories=news`, `/v1/market/quotes` and JSONL archive | Non-directional attention replay; feed coverage, vote semantics and timing remain explicit |
-| `crypto/sentiment/crypto_social_signal_response_recorder.py` / `crypto_social_signal_response_replay.py` | A change in a keyed LunarCrush/Santiment metric may be followed by a different absolute BTC response than ordinary snapshots | `/v1/external/signals`, `/v1/market/quotes`, JSONL archive | Provider-specific social-score response study; API key, metric scale, coverage and execution remain explicit gaps |
-| `funding_convergence_monitor.py` | Compare explicit hourly funding rates across venues and flag a gross differential for investigation | `/v1/market/perpetual-funding` | Withholds annualization when provider interval is unknown; no hedge execution |
-| `funding_convergence_replay.py` | Align historical funding observations and measure gross and after-cost differential persistence across venues | `/v1/market/perpetual-funding`, `/v1/history/candles` | Explicit paper cost hurdle is a sensitivity input; no fill, borrow or hedge simulation |
-| `crypto_funding_oi_replay.py` | Extreme funding plus rising OI may identify crowded longs/shorts whose next price window moves against the crowd | `/v1/history/candles`, `/v1/history/open-interest` (Binance, Bybit, or OKX) | Provider OI units and schedule gaps remain explicit; forward return is not a hedge PnL |
-| `crypto/carry/crypto_funding_regime_replay.py` | Persistent same-direction extreme funding may precede a move against the crowded side | `/v1/history/candles` for funding-rate and perp candles | Funding-only persistence replay; no OI, funding income, hedge or execution model |
-| `crypto/carry/crypto_funding_cross_section_replay.py` | At wide funding dispersion, low-funding assets may have different next-window returns from high-funding assets | `/v1/history/candles` for funding-rate and perp candles across a caller-selected universe | Cross-sectional diagnostic with freshness, exact price intersections and optional paper cost; no allocation or hedge execution |
-| `crypto/carry/crypto_funding_spread_response_replay.py` | An extreme or shocked annualized funding spread across two venues may be followed by a different absolute BTC response than ordinary spread windows | `/v1/history/candles` for funding-rate histories on two venues plus perp candles for the response | Non-directional spread-stress response study; point-in-time freshness, provider coverage, carry cash flow and execution remain explicit gaps |
-| `crypto/carry/crypto_premium_funding_response_replay.py` | A material Binance premium-index/funding-rate disagreement may be followed by a different fixed-horizon perp response than ordinary aligned observations | `/v1/history/candles?candle_type=premiumIndex`, `/v1/history/candles?candle_type=funding_rate`, `/v1/history/candles?candle_type=perp` | Exchange-derived context study; bounded as-of alignment, no carry PnL, hedge, fill or execution claim |
-| `crypto/carry/crypto_cross_venue_price_gap_replay.py` | An extreme same-asset log-price gap across two venues may contract toward its frozen trailing mean | `/v1/history/candles` for the same symbol on two venues, exact timestamp intersection | Price-fragmentation diagnostic; synchronized fills, inventory, transfers, fees and execution remain explicit gaps |
-| `crypto/carry/crypto_coinbase_premium_monitor.py` / `crypto_coinbase_premium_response_recorder.py` / `crypto_coinbase_premium_response_replay.py` | A Coinbase USD spot premium or discount versus a reference venue may be followed by a different fixed-record BTC response | `/v1/market/quotes`, JSONL archive | USDT/USD basis, venue timing and coverage remain explicit; no pure spot-flow, arbitrage or execution claim |
-| `crypto/carry/crypto_coinbase_premium_historical_replay.py` | Historical Coinbase USD premium/discount states may have different later BTC responses than ordinary aligned spot spreads | `/v1/history/candles` for Coinbase and reference venue | Uses bounded public candles; USD/USDT basis, no-tick gaps, fees and execution remain explicit |
-| `crypto/carry/crypto_cross_venue_orderbook_monitor.py` / recorder / replay | A synchronized target-notional ask/bid VWAP gap may persist after a paper round-trip cost hurdle | `/v1/market/order-books` and JSONL archive | Snapshot depth diagnostic; timestamp skew, inventory, settlement, transfer and execution remain explicit gaps |
-| `crypto/carry/crypto_cross_venue_orderbook_response_recorder.py` / `crypto_cross_venue_orderbook_response_replay.py` | A qualifying synchronized book edge may have a different later BTC response than an unqualified snapshot | `/v1/market/order-books`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no simultaneous fills, arbitrage PnL, inventory or execution claim |
-| `crypto/carry/crypto_triangular_arbitrage_monitor.py` / recorder / replay | A synchronized single-venue three-leg top-of-book conversion edge may persist after paper per-leg costs | `/v1/market/quotes?product_type=spot` for `BTCUSDT`, `ETHBTC`, `ETHUSDT`, plus JSONL archive | Quote-consistency persistence diagnostic; depth, atomicity, latency, inventory and execution remain explicit gaps |
-| `crypto/carry/crypto_triangular_arbitrage_response_recorder.py` / `crypto_triangular_arbitrage_response_replay.py` | A qualifying three-leg quote edge may have a different later BTC response than an unqualified snapshot | `/v1/market/quotes?product_type=spot`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no atomic fills, triangular PnL, depth, inventory or execution claim |
-| `crypto/carry/crypto_positioning_regime_replay.py` | Price trend, OI change and funding sign may separate forward-return distributions | `/v1/history/candles`, `/v1/history/open-interest` | Point-in-time regime matrix; OI is aggregate and no long/short ownership is inferred |
-| `crypto/microstructure/crypto_oi_impulse_response_recorder.py` / `crypto_oi_impulse_response_replay.py` | An unusually large OI expansion may be followed by larger absolute price movement, as liquidation-risk context rather than direction | `/v1/market/open-interest`, `/v1/market/quotes`, JSONL archive | Expansion/contraction response study; OI ownership, elapsed-time alignment and execution remain explicit gaps |
-| `crypto/microstructure/crypto_microstructure_monitor.py` | Top-of-book bid/ask depth imbalance can identify short-term pressure, while extreme funding is a crowding warning | `/v1/market/order-books`, `/v1/market/perpetual-funding` | Snapshot observer; missing books and funding conflicts stay explicit |
-| `crypto/microstructure/crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py` | Compare later BTC movement after bid/ask pressure, funding-conflict and balanced-book states | `/v1/market/order-books`, `/v1/market/perpetual-funding`, `/v1/market/quotes`, JSONL archive | Fixed-record microstructure response study; no causal, fill or execution claim |
-| `crypto_flow_book_confirmation.py` | Same-direction taker-flow delta/CVD confirms an L2 pressure candidate; opposite flow rejects it | `/v1/market/order-books`, `/v1/market/order-flow`, `/v1/market/perpetual-funding` | Point-in-time confirmation observer; no execution, fill or cost model |
-| `crypto_spot_perp_depth_gap_monitor.py` | Same-venue perp depth may exceed spot depth for a target notional, creating an execution-risk asymmetry | `/v1/market/order-books` for spot/perp, `/v1/market/basis` | Snapshot observation; books are not synchronized fills and no hedge route is inferred |
-| `crypto_spot_perp_depth_gap_recorder.py` / `crypto_spot_perp_depth_gap_replay.py` | Test whether a target-size perp/spot depth advantage persists across snapshots | JSONL from the same order-book/basis endpoints | Persistence diagnostic; no route, hedge, fill or capacity model |
-| `crypto/microstructure/crypto_spot_perp_depth_gap_response_recorder.py` / `crypto_spot_perp_depth_gap_response_replay.py` | Compare later BTC movement after perp-depth advantage, spot-depth advantage and no-gap states | `/v1/market/order-books`, `/v1/market/basis`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no hedge route, arbitrage PnL or execution claim |
-| `crypto_liquidity_stress_monitor.py` | Target-size book impact, quoted spread and short-horizon EWMA volatility can identify a stressed unwind regime | `/v1/market/order-books`, `/v1/history/candles` | Two-of-three risk context; no direction, routing or sizing decision |
-| `crypto/microstructure/crypto_liquidity_stress_recorder.py` / `crypto_liquidity_stress_replay.py` | Test whether a two-of-three liquidity-stress state persists across snapshots | JSONL from order-book and candle observations | Persistence diagnostic; missing inputs stay outside coverage, no routing or execution model |
-| `crypto/microstructure/crypto_liquidity_stress_response_recorder.py` / `crypto_liquidity_stress_response_replay.py` | Compare later BTC movement after liquidity-stress, watch and normal snapshots | `/v1/market/order-books`, `/v1/history/candles`, `/v1/market/quotes`, JSONL archive | Fixed-record risk-context response study; no directional, routing or execution claim |
-| `crypto/microstructure/crypto_liquidity_sandwich_monitor.py` / `crypto_liquidity_sandwich_response_recorder.py` / `crypto_liquidity_sandwich_response_replay.py` | Symmetric near-touch bid/ask depth with a tight spread may be followed by a different absolute BTC response than ordinary books | `/v1/market/order-books`, `/v1/market/quotes`, JSONL archive | Public-X liquidity-sandwich hypothesis; displayed walls are not persistent, causal or executable |
-| `crypto/strategy/python_strategy_runner.py` | Shared Python implementation for categorized crypto observers, including liquidity stress | normalized MarketBridge endpoints | Primary strategy implementation; read-only JSON output; requests only the selected strategy's inputs |
-| `funding_extremes.py` | Extreme funding is a candidate discovery filter, not a directional signal | on-demand perpetual funding | Research utility |
-| `funding_curve_demo.py` | Funding-rate persistence and extreme runs should be examined across time | funding-rate history | Research visualization |
-
-## Run the cases
-
-Start a read-only live configuration first, then run one observer:
-
-```bash
-export MARKETBRIDGE_CONFIG=./config.squeeze-radar.local.yaml
-cargo run
+```text
+MarketBridge API → monitor → recorder(JSONL) → replay → evidence review
 ```
 
-For the BTC microstructure monitor specifically, the bounded
-`config.research-live.yaml` enables both spot and BTC perpetual public feeds:
+1. 用 `config.research.yaml` 启动本地、只读的 MarketBridge 服务。
+2. 先运行 `*_monitor.py`，确认 provider、时间戳、覆盖范围和缺失字段。
+3. 用 `*_recorder.py` 记录追加式 JSONL；每个独立样本使用新的输出文件。
+4. 用对应的 `*_replay.py` 指定前瞻窗口、最小样本量和纸面成本。
+5. 把结果当作描述性证据：小样本、覆盖不足、提供方语义和未建模成本都必须保留。
 
 ```bash
-MARKETBRIDGE_CONFIG=./config.research-live.yaml cargo run
+MARKETBRIDGE_CONFIG=config.research.yaml cargo run
+python3 examples/crypto/carry/crypto_funding_band_monitor.py \
+  --symbol BTCUSDT --exchange binance
 ```
+
+## File roles / 文件职责
+
+| Pattern / 文件模式 | Role / 职责 |
+|---|---|
+| `*_monitor.py` | 一次性读取当前 API 快照并打印结构化证据。 |
+| `*_recorder.py` | 周期性冻结快照到追加式 JSONL。 |
+| `*_replay.py` | 对归档或有界历史做固定窗口统计。 |
+| `*_response_recorder.py` / `*_response_replay.py` | 将状态与同步 BTC 报价配对，测量后续响应。 |
+| `strategy/` | Python 策略运行器与共享研究辅助代码。 |
+| `tests/` | 确定性单元测试，不依赖实时行情。 |
+
+## Boundary / 边界
+
+示例是研究观察器，不是交易机器人。它们不会下单、撤单、改单、签名钱包、转移资金、
+管理仓位或声称实盘账户 PnL。报价差不是成交，资金费率不是已实现收益，公开聚合数据也
+不是私人账户状态。缺失值永远保持缺失，不会静默填零。
+
+Rust 负责连接器、标准化、历史、缓存、质量元数据和 API；策略假设、记录、回放、测试和
+双语研究文档优先使用 Python。
+
+## Verification / 验证
 
 ```bash
-python3 examples/crypto/microstructure/short_squeeze_monitor.py \
-  --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/crypto/microstructure/exhaustion_short_monitor.py \
-  --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/crypto/carry/basis_carry_monitor.py \
-  --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/crypto/carry/crypto_basis_recorder.py \
-  --symbol BTCUSDT --exchanges binance,okx --iterations 120 --interval-secs 30 \
-  --output work/crypto-basis.jsonl
-python3 examples/crypto/carry/crypto_basis_replay.py \
-  --input work/crypto-basis.jsonl --symbol BTCUSDT --lookback 20 --horizon 3
-python3 examples/crypto/microstructure/liquidation_reversal_monitor.py \
-  --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/crypto/microstructure/liquidation_reversal_replay.py \
-  --exchange okx --symbol BTCUSDT --limit 100 \
-  --horizon-bars 3 --min-notional 100000 \
-  --oi-exchange bybit --trades-exchange okx
-python3 examples/crypto/microstructure/liquidation_reversal_replay.py \
-  --exchange coinex --price-exchange okx --symbol BTCUSDT --limit 100 \
-  --horizon-bars 3 --min-notional 100000 \
-  --oi-exchange bybit --trades-exchange okx
-python3 examples/crypto/microstructure/crypto_adl_risk_response_recorder.py \
-  --symbol BTCUSDT --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 1800 \
-  --output work/crypto-adl-risk-response.jsonl
-python3 examples/crypto/microstructure/crypto_adl_risk_response_replay.py \
-  --input work/crypto-adl-risk-response.jsonl \
-  --horizon-records 2 --min-observations 3
-python3 examples/prediction/polymarket_complement_monitor.py --min-edge-bps 10
-python3 examples/prediction/polymarket_price_shock_replay.py \
-  --market-query "temperature" --outcome Yes --interval 1m \
-  --shock-bps 100 --horizon-points 3 --min-observations 5
-python3 examples/prediction/polymarket_timing_replay.py \
-  --market-query "Bitcoin above" --market-limit 100 \
-  --min-bucket-observations 5 --position-size-usd 10 --fee-bps 30
-python3 examples/prediction/prediction_trade_flow.py --market 0x... --limit 1000
-python3 examples/prediction/polymarket_settlement_replay.py \
-  --market 0x... --max-entry-price 0.80 --fee-bps 30
-python3 examples/prediction/polymarket_trade_recorder.py \
-  --market 0x... --page-size 1000 --pages 3 \
-  --output work/polymarket-trades.jsonl
-python3 examples/prediction/polymarket_settlement_replay.py \
-  --market 0x... --trades-jsonl work/polymarket-trades.jsonl
-python3 examples/prediction/polymarket_calibration_report.py \
-  --trades-jsonl work/polymarket-trades.jsonl --resolved-outcome No
-python3 examples/weather/weather_event_observer.py \
-  --latitude 52.52 --longitude 13.41 --date 2026-09-14 \
-  --min-temp 15 --max-temp 25
-python3 examples/weather/weather_pressure_differential.py \
-  --market-query "Berlin temperature" \
-  --latitude 52.52 --longitude 13.41 --date 2026-09-14 \
-  --min-temp 15 --max-temp 25 --max-yes-ask 0.25
-python3 examples/weather/weather_market_calibration.py \
-  --manifest examples/weather-market-manifest.example.jsonl
-python3 examples/crypto/microstructure/crypto_session_filter.py \
-  --exchange binance --market perp --symbol BTCUSDT \
-  --interval 1m --limit 60 --timezone America/New_York
-python3 examples/crypto/microstructure/crypto_anchored_vwap_replay.py \
-  --exchange binance --symbol BTCUSDT --market perp --interval 5m \
-  --anchor-lookback 96 --anchor-mode both --horizon-bars 12 \
-  --volume-multiplier 1.0 --paper-cost-bps 10 --min-observations 5
-python3 examples/crypto/microstructure/crypto_volatility_breakout_replay.py \
-  --exchange binance --symbol BTCUSDT --market perp --interval 5m \
-  --days 3 --range-bars 12 --compression-window 12 \
-  --baseline-window 48 --flow-exchange binance --flow-pages 12
-python3 examples/crypto/microstructure/crypto_cvd_divergence_replay.py \
-  --exchange binance --trades-exchange binance --symbol BTCUSDT \
-  --interval 5m --lookback-bars 12 --horizon-bars 3 \
-  --min-price-move-pct 0.5 --min-flow-ratio 0.2 \
-  --paper-cost-bps 10 --min-edge-bps 0
-python3 examples/crypto/microstructure/crypto_trade_imbalance_bar_replay.py \
-  --exchange binance --symbol BTCUSDT --days 2 --trade-pages 12 \
-  --bar-notional 1000000 --max-trades-per-bar 500 \
-  --min-imbalance-ratio 0.60 --horizon-bars 3 \
-  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
-python3 examples/crypto/microstructure/crypto_vpin_response_replay.py \
-  --exchange binance --symbol BTCUSDT --days 2 --trade-pages 12 \
-  --bucket-notional 1000000 --window-buckets 20 --horizon-buckets 3 \
-  --high-vpin 0.60 --paper-cost-bps 10 --min-edge-bps 0 \
-  --min-observations 5
-python3 examples/crypto/microstructure/crypto_derivatives_sentiment_monitor.py \
-  --symbol BTC --long-short-high 1.2 --long-short-low 0.8
-python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py \
-  --symbol BTC --iterations 20 --interval-secs 30 \
-  --output work/crypto-derivatives-sentiment.jsonl
-python3 examples/crypto/microstructure/crypto_derivatives_sentiment_replay.py \
-  --input work/crypto-derivatives-sentiment.jsonl --min-run 3
-python3 examples/crypto/microstructure/crypto_bollinger_squeeze_replay.py \
-  --exchange binance --symbol BTCUSDT --interval 5m --days 7 \
-  --period 20 --deviations 2 --bandwidth-lookback 96 \
-  --max-bandwidth-quantile 0.20 --horizon-bars 12 \
-  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
-python3 examples/crypto/microstructure/crypto_vwap_deviation_reversion_replay.py \
-  --exchange binance --symbol BTCUSDT --interval 1h --days 30 \
-  --deviation-bps 50 --sigma 2 --horizon-bars 12 \
-  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
-python3 examples/crypto/microstructure/crypto_short_squeeze_response_recorder.py \
-  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 30 \
-  --output work/crypto-short-squeeze-response.jsonl
-python3 examples/crypto/microstructure/crypto_short_squeeze_response_replay.py \
-  --input work/crypto-short-squeeze-response.jsonl --horizon-records 7 \
-  --min-score 3 --min-observations 5 --paper-cost-bps 10
-python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_recorder.py \
-  --symbol BTC --price-symbol BTCUSDT --exchange binance --product-type perp \
-  --iterations 30 --interval-secs 30 \
-  --output work/crypto-derivatives-crowding-response.jsonl
-python3 examples/crypto/microstructure/crypto_derivatives_crowding_response_replay.py \
-  --input work/crypto-derivatives-crowding-response.jsonl \
-  --horizon-records 7 --min-observations 5 --paper-cost-bps 10
-python3 examples/crypto/options/crypto_options_skew_monitor.py \
-  --currency BTC --venue deribit --expiry-days 30 \
-  --min-skew-iv 3 --min-term-slope-iv 3
-python3 examples/crypto/options/crypto_options_skew_recorder.py \
-  --currency BTC --venue deribit --expiry-days 30 \
-  --iterations 20 --interval-secs 30 \
-  --output work/crypto-options-skew.jsonl
-python3 examples/crypto/options/crypto_options_skew_replay.py \
-  --input work/crypto-options-skew.jsonl --min-skew-iv 3 --min-run 3
-python3 examples/crypto/options/crypto_options_skew_response_recorder.py \
-  --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 20 --interval-secs 30 \
-  --output work/crypto-options-skew-response.jsonl
-python3 examples/crypto/options/crypto_options_skew_response_replay.py \
-  --input work/crypto-options-skew-response.jsonl --horizon-records 3 \
-  --min-skew-iv 3 --min-observations 5
-python3 examples/crypto/options/crypto_options_term_structure_replay.py \
-  --input work/crypto-options-skew.jsonl --min-slope-iv 3 --min-run 3
-python3 examples/crypto/options/crypto_options_term_structure_response_replay.py \
-  --input work/crypto-options-skew-response.jsonl --horizon-records 3 \
-  --min-slope-iv 3 --min-observations 5
-python3 examples/crypto/options/crypto_options_bull_call_spread_monitor.py \
-  --currency BTC --venue deribit --expiry-days 30 \
-  --long-moneyness 0.95 --short-moneyness 1.05
-python3 examples/crypto/options/crypto_options_bull_call_spread_recorder.py \
-  --currency BTC --venue deribit --expiry-days 30 --iterations 20 --interval-secs 30 \
-  --output work/crypto-options-bull-call-spread.jsonl
-python3 examples/crypto/options/crypto_options_bull_call_spread_replay.py \
-  --input work/crypto-options-bull-call-spread.jsonl --min-run 3
-python3 examples/crypto/options/crypto_options_bull_call_spread_response_recorder.py \
-  --currency BTC --venue deribit --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 20 --interval-secs 30 \
-  --output work/crypto-options-bull-call-spread-response.jsonl
-python3 examples/crypto/options/crypto_options_bull_call_spread_response_replay.py \
-  --input work/crypto-options-bull-call-spread-response.jsonl \
-  --horizon-records 3 --min-observations 5
-python3 examples/crypto/defi/crypto_defi_pool_flow_monitor.py \
-  --sources uniswap_v3,meteora --min-liquidity-usd 100000 \
-  --min-turnover-h1 0.25
-python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
-  --sources uniswap_v3,meteora --iterations 30 --interval-secs 30 \
-  --output work/crypto-defi-pool-flow.jsonl
-python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
-  --input work/crypto-defi-pool-flow.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
-  --sources uniswap_v3,meteora --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 120 --interval-secs 30 \
-  --output work/crypto-defi-pool-flow-response.jsonl
-python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
-  --input work/crypto-defi-pool-flow-response.jsonl \
-  --horizon-records 3 --min-observations 10
-python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_recorder.py \
-  --symbols USDT,USDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 600 \
-  --output work/crypto-stablecoin-liquidity-response.jsonl
-python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_replay.py \
-  --input work/crypto-stablecoin-liquidity-response.jsonl \
-  --horizon-records 12 --min-observations 3
-python3 examples/crypto/defi/crypto_jupiter_route_impact_monitor.py \
-  --symbols SOLUSDC --min-impact-ratio 0.005
-python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 30 \
-  --output work/crypto-jupiter-route-impact.jsonl
-python3 examples/crypto/defi/crypto_jupiter_route_impact_replay.py \
-  --input work/crypto-jupiter-route-impact.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_monitor.py \
-  --symbols SOLUSDC --min-turnover-ratio 1.0 --max-top-share 0.65
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
-  --output work/crypto-raydium-pool-concentration.jsonl
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_replay.py \
-  --input work/crypto-raydium-pool-concentration.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_recorder.py \
-  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 60 \
-  --output work/crypto-raydium-pool-concentration-response.jsonl
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_replay.py \
-  --input work/crypto-raydium-pool-concentration-response.jsonl \
-  --horizon-records 3 --min-observations 5
-python3 examples/crypto/defi/crypto_orca_whirlpool_monitor.py \
-  --symbols SOLUSDC --min-turnover-ratio 1.0
-python3 examples/crypto/defi/crypto_orca_whirlpool_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
-  --output work/crypto-orca-whirlpool.jsonl
-python3 examples/crypto/defi/crypto_orca_whirlpool_replay.py \
-  --input work/crypto-orca-whirlpool.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_orca_whirlpool_response_recorder.py \
-  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 60 \
-  --output work/crypto-orca-whirlpool-response.jsonl
-python3 examples/crypto/defi/crypto_orca_whirlpool_response_replay.py \
-  --input work/crypto-orca-whirlpool-response.jsonl \
-  --horizon-records 3 --min-observations 5
-python3 examples/crypto/defi/crypto_meteora_dlmm_monitor.py \
-  --symbols SOLUSDC --min-turnover-ratio 1.0 \
-  --min-fee-tvl-ratio 0.05 --min-dynamic-fee-pct 0.10
-python3 examples/crypto/defi/crypto_meteora_dlmm_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
-  --output work/crypto-meteora-dlmm.jsonl
-python3 examples/crypto/defi/crypto_meteora_dlmm_replay.py \
-  --input work/crypto-meteora-dlmm.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_meteora_dlmm_response_recorder.py \
-  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 60 \
-  --output work/crypto-meteora-dlmm-response.jsonl
-python3 examples/crypto/defi/crypto_meteora_dlmm_response_replay.py \
-  --input work/crypto-meteora-dlmm-response.jsonl \
-  --horizon-records 3 --min-observations 5
-python3 examples/crypto/onchain/crypto_onchain_transfer_burst_replay.py \
-  --source whale_alert --asset USDT --min-transfer-usd 100000 \
-  --price-exchange binance --symbol BTCUSDT --interval 5m \
-  --threshold-usd 1000000 --window-hours 24 --horizon-bars 12
-python3 examples/crypto/onchain/crypto_onchain_transfer_response_recorder.py \
-  --source whale_alert --asset USDT --min-transfer-usd 100000 \
-  --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 120 --interval-secs 60 \
-  --output work/crypto-onchain-transfer-response.jsonl
-python3 examples/crypto/onchain/crypto_onchain_transfer_response_replay.py \
-  --input work/crypto-onchain-transfer-response.jsonl \
-  --window-hours 24 --horizon-records 12 \
-  --threshold-usd 1000000 --min-observations 3
-python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_monitor.py \
-  --high-fee-sat-vb 20 --low-fee-sat-vb 3
-python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_recorder.py \
-  --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 120 --interval-secs 60 \
-  --output work/crypto-onchain-mempool-pressure.jsonl
-python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_replay.py \
-  --input work/crypto-onchain-mempool-pressure.jsonl \
-  --horizon-records 12 --min-observations 3
-python3 examples/crypto/onchain/crypto_onchain_mining_pressure_monitor.py \
-  --stress-difficulty-pct -3 --stress-hashrate-pct -3
-python3 examples/crypto/onchain/crypto_onchain_mining_pressure_recorder.py \
-  --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 600 \
-  --output work/crypto-onchain-mining-pressure.jsonl
-python3 examples/crypto/onchain/crypto_onchain_mining_pressure_replay.py \
-  --input work/crypto-onchain-mining-pressure.jsonl \
-  --horizon-records 12 --min-observations 3
-python3 examples/crypto/options/crypto_options_vrp_monitor.py \
-  --currency BTC --venue deribit --expiry-days 30 \
-  --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \
-  --vrp-threshold 5
-python3 examples/crypto/options/crypto_options_gamma_monitor.py \
-  --currency BTC --venue deribit --expiry-days 30 \
-  --min-near-share 0.50 --min-concentration 0.10 \
-  --max-book-fetches 24
-python3 examples/crypto/options/crypto_options_gamma_recorder.py \
-  --currency BTC --venue deribit --iterations 20 --interval-secs 30 \
-  --output work/crypto-options-gamma.jsonl
-python3 examples/crypto/options/crypto_options_gamma_replay.py \
-  --input work/crypto-options-gamma.jsonl --min-near-share 0.50 \
-  --min-concentration 0.10 --min-run 3
-python3 examples/crypto/options/crypto_options_gamma_response_recorder.py \
-  --currency BTC --venue deribit --price-symbol BTCUSDT --exchange binance \
-  --iterations 20 --interval-secs 30 \
-  --output work/crypto-options-gamma-response.jsonl
-python3 examples/crypto/options/crypto_options_gamma_response_replay.py \
-  --input work/crypto-options-gamma-response.jsonl --horizon-records 3 \
-  --min-near-share 0.50 --min-concentration 0.10 --min-observations 5
-python3 examples/crypto/options/crypto_deribit_volatility_index_response_replay.py \
-  --currency BTC --resolution 3600 --days 30 \
-  --price-symbol BTCUSDT --price-interval 1h \
-  --low-threshold 25 --high-threshold 75 \
-  --horizon-bars 3 --min-observations 5
-python3 examples/crypto/options/crypto_deribit_volatility_index_vrp_response_replay.py \
-  --currency BTC --resolution 3600 --days 30 --price-symbol BTCUSDT \
-  --price-interval 1h --rv-bars 24 --vrp-threshold 5 \
-  --horizon-bars 3 --min-observations 5
-python3 examples/crypto/options/crypto_deribit_cross_asset_volatility_response_replay.py \
-  --resolution 3600 --days 30 --btc-symbol BTCUSDT --eth-symbol ETHUSDT \
-  --price-interval 1h --spread-threshold 5 \
-  --horizon-bars 3 --min-observations 5
-python3 examples/crypto/universe/crypto_universe_opportunity_scan.py \
-  --exchange binance --market perp --interval 5m \
-  --min-quote-volume 1000000 --min-realized-vol 0.2 \
-  --min-abs-funding-hourly-pct 0.01 --min-score 2
-python3 examples/crypto/universe/crypto_cross_asset_momentum_replay.py \
-  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance \
-  --interval 1h --lookback-bars 8 --horizon-bars 8 \
-  --top-k 1 --min-observations 5
-python3 examples/crypto/universe/crypto_cross_asset_lead_lag_response_replay.py \
-  --exchange binance --leader-symbol BTCUSDT --follower-symbol ETHUSDT \
-  --interval 1h --days 90 --lookback-bars 1 --horizon-bars 1 \
-  --leader-threshold-pct 0.10 --min-observations 20
-python3 examples/crypto/carry/funding_convergence_monitor.py \
-  --symbol BTCUSDT --exchanges binance,okx,bybit \
-  --iterations 3 --interval-secs 30
-python3 examples/crypto/carry/funding_convergence_replay.py \
-  --symbol BTCUSDT --exchanges binance,bybit --days 7 --limit 200
-python3 examples/crypto/carry/crypto_funding_oi_replay.py \
-  --symbol BTCUSDT --funding-exchange binance \
-  --oi-exchange binance --price-exchange binance \
-  --days 7 --min-funding-pct 0.01 --min-oi-change-pct 0.10
-python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
-  --symbol BTCUSDT --funding-exchange binance \
-  --spot-exchange binance --perp-exchange binance \
-  --price-interval 5m --days 7 --horizon-events 3 \
-  --position-side short_perp --min-observations 5
-python3 examples/crypto/carry/crypto_funding_regime_replay.py \
-  --symbol BTCUSDT --funding-exchange binance --price-exchange binance \
-  --days 14 --min-funding-pct 0.01 --min-run 3 --horizon-bars 3
-python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
-  --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
-  --price-exchange binance --interval 1h --days 14 --top-k 1 \
-  --min-dispersion-bps 1 --paper-cost-bps 10 --min-edge-bps 0
-python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
-  --symbol BTCUSDT --exchange-a binance --exchange-b bybit \
-  --price-exchange binance --interval 1h --days 14 \
-  --min-abs-spread-bps-per-year 1000 --shock-bps-per-year 0 \
-  --horizon-bars 3 --paper-cost-bps 10 --min-edge-bps 0
-python3 examples/crypto/microstructure/crypto_oi_impulse_response_recorder.py \
-  --symbol BTCUSDT --exchange binance --iterations 60 --interval-secs 30 \
-  --min-oi-change-pct 0.25 --output work/crypto-oi-impulse-response.jsonl
-python3 examples/crypto/microstructure/crypto_oi_impulse_response_replay.py \
-  --input work/crypto-oi-impulse-response.jsonl --horizon-records 7 \
-  --min-oi-change-pct 0.25 --min-observations 5
-python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
-  --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
-  --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
-  --paper-cost-bps 10 --min-contraction-bps 0
-python3 examples/crypto/carry/crypto_cross_venue_orderbook_monitor.py \
-  --symbol BTCUSDT --exchanges binance,okx,bybit --target-notional 10000 \
-  --max-skew-ms 2000 --paper-cost-bps 20 --min-net-edge-bps 0
-python3 examples/crypto/carry/crypto_cross_venue_orderbook_recorder.py \
-  --symbol BTCUSDT --exchanges binance,okx,bybit --iterations 120 --interval-secs 5 \
-  --target-notional 10000 --paper-cost-bps 20 \
-  --output work/crypto-cross-venue-orderbook.jsonl
-python3 examples/crypto/carry/crypto_cross_venue_orderbook_replay.py \
-  --input work/crypto-cross-venue-orderbook.jsonl --min-run 3 \
-  --min-net-edge-bps 0
-python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_recorder.py \
-  --symbol BTCUSDT --exchanges binance,okx,bybit --market spot \
-  --target-notional 10000 --paper-cost-bps 20 --min-net-edge-bps 0 \
-  --iterations 120 --interval-secs 5 \
-  --output work/crypto-cross-venue-orderbook-response.jsonl
-python3 examples/crypto/carry/crypto_cross_venue_orderbook_response_replay.py \
-  --input work/crypto-cross-venue-orderbook-response.jsonl \
-  --horizon-records 3 --min-net-edge-bps 0 --min-observations 5
-python3 examples/crypto/microstructure/crypto_microstructure_monitor.py \
-  --symbol BTCUSDT --exchange binance --top-levels 5 \
-  --imbalance-threshold 0.30 --funding-extreme-pct 0.01
-python3 examples/crypto/microstructure/crypto_flow_book_confirmation.py \
-  --symbol BTCUSDT --exchange binance --window-ms 60000 \
-  --imbalance-threshold 0.30 --flow-threshold 0.20
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy squeeze --symbol BTCUSDT --exchange binance --iterations 3
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy options_skew --currency BTC --options-venue deribit \
-  --expiry-days 30 --iterations 2 --interval-secs 30
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy options_vrp --currency BTC --options-venue deribit \
-  --symbol BTCUSDT --exchange binance --rv-interval 1h --rv-bars 168
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy volatility_breakout --symbol BTCUSDT --exchange binance \
-  --breakout-interval 5m --breakout-limit 100 \
-  --range-bars 12 --compression-window 12 --baseline-window 48
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy funding_convergence --symbol BTCUSDT \
-  --funding-exchanges binance,okx,bybit \
-  --min-spread-bps-per-hour 0.5
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy cross_asset_momentum --exchange binance \
-  --cross-asset-symbols BTCUSDT,ETHUSDT,SOLUSDT \
-  --cross-asset-interval 1h --cross-asset-lookback 8 \
-  --cross-asset-horizon 8 --cross-asset-top-k 1
-python3 examples/crypto/universe/crypto_altcoin_breadth_replay.py \
-  --btc-symbol BTCUSDT --alt-symbols ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT \
-  --exchange binance --market perp --interval 1d --lookback-bars 90 \
-  --horizon-bars 7 --low-threshold 0.25 --high-threshold 0.75 \
-  --min-alt-assets 3 --min-observations 5 --paper-cost-bps 20
-python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_sweep.py \
-  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
-  --lookback-bars 4,8,12 --volatility-bars 4,8,12 --horizon-bars 4,8 \
-  --roundtrip-cost-bps 20
-python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward.py \
-  --symbols BTCUSDT,ETHUSDT,SOLUSDT --exchange binance --interval 1h \
-  --lookback-bars 8 --volatility-bars 8 --horizon-bars 8 \
-  --train-fraction 0.7 --roundtrip-cost-bps 20
-python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
-  --symbol-a BTCUSDT --symbol-b ETHUSDT --exchange binance --market perp \
-  --interval 1h --lookback-bars 24 --horizon-bars 6 --entry-z 2 \
-  --paper-cost-bps 10 --min-convergence-bps 0
-python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
-  --exchange binance --market perp --interval 1d \
-  --stale-after-ms 86400000 --limit 100
-python3 examples/crypto/macro/crypto_market_regime_monitor.py \
-  --symbols BTCUSDT,ETHUSDT --intervals 1h,4h,1d
-python3 examples/crypto/macro/crypto_market_regime_recorder.py \
-  --symbols BTCUSDT,ETHUSDT --exchange binance --market perp \
-  --intervals 1h,4h,1d --price-symbol BTCUSDT --iterations 30 \
-  --interval-secs 30 --output work/crypto-market-regime.jsonl
-python3 examples/crypto/macro/crypto_market_regime_replay.py \
-  --input work/crypto-market-regime.jsonl --horizon-records 7 \
-  --min-observations 5 --paper-cost-bps 10
-python3 examples/crypto/macro/crypto_macro_context_monitor.py \
-  --symbol BTCUSDT --exchange binance --vix-risk-threshold 25 \
-  --funding-extreme-pct 0.01
-python3 examples/crypto/macro/crypto_macro_context_recorder.py \
-  --symbol BTCUSDT --exchange binance --product-type perp \
-  --iterations 30 --interval-secs 30 \
-  --output work/crypto-macro-context.jsonl
-python3 examples/crypto/macro/crypto_macro_context_replay.py \
-  --input work/crypto-macro-context.jsonl --horizon-records 7 \
-  --min-observations 5 --paper-cost-bps 10
-python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
-  --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
-  --interval 1d --threshold-musd 100 --horizon-days 1 \
-  --min-observations 5 --paper-cost-bps 10
-python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
-  --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
-  --interval 1d --threshold-musd 100 --rolling-observations 5 \
-  --horizon-days 1 --min-observations 5
-python3 examples/crypto/macro/crypto_liquidity_confirmation_monitor.py \
-  --symbol BTCUSDT --exchange binance --min-confirmations 2
-python3 examples/crypto/macro/crypto_liquidity_confirmation_recorder.py \
-  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 900 \
-  --output work/crypto-liquidity-confirmation.jsonl
-python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
-  --input work/crypto-liquidity-confirmation.jsonl --horizon-records 3 \
-  --min-observations 5
-python3 examples/crypto/sentiment/crypto_sentiment_extremes_monitor.py \
-  --symbol BTCUSDT --exchange binance --fear-max 20 --greed-min 80
-python3 examples/crypto/sentiment/crypto_sentiment_extremes_recorder.py \
-  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 86400 \
-  --output work/crypto-sentiment-extremes.jsonl
-python3 examples/crypto/sentiment/crypto_sentiment_extremes_replay.py \
-  --input work/crypto-sentiment-extremes.jsonl --horizon-records 7 \
-  --min-observations 5 --paper-cost-bps 20
-python3 examples/crypto/sentiment/crypto_news_attention_monitor.py \
-  --symbol BTCUSDT --exchange binance --min-score 3 --min-items 3
-python3 examples/crypto/sentiment/crypto_news_attention_recorder.py \
-  --symbol BTCUSDT --exchange binance --iterations 120 --interval-secs 300 \
-  --output work/crypto-news-attention.jsonl
-python3 examples/crypto/sentiment/crypto_news_attention_replay.py \
-  --input work/crypto-news-attention.jsonl --horizon-records 6 \
-  --min-observations 5
-python3 examples/crypto/sentiment/crypto_social_signal_response_recorder.py \
-  --source lunarcrush --metric lunarcrush_social_score \
-  --signal-symbol BTC --price-symbol BTCUSDT --exchange binance \
-  --iterations 30 --interval-secs 3600 --min-change 1 \
-  --output work/crypto-social-response.jsonl
-python3 examples/crypto/sentiment/crypto_social_signal_response_replay.py \
-  --input work/crypto-social-response.jsonl --horizon-records 6 \
-  --min-change 1 --min-observations 5
-python3 examples/crypto/strategy/python_strategy_runner.py \
-  --strategy options_gamma --currency BTC --options-venue deribit \
-  --expiry-days 30 --gamma-min-near-share 0.50 \
-  --gamma-min-concentration 0.10
-python3 examples/crypto/carry/funding_extremes.py --exchange binance --min-pct -2 --max-pct -0.1
+PYTHONPATH=examples/crypto/options:examples/crypto/defi:examples/crypto/microstructure:examples/crypto/onchain:examples/crypto/carry:examples/crypto/macro:examples/crypto/universe:examples/crypto/sentiment:examples/crypto/strategy:examples/prediction:examples/weather \
+  python3 -m unittest discover -s examples/tests -p 'test_*.py'
+python3 -m compileall -q examples
 ```
 
-The first OI poll has no change baseline. A missing book, funding row, or
-liquidation feed is an evidence gap, not a zero and not a trade instruction.
-The same rule applies to the session filter: a cold-start or disabled kline
-store returns structured `insufficient_klines` evidence instead of a signal.
+新案例请先按系列归类，再在对应的中英文指南中记录假设、数据接口、出处和边界。
+策略接入验收规则见
+[`docs/user-guide/12-strategy-intake.md`](../docs/user-guide/12-strategy-intake.md)，开发证据见
+[`docs/development-log.md`](../docs/development-log.md)。
 
-## Strategy provenance and next cases
+<details>
+<summary>Entrypoint index / Python 入口索引</summary>
 
-The initial cases are deliberately tied to public strategy discussions, then
-rewritten as falsifiable hypotheses:
++- `basis_carry_monitor.py`
+- `crypto_basis_recorder.py`
+- `crypto_basis_replay.py`
+- `crypto_coinbase_premium_historical_replay.py`
+- `crypto_coinbase_premium_monitor.py`
+- `crypto_coinbase_premium_response_recorder.py`
+- `crypto_coinbase_premium_response_replay.py`
+- `crypto_cross_venue_orderbook_monitor.py`
+- `crypto_cross_venue_orderbook_recorder.py`
+- `crypto_cross_venue_orderbook_replay.py`
+- `crypto_cross_venue_orderbook_response_recorder.py`
+- `crypto_cross_venue_orderbook_response_replay.py`
+- `crypto_cross_venue_price_gap_replay.py`
+- `crypto_funding_band_monitor.py`
+- `crypto_funding_band_response_recorder.py`
+- `crypto_funding_band_response_replay.py`
+- `crypto_funding_carry_accrual_replay.py`
+- `crypto_funding_cross_section_replay.py`
+- `crypto_funding_oi_replay.py`
+- `crypto_funding_regime_replay.py`
+- `crypto_funding_spread_response_replay.py`
+- `crypto_historical_basis_replay.py`
+- `crypto_positioning_regime_replay.py`
+- `crypto_predicted_funding_monitor.py`
+- `crypto_premium_funding_response_replay.py`
+- `crypto_triangular_arbitrage_monitor.py`
+- `crypto_triangular_arbitrage_recorder.py`
+- `crypto_triangular_arbitrage_replay.py`
+- `crypto_triangular_arbitrage_response_recorder.py`
+- `crypto_triangular_arbitrage_response_replay.py`
+- `funding_convergence_monitor.py`
+- `funding_convergence_replay.py`
+- `funding_curve_demo.py`
+- `funding_extremes.py`
+- `crypto_defi_funding_yield_risk_monitor.py`
+- `crypto_defi_funding_yield_risk_recorder.py`
+- `crypto_defi_funding_yield_risk_replay.py`
+- `crypto_defi_pool_flow_monitor.py`
+- `crypto_defi_pool_flow_recorder.py`
+- `crypto_defi_pool_flow_replay.py`
+- `crypto_defi_pool_flow_response_recorder.py`
+- `crypto_defi_pool_flow_response_replay.py`
+- `crypto_defi_yield_context_monitor.py`
+- `crypto_jupiter_route_impact_monitor.py`
+- `crypto_jupiter_route_impact_recorder.py`
+- `crypto_jupiter_route_impact_replay.py`
+- `crypto_meteora_dlmm_monitor.py`
+- `crypto_meteora_dlmm_recorder.py`
+- `crypto_meteora_dlmm_replay.py`
+- `crypto_meteora_dlmm_response_recorder.py`
+- `crypto_meteora_dlmm_response_replay.py`
+- `crypto_orca_whirlpool_monitor.py`
+- `crypto_orca_whirlpool_recorder.py`
+- `crypto_orca_whirlpool_replay.py`
+- `crypto_orca_whirlpool_response_recorder.py`
+- `crypto_orca_whirlpool_response_replay.py`
+- `crypto_raydium_pool_concentration_monitor.py`
+- `crypto_raydium_pool_concentration_recorder.py`
+- `crypto_raydium_pool_concentration_replay.py`
+- `crypto_raydium_pool_concentration_response_recorder.py`
+- `crypto_raydium_pool_concentration_response_replay.py`
+- `crypto_stablecoin_depeg_monitor.py`
+- `crypto_stablecoin_depeg_recorder.py`
+- `crypto_stablecoin_depeg_replay.py`
+- `crypto_stablecoin_historical_response_replay.py`
+- `crypto_stablecoin_liquidity_monitor.py`
+- `crypto_stablecoin_liquidity_response_recorder.py`
+- `crypto_stablecoin_liquidity_response_replay.py`
+- `crypto_stablecoin_rotation_response_replay.py`
+- `crypto_etf_flow_response_recorder.py`
+- `crypto_etf_flow_response_replay.py`
+- `crypto_liquidity_confirmation_monitor.py`
+- `crypto_liquidity_confirmation_recorder.py`
+- `crypto_liquidity_confirmation_replay.py`
+- `crypto_liquidity_impulse_replay.py`
+- `crypto_macro_context_monitor.py`
+- `crypto_macro_context_recorder.py`
+- `crypto_macro_context_replay.py`
+- `crypto_market_regime_monitor.py`
+- `crypto_market_regime_recorder.py`
+- `crypto_market_regime_replay.py`
+- `crypto_account_ratio_oi_response_replay.py`
+- `crypto_adl_risk_monitor.py`
+- `crypto_adl_risk_response_recorder.py`
+- `crypto_adl_risk_response_replay.py`
+- `crypto_adx_dmi_response_replay.py`
+- `crypto_anchored_vwap_replay.py`
+- `crypto_aroon_response_replay.py`
+- `crypto_atr_regime_response_replay.py`
+- `crypto_bollinger_squeeze_replay.py`
+- `crypto_breakout_retest_response_replay.py`
+- `crypto_cci_response_replay.py`
+- `crypto_cmf_response_replay.py`
+- `crypto_cvd_divergence_replay.py`
+- `crypto_derivatives_crowding_response_recorder.py`
+- `crypto_derivatives_crowding_response_replay.py`
+- `crypto_derivatives_sentiment_monitor.py`
+- `crypto_derivatives_sentiment_recorder.py`
+- `crypto_derivatives_sentiment_replay.py`
+- `crypto_donchian_channel_response_replay.py`
+- `crypto_fair_value_gap_response_replay.py`
+- `crypto_fibonacci_retracement_response_replay.py`
+- `crypto_flow_book_confirmation.py`
+- `crypto_footprint_imbalance_monitor.py`
+- `crypto_footprint_imbalance_recorder.py`
+- `crypto_footprint_imbalance_replay.py`
+- `crypto_footprint_response_recorder.py`
+- `crypto_footprint_response_replay.py`
+- `crypto_heikin_ashi_response_replay.py`
+- `crypto_ichimoku_cloud_response_replay.py`
+- `crypto_keltner_channel_response_replay.py`
+- `crypto_liquidation_burst_replay.py`
+- `crypto_liquidation_burst_response_recorder.py`
+- `crypto_liquidation_burst_response_replay.py`
+- `crypto_liquidation_intensity_response_replay.py`
+- `crypto_liquidation_price_cluster_replay.py`
+- `crypto_liquidation_price_cluster_response_recorder.py`
+- `crypto_liquidation_price_cluster_response_replay.py`
+- `crypto_liquidity_sandwich_monitor.py`
+- `crypto_liquidity_sandwich_response_recorder.py`
+- `crypto_liquidity_sandwich_response_replay.py`
+- `crypto_liquidity_stress_monitor.py`
+- `crypto_liquidity_stress_recorder.py`
+- `crypto_liquidity_stress_replay.py`
+- `crypto_liquidity_stress_response_recorder.py`
+- `crypto_liquidity_stress_response_replay.py`
+- `crypto_liquidity_sweep_response_replay.py`
+- `crypto_mfi_response_replay.py`
+- `crypto_microstructure_monitor.py`
+- `crypto_microstructure_response_recorder.py`
+- `crypto_microstructure_response_replay.py`
+- `crypto_obv_divergence_response_replay.py`
+- `crypto_oi_impulse_response_recorder.py`
+- `crypto_oi_impulse_response_replay.py`
+- `crypto_oi_price_divergence_response_replay.py`
+- `crypto_opening_range_breakout_response_replay.py`
+- `crypto_parabolic_sar_response_replay.py`
+- `crypto_pivot_response_replay.py`
+- `crypto_profile_vwap_oi_response_replay.py`
+- `crypto_quarter_hour_flow_replay.py`
+- `crypto_rsi_bollinger_extreme_response_replay.py`
+- `crypto_session_filter.py`
+- `crypto_session_momentum_replay.py`
+- `crypto_short_squeeze_response_recorder.py`
+- `crypto_short_squeeze_response_replay.py`
+- `crypto_spot_perp_depth_gap_monitor.py`
+- `crypto_spot_perp_depth_gap_recorder.py`
+- `crypto_spot_perp_depth_gap_replay.py`
+- `crypto_spot_perp_depth_gap_response_recorder.py`
+- `crypto_spot_perp_depth_gap_response_replay.py`
+- `crypto_stochastic_response_replay.py`
+- `crypto_stochrsi_response_replay.py`
+- `crypto_supertrend_response_replay.py`
+- `crypto_taker_oi_response_replay.py`
+- `crypto_trade_imbalance_bar_replay.py`
+- `crypto_volatility_breakout_replay.py`
+- `crypto_volume_profile_breakout_replay.py`
+- `crypto_vortex_response_replay.py`
+- `crypto_vpin_response_replay.py`
+- `crypto_vwap_deviation_reversion_replay.py`
+- `crypto_weekday_hour_effect_replay.py`
+- `crypto_weekend_gap_response_replay.py`
+- `crypto_weekly_rsi_cross_response_replay.py`
+- `exhaustion_short_monitor.py`
+- `liquidation_reversal_monitor.py`
+- `liquidation_reversal_replay.py`
+- `liquidity_stress_monitor.py`
+- `short_squeeze_monitor.py`
+- `crypto_hash_ribbon_response_replay.py`
+- `crypto_mayer_multiple_response_replay.py`
+- `crypto_onchain_mempool_pressure_monitor.py`
+- `crypto_onchain_mempool_pressure_recorder.py`
+- `crypto_onchain_mempool_pressure_replay.py`
+- `crypto_onchain_mining_pressure_monitor.py`
+- `crypto_onchain_mining_pressure_recorder.py`
+- `crypto_onchain_mining_pressure_replay.py`
+- `crypto_onchain_transfer_burst_replay.py`
+- `crypto_onchain_transfer_response_recorder.py`
+- `crypto_onchain_transfer_response_replay.py`
+- `crypto_deribit_cross_asset_volatility_response_replay.py`
+- `crypto_deribit_volatility_index_response_replay.py`
+- `crypto_deribit_volatility_index_vrp_response_replay.py`
+- `crypto_historical_volatility_response_replay.py`
+- `crypto_options_bull_call_spread_monitor.py`
+- `crypto_options_bull_call_spread_recorder.py`
+- `crypto_options_bull_call_spread_replay.py`
+- `crypto_options_bull_call_spread_response_recorder.py`
+- `crypto_options_bull_call_spread_response_replay.py`
+- `crypto_options_gamma_monitor.py`
+- `crypto_options_gamma_recorder.py`
+- `crypto_options_gamma_replay.py`
+- `crypto_options_gamma_response_recorder.py`
+- `crypto_options_gamma_response_replay.py`
+- `crypto_options_max_pain_monitor.py`
+- `crypto_options_max_pain_recorder.py`
+- `crypto_options_max_pain_replay.py`
+- `crypto_options_max_pain_response_recorder.py`
+- `crypto_options_max_pain_response_replay.py`
+- `crypto_options_panic_regime_response_replay.py`
+- `crypto_options_put_call_oi_monitor.py`
+- `crypto_options_put_call_oi_recorder.py`
+- `crypto_options_put_call_oi_replay.py`
+- `crypto_options_put_call_oi_response_recorder.py`
+- `crypto_options_put_call_oi_response_replay.py`
+- `crypto_options_skew_monitor.py`
+- `crypto_options_skew_recorder.py`
+- `crypto_options_skew_replay.py`
+- `crypto_options_skew_response_recorder.py`
+- `crypto_options_skew_response_replay.py`
+- `crypto_options_skew_vol_regime_response_replay.py`
+- `crypto_options_term_structure_replay.py`
+- `crypto_options_term_structure_response_replay.py`
+- `crypto_options_vrp_monitor.py`
+- `crypto_options_vrp_recorder.py`
+- `crypto_options_vrp_replay.py`
+- `crypto_options_vrp_response_replay.py`
+- `crypto_news_attention_monitor.py`
+- `crypto_news_attention_recorder.py`
+- `crypto_news_attention_replay.py`
+- `crypto_sentiment_extremes_monitor.py`
+- `crypto_sentiment_extremes_recorder.py`
+- `crypto_sentiment_extremes_replay.py`
+- `crypto_social_signal_response_recorder.py`
+- `crypto_social_signal_response_replay.py`
+- `crypto_adaptive_cross_asset_replay.py`
+- `crypto_altcoin_breadth_replay.py`
+- `crypto_cross_asset_correlation_response_replay.py`
+- `crypto_cross_asset_lead_lag_response_replay.py`
+- `crypto_cross_asset_momentum_replay.py`
+- `crypto_drawdown_recovery_response_replay.py`
+- `crypto_global_market_regime_monitor.py`
+- `crypto_global_market_regime_recorder.py`
+- `crypto_global_market_regime_replay.py`
+- `crypto_pairs_mean_reversion_replay.py`
+- `crypto_trend_template_response_replay.py`
+- `crypto_universe_delist_risk_monitor.py`
+- `crypto_universe_opportunity_recorder.py`
+- `crypto_universe_opportunity_replay.py`
+- `crypto_universe_opportunity_response_recorder.py`
+- `crypto_universe_opportunity_response_replay.py`
+- `crypto_universe_opportunity_scan.py`
+- `crypto_volatility_adjusted_momentum_replay.py`
+- `crypto_volatility_adjusted_momentum_sweep.py`
+- `crypto_volatility_adjusted_momentum_walkforward.py`
 
-- [Basis trade discussion by CryptoCred](https://x.com/CryptoCred/status/1777720296297975952)
-- [CME short / spot buy basis example](https://x.com/0xscarlettw/status/1944584946670276938)
-- [Liquidation and OI reversal thesis](https://x.com/TheCryptoData/status/1948466627365769584)
-- [OI, flow confirmation and short-covering discussion](https://x.com/xwinfinance/status/2023155692916646257)
-- [Resolved-market replay and calibration-arbitrage discussion](https://x.com/AlterEgo_eth/status/2040417268656644512)
-- [Weather pressure-differential narrative (unverified public claim)](https://x.com/kiruwaaaaaa/status/2032525403320160313)
-- [Bayesian event-arb / faster evidence update narrative (unverified public claim)](https://x.com/0xRicker/status/2035334040216113631)
-- [15-minute Polymarket timing, early price discovery vs late conviction narrative (unverified public claim)](https://x.com/telonex/status/2022251717270573513)
-- [15-minute session, VWAP/EMA/MACD/volume narrative (unverified public claim)](https://x.com/Gustafssonkotte/status/2030566353178882122)
-- [Anchored VWAP technical-analysis discussion (unverified public claim)](https://x.com/Jake__Wujastyk/status/1873917626638098894)
-- [Cross-venue funding differential narrative (unverified public claim)](https://x.com/leondoteth/status/2012127303850213817)
-- [Funding/OI/liquidation context snapshot (unverified public claim)](https://x.com/ImCryptOpus/status/1949195275903410571)
-- [Macro liquidity, ETF-flow and crypto-regime context (unverified public claim)](https://x.com/wintermute_t/status/1985631560021000352)
-- [Rolling ETF-flow persistence discussion (unverified public claim)](https://x.com/ecoinometrics/status/2037548621697303004)
-- [Crowded positioning and liquidation-to-reversal context (unverified public claim)](https://x.com/TheCryptoData/status/1948466627365769584)
-- [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
-- [Delta/imbalance bars and event-driven sampling discussion (unverified public claim)](https://x.com/quantbeckman/status/1931965694251253967)
-- [Order-flow and large-volume observation (unverified public claim)](https://x.com/bookmap_pro/status/1945883967409819779)
-- [Realized-volatility compression context (unverified public claim)](https://x.com/glassnode/status/1955218957490594099)
-- [Breakout confirmation / hold-above-level context (unverified public claim)](https://x.com/rektcapital/status/1893996786173259958)
-- [BTC/ETH ATM IV and 25D skew options brief (unverified public claim)](https://x.com/Gate_Launch/status/2063810805552845140)
-- [Deribit bull-call-spread / options-flow observation (unverified public claim)](https://x.com/laevitas1/status/1985373005644476891)
-- [IV minus realized-volatility dashboard / VRP context (unverified public claim)](https://x.com/isellpremium/status/2072350364385349678)
-- [Volatility-adjusted multi-asset BTC/ETH/SOL strategy context (unverified public claim)](https://x.com/RoboNetHQ/status/2024893544520143012)
-- [xWIN altcoin-index / breadth context (unverified public claim)](https://x.com/xwinfinance/status/1951412106345193606)
-- [Compression-to-expansion / low-volume-node context (unverified public claim)](https://x.com/Stoiiic/status/1796078958674628714)
-- [Binance public order-book API documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
-- [Cross-exchange arbitrage friction and settlement-latency study](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)
-
-Next additions are ordered by evidence value: deeper venue-specific public
-liquidation coverage, larger verified weather manifests, and point-in-time
-market identity joins. A new case is accepted only after its inputs, costs,
-invalidation rule and replay window are recorded.
+</details>

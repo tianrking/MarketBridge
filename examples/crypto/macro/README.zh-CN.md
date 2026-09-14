@@ -12,6 +12,7 @@
   再评估透明的确认矩阵。
 - `crypto_liquidity_impulse_replay.py`：把滚动 Farside ETF 流量窗口与精确日期的
   DefiLlama 稳定币供应变化连接起来，再测量后续 BTC K 线响应的历史双通道研究。
+  回放支持有界 Binance K 线分页，避免多年日线样本静默停在单个 1,500 行页面。
 - `crypto_market_regime_monitor.py` / recorder / replay：Rust 聚合 regime 标签和固定窗口 BTC 响应分布。
 
 ## 快速开始
@@ -61,7 +62,7 @@ python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
   --horizon-records 3 --min-observations 5
 python3 examples/crypto/macro/crypto_liquidity_impulse_replay.py \
   --etf-flow-csv work/btc-etf-flows.csv --chain all \
-  --exchange binance --symbol BTCUSDT --interval 1d \
+  --exchange binance --symbol BTCUSDT --interval 1d --candle-pages 2 \
   --flow-window-observations 5 --supply-change-window-days 7 \
   --etf-threshold-musd 100 --supply-threshold-pct 1 \
   --horizon-days 7 --min-observations 5
@@ -72,4 +73,4 @@ python3 examples/crypto/macro/crypto_liquidity_impulse_replay.py \
 宏观上下文只能作为条件信息，不是收益预测或资金分配决定。示例不交易 ETF、不再平衡组合，
 也不把相关性解释为因果。每份报告都要保留日历对齐、发布时间延迟、缺失观测、样本量和纸面成本。
 
-CSV 格式、完整命令和出处见 [`README.md`](README.md)。
+CSV 格式、维护中的命令和出处见本中文指南。

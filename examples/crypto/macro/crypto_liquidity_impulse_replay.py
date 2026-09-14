@@ -201,6 +201,7 @@ def main():
     parser.add_argument("--days", type=float, default=1825.0)
     parser.add_argument("--stablecoin-limit", type=int, default=5000)
     parser.add_argument("--candle-limit", type=int, default=1500)
+    parser.add_argument("--candle-pages", type=int, default=2)
     parser.add_argument("--flow-window-observations", type=int, default=5)
     parser.add_argument("--supply-change-window-days", type=int, default=7)
     parser.add_argument("--etf-threshold-musd", type=float, default=100.0)
@@ -210,7 +211,8 @@ def main():
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if (args.days <= 0 or not 2 <= args.stablecoin_limit <= 5000
-            or not 2 <= args.candle_limit <= 1500 or args.flow_window_observations <= 0
+            or not 2 <= args.candle_limit <= 1500 or not 1 <= args.candle_pages <= 48
+            or args.flow_window_observations <= 0
             or args.supply_change_window_days <= 0 or args.etf_threshold_musd < 0
             or args.supply_threshold_pct < 0 or args.horizon_days <= 0
             or args.min_observations <= 0 or args.timeout <= 0):
@@ -225,7 +227,7 @@ def main():
     candle_payload = fetch(args.base_url, "/v1/history/candles", {
         "exchange": args.exchange, "market": args.market, "symbol": args.symbol,
         "interval": args.interval, "start_ms": start_ms, "end_ms": end_ms,
-        "limit": args.candle_limit,
+        "limit": args.candle_limit, "pages": args.candle_pages,
     }, args.timeout)
     stablecoins = stablecoin_points(stablecoin_payload)
     prices = candle_points(candle_payload)
@@ -246,6 +248,7 @@ def main():
         "window": {"start_ms": start_ms, "end_ms": end_ms, "days": args.days},
         "filters": {
             "flow_window_observations": args.flow_window_observations,
+            "candle_pages": args.candle_pages,
             "supply_change_window_days": args.supply_change_window_days,
             "etf_threshold_musd": args.etf_threshold_musd,
             "supply_threshold_pct": args.supply_threshold_pct,

@@ -62,7 +62,7 @@ python3 examples/crypto/carry/crypto_funding_band_response_replay.py \
   --horizon-records 3 --min-observations 5
 ```
 
-Use the full bilingual catalog in [`README.md`](README.md) for every command.
+Use this guide for the maintained command examples, provenance and limitations.
 Recorders append JSONL; remove an old file intentionally before starting a new
 sample so that independent studies do not share state.
 
@@ -96,7 +96,7 @@ python3 examples/crypto/carry/crypto_coinbase_premium_historical_replay.py \
 
 ## Provenance
 
-Research leads are listed in the source README and development log. The
+Research leads are listed in this guide and the development log. The
 provider-band semantics are grounded in Binance's [Funding Rate Info API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Info);
 public X posts are treated as hypotheses, never as validation. The latest
 funding-band lead is [this public funding discussion](https://x.com/instaclaws/status/2038363051213181035).

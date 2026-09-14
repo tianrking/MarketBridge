@@ -41,7 +41,7 @@ identity, look-ahead, universe definition, equal-weight assumptions and cost
 hurdles must be explicit. “Top-k” is not an allocation instruction or a Sharpe
 guarantee; the breadth case is an approximation, not an official index.
 
-The complete command matrix and provenance links are in [`README.md`](README.md).
+The maintained command matrix and provenance links are in this guide.
 
 ```bash
 python3 examples/crypto/universe/crypto_cross_asset_lead_lag_response_replay.py \

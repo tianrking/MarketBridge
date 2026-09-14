@@ -11,7 +11,7 @@
 前视偏差限制。
 
 当前版本：`v0.0.6` · [English quickstart](README.en.md) · [完整 English reference](README.md) ·
-[中文案例入口](examples/README.zh-CN.md) · [完整案例目录](examples/README.md) ·
+[中文案例入口](examples/README.zh-CN.md) · [案例索引](examples/README.md) ·
 [文档索引](docs/README.md)
 
 未发布的研究 API / CLI 见[使用与限制](docs/research-api.md)。先用

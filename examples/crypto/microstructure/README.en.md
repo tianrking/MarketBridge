@@ -558,7 +558,7 @@ python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay
   --horizon-records 3 --min-observations 5
 ```
 
-The full command set remains in [`README.md`](README.md). First polls may have
+The maintained command set is in this guide. First polls may have
 no OI baseline; venue liquidation side, trade side and book semantics are
 provider-specific and must stay in the output.
 

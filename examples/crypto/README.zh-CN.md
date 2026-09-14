@@ -23,7 +23,7 @@ HTTP/WebSocket API。下面各系列按验证假设所需的证据分类，全�
   而不是宣称一次性信号。
 
 先运行 monitor，再运行 recorder；解释 replay 前检查提供方、时间戳、覆盖和缺失字段。
-完整跨系列目录见 [`../README.md`](../README.md)，各目录的英文页统一命名为 `README.en.md`。
+简洁跨系列地图见 [`../README.md`](../README.md)，每个系列指南维护自己的案例目录；各目录的英文页统一命名为 `README.en.md`。
 
 ## 共同边界
 

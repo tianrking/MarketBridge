@@ -29,7 +29,7 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward
 每次选择都只是 point-in-time 纸面列表。缺少成分、退市身份、前视偏差、宇宙定义、等权假设和成本门槛都必须显式记录。
 “Top-k”不是资金分配指令，也不保证 Sharpe；breadth 案例是近似，不是官方指数。
 
-完整命令矩阵和出处见 [`README.md`](README.md)。
+维护中的命令矩阵和出处见本中文指南。
 
 ```bash
 python3 examples/crypto/universe/crypto_cross_asset_lead_lag_response_replay.py \

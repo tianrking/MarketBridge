@@ -59,7 +59,7 @@ python3 examples/crypto/onchain/crypto_mayer_multiple_response_replay.py \
   --min-observations 5
 ```
 
-Provenance is maintained in [`README.md`](README.md), including the
+Provenance is maintained in this guide, including the
 [mempool.space REST API](https://mempool.space/docs/api/rest) and its
 [fee guidance FAQ](https://mempool.space/docs/faq).
 

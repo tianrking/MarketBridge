@@ -16,7 +16,7 @@ metadata, and APIs. Strategy examples are Python-first. Every result must keep
 provider, timestamp, coverage, cost, and look-ahead limitations visible.
 
 Current version: `v0.0.6` · [English quickstart](README.en.md) · [中文文档](README.zh-CN.md) ·
-[Examples](examples/README.en.md) · [完整案例目录](examples/README.md) ·
+[Examples](examples/README.en.md) · [案例索引](examples/README.md) ·
 [Documentation index](docs/README.md)
 
 Unreleased research API/CLI: [usage and limitations](docs/research-api.md).

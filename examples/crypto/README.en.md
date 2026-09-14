@@ -25,8 +25,9 @@ hypothesis.
   quote to test later response rather than declaring a one-shot signal.
 
 Run a monitor before a recorder. Check provider, timestamp, coverage and missing
-fields before interpreting a replay. The complete cross-family inventory is in
-[`../README.md`](../README.md); the Chinese family guides are named
+fields before interpreting a replay. The concise cross-family map is in
+[`../README.md`](../README.md); each family guide contains the maintained case
+inventory. The Chinese family guides are named
 `README.zh-CN.md` in each directory.
 
 ## Shared boundary

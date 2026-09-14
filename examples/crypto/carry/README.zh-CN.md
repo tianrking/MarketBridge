@@ -53,7 +53,7 @@ python3 examples/crypto/carry/crypto_funding_band_response_replay.py \
   --horizon-records 3 --min-observations 5
 ```
 
-所有命令见本目录原始双语目录 [`README.md`](README.md)。recorder 采用追加写入；开始
+维护中的命令见本中文指南。recorder 采用追加写入；开始
 独立样本前应有意清理旧 JSONL，避免不同研究混在一起。
 
 ## 解释规则

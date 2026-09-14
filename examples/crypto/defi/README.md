@@ -1,344 +1,46 @@
-# DeFi pool flow and liquidity / DeFi 池流量与流动性
+# DeFi flow and liquidity / DeFi 流量与流动性
 
-> **Language / 语言**: [English](README.en.md) · [简体中文](README.zh-CN.md)
->
-> For the polished quickstart and boundary notes, start with the language-specific guide.
+> **Language / 语言:** [English guide](README.en.md) · [简体中文指南](README.zh-CN.md)
 
-## English
+## Scope / 研究范围
 
-This family uses MarketBridge's normalized DEX-pool quote and
-`defi_native_state` signals. It asks a narrow, falsifiable question: does a
-pool with high one-hour swap volume relative to reported liquidity persist as a
-higher-pressure state? The monitor reports `high_turnover_pool` and
-`thin_liquidity_high_flow`, while retaining buy/sell counts and quote freshness.
+覆盖池状态、swap flow、稳定币供给、router impact、DLMM/Whirlpool/AMM 参数和收益上下文。
+这些字段用于研究流动性压力与后续响应，不代表 LP 收益、可成交深度或链上意图。
 
-`crypto_defi_pool_flow_recorder.py` freezes repeated snapshots and
-`crypto_defi_pool_flow_replay.py` tests whether the pressure state persists for
-`--min-run` observations. This is an execution-risk and pool-regime diagnostic;
-it is not an LP APR, impermanent-loss, fee, route, MEV, or wallet strategy.
+| Theme / 主题 | Typical entrypoints / 典型入口 |
+|---|---|
+| Pool flow | `crypto_defi_pool_flow_*` |
+| Stablecoins | `crypto_stablecoin_*` |
+| Router/pool venues | `crypto_jupiter_*`, `crypto_meteora_*`, `crypto_orca_*`, `crypto_raydium_*` |
+| Yield context | `crypto_defi_funding_yield_*`, `crypto_defi_yield_context_monitor.py` |
 
-`crypto_defi_pool_flow_response_recorder.py` adds a synchronized MarketBridge
-BTC quote to each pool snapshot. Its paired replay compares the later BTC
-signed and absolute return after `pressure` (thin liquidity/high flow or high
-turnover) versus `ordinary_pool_activity` snapshots. The record-count horizon
-is explicit: this is a descriptive event study, not proof that pool pressure
-causes BTC movement or that a swap is executable.
-
-`crypto_stablecoin_depeg_monitor.py` / `crypto_stablecoin_depeg_recorder.py` /
-`crypto_stablecoin_depeg_replay.py` observe selected stablecoin pair deviations
-and compare stressed snapshots with later absolute BTC movement. This is a
-risk event study, not a depeg-arbitrage or liquidity-withdrawal instruction.
-
-`crypto_stablecoin_rotation_response_replay.py` reuses that JSONL archive for a
-narrow directional hypothesis: after normalizing either `USDCUSDT` or the
-inverse `USDTUSDC` quote into USDC priced in USDT, does a USDC discount align
-with positive BTC movement and a premium with negative movement? It reports
-aligned-return statistics only; it does not infer capital flows, redemption
-pressure or an executable conversion.
-
-`crypto_stablecoin_liquidity_monitor.py` adds a supply-side context case using
-DefiLlama's public stablecoin snapshot. It reports filtered circulating supply,
-seven-day changes and chain distribution, classifying expansion, contraction
-or missing-change states. Supply is not exchange inventory, bridge flow or a
-price signal.
-
-`crypto_stablecoin_liquidity_response_recorder.py` freezes those supply states
-beside a synchronized MarketBridge BTC quote, and
-`crypto_stablecoin_liquidity_response_replay.py` compares later BTC signed and
-absolute responses after expansion, contraction and flat states. The result is
-a fixed-record association study; it does not convert supply into exchange
-inflows, a price forecast, a redemption model or an execution path.
-
-`crypto_stablecoin_historical_response_replay.py` closes the historical gap by
-using `/v1/history/stablecoins` backed by DefiLlama's public
-`stablecoincharts/all` (or a selected chain) and joining it to MarketBridge BTC
-daily candles. It classifies trailing expansion, contraction and flat supply
-changes, while keeping provider revisions, UTC alignment and circulating-market
-cap semantics explicit.
-
-`crypto_defi_yield_context_monitor.py` adds a pool-yield context case using
-DefiLlama's public `/pools` snapshot. It separates base-yield-dominant pools,
-reward-dependent pools, non-positive APY and missing-metric states. APY/TVL are
-provider observations rather than guaranteed return or redemption liquidity;
-the monitor never deposits, withdraws, signs a wallet or executes a strategy.
-
-`crypto_defi_funding_yield_risk_monitor.py` / recorder / replay make one
-additional hypothesis explicit: reward-dependent yield deserves extra review
-when the selected BTC/ETH/SOL perpetual funding basket is negative. The
-monitor annualizes each funding rate only with the provider-reported interval,
-then labels `funding_sensitive_yield_risk`; the recorder/replay checks whether
-that state persists. The basket is a transparent proxy, not Ethena's hedge
-book, and APY is not protocol accounting.
-
-Provenance: the unverified [stablecoin liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494)
-and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352)
-motivate the hypothesis. Fields are cross-checked against DefiLlama's
-[stablecoin data documentation](https://docs.llama.fi/), which describes
-circulating supply and peg data; no flow or execution claim is made.
-
-`crypto_jupiter_route_impact_monitor.py` / `crypto_jupiter_route_impact_recorder.py` /
-`crypto_jupiter_route_impact_replay.py` consume Jupiter's read-only quote
-diagnostics from `defi_native_state`. When `defi.jupiter.pairs[].route_amounts`
-is configured, each input-size ladder point is kept separate and the case
-tests whether router-reported price impact and route-hop states persist at
-larger sizes. The replay is a route-observation study: it does not claim full
-pool depth, gas, MEV, fill probability, wallet access, or swap execution.
-Enable the Jupiter source and add a ladder in `config.yaml`, for example:
-
-```yaml
-defi:
-  jupiter:
-    enabled: true
-    pairs:
-      - symbol: SOLUSDC
-        amount: 1000000000
-        route_amounts: [5000000000, 10000000000]
-```
-
-Provenance: the decomposition follows the public [Uniswap explanation of pool
-liquidity and price impact](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
-and [swap execution](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps).
-MarketBridge currently uses bounded provider snapshots and does not claim a
-complete on-chain swap ledger or protocol-native route depth.
-
-The Jupiter case uses the official [Jupiter quote API documentation](https://developers.jup.ag/docs/swap/v1/get-quote),
-which documents `priceImpactPct` and `routePlan` in a quote response. Those
-fields are evidence for a bounded route-impact hypothesis, not an executable
-price guarantee.
-
-`crypto_raydium_pool_concentration_monitor.py` / recorder / replay consume
-Raydium API v3 pool-page metrics emitted as `defi_native_state`. The test asks
-whether high 24-hour volume relative to page TVL is persistent, and whether a
-low top-pool TVL share marks a fragmented state distinct from a concentrated
-state. `crypto_raydium_pool_concentration_response_recorder.py` pairs those
-states with a synchronized BTC quote; its replay reports fixed-record forward
-responses. A page with unknown or incomplete pagination is never promoted to a
-strategy state.
-
-Provenance: the native fields follow the official [Raydium pool-by-mint API](https://docs.raydium.io/api-reference/api-v3-endpoints/pools/get-pools-by-token-mint)
-and its documented `tvl`, `day.volume`, `day.volumeFee`, `price`, `feeRate`
-and `hasNextPage` fields. They are provider snapshots, not complete on-chain
-swap history, LP income, realized slippage or executable route depth.
-
-`crypto_orca_whirlpool_monitor.py` / recorder / replay consume the official
-Orca Whirlpool REST snapshot. The case separates
-`warning_or_adaptive_fee_pressure`, `high_turnover_whirlpool`, and
-`ordinary_whirlpool_state` using top-pool 24-hour turnover plus the provider's
-warning/adaptive-fee flags. The response recorder/replay pair the state with
-BTC quotes for a fixed-record descriptive study. Cursor pages remain visible;
-a non-terminal page is observe-only.
-
-Provenance: the fields follow Orca's [public API overview](https://docs.orca.so/api-reference/overview)
-and [Whirlpools endpoint reference](https://docs.orca.so/api-reference/whirlpools),
-which document pool TVL, time-window volume/fees, yield-over-TVL, warnings,
-adaptive fees and cursor pagination. The data is not an active tick-range,
-swap-ledger, LP-PnL or executable route model.
-
-The stablecoin case follows the unverified [DEWS-style early-warning discussion
-on X](https://x.com/crazydnekana/status/2030633787462242588), which describes
-price drift, thinning liquidity and trading pressure as a sequence to monitor.
-It is cross-checked against the peer-reviewed [Tether depegging and crypto
-returns study](https://doi.org/10.1111/acfi.70201) and the research [Detecting
-Depegs paper](https://arxiv.org/abs/2306.10612). MarketBridge tests only quote
-deviation and subsequent absolute movement; it does not infer reserves,
-redemptions, solvency or executable mean reversion.
-
-## 中文
-
-这一系列使用 MarketBridge 标准化的 DEX 池报价和 `defi_native_state` 信号，检验一个窄而可证伪的问题：
-相对于报告流动性，单小时 swap 交易量很高的池子，是否会持续处于更高的流动性压力状态？监控会报告
-`high_turnover_pool` 和 `thin_liquidity_high_flow`，同时保留买卖笔数和报价新鲜度。
-
-`crypto_defi_pool_flow_recorder.py` 先冻结连续快照，`crypto_defi_pool_flow_replay.py` 再用 `--min-run`
-检验压力状态是否持续。这是执行风险和池状态诊断，不是 LP APR、无常损失、手续费、路由、MEV 或钱包策略。
-
-`crypto_defi_pool_flow_response_recorder.py` 会在每个池状态快照旁边记录同步的 MarketBridge BTC 报价；配套 replay
-比较 `pressure`（薄流动性高流量或高换手）与 `ordinary_pool_activity` 快照之后的 BTC 有符号和绝对收益。
-回放窗口按记录数明确给出，只是描述性事件研究，不证明池压力造成 BTC 变动，也不代表 swap 可执行。
-
-出处：拆解参考 [Uniswap 关于流动性池和价格冲击的说明](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
-以及 [swap 执行说明](https://developers.uniswap.org/docs/get-started/concepts/traders/swaps)。MarketBridge 当前使用有界的
-提供方快照，不声称完整覆盖链上 swap ledger 或协议原生路由深度。
-
-稳定币案例参考未经验证的 [X 上 DEWS 风险预警讨论](https://x.com/crazydnekana/status/2030633787462242588)，
-其提出持续价格漂移、流动性变薄和交易压力的监控顺序；并对照同行评审的
-[Tether 脱锚与加密资产收益研究](https://doi.org/10.1111/acfi.70201) 以及
-[Detecting Depegs 研究](https://arxiv.org/abs/2306.10612)。MarketBridge 只检验报价偏离和之后的绝对波动，
-不推断储备、赎回、偿付能力或可执行均值回归。
-
-`crypto_stablecoin_rotation_response_replay.py` 复用该 JSONL 归档，专门检验一个有方向的窄假设：将 `USDCUSDT` 或反向
-`USDTUSDC` 归一化为“USDC 以 USDT 计价”后，USDC 折价是否与 BTC 上涨、USDC 溢价是否与 BTC 下跌对齐？输出只包含
-方向对齐收益统计，不推断资金流、赎回压力或可执行兑换。
-
-`crypto_stablecoin_liquidity_monitor.py` 新增供应侧上下文案例：读取 DefiLlama 公开稳定币快照，输出筛选后的流通供应、
-7 日变化和链分布，并明确区分供应扩张、收缩和缺失变化。流通供应不是交易所库存、桥接流量或价格信号。
-
-`crypto_stablecoin_liquidity_response_recorder.py` 会把这些供应状态与同步的 MarketBridge BTC 报价冻结到 JSONL，
-`crypto_stablecoin_liquidity_response_replay.py` 比较扩张、收缩和横盘状态之后的 BTC 有符号/绝对响应。这是固定记录窗口的
-关联研究，不把供应变化转换成交易所流入、价格预测、赎回模型或执行路径。
-
-`crypto_defi_yield_context_monitor.py` 新增收益池上下文案例：读取 DefiLlama 公开 `/pools` 快照，区分基础收益主导、
-奖励依赖、非正 APY 和指标缺失状态。APY/TVL 只是提供方观察，不是保证收益或赎回流动性；监控不会存款、提款、签名钱包或执行策略。
-
-`crypto_defi_funding_yield_risk_monitor.py` / recorder / replay 把一个额外假设写清楚：当选定的 BTC/ETH/SOL 永续资金费率篮子为负时，
-奖励依赖型收益池应当进入额外复核状态。监控只使用提供方公布的 funding interval 做年化，并标记 `funding_sensitive_yield_risk`；
-recorder/replay 检验该状态是否持续。资金费率篮子只是透明代理，不是 Ethena 的真实对冲账本，APY 也不是协议会计数据。
-
-出处：X 上关于 sUSDe 退出/资金费率风险的[公开讨论](https://x.com/CIAN_protocol/status/2032403312621007326)，以及 Ethena 官方
-[USDe 机制说明](https://docs.ethena.fi/how-usde-works)、[Funding Risk](https://docs.ethena.fi/solution-overview/risks/funding-risk)
-和[收益机制说明](https://docs.ethena.fi/solution-overview/protocol-revenue-explanation/susde-rewards-mechanism)。这些资料只用于提出可证伪假设，
-不代表 MarketBridge 认证协议安全性或收益。
-
-出处：未经验证的 [稳定币净流入 X 讨论](https://x.com/Cointelegraph/status/2029519994652942494)
-和[稳定币增长讨论](https://x.com/wintermute_t/status/1985631560021000352)只作为研究线索；字段对照 DefiLlama
-[稳定币数据说明](https://docs.llama.fi/)，不推断资金流或执行结果。
-
-`crypto_jupiter_route_impact_monitor.py` / `crypto_jupiter_route_impact_recorder.py` /
-`crypto_jupiter_route_impact_replay.py` 消费 `defi_native_state` 中 Jupiter 的只读报价诊断。
-在 `defi.jupiter.pairs[].route_amounts` 配置输入量梯度后，每个规模会独立保留，回放检验较大输入量下
-路由器报告的 price impact 与跳数状态是否持续。它只是路由观察研究，不声称完整池深度、gas、MEV、成交概率、钱包权限或 swap 执行。
-先在 `config.yaml` 启用 Jupiter，并在对应 pair 添加例如 `route_amounts: [5000000000, 10000000000]`；主 `amount`
-仍会始终查询。这样可以清楚区分 1、5、10 SOL 等输入规模（原子单位），但不会自动扩展成完整池深度。
-
-出处：Jupiter 官方 [Quote API 文档](https://developers.jup.ag/docs/swap/v1/get-quote) 明确记录 quote 返回的
-`priceImpactPct` 与 `routePlan`。这些字段只能支撑有界的路由冲击假设，不能当作可执行价格保证。
-
-`crypto_orca_whirlpool_monitor.py` / recorder / replay 消费 Orca 官方 Whirlpool REST 快照。案例用头部池 24 小时换手率和提供方
-warning/adaptive-fee 标志，区分 `warning_or_adaptive_fee_pressure`、`high_turnover_whirlpool` 和
-`ordinary_whirlpool_state`；response recorder/replay 再与 BTC 报价配对，做固定记录窗口的描述性研究。cursor 还有下一页时保持
-observe-only，不把部分页面当成完整池状态。
-
-出处遵循 Orca 的[公开 API 总览](https://docs.orca.so/api-reference/overview)和
-[Whirlpools 接口说明](https://docs.orca.so/api-reference/whirlpools)，其中说明池 TVL、时间窗口 volume/fees、yield-over-TVL、
-warning、adaptive fee 与 cursor 分页。它不是 active tick range、swap ledger、LP PnL 或可执行路由模型。
-
-`crypto_raydium_pool_concentration_monitor.py` / recorder / replay 消费 Raydium API v3 池分页指标（以
-`defi_native_state` 输出）。假设很窄：24 小时交易量相对页面 TVL 较高的状态是否持续，以及头部池 TVL 占比较低时是否形成
-与集中状态不同的“流动性分散压力”。`crypto_raydium_pool_concentration_response_recorder.py` 会把这些状态与同步 BTC 报价配对，
-replay 输出固定记录窗口的后续响应。分页未知或不完整时不会晋级为策略状态。
-
-出处：原生字段遵循 [Raydium 按 token mint 查池的官方 API 文档](https://docs.raydium.io/api-reference/api-v3-endpoints/pools/get-pools-by-token-mint)，
-包括文档中的 `tvl`、`day.volume`、`day.volumeFee`、`price`、`feeRate` 和 `hasNextPage`。它们是提供方快照，不是完整链上
-swap 历史、LP 收入、实际滑点或可执行路由深度。
-
-## Commands / 命令
+## Quickstart / 快速开始
 
 ```bash
 python3 examples/crypto/defi/crypto_defi_pool_flow_monitor.py \
-  --sources uniswap_v3,meteora --min-liquidity-usd 100000 \
-  --min-turnover-h1 0.25
-python3 examples/crypto/defi/crypto_defi_yield_context_monitor.py \
-  --stablecoin-only --min-tvl-usd 10000000 --min-apy 2 --limit 50
-python3 examples/crypto/defi/crypto_defi_funding_yield_risk_monitor.py \
-  --projects ethena-usde,aave-v3,morpho-blue,pendle-v2,curve-dex,convex-finance \
-  --symbols USDE,SUSDE \
-  --funding-symbols BTCUSDT,ETHUSDT,SOLUSDT --limit 50
-python3 examples/crypto/defi/crypto_defi_funding_yield_risk_recorder.py \
-  --iterations 30 --interval-secs 600 \
-  --output work/crypto-defi-funding-yield-risk.jsonl
-python3 examples/crypto/defi/crypto_defi_funding_yield_risk_replay.py \
-  --input work/crypto-defi-funding-yield-risk.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_recorder.py \
-  --symbols USDT,USDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 600 \
-  --output work/crypto-stablecoin-liquidity-response.jsonl
-python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_replay.py \
-  --input work/crypto-stablecoin-liquidity-response.jsonl \
-  --horizon-records 12 --min-observations 3
+  --symbol SOLUSDC --min-turnover-ratio 1.0
 python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
-  --sources uniswap_v3,meteora --iterations 30 --interval-secs 30 \
+  --symbol SOLUSDC --iterations 30 --interval-secs 60 \
   --output work/crypto-defi-pool-flow.jsonl
 python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
   --input work/crypto-defi-pool-flow.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
-  --sources uniswap_v3,meteora --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 120 --interval-secs 30 \
-  --output work/crypto-defi-pool-flow-response.jsonl
-python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
-  --input work/crypto-defi-pool-flow-response.jsonl \
-  --horizon-records 3 --min-observations 10
-python3 examples/crypto/defi/crypto_jupiter_route_impact_monitor.py \
-  --symbols SOLUSDC --min-impact-ratio 0.005
-python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 30 \
-  --output work/crypto-jupiter-route-impact.jsonl
-python3 examples/crypto/defi/crypto_jupiter_route_impact_replay.py \
-  --input work/crypto-jupiter-route-impact.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_monitor.py \
-  --symbols SOLUSDC --min-turnover-ratio 1.0 --max-top-share 0.65
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
-  --output work/crypto-raydium-pool-concentration.jsonl
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_replay.py \
-  --input work/crypto-raydium-pool-concentration.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_recorder.py \
-  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 60 \
-  --output work/crypto-raydium-pool-concentration-response.jsonl
-python3 examples/crypto/defi/crypto_raydium_pool_concentration_response_replay.py \
-  --input work/crypto-raydium-pool-concentration-response.jsonl \
-  --horizon-records 3 --min-observations 5
-python3 examples/crypto/defi/crypto_orca_whirlpool_monitor.py \
-  --symbols SOLUSDC --min-turnover-ratio 1.0
-python3 examples/crypto/defi/crypto_orca_whirlpool_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
-  --output work/crypto-orca-whirlpool.jsonl
-python3 examples/crypto/defi/crypto_orca_whirlpool_replay.py \
-  --input work/crypto-orca-whirlpool.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_orca_whirlpool_response_recorder.py \
-  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 60 \
-  --output work/crypto-orca-whirlpool-response.jsonl
-python3 examples/crypto/defi/crypto_orca_whirlpool_response_replay.py \
-  --input work/crypto-orca-whirlpool-response.jsonl \
-  --horizon-records 3 --min-observations 5
-python3 examples/crypto/defi/crypto_stablecoin_depeg_monitor.py \
-  --exchange binance --stable-symbols USDTUSDC,USDCUSDT,DAIUSDT \
-  --risk-symbol BTCUSDT --watch-bps 20 --stress-bps 50
-python3 examples/crypto/defi/crypto_stablecoin_depeg_recorder.py \
-  --exchange binance --iterations 120 --interval-secs 30 \
-  --output work/crypto-stablecoin-depeg.jsonl
-python3 examples/crypto/defi/crypto_stablecoin_depeg_replay.py \
-  --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
-  --stress-bps 50 --min-stress 3 --min-ordinary 3
-python3 examples/crypto/defi/crypto_stablecoin_rotation_response_replay.py \
-  --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
-  --threshold-bps 5 --min-observations 5
-python3 examples/crypto/defi/crypto_stablecoin_liquidity_monitor.py \
-  --symbols USDT,USDC,DAI --growth-threshold-pct 1.0
 ```
 
-## Meteora DLMM / Meteora DLMM（English + 中文）
+完整参数、历史稳定币回放、provider provenance 和中文解释见双语指南。
 
-`crypto_meteora_dlmm_monitor.py` / recorder / replay use the official Meteora
-DLMM `/pools` snapshot. The falsifiable case is whether high top-pool 24-hour
-turnover combined with fee/TVL or dynamic-fee pressure persists. Pagination and
-blacklist context remain visible; partial pages stay observe-only. It does not
-claim active-bin depth, LP income or executable routing.
+## Boundary / 边界
 
-Provenance: [Meteora DLMM pools API](https://docs.meteora.ag/api-reference/dlmm/pools/pools),
-which documents `tvl`, `volume.24h`, `fees.24h`, `fee_tvl_ratio.24h`,
-`dynamic_fee_pct`, `bin_step`, `is_blacklisted` and page fields. The response
-recorder/replay pairs these states with BTC quotes for a descriptive study.
+不会连接钱包、签名交易、构造 swap、管理 LP 头寸或承诺成交。部分上游、过期快照、缺失 mint
+和 provider 模型变化必须原样标记为 coverage gap，而不是零流动性。
 
-中文：这一案例使用 Meteora 官方 DLMM `/pools` 快照，检验“头部池 24 小时换手率较高且
-fee/TVL 或 dynamic fee 偏高”的状态是否持续。程序保留分页和 blacklist 上下文，分页未结束时
-保持 observe-only，不声称 active bin 深度、LP 收入或可执行路由；response recorder/replay
-再与 BTC 报价做固定记录窗口的描述性对照。MarketBridge 只做数据与研究，不构造 swap、不签名钱包、不下单。
+## English
 
-```bash
-python3 examples/crypto/defi/crypto_meteora_dlmm_monitor.py \
-  --symbols SOLUSDC --min-turnover-ratio 1.0 --min-fee-tvl-ratio 0.05
-python3 examples/crypto/defi/crypto_meteora_dlmm_recorder.py \
-  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
-  --output work/crypto-meteora-dlmm.jsonl
-python3 examples/crypto/defi/crypto_meteora_dlmm_replay.py \
-  --input work/crypto-meteora-dlmm.jsonl --min-run 3
-python3 examples/crypto/defi/crypto_meteora_dlmm_response_recorder.py \
-  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
-  --iterations 30 --interval-secs 60 \
-  --output work/crypto-meteora-dlmm-response.jsonl
-python3 examples/crypto/defi/crypto_meteora_dlmm_response_replay.py \
-  --input work/crypto-meteora-dlmm-response.jsonl --horizon-records 3 \
-  --min-observations 5
-```
+The maintained English guide is [README.en.md](README.en.md).
+
+## 中文
+
+维护中的中文指南是 [README.zh-CN.md](README.zh-CN.md)。
+
+## Commands / 命令
+
+运行入口统一使用 `python3 examples/crypto/defi/<entrypoint>.py`；参数、出处和限制见上述双语指南。

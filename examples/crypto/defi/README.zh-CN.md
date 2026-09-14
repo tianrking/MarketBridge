@@ -31,7 +31,7 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_replay.py \
 ```
 
 需要 BTC 响应研究时，使用对应的 `*_response_recorder.py` 和 `*_response_replay.py`。
-完整命令矩阵和提供方出处见 [`README.md`](README.md)。
+维护中的命令矩阵和提供方出处见本中文指南。
 
 历史供应回放：
 

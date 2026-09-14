@@ -29,8 +29,8 @@ The defaults (`fear <= 20`, `greed >= 80`) are caller-visible parameters.
 The replay never turns fear into “buy” or greed into “sell”; missing prices,
 provider outages, publication delay and proprietary score scales remain gaps.
 
-See [`README.md`](README.md) for provenance, news-field semantics and all
-commands. Public X posts are research leads, not evidence of performance.
+See this guide for provenance, news-field semantics and commands. Public X
+posts are research leads, not evidence of performance.
 
 ## Boundary
 

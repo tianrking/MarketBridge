@@ -24,7 +24,7 @@ python3 examples/crypto/sentiment/crypto_sentiment_extremes_replay.py \
 默认值（`fear <= 20`、`greed >= 80`）都是可见参数。回放不会把 fear 变成“买入”、把 greed 变成“卖出”；
 价格缺失、提供方中断、发布时间延迟和 proprietary score 量纲都要保留为缺口。
 
-出处、新闻字段语义和完整命令见 [`README.md`](README.md)。公开 X 只是研究线索，不是业绩证据。
+出处、新闻字段语义和维护中的命令见本中文指南。公开 X 只是研究线索，不是业绩证据。
 
 ## 边界
 

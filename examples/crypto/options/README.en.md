@@ -68,7 +68,7 @@ Put/call OI is not dealer sign or trader ownership. IV-RV spread is not a
 short-volatility recommendation. No example models margin, delta hedging,
 exercise, assignment, fill, fee, or execution.
 
-See [`README.md`](README.md) for every command and provenance link.
+See this guide for commands and provenance.
 
 ## Boundary
 

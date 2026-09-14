@@ -433,7 +433,7 @@ python3 examples/crypto/microstructure/crypto_liquidity_sandwich_response_replay
   --horizon-records 3 --min-observations 5
 ```
 
-完整命令保留在 [`README.md`](README.md)。首次轮询可能没有 OI 基线；清算 side、成交 side
+维护中的命令见本中文指南。首次轮询可能没有 OI 基线；清算 side、成交 side
 和盘口语义都取决于提供方，必须保留在输出中。
 
 OI/价格象限回放会把每根价格 K 线与不晚于该时间的最新 OI 对齐，保留 OI 年龄和提供方单位，
