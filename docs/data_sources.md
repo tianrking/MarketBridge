@@ -73,7 +73,7 @@ Primary endpoints:
 | ADL risk rating | `/v1/market/adl-risk` | none | Keyless Binance symbol-level provider risk snapshot; not a directional signal or private account risk |
 | Liquidations | `/v1/market/liquidations` | `liquidation` | Keyless where public feeds exist |
 | Historical liquidations | `/v1/history/liquidations` | none | Keyless bounded OKX/CoinEx public filled-liquidation history; provider retention and other venue gaps remain explicit |
-| Historical open interest | `/v1/history/open-interest` | none | Keyless Binance/Bybit public OI history where provider retention allows |
+| Historical open interest | `/v1/history/open-interest` | none | Keyless Binance/Bybit/OKX public OI history where provider retention allows; OKX contract rows use provider USD aggregate units |
 | Historical taker buy/sell volume | `/v1/history/taker-volume` | none | Keyless Binance public aggregate taker buy/sell volume with explicit imbalance and bounded provider coverage |
 | Historical account ratio | `/v1/history/account-ratio` | none | Keyless Binance global, top-trader account or top-trader position share (`scope`) and Bybit holder-count long/short ratio; provider semantics and coverage remain explicit, not a complete notional-position ledger |
 | Historical option volatility | `/v1/history/historical-volatility` | none | Keyless Bybit hourly option historical volatility by base/quote coin and period; not implied volatility or a forecast |

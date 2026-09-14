@@ -25,6 +25,9 @@ Coinbase premium pair 是独立的公开 X 研究线索：当 Coinbase USD 报�
 `crypto_coinbase_premium_historical_replay.py` 还可以直接使用 `/v1/history/candles` 提供的 Coinbase 和参考 venue candles，
 在有界历史上复核同一假设，不依赖实时 recorder 才能产生证据。
 
+历史 OI 现在支持 Binance、Bybit 和 OKX。OKX 公共合约历史接口返回按基础币种聚合、以提供方 USD 单位计量的序列；
+API 会保留单位和时间戳。这样 `crypto_funding_oi_replay.py` 可以扩大交易所比较范围，但不会把聚合 OI 解释成多空归属或对冲结果。
+
 ## 完整运行示例
 
 ```bash

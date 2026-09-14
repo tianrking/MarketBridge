@@ -219,8 +219,9 @@ pub async fn open_interest(
     let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
         "binance" => fetch_binance_open_interest(&state.http, &q).await,
         "bybit" => fetch_bybit_open_interest(&state.http, &q).await,
+        "okx" => fetch_okx_open_interest(&state.http, &q).await,
         other => Err(anyhow::anyhow!(
-            "unsupported historical open-interest exchange: {other}; public history is currently available for binance and bybit"
+            "unsupported historical open-interest exchange: {other}; public history is currently available for binance, bybit and okx"
         )),
     };
     match result {
@@ -237,7 +238,8 @@ pub async fn open_interest(
                 "open interest units remain provider-specific and are returned explicitly",
                 "history retention and pagination are provider-controlled",
                 "coverage_detail describes one bounded provider page; it is not a completeness proof",
-                "open interest is aggregate positioning, not long/short direction"
+                "open interest is aggregate positioning, not long/short direction",
+                "OKX contract history is an aggregate base-currency series and reports provider USD units"
             ]
         }))
         .into_response(),
@@ -1782,6 +1784,99 @@ async fn fetch_bybit_open_interest(
         .collect()
 }
 
+fn okx_open_interest_period(interval: &str) -> Result<&'static str> {
+    match interval.trim().to_ascii_lowercase().as_str() {
+        "5m" | "5min" => Ok("5m"),
+        "1h" | "1hour" => Ok("1H"),
+        "1d" | "1day" => Ok("1D"),
+        other => bail!("unsupported OKX open-interest period: {other}; use 5m, 1h or 1d"),
+    }
+}
+
+fn okx_open_interest_currency(symbol: &str) -> String {
+    let normalized = symbol.trim().to_ascii_uppercase();
+    if let Some((base, _)) = normalized.split_once('-') {
+        return base.to_string();
+    }
+    ["USDT", "USDC", "USD"]
+        .iter()
+        .find_map(|quote| normalized.strip_suffix(quote))
+        .filter(|base| !base.is_empty())
+        .unwrap_or(&normalized)
+        .to_string()
+}
+
+fn normalize_okx_open_interest_row(symbol: &str, row: &Value) -> Result<Value> {
+    let values = row
+        .as_array()
+        .context("missing OKX open-interest history row")?;
+    let ts_ms = value_u64(values.first()).context("invalid OKX OI timestamp")?;
+    let open_interest = value_f64(values.get(1)).context("invalid OKX OI value")?;
+    let volume = value_f64(values.get(2));
+    Ok(serde_json::json!({
+        "exchange": "okx",
+        "symbol": symbol,
+        "open_interest": open_interest,
+        "open_interest_value": open_interest,
+        "volume": volume,
+        "unit": "provider_usd",
+        "ts_ms": ts_ms,
+        "source": "okx_contracts_open_interest_volume"
+    }))
+}
+
+async fn fetch_okx_open_interest(
+    http: &reqwest::Client,
+    q: &HistoryOpenInterestQuery,
+) -> Result<Vec<Value>> {
+    let symbol = q.symbol.trim().to_ascii_uppercase();
+    let currency = okx_open_interest_currency(&symbol);
+    if currency.is_empty() {
+        bail!("OKX open-interest history requires a non-empty base currency")
+    }
+    let period = okx_open_interest_period(q.interval.as_deref().unwrap_or("5m"))?;
+    let mut request = http
+        .get("https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-volume")
+        .query(&[("ccy", currency.as_str()), ("period", period)]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("begin", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("end", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse OKX open-interest history")?;
+    if payload.get("code").and_then(Value::as_str) != Some("0") {
+        bail!(
+            "OKX open-interest history error: {}",
+            payload
+                .get("msg")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let mut rows = payload
+        .get("data")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| normalize_okx_open_interest_row(&symbol, &row))
+        .collect::<Result<Vec<_>>>()?;
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    let limit = q.limit.unwrap_or(100).clamp(1, 500);
+    if rows.len() > limit {
+        let start = rows.len() - limit;
+        rows = rows.split_off(start);
+    }
+    Ok(rows)
+}
+
 async fn fetch_bybit_account_ratio(
     http: &reqwest::Client,
     q: &HistoryAccountRatioQuery,
@@ -2700,6 +2795,21 @@ mod tests {
         assert_eq!(bybit_oi_interval("5m").unwrap(), "5min");
         assert_eq!(bybit_oi_interval("1h").unwrap(), "1h");
         assert!(bybit_oi_interval("2h").is_err());
+    }
+
+    #[test]
+    fn maps_okx_open_interest_currency_and_period() {
+        assert_eq!(okx_open_interest_currency("BTCUSDT"), "BTC");
+        assert_eq!(okx_open_interest_currency("BTC-USDT-SWAP"), "BTC");
+        assert_eq!(okx_open_interest_period("5m").unwrap(), "5m");
+        assert_eq!(okx_open_interest_period("1h").unwrap(), "1H");
+        assert!(okx_open_interest_period("15m").is_err());
+        let row =
+            normalize_okx_open_interest_row("BTCUSDT", &serde_json::json!(["1000", "12.5", "2.0"]))
+                .expect("normalized OKX OI row");
+        assert_eq!(row["ts_ms"], serde_json::json!(1000));
+        assert_eq!(row["open_interest"], serde_json::json!(12.5));
+        assert_eq!(row["unit"], serde_json::json!("provider_usd"));
     }
 
     #[test]

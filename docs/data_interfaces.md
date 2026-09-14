@@ -163,7 +163,7 @@ Short version:
 | Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to the local Arrow IPC lake. |
 | History candles | `/v1/history/candles` | Binance/OKX/Bybit/Coinbase public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; Coinbase is spot-only with the public Exchange candles page capped at 300 rows. Bounded `coverage_detail` reports requested/covered range and possible page truncation. |
 | Historical liquidations | `/v1/history/liquidations` | OKX/CoinEx public liquidation history | raw normalized | Bounded recent liquidation details with normalized side, position side, price, quantity and timestamp; `coverage_detail` reports the requested/covered range and possible page truncation. |
-| Historical open interest | `/v1/history/open-interest` | Binance/Bybit public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; not a long/short split. |
+| Historical open interest | `/v1/history/open-interest` | Binance/Bybit/OKX public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; OKX contract history is a base-currency aggregate with provider USD units; not a long/short split. |
 | Historical account ratio | `/v1/history/account-ratio` | Binance/Bybit public positioning context | raw normalized | Provider-specific account/holder ratios with normalized imbalance, source semantics and bounded coverage; Binance accepts `scope=global / top_trader`; not notional positioning or trader intent. |
 | Historical option volatility | `/v1/history/historical-volatility` | Bybit public option market | raw normalized | Hourly provider historical-volatility values by base/quote coin and supported period; paired time bounds and coverage are explicit; not implied volatility or a forecast. |
 | Historical volatility index | `/v1/history/volatility-index` | Deribit public volatility index | raw normalized | Bounded OHLC candles for supported currencies and resolutions; provider regime context, not a complete surface or forecast. |
@@ -546,7 +546,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/stablecoins` | Bounded DefiLlama `peggedUSD` circulating-supply history, optionally filtered by chain and UTC timestamp bounds. |
 | GET | `/v1/history/mining` | Bounded mempool.space Bitcoin hashrate and difficulty-adjustment history for provider-context research. |
 | GET | `/v1/history/liquidations` | Bounded public OKX/CoinEx liquidation history for research replay. |
-| GET | `/v1/history/open-interest` | Binance/Bybit historical open-interest observations. |
+| GET | `/v1/history/open-interest` | Binance/Bybit/OKX historical open-interest observations; OKX rows preserve provider USD aggregate units. |
 | GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC candles for volatility-regime research. |
 | GET | `/v1/history/trades` | Binance/OKX historical public trades for order-flow/CVD research; use `pages=N` for bounded pagination and inspect `coverage_detail`. |
 | GET | `/v1/storage/manifest` | Local Arrow IPC lake manifest and quality metadata. |

@@ -421,5 +421,5 @@ python3 examples/liquidation_reversal_replay.py \
 
 它把 OKX sell-side liquidation 当作 long-liquidation proxy，观察之后三个 5m bar 的
 价格变化；CoinEx 事件可用 `--price-exchange okx` 或 `--price-exchange binance` 显式指定价格
-上下文，并可选地加入 Binance/Bybit 的公开历史 OI 变化。由于 OI 可能来自不同 venue，以及
+上下文，并可选地加入 Binance/Bybit/OKX 的公开历史 OI 变化。由于 OI 可能来自不同 venue，以及
 完整跨 venue liquidation ledger 与成交成本仍缺失，所以结果不能解释成完整策略回测。

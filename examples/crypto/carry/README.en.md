@@ -28,6 +28,12 @@ limitation rather than silently labelled US spot flow.
 bounded Coinbase and reference-venue candles served by
 `/v1/history/candles`, so the live recorder is not the only route to evidence.
 
+Historical OI now accepts Binance, Bybit, and OKX. OKX's public contract
+history is an aggregate base-currency series returned in provider USD units;
+the API keeps that unit and its timestamp explicit. This widens the
+`crypto_funding_oi_replay.py` venue comparison without turning aggregate OI
+into long/short ownership or a hedge result.
+
 ## Run a complete case
 
 ```bash

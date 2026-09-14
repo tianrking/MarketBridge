@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — Added OKX historical open-interest coverage
+
+Extended `/v1/history/open-interest` with OKX's public contract
+open-interest/volume history. The adapter maps caller symbols such as
+`BTCUSDT` to the OKX base currency, supports the provider's `5m`, `1H`, and
+`1D` periods, sorts bounded rows chronologically, and labels the aggregate
+provider USD unit instead of pretending it is a long/short split. This makes
+the existing funding/OI response replay usable across Binance, Bybit, and OKX
+while preserving coverage and research-only boundaries.
+
+The field mapping is cross-checked against [OKX's public open-interest API documentation](https://app.okx.com/docs-v5/zh/#rest-api-public-data-get-open-interest)
+and the [OKX contracts open-interest/volume endpoint reference](https://www.okx.com/docs-v5/en/#rest-api-trading-data-get-contracts-open-interest-and-volume).
+
 ## 2026-09-14 — Added low-volatility plus downside-skew response replay
 
 Added `crypto_options_skew_vol_regime_response_replay.py` under the options

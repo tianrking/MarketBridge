@@ -67,7 +67,7 @@ Status labels:
 | ADL risk rating | `/v1/market/adl-risk` | implemented | keyless | Binance symbol-level provider rating updated about every 30 minutes; risk context only, not price direction or private account risk. |
 | Liquidations | `/v1/market/liquidations` | implemented | keyless | Native venue feeds where available, retained as a bounded recent event window per venue/symbol rather than one last-row snapshot. |
 | Historical liquidations | `/v1/history/liquidations` | implemented | keyless | Bounded recent OKX/CoinEx public liquidation history; not a complete cross-venue ledger. |
-| Historical open interest | `/v1/history/open-interest` | implemented | keyless | Binance/Bybit public time-bounded OI history with explicit provider units; not directional positioning. |
+| Historical open interest | `/v1/history/open-interest` | implemented | keyless | Binance/Bybit/OKX public time-bounded OI history with explicit provider units; OKX contract history uses provider USD aggregates; not directional positioning. |
 | Historical taker buy/sell volume | `/v1/history/taker-volume` | implemented | keyless | Binance public aggregate taker buy/sell volume normalized with total value and imbalance; not trader identity or intent. |
 | Historical account ratio | `/v1/history/account-ratio` | implemented | keyless | Binance global, top-trader account or top-trader position share (`scope`) plus Bybit holder-count buy/sell ratio; provider semantics, cursor and coverage metadata remain explicit; not a complete notional-position ledger. |
 | Historical option volatility | `/v1/history/historical-volatility` | implemented | keyless | Bybit public hourly option historical volatility with bounded time window and period; not implied volatility or a forecast. |

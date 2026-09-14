@@ -2,7 +2,7 @@
 """Replay a bounded liquidation-flush / price-recovery hypothesis.
 
 This uses public OKX or CoinEx liquidation history plus OHLCV candles, with
-optional Binance/Bybit OI and Binance/OKX trade joins. A sell-side liquidation
+optional Binance/Bybit/OKX OI and Binance/OKX trade joins. A sell-side liquidation
 is treated as a long-liquidation proxy, then the script measures the subsequent
 candle return. Any unrequested or unavailable context remains explicit, so this
 is a partial paper replay rather than a profitability backtest.
