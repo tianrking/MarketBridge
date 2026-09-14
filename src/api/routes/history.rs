@@ -895,9 +895,17 @@ fn candle_coverage_detail(rows: &[KlineBar], q: &HistoryCandlesQuery) -> Value {
     } else {
         requested_limit
     };
+    let requested_pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let status = if rows.is_empty() {
+        "empty_or_provider_limited"
+    } else if requested_pages > 1 && rows.len() < page_limit.saturating_mul(requested_pages) {
+        "bounded_paged_history"
+    } else {
+        candle_coverage_status(rows.len(), page_limit)
+    };
     serde_json::json!({
-        "status": candle_coverage_status(rows.len(), page_limit),
-        "requested_pages": q.pages.unwrap_or(1).clamp(1, 48),
+        "status": status,
+        "requested_pages": requested_pages,
         "requested_start_ms": q.start_ms,
         "requested_end_ms": q.end_ms,
         "covered_start_ms": rows.iter().map(|row| row.open_time_ms).min(),
@@ -1377,28 +1385,55 @@ async fn fetch_okx_funding_rate(
     q: &HistoryCandlesQuery,
 ) -> Result<Vec<KlineBar>> {
     let inst_id = okx_inst_id(&q.symbol, "perp");
-    let limit = q.limit.unwrap_or(100).clamp(1, 100).to_string();
-    let payload = http
-        .get("https://www.okx.com/api/v5/public/funding-rate-history")
-        .query(&[("instId", inst_id.as_str()), ("limit", limit.as_str())])
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Value>()
-        .await
-        .context("failed to parse okx funding history")?;
+    let page_limit = q.limit.unwrap_or(100).clamp(1, 400);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
     let interval = q.interval.as_deref().unwrap_or("8h");
     let interval_ms = interval_to_ms(interval).unwrap_or(28_800_000);
-    let rows = payload
-        .get("data")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    rows.into_iter()
-        .map(|row| {
+    let mut rows = Vec::new();
+    let mut after: Option<String> = None;
+    for _ in 0..pages {
+        let limit = page_limit.to_string();
+        let mut request = http
+            .get("https://www.okx.com/api/v5/public/funding-rate-history")
+            .query(&[("instId", inst_id.as_str()), ("limit", limit.as_str())]);
+        if let Some(after) = after.as_deref() {
+            request = request.query(&[("after", after)]);
+        }
+        let payload = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await
+            .context("failed to parse okx funding history")?;
+        if payload.get("code").and_then(Value::as_str) != Some("0") {
+            bail!(
+                "okx funding history error: {}",
+                payload
+                    .get("msg")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown provider error")
+            );
+        }
+        let page = payload
+            .get("data")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if page.is_empty() {
+            break;
+        }
+        let mut oldest = None;
+        for row in page {
             let open_time_ms = value_u64(row.get("fundingTime")).context("missing fundingTime")?;
             let funding_rate = value_f64(row.get("fundingRate")).context("missing fundingRate")?;
-            Ok(KlineBar {
+            oldest = Some(oldest.map_or(open_time_ms, |value: u64| value.min(open_time_ms)));
+            if q.start_ms.is_some_and(|start| open_time_ms < start)
+                || q.end_ms.is_some_and(|end| open_time_ms > end)
+            {
+                continue;
+            }
+            rows.push(KlineBar {
                 exchange: "okx".to_string(),
                 market: "perp".to_string(),
                 symbol: q.symbol.trim().to_ascii_uppercase(),
@@ -1412,9 +1447,20 @@ async fn fetch_okx_funding_rate(
                 volume: None,
                 source: "okx_funding_rate_history".to_string(),
                 updated_at_ms: now_ms(),
-            })
-        })
-        .collect()
+            });
+        }
+        let Some(oldest) = oldest else {
+            break;
+        };
+        let next_after = oldest.to_string();
+        if after.as_deref() == Some(next_after.as_str()) || page_limit == 0 {
+            break;
+        }
+        after = Some(next_after);
+    }
+    rows.sort_by_key(|row| row.open_time_ms);
+    rows.dedup_by_key(|row| row.open_time_ms);
+    Ok(rows)
 }
 
 async fn fetch_bybit_history(
@@ -1426,42 +1472,60 @@ async fn fetch_bybit_history(
         bail!("unsupported bybit candle_type: {candle_type}");
     }
     let symbol = q.symbol.trim().to_ascii_uppercase();
-    let limit = q.limit.unwrap_or(200).clamp(1, 200).to_string();
-    let mut request = http
-        .get("https://api.bybit.com/v5/market/funding/history")
-        .query(&[
-            ("category", "linear"),
-            ("symbol", symbol.as_str()),
-            ("limit", limit.as_str()),
-        ]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
-    }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Value>()
-        .await
-        .context("failed to parse bybit funding history")?;
-    let rows = payload
-        .pointer("/result/list")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    rows.into_iter()
-        .map(|row| {
+    let page_limit = q.limit.unwrap_or(200).clamp(1, 200);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let interval = q.interval.as_deref().unwrap_or("8h");
+    let interval_ms = interval_to_ms(interval).unwrap_or(28_800_000);
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, interval_ms, page_limit, pages)
+    {
+        let limit = page_limit.to_string();
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let payload = http
+            .get("https://api.bybit.com/v5/market/funding/history")
+            .query(&[
+                ("category", "linear"),
+                ("symbol", symbol.as_str()),
+                ("limit", limit.as_str()),
+                ("startTime", start_query.as_str()),
+                ("endTime", end_query.as_str()),
+            ])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await
+            .context("failed to parse bybit funding history")?;
+        if payload.get("retCode").and_then(Value::as_i64) != Some(0) {
+            bail!(
+                "bybit funding history error: {}",
+                payload
+                    .get("retMsg")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown provider error")
+            );
+        }
+        let page = payload
+            .pointer("/result/list")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for row in page {
             let open_time_ms = value_u64(row.get("fundingRateTimestamp"))
                 .context("missing fundingRateTimestamp")?;
             let funding_rate = value_f64(row.get("fundingRate")).context("missing fundingRate")?;
-            Ok(KlineBar {
+            if q.start_ms.is_some_and(|start| open_time_ms < start)
+                || q.end_ms.is_some_and(|end| open_time_ms > end)
+            {
+                continue;
+            }
+            rows.push(KlineBar {
                 exchange: "bybit".to_string(),
                 market: "perp".to_string(),
                 symbol: symbol.clone(),
-                interval: q.interval.clone().unwrap_or_else(|| "provider".to_string()),
+                interval: interval.to_string(),
                 close_time_ms: open_time_ms,
                 open_time_ms,
                 open: funding_rate,
@@ -1471,9 +1535,12 @@ async fn fetch_bybit_history(
                 volume: None,
                 source: "bybit_funding_rate_history".to_string(),
                 updated_at_ms: now_ms(),
-            })
-        })
-        .collect()
+            });
+        }
+    }
+    rows.sort_by_key(|row| row.open_time_ms);
+    rows.dedup_by_key(|row| row.open_time_ms);
+    Ok(rows)
 }
 
 async fn fetch_hyperliquid_history(
@@ -3371,6 +3438,40 @@ mod tests {
         coinbase_query.limit = Some(500);
         let coinbase_detail = candle_coverage_detail(&rows, &coinbase_query);
         assert_eq!(coinbase_detail["page_limit"], serde_json::json!(300));
+    }
+
+    #[test]
+    fn candle_coverage_distinguishes_paged_history_from_single_page() {
+        let query = HistoryCandlesQuery {
+            exchange: "okx".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            interval: Some("8h".to_string()),
+            market: Some("perp".to_string()),
+            candle_type: Some("funding_rate".to_string()),
+            start_ms: None,
+            end_ms: None,
+            limit: Some(20),
+            pages: Some(2),
+            persist: None,
+        };
+        let row = KlineBar {
+            exchange: "okx".to_string(),
+            market: "perp".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            interval: "8h".to_string(),
+            open_time_ms: 1,
+            close_time_ms: 2,
+            open: 0.0,
+            high: 0.0,
+            low: 0.0,
+            close: 0.0,
+            volume: None,
+            source: "test".to_string(),
+            updated_at_ms: 3,
+        };
+        let detail = candle_coverage_detail(&[row], &query);
+        assert_eq!(detail["requested_pages"], serde_json::json!(2));
+        assert_eq!(detail["status"], serde_json::json!("bounded_paged_history"));
     }
 
     #[test]

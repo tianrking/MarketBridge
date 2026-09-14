@@ -59,9 +59,13 @@ python3 examples/crypto/carry/crypto_historical_basis_replay.py \
 python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
   --symbol BTCUSDT --funding-exchange binance \
   --spot-exchange binance --perp-exchange binance \
-  --price-interval 5m --days 7 --horizon-events 3 \
+  --price-interval 5m --days 7 --funding-pages 2 --horizon-events 3 \
   --position-side short_perp --min-observations 5
 ```
+
+Funding-rate candles on Binance, Bybit and OKX also accept bounded pagination;
+the carry ledger exposes it as `--funding-pages`. Provider settlement intervals
+and coverage remain explicit.
 
 ## Run a complete case
 

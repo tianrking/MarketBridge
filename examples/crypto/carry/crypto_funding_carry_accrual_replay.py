@@ -139,13 +139,16 @@ def main():
     parser.add_argument("--price-interval", default="5m")
     parser.add_argument("--days", type=float, default=7.0)
     parser.add_argument("--funding-limit", type=int, default=500)
+    parser.add_argument("--funding-pages", type=int, default=1,
+                        help="bounded funding-history pages (1-48) for Binance/Bybit/OKX")
     parser.add_argument("--price-limit", type=int, default=1000)
     parser.add_argument("--horizon-events", type=int, default=3)
     parser.add_argument("--position-side", choices=("short_perp", "long_perp"), default="short_perp")
     parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
-    if (args.days <= 0 or args.funding_limit <= 0 or args.price_limit <= 0
+    if (args.days <= 0 or args.funding_limit <= 0 or args.funding_pages < 1 or args.funding_pages > 48
+            or args.price_limit <= 0
             or args.horizon_events <= 0 or args.min_observations <= 0 or args.timeout <= 0):
         parser.error("days, limits, horizon-events and observations must be positive")
     end_ms = int(time.time() * 1000)
@@ -153,7 +156,7 @@ def main():
     common = {"symbol": args.symbol, "start_ms": start_ms, "end_ms": end_ms}
     funding_payload = fetch(args.base_url, "/v1/history/candles", {
         **common, "exchange": args.funding_exchange, "candle_type": "funding_rate",
-        "limit": min(args.funding_limit, 500),
+        "limit": min(args.funding_limit, 500), "pages": args.funding_pages,
     }, args.timeout)
     spot_payload = fetch(args.base_url, "/v1/history/candles", {
         **common, "exchange": args.spot_exchange, "candle_type": "spot",
@@ -191,6 +194,7 @@ def main():
         "position_side": args.position_side,
         "window": {"start_ms": start_ms, "end_ms": end_ms, "days": args.days},
         "filters": {"price_interval": args.price_interval,
+                    "funding_pages": args.funding_pages,
                     "horizon_events": args.horizon_events,
                     "min_observations": args.min_observations},
         "source_counts": {"funding_points": len(funding), "spot_bars": len(spot),

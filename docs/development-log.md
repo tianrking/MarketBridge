@@ -2255,3 +2255,14 @@ orders rather than a complete total-liquidation history. The crowded-liquidation
 replay now exposes `--liquidation-pages`; no order, wallet, signing or execution
 path was added. Provenance: [CoinEx liquidation-history API](https://docs.coinex.com/api/v2/futures/market/http/list-market-liquidation-history)
 and [OKX liquidation-orders channel](https://app.okx.com/docs-v5/en/).
+
+## 2026-09-14 — funding-history pagination across venues
+
+Extended `candle_type=funding_rate` history pagination for Bybit and OKX. Bybit
+uses bounded non-overlapping `startTime/endTime` windows; OKX walks the official
+`after` timestamp cursor. Both paths filter caller bounds, sort/deduplicate
+funding rows and retain the existing `pages` coverage metadata. The carry
+accrual replay now exposes `--funding-pages` for Binance, Bybit and OKX. Provider
+funding intervals remain point-in-time facts; no annualized fill, order, wallet,
+signing or execution path was added. Provenance: [Bybit funding-rate history](https://bybit-exchange.github.io/docs/v5/market/history-fund-rate)
+and [OKX funding-rate history](https://app.okx.com/docs-v5/zh/).

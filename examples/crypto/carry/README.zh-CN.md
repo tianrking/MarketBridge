@@ -47,9 +47,12 @@ python3 examples/crypto/carry/crypto_historical_basis_replay.py \
 python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
   --symbol BTCUSDT --funding-exchange binance \
   --spot-exchange binance --perp-exchange binance \
-  --price-interval 5m --days 7 --horizon-events 3 \
+  --price-interval 5m --days 7 --funding-pages 2 --horizon-events 3 \
   --position-side short_perp --min-observations 5
 ```
+
+Binance、Bybit 和 OKX 的 funding-rate candle 也支持有界分页；carry 账本通过
+`--funding-pages` 暴露该参数，提供方结算周期和覆盖范围继续原样保留。
 
 ## 完整运行示例
 
