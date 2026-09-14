@@ -8,6 +8,8 @@
   与 BTC 报价配对。
 - `crypto_etf_flow_response_recorder.py` / replay：把调用者提供或 `farside_etf` 的流量快照对齐到 BTC 日 K 线；回放还支持滚动流量窗口，
   用来把持续性与单日阈值分开检验。
+- `crypto_liquidity_confirmation_monitor.py` / recorder / replay：把 ETF 流量、稳定币供应、Coinbase 溢价和资金拥挤保持为独立通道，
+  再评估透明的确认矩阵。
 - `crypto_market_regime_monitor.py` / recorder / replay：Rust 聚合 regime 标签和固定窗口 BTC 响应分布。
 
 ## 快速开始
@@ -35,6 +37,22 @@ ETF 流量被明确保留为外部数据边界：可以使用 Farside 风格 CSV
 
 持续流量线索参考公开的 [ecoinometrics ETF 流量讨论](https://x.com/ecoinometrics/status/2037548621697303004)，
 仅作为未经验证的研究假设，不代表滚动阈值可以预测 BTC。
+
+四通道确认线索参考 [XWIN 的趋势与流量确认讨论](https://x.com/xwinfinance/status/2023155692916646257)
+以及 [Wintermute 的流动性通道讨论](https://x.com/wintermute_t/status/1985631560021000352)。
+监控器要求至少 `--min-confirmations` 个正向或负向通道可观测，但输出仍只是上下文标签，不是价格预测；资金费率只作为拥挤诊断，
+不会计入流动性分数。
+
+```bash
+python3 examples/crypto/macro/crypto_liquidity_confirmation_monitor.py \
+  --symbol BTCUSDT --exchange binance --min-confirmations 2
+python3 examples/crypto/macro/crypto_liquidity_confirmation_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 900 \
+  --output work/crypto-liquidity-confirmation.jsonl
+python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
+  --input work/crypto-liquidity-confirmation.jsonl \
+  --horizon-records 3 --min-observations 5
+```
 
 ## 解释与边界
 

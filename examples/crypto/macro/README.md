@@ -28,6 +28,13 @@ inflow, large outflow and ordinary-flow buckets at a fixed forward horizon.
 The replay can additionally classify a complete trailing window with
 `--rolling-observations`; it uses only current/prior rows and skips cold-start
 windows. This tests flow persistence separately from a single-day threshold.
+
+`crypto_liquidity_confirmation_monitor.py` / recorder / replay is the
+multi-channel companion case. It keeps ETF flow, stablecoin supply change,
+Coinbase-versus-reference spot spread, and funding crowding separate, then
+labels only the observable combination (`risk_on_confirmation`,
+`liquidity_deterioration`, `mixed_liquidity_context`, or an explicit missing
+data state). It is a context-response study, not a composite trading signal.
 The CSV is intentionally caller-supplied because ETF flows are not yet a
 native MarketBridge historical endpoint; the output names that boundary rather
 than silently treating missing flow data as zero.
@@ -48,6 +55,9 @@ crypto returns.
 The risk-context hypothesis is also motivated by [Wintermute's public macro and
 crypto-liquidity discussion on X](https://x.com/wintermute_t/status/1985631560021000352),
 which is treated as an unverified research lead rather than a forecast.
+The multi-channel confirmation framing is also informed by [XWIN's public
+trend and flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257),
+which remains an unverified hypothesis rather than a validated composite.
 The ETF-flow lead is cross-checked against [Farside's daily Bitcoin ETF flow
 table](https://farside.co.uk/btc/). It is a measurement source, not evidence
 that flows cause price movement.
@@ -77,6 +87,8 @@ SPX 期权输入；美元指数上下文对照 [Federal Reserve H.10 美元指�
 这些资料只是参考数据定义，不代表宏观快照能预测 crypto 收益。
 风险上下文假设也参考 [Wintermute 在 X 的宏观与 crypto 流动性讨论](https://x.com/wintermute_t/status/1985631560021000352)，
 但该内容只作为未经验证的研究线索，不作为预测。
+四通道确认框架还参考 [XWIN 的趋势与流量确认讨论](https://x.com/xwinfinance/status/2023155692916646257)，
+同样只作为未经验证的复合假设。
 ETF 流量出处对照 [Farside 的 Bitcoin ETF 日流量表](https://farside.co.uk/btc/)，它是测量来源，不表示流量能够造成价格变动。
 滚动持续性线索还参考 [ecoinometrics 的公开 ETF 流量讨论](https://x.com/ecoinometrics/status/2037548621697303004)，仅作为待验证假设。
 
@@ -118,6 +130,14 @@ python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
   --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
   --interval 1d --threshold-musd 100 --rolling-observations 5 \
   --horizon-days 1 --min-observations 5
+python3 examples/crypto/macro/crypto_liquidity_confirmation_monitor.py \
+  --symbol BTCUSDT --exchange binance --min-confirmations 2
+python3 examples/crypto/macro/crypto_liquidity_confirmation_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 900 \
+  --output work/crypto-liquidity-confirmation.jsonl
+python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
+  --input work/crypto-liquidity-confirmation.jsonl --horizon-records 3 \
+  --min-observations 5
 python3 examples/crypto/macro/crypto_etf_flow_response_recorder.py \
   --asset BTC --symbol BTCUSDT --exchange binance --iterations 10 \
   --interval-secs 900 --output work/crypto-etf-flow-response.jsonl

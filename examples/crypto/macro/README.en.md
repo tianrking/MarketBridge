@@ -11,6 +11,9 @@
   `farside_etf` flow snapshots aligned to daily BTC candles. The replay also
   supports a trailing flow window so persistence can be tested separately from
   a single-day threshold.
+- `crypto_liquidity_confirmation_monitor.py` / recorder / replay: ETF flow,
+  stablecoin supply, Coinbase premium, and funding crowding are kept as
+  separate channels before a transparent confirmation matrix is evaluated.
 - `crypto_market_regime_monitor.py` / recorder / replay: Rust aggregate regime
   labels and fixed-window BTC response distributions.
 
@@ -45,6 +48,25 @@ The persistence lead is motivated by this public [ecoinometrics ETF-flow
 discussion](https://x.com/ecoinometrics/status/2037548621697303004). It is an
 unverified research lead, not evidence that a rolling threshold predicts BTC.
 
+The four-channel confirmation lead is motivated by the public [XWIN trend and
+flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257)
+and the [Wintermute liquidity-channel discussion](https://x.com/wintermute_t/status/1985631560021000352).
+The monitor requires at least `--min-confirmations` observed positive or
+negative channels, but still reports a context label rather than a price
+forecast. Funding is retained as a crowding diagnostic and is not added to the
+liquidity score.
+
+```bash
+python3 examples/crypto/macro/crypto_liquidity_confirmation_monitor.py \
+  --symbol BTCUSDT --exchange binance --min-confirmations 2
+python3 examples/crypto/macro/crypto_liquidity_confirmation_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 900 \
+  --output work/crypto-liquidity-confirmation.jsonl
+python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
+  --input work/crypto-liquidity-confirmation.jsonl \
+  --horizon-records 3 --min-observations 5
+```
+
 ## Interpretation and boundary
 
 Macro context is conditioning information, not a return forecast or allocation
@@ -52,4 +74,4 @@ decision. The examples do not trade ETFs, rebalance a portfolio, or claim that
 correlation is causal. Keep calendar alignment, publication delay, missing
 observations, sample size and paper costs in every report.
 
-See [`README.md`](README.md) for the CSV schema, commands and provenance links.
+See [`README.md`](README.md) for the CSV schema, full commands and provenance links.

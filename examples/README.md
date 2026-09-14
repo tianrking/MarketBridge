@@ -139,6 +139,7 @@ there are no root-level compatibility copies.
 | `crypto/macro/crypto_macro_context_monitor.py` | Macro reference snapshots should remain visible beside crypto funding before interpreting a market case | `/v1/market/quotes?exchanges=dxy,vix,us10y`, `/v1/market/perpetual-funding` | Context monitor only; no macro forecast or execution model |
 | `crypto/macro/crypto_macro_context_recorder.py` / `crypto_macro_context_replay.py` | Elevated VIX/macro context and funding crowding can be compared with later BTC return and absolute-move distributions | `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Snapshot response study; macro timestamps, causality, costs and execution remain explicit gaps |
 | `crypto/macro/crypto_etf_flow_response_recorder.py` / `crypto_etf_flow_response_replay.py` | Large daily or complete trailing BTC ETF flow windows may have a different next-window BTC response than ordinary flow days | MarketBridge `farside_etf` external signals, `/v1/market/quotes`, `/v1/history/candles`, or Farside-style CSV | External-flow response study; rolling windows are current/prior rows only; historical ingestion, NAV timing, revisions, causality and execution remain explicit gaps |
+| `crypto/macro/crypto_liquidity_confirmation_monitor.py` / recorder / replay | ETF flow, stablecoin supply, Coinbase premium and funding crowding may form a different later BTC response when multiple channels agree | `/v1/external/signals`, `/v1/external/stablecoins`, `/v1/market/quotes`, `/v1/market/perpetual-funding`, JSONL archive | Transparent context matrix; publication clocks, USD/USDT basis, supply semantics, causality and execution remain explicit gaps |
 | `crypto/sentiment/crypto_sentiment_extremes_monitor.py` / recorder / replay | Extreme Fear/Greed states may have a different fixed-horizon BTC response distribution than ordinary windows | `/v1/external/signals?sources=fear_greed`, `/v1/market/quotes` and JSONL archive | Descriptive forward-response replay; provider composite, sample alignment and paper costs remain explicit |
 | `crypto/sentiment/crypto_news_attention_monitor.py` / recorder / replay | A burst of high-score CryptoPanic items may precede larger absolute BTC movement than ordinary windows | `/v1/external/signals?sources=cryptopanic&categories=news`, `/v1/market/quotes` and JSONL archive | Non-directional attention replay; feed coverage, vote semantics and timing remain explicit |
 | `crypto/sentiment/crypto_social_signal_response_recorder.py` / `crypto_social_signal_response_replay.py` | A change in a keyed LunarCrush/Santiment metric may be followed by a different absolute BTC response than ordinary snapshots | `/v1/external/signals`, `/v1/market/quotes`, JSONL archive | Provider-specific social-score response study; API key, metric scale, coverage and execution remain explicit gaps |
@@ -602,6 +603,14 @@ python3 examples/crypto/macro/crypto_etf_flow_response_replay.py \
   --input work/btc-etf-flows.csv --exchange binance --symbol BTCUSDT \
   --interval 1d --threshold-musd 100 --rolling-observations 5 \
   --horizon-days 1 --min-observations 5
+python3 examples/crypto/macro/crypto_liquidity_confirmation_monitor.py \
+  --symbol BTCUSDT --exchange binance --min-confirmations 2
+python3 examples/crypto/macro/crypto_liquidity_confirmation_recorder.py \
+  --symbol BTCUSDT --exchange binance --iterations 30 --interval-secs 900 \
+  --output work/crypto-liquidity-confirmation.jsonl
+python3 examples/crypto/macro/crypto_liquidity_confirmation_replay.py \
+  --input work/crypto-liquidity-confirmation.jsonl --horizon-records 3 \
+  --min-observations 5
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_monitor.py \
   --symbol BTCUSDT --exchange binance --fear-max 20 --greed-min 80
 python3 examples/crypto/sentiment/crypto_sentiment_extremes_recorder.py \

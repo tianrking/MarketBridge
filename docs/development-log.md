@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-09-14 — Multi-channel liquidity confirmation response study
+
+Added the Python-first `crypto_liquidity_confirmation_monitor.py` family under
+the macro examples. It keeps daily BTC ETF flow, DefiLlama stablecoin supply
+change, Coinbase-versus-reference spot spread, and perpetual funding crowding
+as separate observations, then labels only transparent `risk_on_confirmation`,
+`liquidity_deterioration`, `mixed_liquidity_context`, or missing-data states.
+The recorder/replay pair compares later fixed-record BTC responses without
+turning the composite into a signal or execution path.
+
+Provenance: the public [XWIN flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257)
+and [Wintermute liquidity-channel discussion](https://x.com/wintermute_t/status/1985631560021000352)
+are unverified research leads. ETF publication timing, stablecoin supply
+semantics, USD/USDT basis, funding crowding, causality and execution remain
+explicit limitations.
+
 ## 2026-09-14 — Rolling ETF-flow response replay
 
 Extended `crypto_etf_flow_response_replay.py` with an optional
