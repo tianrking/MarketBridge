@@ -287,7 +287,7 @@ pub async fn account_ratio(
             "next_page_cursor": result.next_page_cursor,
             "rows": result.rows,
             "limitations": [
-                "account ratio semantics are provider-specific: Binance top-trader account share versus Bybit holder-count share",
+                "account ratio semantics are provider-specific: Binance top-trader account share, top-trader position share or global account share versus Bybit holder-count share",
                 "provider pagination and retention are bounded; a cursor means the page is incomplete",
                 "long/short ratio is descriptive context and does not identify trader intent or execution"
             ]
@@ -1403,8 +1403,15 @@ async fn fetch_binance_account_ratio(
             "binance_global_account_ratio",
             "global_account_share",
         ),
+        "top_trader_position" => (
+            "https://fapi.binance.com/futures/data/topLongShortPositionRatio",
+            "binance_top_trader_position_ratio",
+            "top_trader_position_share",
+        ),
         other => {
-            bail!("unsupported Binance account-ratio scope: {other}; use top_trader or global")
+            bail!(
+                "unsupported Binance account-ratio scope: {other}; use top_trader, top_trader_position or global"
+            )
         }
     };
     let period = match q.period.as_deref().unwrap_or("1h") {
@@ -2198,6 +2205,31 @@ mod tests {
         );
         assert_eq!(row["semantics"], serde_json::json!("global_account_share"));
         assert_eq!(row["long_short_ratio"], serde_json::json!(1.22));
+    }
+
+    #[test]
+    fn normalizes_binance_top_trader_position_ratio_without_merging_account_semantics() {
+        let row = normalize_binance_account_ratio_row(
+            serde_json::json!({
+                "symbol": "BTCUSDT",
+                "longAccount": "0.70",
+                "shortAccount": "0.30",
+                "longShortRatio": "2.33",
+                "timestamp": 9012
+            }),
+            "binance_top_trader_position_ratio",
+            "top_trader_position_share",
+        )
+        .expect("normalized Binance position ratio");
+        assert_eq!(
+            row["source"],
+            serde_json::json!("binance_top_trader_position_ratio")
+        );
+        assert_eq!(
+            row["semantics"],
+            serde_json::json!("top_trader_position_share")
+        );
+        assert_eq!(row["long_short_ratio"], serde_json::json!(2.33));
     }
 
     #[test]

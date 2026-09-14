@@ -1322,3 +1322,15 @@ Provenance: the unverified [cross-venue funding differential discussion on X](ht
 and [cross-venue funding/arbitrage discussion](https://x.com/ranger_finance/status/2013284430174212491)
 motivate the case; field semantics are cross-checked against Hyperliquid's
 official [`predictedFundings` documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-predicted-funding-rates-for-different-venues).
+## 2026-09-14 — Binance top-trader position-ratio scope
+
+Extended `/v1/history/account-ratio` with
+`scope=top_trader_position`, backed by Binance's public
+`topLongShortPositionRatio` endpoint. The normalized row keeps a distinct
+`source` and `semantics=top_trader_position_share`, so top-trader position
+shares are not pooled with global account shares, top-trader account shares or
+Bybit holder counts. The existing Python OI-response replay accepts the new
+scope; no position ledger, execution path or direction claim was added.
+
+Provenance: Binance defines the endpoint as the long/short position share of
+the top 20% of users by margin balance in its [official market-data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).

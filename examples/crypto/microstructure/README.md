@@ -102,13 +102,15 @@ notional long/short position ratio. The replay keeps provider semantics,
 cursor/coverage fields, aligns the ratio with OI and candles, and reports
 descriptive fixed-horizon responses only.
 
-The Binance `scope=global` path uses the public all-account ratio, while
-`scope=top_trader` retains the existing top-account series. The two populations
-must not be pooled in one statistic.
+The Binance `scope=global` path uses the public all-account ratio,
+`scope=top_trader` retains the top-account series, and
+`scope=top_trader_position` uses the top-trader position-share endpoint. These
+are different populations/measurements and must not be pooled in one statistic.
 
 出处：Bybit [Get Long Short Ratio](https://bybit-exchange.github.io/docs/v5/market/long-short-ratio)
 公开 `buyRatio`、`sellRatio`、时间戳和 `nextPageCursor`；Binance [Top Trader Long/Short Account Ratio](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Top-Trader-Long-Short-Ratio)
-公开大户账户占比和时间戳。两者统计对象不同，不是持仓名义金额，也不证明交易者意图；示例只读、只研究、不下单。
+公开大户账户占比和时间戳；`topLongShortPositionRatio` 另行公开大户仓位占比。不同统计对象和字段不会合并，
+不是完整持仓名义金额，也不证明交易者意图；示例只读、只研究、不下单。
 Binance 全体账户路径对照官方 [Long/Short Ratio](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio)，同样只保留 provider 语义。
 
 Run / 运行：
@@ -120,6 +122,9 @@ python3 examples/crypto/microstructure/crypto_account_ratio_oi_response_replay.p
   --horizon-bars 3 --min-observations 5
 python3 examples/crypto/microstructure/crypto_account_ratio_oi_response_replay.py \
   --symbol BTCUSDT --exchange binance --ratio-scope global --period 1h --days 14 \
+  --ratio-threshold 0.10 --oi-threshold 0.10
+python3 examples/crypto/microstructure/crypto_account_ratio_oi_response_replay.py \
+  --symbol BTCUSDT --exchange binance --ratio-scope top_trader_position --period 1h --days 14 \
   --ratio-threshold 0.10 --oi-threshold 0.10
 ```
 

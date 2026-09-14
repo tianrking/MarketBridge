@@ -876,7 +876,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
 | GET | `/v1/history/open-interest` | Bounded public Binance/Bybit open-interest history |
 | GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance |
-| GET | `/v1/history/account-ratio` | Bounded public Binance global/top-trader account ratio (`scope=global / top_trader`) and Bybit holder-count ratio with provider semantics and coverage metadata |
+| GET | `/v1/history/account-ratio` | Bounded public Binance global/top-trader account or top-trader position ratio (`scope`) and Bybit holder-count ratio with provider semantics and coverage metadata |
 | GET | `/v1/history/historical-volatility` | Bounded public Bybit option historical-volatility observations |
 | GET | `/v1/history/basis` | Bounded public Binance historical futures basis and basis-rate observations |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |

@@ -3,7 +3,8 @@
 
 The case tests whether account-ratio imbalance with rising OI differs from
 imbalance with falling OI. Provider semantics remain explicit: Bybit reports
-holder counts, while Binance can report global or top-trader account shares.
+holder counts, while Binance can report global account shares, top-trader
+account shares, or top-trader position shares.
 Neither is notional exposure or ownership.
 """
 
@@ -64,7 +65,8 @@ def main():
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="bybit")
-    parser.add_argument("--ratio-scope", default="top_trader", choices=("top_trader", "global"),
+    parser.add_argument("--ratio-scope", default="top_trader",
+                        choices=("top_trader", "top_trader_position", "global"),
                         help="Binance account-ratio scope; ignored by Bybit")
     parser.add_argument("--period", default="1h")
     parser.add_argument("--days", type=float, default=14.0)
@@ -117,7 +119,7 @@ def main():
         "verdict": "account-ratio response candidate" if len(qualifying) >= args.min_observations else "observe only",
         "upstream_errors": errors,
         "limitations": [
-            "ratio semantics are provider-specific: Bybit holder counts, Binance global or top-trader account shares",
+            "ratio semantics are provider-specific: Bybit holder counts, Binance global account shares, top-trader account shares, or top-trader position shares",
             "OI is aggregate and does not identify long/short ownership or trader intent",
             "forward return is descriptive and excludes fees, funding cash flow, slippage and execution",
         ],
