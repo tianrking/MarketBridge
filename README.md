@@ -200,6 +200,10 @@ close at a fixed quote-notional threshold or trade-count cap, and strong signed
 taker imbalance is compared with balanced controls over later event bars. The
 threshold, provider side semantics and event-time coverage remain explicit;
 this is not an execution or fill model.
+The microstructure family also includes a VPIN-proxy response replay: rolling
+absolute signed imbalance over fixed-volume buckets is compared with normal
+volume buckets using later absolute movement. It is a non-directional stress
+diagnostic, not informed-trader identification or a kill-switch.
 It also includes a standalone Bollinger BandWidth squeeze replay: a trailing
 close-only squeeze quantile followed by an upper/lower-band break is compared
 with fixed-horizon continuation, separate from the existing realized-volatility

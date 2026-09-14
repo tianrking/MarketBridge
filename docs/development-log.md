@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — VPIN-proxy response replay
+
+Added `crypto_vpin_response_replay.py` under microstructure. It builds fixed
+quote-notional volume buckets, computes a rolling mean of absolute signed
+taker imbalance, and compares high-VPIN-proxy buckets with normal buckets by
+later absolute movement. The broad public [Bookmap order-flow/volume lead on
+X](https://x.com/bookmap_pro/status/1945883967409819779) is not treated as a
+performance claim; the construction is cross-checked with the primary [crypto
+microstructure study](https://www.frontiersin.org/journals/blockchain/articles/10.3389/fbloc.2026.1811716/full).
+The proxy keeps partial buckets, provider side semantics and no-execution
+boundaries explicit.
+
 ## 2026-09-14 — event-time trade-imbalance-bar replay
 
 Added `crypto_trade_imbalance_bar_replay.py` under microstructure. It closes
