@@ -409,6 +409,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | 情绪/新闻 | Fear & Greed、CryptoPanic、Santiment、LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | source-specific poll | Fear & Greed 不需要，其余多需要 |
 | 天气观察 | Open-Meteo forecast/archive | `GET /v1/external/weather` | 按需只读 | keyless；坐标、模型、market bucket 与结算规则需调用者明确 | 否 |
 | 链上大额转账 | Whale Alert、mempool.space BTC、Etherscan watched addresses | `GET /v1/onchain/transfers` | 暂无直接流 | 默认 60 秒 | Whale Alert/Etherscan 需要 |
+| Bitcoin mempool 上下文 | mempool.space 计数、虚拟大小、总手续费和推荐 sat/vB 费率 | `GET /v1/onchain/mempool` | 暂无直接流 | 按需公共 REST | 否 |
 | Catalog / Health | 数据源状态、key 状态、domain、instrument、freshness | `/v1/catalog/*`、`/coverage`、`/metrics` | 暂无 | 来自 runtime cache/metrics | 否 |
 | Redis Stream | 标准化事件流导出 | `runtime.redis_url` | Redis Streams | batched XADD + JSONL dead letter | 需要 Redis |
 
@@ -547,6 +548,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/external/stablecoins` | DefiLlama 稳定币流通供应、变化和链分布上下文。 |
 | GET | `/v1/external/defi-yields` | DefiLlama DeFi 池 APY、TVL、基础收益与奖励收益上下文。 |
 | GET | `/v1/onchain/transfers` | 链上大额转账。 |
+| GET | `/v1/onchain/mempool` | 无需 key 的 Bitcoin mempool 大小、总手续费和推荐 sat/vB 上下文。 |
 | GET | `/snapshot` | legacy 最新 tick 快照。 |
 | GET | `/funding` | legacy funding view。 |
 | GET | `/options/deribit/summary` | Deribit 实时 REST option summary。 |
@@ -901,6 +903,16 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=coinglass&symbols=BTC
 curl -s "http://127.0.0.1:8080/v1/onchain/transfers?source=whale_alert&asset=BTC&min_amount_usd=500000" | jq
 ```
 
+### Bitcoin mempool context
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/mempool" | jq
+```
+
+该接口按需读取 mempool.space 的 Bitcoin mempool 计数、虚拟大小、总手续费、
+推荐 sat/vB 费率和 tip height。它是 provider/node 上下文，不是完整网络账本；
+推荐费率不保证确认时间，也不是 BTC 方向、交易、钱包或执行指令。
+
 ### Data quality
 
 ```bash
@@ -1038,6 +1050,9 @@ onchain 系列新增 `crypto_onchain_transfer_burst_replay.py`：把公开大额
 现在还提供 `crypto_onchain_transfer_response_recorder.py` / `crypto_onchain_transfer_response_replay.py`：把 provider
 转账行与 MarketBridge BTC 报价冻结，重建去重后的滚动窗口，比较 burst 和普通窗口的非方向性后续响应；不把钱包标签
 解释成交易所资金流，也不增加钱包或执行路径。
+链上系列还新增 Bitcoin mempool 费率压力 monitor/recorder/replay，读取
+`/v1/onchain/mempool`，比较高、低和普通费率压力状态之后的 BTC 固定窗口响应；
+provider/node 快照、费率估计不确定性和不广播交易边界都明确保留。
 carry 系列新增 `crypto_basis_recorder.py` / `crypto_basis_replay.py`，universe 系列新增
 `crypto_volatility_adjusted_momentum_replay.py`；前者检验基差异常后的收缩，后者检验
 收益除以已实现波动率后的跨资产排名，二者都只做回放，不构成资金分配或实盘指令。

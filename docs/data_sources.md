@@ -225,6 +225,12 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=meteora,orca,uniswap_
 | mempool.space | Recent BTC mempool transactions | `/v1/onchain/transfers?source=mempool_space&chain=bitcoin` | keyless | n/a |
 | Etherscan | Watched Ethereum addresses | `/v1/onchain/transfers?source=etherscan&chain=ethereum` | required | `ETHERSCAN_API_KEY` |
 
+## Bitcoin Mempool Context
+
+| Source | Scope | Endpoint | Key | Notes |
+|---|---|---|---|---|
+| mempool.space | Bitcoin mempool aggregate | `/v1/onchain/mempool` | keyless | On-demand count, virtual size, aggregate fee, recommended sat/vB rates and tip height; provider/node snapshot, not a full network ledger. |
+
 Etherscan is intentionally address-watchlist based and waits for configured safe
 confirmations. It is not a full-chain Ethereum firehose.
 

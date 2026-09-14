@@ -1473,3 +1473,19 @@ Provenance: the unverified [stablecoin liquidity discussion on X](https://x.com/
 and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352)
 motivate the hypothesis. Data semantics are cross-checked against DefiLlama's
 [stablecoin documentation](https://docs.llama.fi/).
+
+## 2026-09-14 — Bitcoin mempool fee-pressure context
+
+Added the keyless `/v1/onchain/mempool` endpoint. It combines mempool.space's
+current mempool count/vsize/aggregate fee, recommended sat/vB rates, and tip
+height into a bounded `bitcoin_mempool_context` response. The Python
+`crypto_onchain_mempool_pressure_monitor.py` classifies high, low, ordinary and
+missing-metric states; its recorder/replay pair compares fixed-record BTC
+responses without treating fee pressure as a directional signal.
+
+The endpoint is deliberately on-demand and separate from the optional large
+transfer collectors. It does not expose wallet actions, transaction broadcast,
+confirmation guarantees or execution. The research lead is [Alex Thorn's public
+X observation about an empty Bitcoin mempool](https://x.com/intangiblecoins/status/2043001350628184497);
+field semantics and limitations are cross-checked against the [official
+mempool.space REST API](https://mempool.space/docs/api/rest) and [FAQ](https://mempool.space/docs/faq).

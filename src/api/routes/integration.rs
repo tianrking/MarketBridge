@@ -159,6 +159,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Inspect DefiLlama pool APY, TVL, base/reward yield and stablecoin flags without deposit or execution paths.",
         },
         IntegrationCapability {
+            name: "bitcoin_mempool_context",
+            endpoint: "/v1/onchain/mempool",
+            purpose: "Inspect keyless Bitcoin mempool size and recommended fee-rate context without broadcasting transactions or inferring direction.",
+        },
+        IntegrationCapability {
             name: "deribit_volatility_index_history",
             endpoint: "/v1/history/volatility-index",
             purpose: "Fetch bounded public Deribit volatility-index OHLC history for volatility-regime research.",

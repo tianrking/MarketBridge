@@ -1,5 +1,42 @@
 # On-chain transfer pressure / 链上转账压力
 
+## Bitcoin mempool pressure / 比特币 mempool 费率压力
+
+### English
+
+`crypto_onchain_mempool_pressure_monitor.py` classifies the current
+`/v1/onchain/mempool` snapshot as `high_fee_pressure`, `low_fee_pressure`, or
+`ordinary_fee_pressure` using recommended sat/vB and mempool virtual-size
+thresholds. The recorder freezes that state beside a synchronized BTC quote;
+the replay compares fixed-record signed and absolute BTC responses by state.
+
+This is a network-congestion context study, not a fee-selection tool or a
+directional BTC signal. A high fee rate can reflect demand for block space,
+application activity, spam, or provider-specific node state. The study does not
+infer cause, transaction identity, wallet ownership, or confirmation time.
+
+Provenance: [Alex Thorn's public X observation about an empty Bitcoin mempool](https://x.com/intangiblecoins/status/2043001350628184497)
+is treated only as a regime-context claim. The [official mempool.space REST API](https://mempool.space/docs/api/rest)
+defines the `/api/mempool`, `/api/v1/fees/recommended`, and tip-height inputs;
+its [FAQ](https://mempool.space/docs/faq) explains that fee suggestions are
+guidance and do not guarantee confirmation timing.
+
+### 中文
+
+`crypto_onchain_mempool_pressure_monitor.py` 读取 `/v1/onchain/mempool`，用
+推荐 sat/vB 费率和 mempool 虚拟大小把快照分类为高费率压力、低费率压力或普通压力。
+recorder 会把状态与同步 BTC 报价冻结到 JSONL；replay 再按状态比较固定记录窗口的
+BTC 有符号/绝对响应。
+
+这是网络拥堵上下文研究，不是选手续费工具，也不是 BTC 方向信号。高费率可能来自区块
+空间需求、应用活动、垃圾交易或 provider 节点差异；本案例不推断原因、交易身份、钱包
+归属或确认时间。
+
+出处：只把 [Alex Thorn 在 X 上关于 Bitcoin mempool 为空的公开观察](https://x.com/intangiblecoins/status/2043001350628184497)
+作为状态线索；输入字段以 [mempool.space 官方 REST API](https://mempool.space/docs/api/rest)
+和其[官方 FAQ](https://mempool.space/docs/faq)为准。FAQ 明确说明推荐费率是参考值，
+不保证确认时间。
+
 ## English
 
 This family tests a deliberately conservative stablecoin/large-transfer lead:
@@ -66,4 +103,15 @@ python3 examples/crypto/onchain/crypto_onchain_transfer_response_replay.py \
   --input work/crypto-onchain-transfer-response.jsonl \
   --window-hours 24 --horizon-records 12 \
   --threshold-usd 1000000 --min-observations 3
+
+python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_monitor.py \
+  --high-fee-sat-vb 20 --low-fee-sat-vb 3 \
+  --high-vsize-mb 150 --low-vsize-mb 25
+python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_recorder.py \
+  --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 120 --interval-secs 60 \
+  --output work/crypto-onchain-mempool-pressure.jsonl
+python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_replay.py \
+  --input work/crypto-onchain-mempool-pressure.jsonl \
+  --horizon-records 12 --min-observations 3
 ```

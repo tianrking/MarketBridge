@@ -99,6 +99,8 @@ there are no root-level compatibility copies.
 | `crypto/defi/crypto_defi_funding_yield_risk_monitor.py` / recorder / replay | Negative selected perp funding plus reward-heavy pools may form a persistent yield-risk context | `/v1/external/defi-yields`, `/v1/market/perpetual-funding`, JSONL archive | Funding basket is a transparent proxy; no protocol accounting, causal claim, deposit, redemption or execution |
 | `crypto/onchain/crypto_onchain_transfer_burst_replay.py` | A rolling burst of public large-transfer notional may precede larger absolute price movement | `/v1/onchain/transfers`, `/v1/history/candles` | Non-directional bounded replay; transfer semantics, labels, coverage and execution remain explicit |
 | `crypto/onchain/crypto_onchain_transfer_response_recorder.py` / `crypto_onchain_transfer_response_replay.py` | A frozen rolling transfer burst may have a different later BTC response than ordinary windows | `/v1/onchain/transfers`, `/v1/market/quotes`, JSONL archive | Non-directional response study; provider coverage, deduplication, transfer semantics and execution remain explicit |
+| `crypto/onchain/crypto_onchain_mempool_pressure_monitor.py` | High/low Bitcoin mempool fee pressure may be associated with a different later BTC absolute-move distribution | `/v1/onchain/mempool` | Provider/node-dependent context monitor; no fee selection, direction, confirmation or execution claim |
+| `crypto/onchain/crypto_onchain_mempool_pressure_recorder.py` / `crypto_onchain_mempool_pressure_replay.py` | Compare fixed-record BTC responses after high, low and ordinary mempool pressure states | `/v1/onchain/mempool`, `/v1/market/quotes`, JSONL archive | Non-directional response study; no transaction broadcast, wallet signing, causality or trading path |
 | `crypto_options_vrp_monitor.py` | Compare selected-expiry ATM mark IV with annualized perp realized volatility | `/v1/options/chains`, `/v1/history/candles` | Snapshot IV-minus-RV observer; maturity, hedge and cost basis stay explicit |
 | `crypto/options/crypto_options_vrp_recorder.py` / `crypto_options_vrp_replay.py` | Test whether an IV-minus-RV premium regime persists for one option expiry | `/v1/options/chains`, `/v1/history/candles`, JSONL archive | Descriptive VRP persistence; no option PnL, delta hedge or short-vol execution model |
 | `crypto/options/crypto_options_vrp_response_replay.py` | Compare later BTC signed/absolute responses after IV-premium, RV-above-IV and aligned regimes | Reuses VRP JSONL from `/v1/options/chains` and `/v1/history/candles` | Fixed-record surface-response study; expiry roll, IV/RV horizon mismatch and execution remain explicit |
@@ -390,6 +392,15 @@ python3 examples/crypto/onchain/crypto_onchain_transfer_response_replay.py \
   --input work/crypto-onchain-transfer-response.jsonl \
   --window-hours 24 --horizon-records 12 \
   --threshold-usd 1000000 --min-observations 3
+python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_monitor.py \
+  --high-fee-sat-vb 20 --low-fee-sat-vb 3
+python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_recorder.py \
+  --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 120 --interval-secs 60 \
+  --output work/crypto-onchain-mempool-pressure.jsonl
+python3 examples/crypto/onchain/crypto_onchain_mempool_pressure_replay.py \
+  --input work/crypto-onchain-mempool-pressure.jsonl \
+  --horizon-records 12 --min-observations 3
 python3 examples/crypto/options/crypto_options_vrp_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 \
   --price-exchange binance --symbol BTCUSDT --interval 1h --rv-bars 168 \

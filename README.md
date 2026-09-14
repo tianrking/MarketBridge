@@ -274,6 +274,10 @@ freezes provider transfer rows beside a MarketBridge BTC quote, reconstructs a
 deduplicated rolling window, and compares non-directional burst versus ordinary
 responses. It does not interpret wallet labels as exchange flow or add a wallet
 or execution path.
+It also provides a Bitcoin mempool-pressure monitor/recorder/replay over
+`/v1/onchain/mempool`, comparing later BTC responses after high, low and ordinary
+fee-pressure states. The provider/node snapshot, fee-estimate uncertainty and
+no-broadcast boundary remain explicit.
 The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or
@@ -730,6 +734,7 @@ tables below are a shorter runtime summary.
 | Global crypto market context | CoinGecko total market cap/volume, BTC/ETH dominance and active-market counts | `GET /v1/external/global-market` | No direct stream | on-demand public REST snapshot | Keyless public path; provider rate limits apply |
 | Sentiment/news | Fear & Greed, CryptoPanic, Santiment, LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | `poll_secs`, source-specific | Most except Fear & Greed need keys |
 | On-chain transfers | Whale Alert, mempool.space BTC, Etherscan watched-address transfers | `GET /v1/onchain/transfers` | No direct stream | `poll_secs`, default 60s | Whale Alert/Etherscan need keys |
+| Bitcoin mempool context | mempool.space count, vsize, aggregate fee and recommended sat/vB rates | `GET /v1/onchain/mempool` | No direct stream | on-demand public REST | No |
 | Catalog and health | enabled sources, API-key status, domains, instruments, freshness | `/v1/catalog/*`, `/coverage`, `/metrics` | No | updated from runtime caches/metrics | No |
 | Redis sink | normalized event stream export | `runtime.redis_url` | Redis Streams | batched XADD with JSONL dead letters | Redis required |
 
@@ -922,6 +927,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/external/stablecoins` | DefiLlama stablecoin supply and chain-distribution context |
 | GET | `/v1/external/defi-yields` | DefiLlama DeFi pool APY, TVL and base/reward yield context |
 | GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
+| GET | `/v1/onchain/mempool` | Keyless Bitcoin mempool size, aggregate fee and recommended sat/vB context |
 | GET | `/v1/universe/top-volume` | Universe filter by historical quote volume |
 | GET | `/v1/universe/percent-change` | Universe filter by percent change |
 | GET | `/v1/universe/volatility` | Universe filter by realized volatility |
@@ -2072,6 +2078,20 @@ Important source boundaries:
 - Whale Alert is the simplest global large-transfer feed but requires an API key.
 - mempool.space is keyless and BTC-focused; its recent mempool endpoint may not expose full address-level transfer semantics.
 - Etherscan in this project monitors configured addresses. It is not a full-chain firehose.
+
+### `GET /v1/onchain/mempool`
+
+On-demand, read-only Bitcoin mempool context from mempool.space. It returns
+current transaction count, virtual size, aggregate fees, recommended sat/vB
+rates, and the latest tip height.
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/mempool" | jq
+```
+
+This is provider/node context, not a complete network ledger. Fee suggestions
+do not guarantee confirmation timing and do not constitute a BTC direction,
+transaction, wallet, or execution instruction.
 
 ## Connection Model Matrix
 

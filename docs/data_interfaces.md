@@ -421,6 +421,24 @@ Important boundaries:
   safe block. Requests are also spaced by `request_delay_ms` and retried with
   backoff on rate-limit or transient server responses.
 
+## Bitcoin Mempool Context
+
+`GET /v1/onchain/mempool` fetches a bounded public snapshot from mempool.space:
+current mempool count/vsize/aggregate fee, recommended sat/vB rates, and the
+latest Bitcoin tip height. It is keyless and on-demand; it does not use the
+configured large-transfer collectors.
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/onchain/mempool" | jq
+```
+
+The normalized `data` fields are `mempool_count`, `mempool_vsize`,
+`mempool_vsize_mb`, `mempool_total_fee_btc`, `fee_rates_sat_vb` (`fastest`,
+`half_hour`, `hour`, `economy`, `minimum`) and `tip_height`. Mempool state is
+provider/node dependent; recommended rates are guidance, not confirmation
+guarantees. Use it as network context, not as a transaction instruction or BTC
+direction signal.
+
 ## Prediction, Options, External Data
 
 | Data | Endpoint | Notes |
@@ -526,6 +544,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/external/defi-yields` | DefiLlama DeFi pool yield composition and TVL context. |
 | GET | `/v1/external/weather` | Read-only weather forecast/archive input for event studies and prediction-market calibration. |
 | GET | `/v1/onchain/transfers` | Large transfer feed. |
+| GET | `/v1/onchain/mempool` | Keyless Bitcoin mempool size, aggregate fee and recommended fee-rate context; no broadcast or confirmation guarantee. |
 | GET | `/snapshot` | Legacy latest quote tick snapshot. |
 | GET | `/funding` | Legacy unified funding view. |
 | GET | `/options/deribit/summary` | Live Deribit REST option summary. |
