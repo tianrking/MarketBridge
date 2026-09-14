@@ -26,8 +26,22 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 ![Serde](https://img.shields.io/badge/Serialization-Serde-16a34a)
 ![License](https://img.shields.io/badge/License-MIT-64748b)
 
+## 快速导览
+
+| 需求 | 从这里开始 |
+|---|---|
+| 启动本地数据 API | [`config.research.yaml`](config.research.yaml)，然后运行 `cargo run --release` |
+| 查看 Python 策略案例 | [`examples/README.md`](examples/README.md) |
+| 查 API 契约和字段语义 | [`docs/data_interfaces.md`](docs/data_interfaces.md) |
+| 做可复现回放 | [`examples/crypto/`](examples/crypto/README.md) 及对应系列 README |
+
+> **边界先读：** MarketBridge 是只读的市场数据与研究基座。Rust 负责连接器、
+> 标准化、存储和 API；策略案例优先使用 Python。Examples 只输出观察、可证伪
+> 检验或纸面回放，不签名钱包、不下单、不划转资金，也不声称实盘 PnL。
+
 ## 目录
 
+- [快速导览](#快速导览)
 - [项目定位](#项目定位)
 - [系统架构](#系统架构)
 - [运行流程](#运行流程)
@@ -524,6 +538,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/prediction/books` | cached Polymarket books。 |
 | GET | `/v1/external/signals` | 聚合、新闻、情绪、宏观信号。 |
 | GET | `/v1/external/global-market` | CoinGecko 全市场市值、成交量和 dominance 上下文。 |
+| GET | `/v1/external/stablecoins` | DefiLlama 稳定币流通供应、变化和链分布上下文。 |
 | GET | `/v1/onchain/transfers` | 链上大额转账。 |
 | GET | `/snapshot` | legacy 最新 tick 快照。 |
 | GET | `/funding` | legacy funding view。 |
@@ -779,6 +794,25 @@ curl -s "http://127.0.0.1:8080/v1/market/klines?exchange=binance&market=perp&sym
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/options/chains?venue=bybit&currency=BTC&option_type=call" | jq
+```
+
+### `GET /v1/external/stablecoins`
+
+只读查询 DefiLlama 稳定币供应上下文：返回筛选后的流通供应、24 小时/7 日/30 日变化和链分布。
+它不是交易所库存、桥接资金流或价格方向证明。
+
+参数：
+
+- `symbols=USDT,USDC,DAI`：可选稳定币筛选。
+- `peg_type=peggedUSD`：默认只看美元锚定资产。
+- `limit`：默认 `100`，最大 `500`。
+
+示例：
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/external/stablecoins?symbols=USDT,USDC,DAI&limit=20" | jq
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_monitor.py \
+  --symbols USDT,USDC,DAI --growth-threshold-pct 1.0
 ```
 
 ### Polymarket

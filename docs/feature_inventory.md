@@ -82,6 +82,7 @@ Status labels:
 | Prediction books | `/v1/prediction/books` | implemented | keyless | Polymarket live CLOB cache. |
 | External signals | `/v1/external/signals` | implemented | mixed | CoinGlass, Farside ETF latest flow, news, social, sentiment. Historical ETF flow remains recorder/CSV-backed. |
 | Global crypto market context | `/v1/external/global-market` | implemented | optional | CoinGecko global market-cap, volume, BTC/ETH dominance and active-market counts; provider snapshot only. |
+| Stablecoin liquidity context | `/v1/external/stablecoins` | implemented | keyless | DefiLlama circulating supply, seven-day/month changes and chain distribution; context snapshot, not exchange liquidity or flow proof. |
 | Weather observations | `/v1/external/weather` | implemented | keyless | Open-Meteo forecast/archive, explicit coordinates and date mode; not a probability model or market resolver. |
 | Onchain transfers | `/v1/onchain/transfers` | implemented | mixed | Whale Alert, mempool.space, and Etherscan large-transfer collectors. |
 

@@ -32,6 +32,18 @@ with positive BTC movement and a premium with negative movement? It reports
 aligned-return statistics only; it does not infer capital flows, redemption
 pressure or an executable conversion.
 
+`crypto_stablecoin_liquidity_monitor.py` adds a supply-side context case using
+DefiLlama's public stablecoin snapshot. It reports filtered circulating supply,
+seven-day changes and chain distribution, classifying expansion, contraction
+or missing-change states. Supply is not exchange inventory, bridge flow or a
+price signal.
+
+Provenance: the unverified [stablecoin liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494)
+and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352)
+motivate the hypothesis. Fields are cross-checked against DefiLlama's
+[stablecoin data documentation](https://docs.llama.fi/), which describes
+circulating supply and peg data; no flow or execution claim is made.
+
 `crypto_jupiter_route_impact_monitor.py` / `crypto_jupiter_route_impact_recorder.py` /
 `crypto_jupiter_route_impact_replay.py` consume Jupiter's read-only quote
 diagnostics from `defi_native_state`. When `defi.jupiter.pairs[].route_amounts`
@@ -126,6 +138,13 @@ redemptions, solvency or executable mean reversion.
 `USDTUSDC` 归一化为“USDC 以 USDT 计价”后，USDC 折价是否与 BTC 上涨、USDC 溢价是否与 BTC 下跌对齐？输出只包含
 方向对齐收益统计，不推断资金流、赎回压力或可执行兑换。
 
+`crypto_stablecoin_liquidity_monitor.py` 新增供应侧上下文案例：读取 DefiLlama 公开稳定币快照，输出筛选后的流通供应、
+7 日变化和链分布，并明确区分供应扩张、收缩和缺失变化。流通供应不是交易所库存、桥接流量或价格信号。
+
+出处：未经验证的 [稳定币净流入 X 讨论](https://x.com/Cointelegraph/status/2029519994652942494)
+和[稳定币增长讨论](https://x.com/wintermute_t/status/1985631560021000352)只作为研究线索；字段对照 DefiLlama
+[稳定币数据说明](https://docs.llama.fi/)，不推断资金流或执行结果。
+
 `crypto_jupiter_route_impact_monitor.py` / `crypto_jupiter_route_impact_recorder.py` /
 `crypto_jupiter_route_impact_replay.py` 消费 `defi_native_state` 中 Jupiter 的只读报价诊断。
 在 `defi.jupiter.pairs[].route_amounts` 配置输入量梯度后，每个规模会独立保留，回放检验较大输入量下
@@ -219,6 +238,8 @@ python3 examples/crypto/defi/crypto_stablecoin_depeg_replay.py \
 python3 examples/crypto/defi/crypto_stablecoin_rotation_response_replay.py \
   --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
   --threshold-bps 5 --min-observations 5
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_monitor.py \
+  --symbols USDT,USDC,DAI --growth-threshold-pct 1.0
 ```
 
 ## Meteora DLMM / Meteora DLMM（English + 中文）

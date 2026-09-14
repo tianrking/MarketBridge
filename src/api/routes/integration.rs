@@ -149,6 +149,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Inspect Hyperliquid's named-venue predicted funding estimates without treating them as settled rates.",
         },
         IntegrationCapability {
+            name: "stablecoin_liquidity_context",
+            endpoint: "/v1/external/stablecoins",
+            purpose: "Inspect DefiLlama circulating stablecoin supply and chain distribution as read-only liquidity context.",
+        },
+        IntegrationCapability {
             name: "storage_manifest",
             endpoint: "/v1/storage/manifest",
             purpose: "Inspect local lake coverage, file paths, watermarks, gaps, duplicates, and stale metrics.",

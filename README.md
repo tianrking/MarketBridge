@@ -25,8 +25,23 @@ Node.js service required). [Complete Chinese usage series](docs/user-guide/READM
 ![Serde](https://img.shields.io/badge/Serialization-Serde-16a34a)
 ![License](https://img.shields.io/badge/License-MIT-64748b)
 
+## At a Glance
+
+| If you need... | Start here |
+|---|---|
+| A local market-data API | [`config.research.yaml`](config.research.yaml), then `cargo run --release` |
+| A Python strategy example | [`examples/README.md`](examples/README.md) |
+| API contracts and field semantics | [`docs/data_interfaces.md`](docs/data_interfaces.md) |
+| A reproducible replay | [`examples/crypto/`](examples/crypto/README.md) and its family README |
+
+> **Scope:** MarketBridge is a read-only market-data and research foundation.
+> Rust owns connectors, normalization, storage and APIs; strategy examples are
+> Python-first. Examples produce observations, falsifiable tests or paper
+> replays. They never sign wallets, place orders, move funds or claim live PnL.
+
 ## Table of Contents
 
+- [At a Glance](#at-a-glance)
 - [Why This Project](#why-this-project)
 - [Tool Positioning](#tool-positioning)
 - [Architecture Contract](#architecture-contract)
@@ -45,6 +60,7 @@ Node.js service required). [Complete Chinese usage series](docs/user-guide/READM
 - [Bring-Up Guide](#bring-up-guide)
 - [Testing](#testing)
 - [Extend New Exchange](#extend-new-exchange)
+- [Boundary Notes](#boundary-notes)
 
 ## Why This Project
 
@@ -95,6 +111,9 @@ The consumer-facing endpoint map is maintained in
 
 The full documentation index is maintained in
 [docs/README.md](docs/README.md).
+
+<details>
+<summary>Expand the current Python research catalog</summary>
 
 The Python-first crypto strategy index is maintained in
 [examples/README.md](examples/README.md), with bilingual family guides under
@@ -324,6 +343,8 @@ Volatility-breakout replay also exposes an explicit paper cost hurdle and keeps
 gross versus after-cost continuation evidence separate.
 The carry family also includes a point-in-time price/OI/funding regime replay;
 it reports distributions by state without inferring position ownership.
+
+</details>
 
 The large copy-paste query cookbook is maintained in
 [docs/query_examples.md](docs/query_examples.md).
@@ -883,6 +904,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
 | GET | `/v1/external/global-market` | CoinGecko global market-cap, volume and dominance context |
+| GET | `/v1/external/stablecoins` | DefiLlama stablecoin supply and chain-distribution context |
 | GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
 | GET | `/v1/universe/top-volume` | Universe filter by historical quote volume |
 | GET | `/v1/universe/percent-change` | Universe filter by percent change |
@@ -1458,6 +1480,26 @@ Example:
 
 ```bash
 curl -s "http://127.0.0.1:8080/v1/options/chains?venue=bybit&currency=BTC&option_type=call" | jq
+```
+
+### `GET /v1/external/stablecoins`
+
+Read-only DefiLlama stablecoin supply context. The endpoint returns filtered
+circulating supply, 24-hour/7-day/30-day changes and chain distribution. It is
+not a proof of exchange liquidity, bridge flow or price direction.
+
+Query params:
+
+- `symbols=USDT,USDC,DAI`, optional symbol filter
+- `peg_type=peggedUSD`, default `peggedUSD`
+- `limit`, default `100`, max `500`
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8080/v1/external/stablecoins?symbols=USDT,USDC,DAI&limit=20" | jq
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_monitor.py \
+  --symbols USDT,USDC,DAI --growth-threshold-pct 1.0
 ```
 
 ### `GET /v1/prediction/books`

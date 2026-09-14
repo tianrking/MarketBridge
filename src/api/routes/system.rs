@@ -82,6 +82,7 @@ pub async fn info() -> impl IntoResponse {
             "options",
             "prediction_markets",
             "external_signals",
+            "stablecoin_liquidity_context",
             "onchain_transfers",
             "universe",
             "research",

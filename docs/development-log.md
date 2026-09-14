@@ -1349,3 +1349,18 @@ option pricing, hedge construction or execution.
 Provenance: the unverified [options brief on X](https://x.com/Gate_Launch/status/2063810805552845140)
 motivates the 25-delta observation; normalized option fields are cross-checked
 against [Binance's public options market-data documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data).
+
+## 2026-09-14 — stablecoin supply liquidity context
+
+Added `/v1/external/stablecoins` and the Python
+`crypto_stablecoin_liquidity_monitor.py` example. The read-only endpoint
+normalizes DefiLlama circulating supply, 24-hour/7-day/30-day changes and
+chain distribution, while preserving provider snapshot limits. The monitor
+classifies expansion, contraction and missing-change states as liquidity
+context; it does not infer exchange inventory, bridge flow, price direction,
+or execution.
+
+Provenance: the unverified [stablecoin liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494)
+and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352)
+motivate the hypothesis. Data semantics are cross-checked against DefiLlama's
+[stablecoin documentation](https://docs.llama.fi/).
