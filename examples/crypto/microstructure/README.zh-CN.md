@@ -230,6 +230,19 @@ python3 examples/crypto/microstructure/crypto_cmf_response_replay.py \
   --negative-threshold -0.05 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_parabolic_sar_response_replay.py` 按明确的 Wilder 风格递推 Extreme Point（EP）和 Acceleration Factor（AF），把每个 point-in-time K 线标记为 `bullish_trend` / `bearish_trend`，并保留 `bullish_flip` / `bearish_flip` 事件，与持续趋势控制组比较固定窗口响应。
+虽然 SAR 名称来自 Stop and Reverse，本案例只研究状态，不提交止损、反转、入场或订单；初始方向、前两根 high/low clamp、`start-af`、`step` 和 `max-af` 都是显式参数。
+公式与预热边界对照 [TradingView 的 Parabolic SAR 说明](https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/)，加密使用语境参考
+[Binance Academy 的 Parabolic SAR 指南](https://www.binance.com/en/square/post/43032)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_parabolic_sar_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --start-af 0.02 --step 0.02 --max-af 0.20 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

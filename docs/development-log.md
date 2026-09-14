@@ -2040,3 +2040,16 @@ Provenance: [TradingView's Chaikin Money Flow calculation](https://www.tradingvi
 defines the formula. The public [Binance Square money-flow discussion](https://www.binance.com/en/square/post/21507916375097)
 is treated as an unverified crypto research lead, with candle fields bounded by
 [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — Parabolic SAR response replay
+
+Added `crypto_parabolic_sar_response_replay.py` under the microstructure family.
+The Python case implements an explicit Wilder-style SAR recursion with extreme
+points, acceleration factors and two-prior-bar clamps, then compares bullish
+and bearish flips with persistent trend controls over a fixed horizon. SAR's
+stop-and-reverse name is provenance only: no stop, reversal, wallet action or
+order is submitted, and initialization plus parameter sensitivity remain visible.
+
+Provenance: [TradingView's Parabolic SAR calculation](https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/)
+defines the algorithm, [Binance Academy's SAR guide](https://www.binance.com/en/square/post/43032)
+provides crypto usage context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

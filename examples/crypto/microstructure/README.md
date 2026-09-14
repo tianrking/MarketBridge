@@ -69,6 +69,7 @@ Cases:
 - `crypto_aroon_response_replay.py`: compares recent-high/recent-low Aroon states, crossovers and consolidation controls.
 - `crypto_mfi_response_replay.py`: compares volume-weighted Money Flow Index extremes, reclaims and neutral controls.
 - `crypto_cmf_response_replay.py`: compares close-location-weighted Chaikin Money Flow pressure, zero crosses and neutral controls.
+- `crypto_parabolic_sar_response_replay.py`: compares Wilder-style Parabolic SAR flips with persistent trend controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -675,6 +676,19 @@ python3 examples/crypto/microstructure/crypto_cmf_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --period 21 --positive-threshold 0.05 \
   --negative-threshold -0.05 --horizon-bars 8 --min-observations 5
+```
+
+`crypto_parabolic_sar_response_replay.py` 以明确的 Wilder 风格递推 Extreme Point（EP）和 Acceleration Factor（AF），把 SAR 状态分为 `bullish_trend` / `bearish_trend`，并单独保留 `bullish_flip` / `bearish_flip`，比较翻转与持续趋势样本的固定窗口响应。
+虽然 SAR 名称来自 Stop and Reverse，本案例只研究 point-in-time 状态，不提交止损、反转、入场或订单；初始方向、两根前置 high/low clamp、`start-af`、`step` 和 `max-af` 都显式输出。
+公式与预热边界对照 [TradingView 的 Parabolic SAR 说明](https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/)，加密使用语境参考
+[Binance Academy 的 Parabolic SAR 指南](https://www.binance.com/en/square/post/43032)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_parabolic_sar_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --start-af 0.02 --step 0.02 --max-af 0.20 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

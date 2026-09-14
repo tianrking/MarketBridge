@@ -297,6 +297,25 @@ python3 examples/crypto/microstructure/crypto_cmf_response_replay.py \
   --negative-threshold -0.05 --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_parabolic_sar_response_replay.py` implements an explicit Wilder-style
+Extreme Point (EP) and Acceleration Factor (AF) recursion. It labels each
+point-in-time bar as `bullish_trend` or `bearish_trend`, retains
+`bullish_flip`/`bearish_flip` events, and compares flips with persistent-trend
+controls over a fixed horizon. Although SAR stands for Stop and Reverse, this
+case only studies states: it never submits a stop, reversal, entry or order.
+Initialization, the two-prior-high/low clamp, `start-af`, `step` and `max-af`
+are explicit parameters. Formula and warmup boundaries are cross-checked
+against [TradingView's Parabolic SAR documentation](https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/),
+crypto usage context against [Binance Academy's SAR guide](https://www.binance.com/en/square/post/43032),
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_parabolic_sar_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --start-af 0.02 --step 0.02 --max-af 0.20 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same
