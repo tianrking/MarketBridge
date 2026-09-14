@@ -12,6 +12,7 @@
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`liquidation_reversal_replay.py` |
 | 时段区间回放 | `crypto_opening_range_breakout_response_replay.py` |
+| Profile/VWAP/OI 共振 | `crypto_profile_vwap_oi_response_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
@@ -82,6 +83,28 @@ python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py
 python3 examples/crypto/microstructure/crypto_opening_range_breakout_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --opening-bars 4 --breakout-buffer-bps 0 \
+  --horizon-bars 8 --min-observations 5
+```
+
+`crypto_profile_vwap_oi_response_replay.py` 把公开的“Composite Profile + VWAP + OI”
+思路收窄成 point-in-time 响应表。Profile 只使用当前 K 线之前的 OHLCV 回看窗口；只有当
+收盘价离开前序 value area、同时位于 trailing VWAP 同侧，并且最新且未过期的 OI 变化方向
+一致时，才标记为 bullish/bearish 共振。`profile_vwap_aligned_without_oi`、
+`inside_value_area` 和其他非共振状态保留为控制组。缺失或过期 OI 不会被填成零或普通状态。
+这不是 tick 级 vendor profile、交易所专属 session VWAP、私人持仓读取，也不包含下单、止损、
+成交或资金费率收益模型。
+
+研究线索来自 [BikoTrading 在 X 的 Composite Profile、VWAP 与 OI 参考](https://x.com/Yuriy_Biko/status/2019758474754691106)。
+定义对照 [TradingView 的 Volume Profile 说明](https://www.tradingview.com/support/solutions/43000502040-volume-profile-indicators-basic-concepts/)、
+[TradingView 的 VWAP 计算](https://www.tradingview.com/support/solutions/43000502018-volume-weighted-average-price-vwap/)
+和 [Binance 官方 OI 历史文档](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_profile_vwap_oi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --oi-exchange binance --oi-interval 5m --days 30 \
+  --lookback-bars 48 --bins 24 --value-area-fraction 0.70 \
+  --min-oi-change-pct 0.10 --oi-lookback-bars 12 \
   --horizon-bars 8 --min-observations 5
 ```
 

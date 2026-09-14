@@ -54,6 +54,7 @@ Cases:
 - `crypto_vwap_deviation_reversion_replay.py`: prior UTC-session VWAP deviation followed by a cross-back versus fixed-horizon directional response.
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
+- `crypto_profile_vwap_oi_response_replay.py`: compares value-area/VWAP alignment with matching OI change against explicit non-confluence controls.
 - `crypto_atr_regime_response_replay.py`: separates compressed, ordinary and expanded ATR states and compares later signed, absolute and path-risk responses.
 - `crypto_breakout_retest_response_replay.py`: tests a prior-range breakout followed by a bounded touch-and-reclaim retest against later aligned returns.
 - `crypto_ichimoku_cloud_response_replay.py`: groups as-of cloud, Tenkan/Kijun and Chikou alignment states for later BTC response analysis.
@@ -140,6 +141,33 @@ documentation](https://developers.binance.com/docs/derivatives/coin-margined-fut
 python3 examples/crypto/microstructure/crypto_opening_range_breakout_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --opening-bars 4 --breakout-buffer-bps 0 \
+  --horizon-bars 8 --min-observations 5
+```
+
+`crypto_profile_vwap_oi_response_replay.py` translates a public “composite
+profile + VWAP + open interest” idea into a narrower falsifiable test. The
+profile is built only from the prior OHLCV lookback; a candle is a bullish or
+bearish confluence observation when its close is beyond the prior value area,
+on the matching side of the trailing lookback VWAP, and the latest fresh OI
+change passes the direction threshold. `profile_vwap_aligned_without_oi`,
+`inside_value_area` and other non-confluence states remain separate controls.
+All forward returns start after the observation, and missing/stale OI is never
+relabelled as neutral. This does not reproduce a vendor's tick-level profile,
+session VWAP or private positioning, and it does not create an order, stop,
+fill or carry-PnL path.
+
+Provenance: the research lead is [BikoTrading's public X composite-profile,
+VWAP and OI reference](https://x.com/Yuriy_Biko/status/2019758474754691106).
+Definitions are bounded by [TradingView's volume-profile concepts](https://www.tradingview.com/support/solutions/43000502040-volume-profile-indicators-basic-concepts/),
+[TradingView's VWAP calculation](https://www.tradingview.com/support/solutions/43000502018-volume-weighted-average-price-vwap/),
+and [Binance's official open-interest history documentation](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics).
+
+```bash
+python3 examples/crypto/microstructure/crypto_profile_vwap_oi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --oi-exchange binance --oi-interval 5m --days 30 \
+  --lookback-bars 48 --bins 24 --value-area-fraction 0.70 \
+  --min-oi-change-pct 0.10 --oi-lookback-bars 12 \
   --horizon-bars 8 --min-observations 5
 ```
 

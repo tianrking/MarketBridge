@@ -12,6 +12,7 @@
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
 | Session-range replay | `crypto_opening_range_breakout_response_replay.py` |
+| Profile/VWAP/OI confluence | `crypto_profile_vwap_oi_response_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
@@ -105,6 +106,31 @@ documentation](https://developers.binance.com/docs/derivatives/coin-margined-fut
 python3 examples/crypto/microstructure/crypto_opening_range_breakout_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --opening-bars 4 --breakout-buffer-bps 0 \
+  --horizon-bars 8 --min-observations 5
+```
+
+`crypto_profile_vwap_oi_response_replay.py` reduces a public “composite
+profile + VWAP + open interest” idea to a point-in-time response table. The
+profile uses only the prior OHLCV lookback; a bullish or bearish confluence
+requires the close to be beyond the prior value area, on the same side of the
+trailing lookback VWAP, and accompanied by a fresh OI change in the matching
+direction. `profile_vwap_aligned_without_oi`, `inside_value_area` and other
+non-confluence states are retained as controls. Stale or missing OI is not
+filled as zero or ordinary. This is not a tick-level vendor profile, a
+session-specific VWAP, a private-positioning read, or an execution model.
+
+The research lead is [BikoTrading's public X composite-profile, VWAP and OI
+reference](https://x.com/Yuriy_Biko/status/2019758474754691106). Definitions
+are cross-checked against [TradingView's volume-profile concepts](https://www.tradingview.com/support/solutions/43000502040-volume-profile-indicators-basic-concepts/),
+[TradingView's VWAP calculation](https://www.tradingview.com/support/solutions/43000502018-volume-weighted-average-price-vwap/),
+and [Binance's official open-interest history documentation](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics).
+
+```bash
+python3 examples/crypto/microstructure/crypto_profile_vwap_oi_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --oi-exchange binance --oi-interval 5m --days 30 \
+  --lookback-bars 48 --bins 24 --value-area-fraction 0.70 \
+  --min-oi-change-pct 0.10 --oi-lookback-bars 12 \
   --horizon-bars 8 --min-observations 5
 ```
 

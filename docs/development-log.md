@@ -2147,3 +2147,20 @@ backfilled before defining that day's opening range.
 Provenance: the session framing follows [TradingView's day-range definition](https://www.tradingview.com/support/solutions/43000703653-day-s-range/),
 the public breakout lead is [Binance Square's market-structure discussion](https://www.binance.com/en/square/post/35953981408314),
 and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — Profile/VWAP/OI confluence response replay
+
+Added `crypto_profile_vwap_oi_response_replay.py` under the microstructure
+family. The case makes the public “composite profile + VWAP + open interest”
+idea falsifiable: a close must be outside a prior OHLCV value area, on the same
+side of a trailing lookback VWAP, and accompanied by a fresh matching OI
+change. Non-confluence, inside-value-area and missing/stale-OI states remain
+separate controls. The profile and VWAP are transparent candle proxies; OI is
+aggregate provider data, not position ownership. No support/resistance,
+execution, fill, stop or carry-PnL claim is added.
+
+Provenance: the public research lead is [BikoTrading's composite-profile,
+VWAP and OI reference on X](https://x.com/Yuriy_Biko/status/2019758474754691106).
+Definitions are bounded by [TradingView's volume-profile concepts](https://www.tradingview.com/support/solutions/43000502040-volume-profile-indicators-basic-concepts/),
+[TradingView's VWAP calculation](https://www.tradingview.com/support/solutions/43000502018-volume-weighted-average-price-vwap/),
+and [Binance's official open-interest statistics documentation](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics).
