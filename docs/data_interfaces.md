@@ -25,7 +25,7 @@ downloadable version described below.
 
 ## Release Binary Quick Start
 
-Version `v0.0.5` is shipped as downloadable binary packages from GitHub Actions
+Version `v0.0.6` is shipped as downloadable binary packages from GitHub Actions
 and GitHub Releases.
 
 Download the latest release from:
@@ -36,17 +36,17 @@ All releases are listed at:
 
 | Platform | File |
 |---|---|
-| Linux 64-bit x86 | `market-bridge-v0.0.5-linux-x86_64.tar.gz` |
-| Linux 32-bit x86 | `market-bridge-v0.0.5-linux-i686.tar.gz` |
-| macOS Intel | `market-bridge-v0.0.5-macos-x86_64.tar.gz` |
-| macOS Apple Silicon | `market-bridge-v0.0.5-macos-aarch64.tar.gz` |
-| Windows 64-bit | `market-bridge-v0.0.5-windows-x86_64.zip` |
+| Linux 64-bit x86 | `market-bridge-v0.0.6-linux-x86_64.tar.gz` |
+| Linux 32-bit x86 | `market-bridge-v0.0.6-linux-i686.tar.gz` |
+| macOS Intel | `market-bridge-v0.0.6-macos-x86_64.tar.gz` |
+| macOS Apple Silicon | `market-bridge-v0.0.6-macos-aarch64.tar.gz` |
+| Windows 64-bit | `market-bridge-v0.0.6-windows-x86_64.zip` |
 
 Linux/macOS:
 
 ```bash
-tar -xzf market-bridge-v0.0.5-linux-x86_64.tar.gz
-cd market-bridge-v0.0.5-linux-x86_64
+tar -xzf market-bridge-v0.0.6-linux-x86_64.tar.gz
+cd market-bridge-v0.0.6-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```
@@ -54,8 +54,8 @@ MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 Windows PowerShell:
 
 ```powershell
-Expand-Archive .\market-bridge-v0.0.5-windows-x86_64.zip
-cd .\market-bridge-v0.0.5-windows-x86_64\market-bridge-v0.0.5-windows-x86_64
+Expand-Archive .\market-bridge-v0.0.6-windows-x86_64.zip
+cd .\market-bridge-v0.0.6-windows-x86_64\market-bridge-v0.0.6-windows-x86_64
 $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 .\market-bridge.exe
 ```

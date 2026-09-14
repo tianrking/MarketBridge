@@ -21,6 +21,9 @@
 | 预测市场 | 公开成交流、校准和结算回放 | [`prediction/`](prediction/README.zh-CN.md) |
 | 天气 | 确定性观测和市场校准输入 | [`weather/`](weather/README.zh-CN.md) |
 
+共享的 [`crypto/strategy/`](crypto/strategy/README.zh-CN.md) 运行器为 Python 研究者提供
+统一入口；它不会替代各分类指南，也不会引入第二套数据契约。
+
 ## 统一研究流程
 
 1. 用只读研究配置启动 MarketBridge。
@@ -54,5 +57,6 @@ PYTHONPATH=examples/crypto/options:examples/crypto/defi:examples/crypto/microstr
 python3 -m compileall -q examples
 ```
 
-策略接入验收清单见 [`docs/user-guide/12-strategy-intake.md`](../docs/user-guide/12-strategy-intake.md)；
+策略接入验收清单见 [`docs/user-guide/12-strategy-intake.md`](../docs/user-guide/12-strategy-intake.md)，
+共享运行器说明见 [`crypto/strategy/README.zh-CN.md`](crypto/strategy/README.zh-CN.md)；
 完整案例、出处和限制见 [`README.md`](README.md)。

@@ -72,9 +72,14 @@ python3 -m compileall -q examples
 [`docs/development-log.md`](../docs/development-log.md)。
 
 <details>
-<summary>Entrypoint index / Python 入口索引</summary>
+<summary>Crypto entrypoint index / 加密案例入口索引</summary>
 
-+- `basis_carry_monitor.py`
+This list contains the runnable case scripts under `examples/crypto/`.
+Compatibility launchers (`crypto/entrypoint.py` and the shared
+`crypto/strategy/` runner) are documented separately above and are intentionally
+not repeated as research cases.
+
+- `basis_carry_monitor.py`
 - `crypto_basis_recorder.py`
 - `crypto_basis_replay.py`
 - `crypto_coinbase_premium_historical_replay.py`

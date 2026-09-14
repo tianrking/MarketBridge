@@ -7,6 +7,11 @@ entry point. The Chinese step-by-step research
 manual is at [user-guide/README.md](user-guide/README.md), including setup,
 models, live scanning, archives, SDKs, the workbench and operational boundaries.
 
+For runnable strategy research, use the bilingual
+[`examples/`](../examples/README.en.md) index. It is Python-first and keeps
+case hypotheses, commands, provenance and limitations next to each family;
+this directory remains the API, architecture and operations reference.
+
 Current documented release: `v0.0.6`
 
 Unreleased research-platform work is documented separately in
@@ -59,8 +64,8 @@ All releases:
 Linux/macOS example:
 
 ```bash
-tar -xzf market-bridge-v0.0.5-linux-x86_64.tar.gz
-cd market-bridge-v0.0.5-linux-x86_64
+tar -xzf market-bridge-v0.0.6-linux-x86_64.tar.gz
+cd market-bridge-v0.0.6-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```

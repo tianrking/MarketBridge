@@ -16,6 +16,10 @@ hypothesis.
 | Sentiment | fear/greed, news, social metrics | [`sentiment/README.en.md`](sentiment/README.en.md) |
 | Universe | breadth, rankings, pairs, regime context | [`universe/README.en.md`](universe/README.en.md) |
 
+The shared [`strategy/README.en.md`](strategy/README.en.md) runner provides a
+small Python CLI for common read-only cases. It is a convenience layer; the
+family guides remain the source of truth for each hypothesis and limitation.
+
 ## File roles
 
 - `*_monitor.py` reads a current MarketBridge response and prints structured evidence.

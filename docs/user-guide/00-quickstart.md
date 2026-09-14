@@ -6,7 +6,8 @@ MarketBridge 是数据与研究服务，不是自动交易机器人。没有交�
 ## 1. 启动当前源码
 
 在项目根目录运行以下 PowerShell 命令。需要 Rust stable 与 Windows C++ 编译工具。
-旧 `v0.0.5` 发布包不包含本轮未发布功能，不能拿旧包验证本手册。
+下载的 `v0.0.6` 发布包不包含当前源码中尚未发布的研究增量；需要验证最新源码行为时，
+请按本节从源码构建。
 
 ```powershell
 cargo +stable build --locked

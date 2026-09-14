@@ -14,6 +14,9 @@ HTTP/WebSocket API。下面各系列按验证假设所需的证据分类，全�
 | 情绪 | 恐惧贪婪、新闻、社交指标 | [`sentiment/README.zh-CN.md`](sentiment/README.zh-CN.md) |
 | 资产宇宙 | breadth、排名、配对、市场状态 | [`universe/README.zh-CN.md`](universe/README.zh-CN.md) |
 
+共享 [`strategy/README.zh-CN.md`](strategy/README.zh-CN.md) 运行器提供常用只读案例的
+Python CLI。它只是便捷层；每个假设和限制仍以各分类指南为准。
+
 ## 文件职责
 
 - `*_monitor.py` 读取当前 MarketBridge 响应并输出结构化证据。

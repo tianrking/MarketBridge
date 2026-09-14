@@ -23,6 +23,10 @@ Chinese guide at `README.zh-CN.md`.
 | Prediction markets | public trade flow, calibration and settlement replay | [`prediction/`](prediction/README.en.md) |
 | Weather | deterministic observations and market-calibration inputs | [`weather/`](weather/README.en.md) |
 
+The shared [`crypto/strategy/`](crypto/strategy/README.en.md) runner is a
+convenience entry point for Python-first researchers. It does not replace the
+family guides or introduce another data contract.
+
 ## Standard research loop
 
 1. Start MarketBridge with a read-only research configuration.
@@ -59,5 +63,6 @@ python3 -m compileall -q examples
 ```
 
 See [`docs/user-guide/12-strategy-intake.md`](../docs/user-guide/12-strategy-intake.md)
-for the acceptance checklist and [`README.md`](README.md) for the complete
+for the acceptance checklist, [`crypto/strategy/README.en.md`](crypto/strategy/README.en.md)
+for the shared runner, and [`README.md`](README.md) for the complete
 case-by-case inventory and provenance links.

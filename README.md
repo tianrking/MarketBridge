@@ -593,11 +593,11 @@ GitHub Actions builds release packages for:
 
 | Package suffix | Download file | Use when |
 |---|---|---|
-| `linux-x86_64` | `market-bridge-v0.0.5-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
-| `linux-i686` | `market-bridge-v0.0.5-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
-| `macos-x86_64` | `market-bridge-v0.0.5-macos-x86_64.tar.gz` | Intel Mac. |
-| `macos-aarch64` | `market-bridge-v0.0.5-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
-| `windows-x86_64` | `market-bridge-v0.0.5-windows-x86_64.zip` | 64-bit Windows. |
+| `linux-x86_64` | `market-bridge-v0.0.6-linux-x86_64.tar.gz` | Normal 64-bit Intel/AMD Linux server or desktop. |
+| `linux-i686` | `market-bridge-v0.0.6-linux-i686.tar.gz` | 32-bit x86 Linux environments only. Most users should not pick this. |
+| `macos-x86_64` | `market-bridge-v0.0.6-macos-x86_64.tar.gz` | Intel Mac. |
+| `macos-aarch64` | `market-bridge-v0.0.6-macos-aarch64.tar.gz` | Apple Silicon Mac, M1/M2/M3/M4. |
+| `windows-x86_64` | `market-bridge-v0.0.6-windows-x86_64.zip` | 64-bit Windows. |
 
 Each package contains:
 
@@ -612,8 +612,8 @@ Each package contains:
 Linux/macOS usage:
 
 ```bash
-tar -xzf market-bridge-v0.0.5-linux-x86_64.tar.gz   # replace suffix for your platform
-cd market-bridge-v0.0.5-linux-x86_64
+tar -xzf market-bridge-v0.0.6-linux-x86_64.tar.gz   # replace suffix for your platform
+cd market-bridge-v0.0.6-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```
@@ -627,8 +627,8 @@ xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
 Windows PowerShell:
 
 ```powershell
-Expand-Archive .\market-bridge-v0.0.5-windows-x86_64.zip
-cd .\market-bridge-v0.0.5-windows-x86_64\market-bridge-v0.0.5-windows-x86_64
+Expand-Archive .\market-bridge-v0.0.6-windows-x86_64.zip
+cd .\market-bridge-v0.0.6-windows-x86_64\market-bridge-v0.0.6-windows-x86_64
 $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 .\market-bridge.exe
 ```

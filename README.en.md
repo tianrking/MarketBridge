@@ -14,6 +14,7 @@ positions, or claims live-account PnL.
 |---|---|
 | Run the local data service | [`config.research.yaml`](config.research.yaml) and the [quick start](#quick-start) below |
 | Browse Python strategy cases | [`examples/README.en.md`](examples/README.en.md) |
+| Run the shared Python strategy CLI | [`examples/crypto/strategy/README.en.md`](examples/crypto/strategy/README.en.md) |
 | Read the crypto family map | [`examples/crypto/README.en.md`](examples/crypto/README.en.md) |
 | Check API contracts and field semantics | [`docs/data_interfaces.md`](docs/data_interfaces.md) |
 | Understand implemented versus planned features | [`docs/feature_inventory.md`](docs/feature_inventory.md) |
@@ -81,3 +82,8 @@ rustup run 1.97.1 cargo clippy --locked --all-targets --all-features -- -D warni
 - [English examples guide](examples/README.en.md) · [中文案例 guide](examples/README.zh-CN.md)
 - [Development evidence and provenance](docs/development-log.md)
 - [Data-interface contracts](docs/data_interfaces.md)
+
+The documentation is intentionally split into three layers: this quickstart
+for orientation, the bilingual `examples/` guides for runnable research cases,
+and `docs/` for API contracts, operations and architecture. Each layer keeps
+the same read-only boundary and links to the next level of detail.

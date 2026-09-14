@@ -17,6 +17,10 @@ commands, provenance and limitations.
 | Sentiment / 情绪 | Fear & Greed、news、social | [`EN`](sentiment/README.en.md) · [`中文`](sentiment/README.zh-CN.md) |
 | Universe / 资产宇宙 | breadth、ranking、pairs | [`EN`](universe/README.en.md) · [`中文`](universe/README.zh-CN.md) |
 
+共享 Python 运行器：[`strategy/README.en.md`](strategy/README.en.md) ·
+[`中文`](strategy/README.zh-CN.md)。它只是统一 CLI 入口，数据契约仍由 Rust API
+和各分类案例维护。
+
 ## Shared workflow / 统一流程
 
 `monitor → recorder(JSONL) → replay → review coverage and invalidation`

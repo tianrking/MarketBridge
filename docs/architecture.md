@@ -63,14 +63,14 @@ background telemetry is not the same thing as running every Python strategy.
 
 ## Distribution
 
-Version `v0.0.5` is published as a standalone binary package. The package
+Version `v0.0.6` is published as a standalone binary package. The package
 contains the `market-bridge` binary, example config files, `README.md`, `docs/`,
 and a `VERSION` file.
 
 Release automation lives in `.github/workflows/release.yml`:
 
 - pushes to `main` or `master` build downloadable workflow artifacts;
-- tag pushes such as `v0.0.5` build the same artifacts and attach them to a
+- tag pushes such as `v0.0.6` build the same artifacts and attach them to a
   GitHub Release;
 - supported packages are Linux x86_64, Linux i686, macOS x86_64, macOS aarch64,
   and Windows x86_64.

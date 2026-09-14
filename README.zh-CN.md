@@ -40,6 +40,7 @@
 |---|---|
 | 启动本地数据 API | [`config.research.yaml`](config.research.yaml)，然后运行 `cargo run --release` |
 | 查看 Python 策略案例 | [`examples/README.md`](examples/README.md) |
+| 运行共享 Python 策略 CLI | [`examples/crypto/strategy/README.zh-CN.md`](examples/crypto/strategy/README.zh-CN.md) |
 | 查 API 契约和字段语义 | [`docs/data_interfaces.md`](docs/data_interfaces.md) |
 | 做可复现回放 | [`examples/crypto/`](examples/crypto/README.md) |
 | 查已实现与规划 | [`docs/feature_inventory.md`](docs/feature_inventory.md) |
@@ -179,15 +180,15 @@ REST 轮询不要盲目压低，先确认对应公共 API 的限速。
 历史版本列表：
 [https://github.com/tianrking/MarketBridge/releases](https://github.com/tianrking/MarketBridge/releases)。
 
-`v0.0.5` 发布包由 GitHub Actions 构建。不同平台下载对应文件：
+`v0.0.6` 发布包由 GitHub Actions 构建。不同平台下载对应文件：
 
 | 平台 | 下载文件 | 适用场景 |
 |---|---|---|
-| Linux 64 位 x86 | `market-bridge-v0.0.5-linux-x86_64.tar.gz` | 普通 64 位 Linux 服务器或桌面。 |
-| Linux 32 位 x86 | `market-bridge-v0.0.5-linux-i686.tar.gz` | 仅 32 位 x86 Linux 使用。大多数用户不需要。 |
-| macOS Intel | `market-bridge-v0.0.5-macos-x86_64.tar.gz` | Intel Mac。 |
-| macOS Apple Silicon | `market-bridge-v0.0.5-macos-aarch64.tar.gz` | M1 / M2 / M3 / M4 Mac。 |
-| Windows 64 位 | `market-bridge-v0.0.5-windows-x86_64.zip` | 64 位 Windows。 |
+| Linux 64 位 x86 | `market-bridge-v0.0.6-linux-x86_64.tar.gz` | 普通 64 位 Linux 服务器或桌面。 |
+| Linux 32 位 x86 | `market-bridge-v0.0.6-linux-i686.tar.gz` | 仅 32 位 x86 Linux 使用。大多数用户不需要。 |
+| macOS Intel | `market-bridge-v0.0.6-macos-x86_64.tar.gz` | Intel Mac。 |
+| macOS Apple Silicon | `market-bridge-v0.0.6-macos-aarch64.tar.gz` | M1 / M2 / M3 / M4 Mac。 |
+| Windows 64 位 | `market-bridge-v0.0.6-windows-x86_64.zip` | 64 位 Windows。 |
 
 每个发布包包含：
 
@@ -203,8 +204,8 @@ REST 轮询不要盲目压低，先确认对应公共 API 的限速。
 Linux / macOS：
 
 ```bash
-tar -xzf market-bridge-v0.0.5-linux-x86_64.tar.gz
-cd market-bridge-v0.0.5-linux-x86_64
+tar -xzf market-bridge-v0.0.6-linux-x86_64.tar.gz
+cd market-bridge-v0.0.6-linux-x86_64
 chmod +x ./market-bridge
 MARKETBRIDGE_CONFIG=./config.yaml ./market-bridge
 ```
@@ -218,8 +219,8 @@ xattr -d com.apple.quarantine ./market-bridge 2>/dev/null || true
 Windows PowerShell：
 
 ```powershell
-Expand-Archive .\market-bridge-v0.0.5-windows-x86_64.zip
-cd .\market-bridge-v0.0.5-windows-x86_64\market-bridge-v0.0.5-windows-x86_64
+Expand-Archive .\market-bridge-v0.0.6-windows-x86_64.zip
+cd .\market-bridge-v0.0.6-windows-x86_64\market-bridge-v0.0.6-windows-x86_64
 $env:MARKETBRIDGE_CONFIG = ".\config.yaml"
 .\market-bridge.exe
 ```
