@@ -55,6 +55,7 @@ Cases:
 - `crypto_anchored_vwap_replay.py`: prior swing-low/high anchored VWAP reclaim/rejection versus a fixed-horizon response.
 - `crypto_volume_profile_breakout_replay.py`: tests whether an OHLCV-approximated low-volume-node breach continues over a fixed horizon.
 - `crypto_atr_regime_response_replay.py`: separates compressed, ordinary and expanded ATR states and compares later signed, absolute and path-risk responses.
+- `crypto_breakout_retest_response_replay.py`: tests a prior-range breakout followed by a bounded touch-and-reclaim retest against later aligned returns.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -522,6 +523,11 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 它不预测方向、不计算仓位、不设置止损，也不执行交易。研究线索来自
 [X 上的 regime/ATR 讨论](https://x.com/viviennaBTC/status/2037854988442235187)，计算口径对照
 [Binance Academy ATR 说明](https://www.binance.com/en/square/post/510812)。
+
+`crypto_breakout_retest_response_replay.py` 研究与 sweep 相反的延续路径：收盘突破前序回看区间后，在限定窗口内触及被突破水平，并重新收在突破方向一侧；响应从回踩收盘开始。
+它不把 OHLCV 水平解释为真实支撑/阻力、挂单或成交保证。研究线索来自
+[Rekt Capital 在 X 的 BTC 突破/回踩讨论](https://x.com/rektcapital/status/1850982324621676715)，并对照
+[Binance Academy 的加密突破说明](https://www.binance.com/en/academy/articles/a-beginners-guide-to-swing-trading-cryptocurrency)。
 匹配时钟只是证伪工具，不识别行为主体、不证明因果，也不生成择时指令。
 
 `crypto_anchored_vwap_replay.py` 与 session VWAP 分开：每根 K 线只从前置回看窗口选择 swing low 或 swing high，
@@ -762,6 +768,11 @@ python3 examples/crypto/microstructure/crypto_atr_regime_response_replay.py \
   --days 90 --atr-period 14 --regime-lookback 96 \
   --low-quantile 0.20 --high-quantile 0.80 \
   --horizon-bars 8 --min-observations 5
+python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --lookback-bars 24 --breakout-buffer-bps 2 \
+  --retest-window 8 --retest-tolerance-bps 15 --horizon-bars 8 \
+  --paper-cost-bps 10 --min-observations 5
 python3 examples/crypto/microstructure/crypto_footprint_imbalance_monitor.py \
   --exchange binance --market perp --symbol BTCUSDT --interval-ms 60000 \
   --scale 1 --imbalance-ratio 3 --stacked-imbalance-range 3 \

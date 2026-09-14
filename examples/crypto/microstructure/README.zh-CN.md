@@ -50,6 +50,19 @@ python3 examples/crypto/microstructure/crypto_atr_regime_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_breakout_retest_response_replay.py` 检验与 sweep 相反的延续假设：收盘突破前序区间后，在限定窗口内触及被突破水平，并重新收在突破方向一侧；未来窗口从回踩收盘开始，确保回踩先被观察再测量响应。
+它不推断真实支撑/阻力、挂单、成交量确认或成交。研究线索来自
+[Rekt Capital 在 X 的 BTC 突破/回踩讨论](https://x.com/rektcapital/status/1850982324621676715)，并对照
+[Binance Academy 的加密突破说明](https://www.binance.com/en/academy/articles/a-beginners-guide-to-swing-trading-cryptocurrency)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --lookback-bars 24 --breakout-buffer-bps 2 \
+  --retest-window 8 --retest-tolerance-bps 15 --horizon-bars 8 \
+  --paper-cost-bps 10 --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
 RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
 也不会把 X 帖子里的回撤描述变成预测。

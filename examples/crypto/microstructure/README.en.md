@@ -64,6 +64,23 @@ python3 examples/crypto/microstructure/crypto_atr_regime_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_breakout_retest_response_replay.py` tests the complementary
+continuation hypothesis: a close beyond a prior range followed by a bounded
+touch of the broken level and a close back on the breakout side. The forward
+window starts at the retest close, so the retest is observable before the
+response is measured. It does not infer true support/resistance, resting
+orders, volume confirmation, or fills. The research lead is
+[Rekt Capital's public BTC breakout/retest discussion](https://x.com/rektcapital/status/1850982324621676715),
+cross-checked with [Binance Academy's crypto breakout guidance](https://www.binance.com/en/academy/articles/a-beginners-guide-to-swing-trading-cryptocurrency).
+
+```bash
+python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --lookback-bars 24 --breakout-buffer-bps 2 \
+  --retest-window 8 --retest-tolerance-bps 15 --horizon-bars 8 \
+  --paper-cost-bps 10 --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
 hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
 average, does the next fixed number of weekly closes show a different signed

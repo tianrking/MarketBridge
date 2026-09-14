@@ -13,6 +13,18 @@ position-sizing engine, stop-loss engine or execution path.
 The research lead is the public [regime/ATR discussion on X](https://x.com/viviennaBTC/status/2037854988442235187).
 The true-range construction is cross-checked against [Binance Academy's ATR explanation](https://www.binance.com/en/square/post/510812).
 
+## 2026-09-14 — Added breakout/retest response replay
+
+Added `crypto_breakout_retest_response_replay.py` under microstructure. It
+detects a close outside a point-in-time prior range, requires a bounded later
+touch of the broken level and a close back on the breakout side, then starts a
+fixed response window at that retest close. The case keeps unobserved retests,
+range parameters, timing gaps and paper costs visible; it does not infer true
+support/resistance, resting orders, volume confirmation or execution.
+
+The research lead is [Rekt Capital's public BTC breakout/retest discussion](https://x.com/rektcapital/status/1850982324621676715),
+cross-checked with [Binance Academy's crypto breakout guidance](https://www.binance.com/en/academy/articles/a-beginners-guide-to-swing-trading-cryptocurrency).
+
 ## 2026-09-14 — Added OHLCV liquidity-sweep response replay
 
 Added `crypto_liquidity_sweep_response_replay.py` under microstructure. The
