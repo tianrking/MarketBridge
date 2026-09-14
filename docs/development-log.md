@@ -64,6 +64,20 @@ The research lead is [KM Trading's public X setup breakdown](https://x.com/KMTra
 Field semantics follow [Binance's official kline/candlestick documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data);
 the X terminology is narrowed to observable, falsifiable candle conditions.
 
+## 2026-09-14 — Added Fibonacci retracement response replay
+
+Added `crypto_fibonacci_retracement_response_replay.py` under microstructure.
+For each candle it selects a high and low from a trailing window that ends
+before the candle, infers their chronological direction, and groups the
+direction-aware retracement ratio near 38.2%, 50% and 61.8% against control
+ranges. It reports later signed, direction-aligned and absolute responses while
+keeping the anchor proxy, tolerance, horizon and small samples explicit. The
+case does not claim support/resistance, discretionary chart intent or execution.
+
+The research lead is [a public WIF Fibonacci discussion on X](https://x.com/CryptoJournaal/status/2026693734063075685).
+Definitions are cross-checked against [Binance Academy's Fibonacci guide](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
+and [Binance's glossary](https://www.binance.com/en/academy/glossary/fibonacci-retracement).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.

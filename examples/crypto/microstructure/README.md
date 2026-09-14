@@ -58,6 +58,7 @@ Cases:
 - `crypto_breakout_retest_response_replay.py`: tests a prior-range breakout followed by a bounded touch-and-reclaim retest against later aligned returns.
 - `crypto_ichimoku_cloud_response_replay.py`: groups as-of cloud, Tenkan/Kijun and Chikou alignment states for later BTC response analysis.
 - `crypto_rsi_bollinger_extreme_response_replay.py`: separates joint RSI/Bollinger extremes from one-indicator and ordinary states.
+- `crypto_fibonacci_retracement_response_replay.py`: groups point-in-time 38.2%, 50% and 61.8% retracement zones against control ranges.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -541,6 +542,21 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 [X 上 BTC RSI + 上轨讨论](https://x.com/MichaelMOTTCM/status/1944846581611814956)，定义对照
 [Binance RSI 词典](https://www.binance.com/en/academy/glossary/relative-strength-index)
 和 [Bollinger Bands 说明](https://www.binance.com/en/square/post/42841)。
+
+`crypto_fibonacci_retracement_response_replay.py` 把 Fibonacci 回撤拆成可证伪的 OHLCV 响应研究：
+只用当前 K 线以前的回看窗口选 swing high/low，按高低点时间顺序计算方向，再比较 38.2%、50%、61.8% 附近、
+区间内其他位置和区间外的固定窗口响应。它是动态回看锚点的代理，不是主观画线、支撑/阻力保证或执行规则。
+研究线索来自 [X 上 WIF Fibonacci 讨论](https://x.com/CryptoJournaal/status/2026693734063075685)，
+定义对照 [Binance Academy Fibonacci 指南](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
+和 [Binance 词典](https://www.binance.com/en/academy/glossary/fibonacci-retracement)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --lookback-bars 90 --level-tolerance 0.03 \
+  --horizon-bars 6 --min-observations 5
+```
+
 匹配时钟只是证伪工具，不识别行为主体、不证明因果，也不生成择时指令。
 
 `crypto_anchored_vwap_replay.py` 与 session VWAP 分开：每根 K 线只从前置回看窗口选择 swing low 或 swing high，

@@ -90,6 +90,22 @@ python3 examples/crypto/microstructure/crypto_rsi_bollinger_extreme_response_rep
   --min-observations 5
 ```
 
+`crypto_fibonacci_retracement_response_replay.py` 只检验一个更窄的、point-in-time 回撤假设：
+在当前 K 线以前的回看窗口内选择高点和低点，按两者的时间顺序确定上涨或下跌方向，
+再把当前收盘价分到 38.2%、50% 或 61.8% 附近（另设区间内和区间外对照）。锚点窗口严格在当前 K 线之前结束，
+因此不会把未来 swing 泄漏到特征；输出比较后续有符号、方向对齐和绝对收益。
+它不声称 Fibonacci 水平必然是支撑/阻力，也不生成入场、止损或下单规则。研究线索来自
+[X 上 WIF 的 Fibonacci 讨论](https://x.com/CryptoJournaal/status/2026693734063075685)，定义对照
+[Binance Academy Fibonacci 指南](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
+和 [Binance 词典](https://www.binance.com/en/academy/glossary/fibonacci-retracement)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --lookback-bars 90 --level-tolerance 0.03 \
+  --horizon-bars 6 --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
 RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
 也不会把 X 帖子里的回撤描述变成预测。

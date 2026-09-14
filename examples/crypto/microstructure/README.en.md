@@ -115,6 +115,24 @@ python3 examples/crypto/microstructure/crypto_rsi_bollinger_extreme_response_rep
   --min-observations 5
 ```
 
+`crypto_fibonacci_retracement_response_replay.py` tests a narrower, point-in-time
+retracement hypothesis. It selects a trailing-window high and low, determines
+their chronological direction, and groups the current close near the 38.2%,
+50%, or 61.8% ratios (plus control ranges). The anchors end before the current
+candle, so the study does not use future swing information. It reports later
+signed, direction-aligned, and absolute returns; it does not claim that a level
+is support/resistance or create an entry, stop, or order rule. The research lead
+is [a public WIF Fibonacci discussion on X](https://x.com/CryptoJournaal/status/2026693734063075685),
+with definitions cross-checked against [Binance Academy's Fibonacci guide](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
+and [glossary](https://www.binance.com/en/academy/glossary/fibonacci-retracement).
+
+```bash
+python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --lookback-bars 90 --level-tolerance 0.03 \
+  --horizon-bars 6 --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
 hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
 average, does the next fixed number of weekly closes show a different signed
