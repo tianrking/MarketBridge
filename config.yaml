@@ -198,12 +198,13 @@ defi:
 
   meteora:
     enabled: false
+    # Legacy field retained for older DexScreener configs; native DLMM polling uses native_base_url.
     base_url: "https://api.dexscreener.com/"
+    native_base_url: "https://dlmm.datapi.meteora.ag/"
+    page_size: 50
     poll_secs: 10
     pairs:
       - symbol: SOLUSDC
-        chain_id: solana
-        dex_id: meteora
         query: "SOL USDC"
         spread_bps: 5.0
 

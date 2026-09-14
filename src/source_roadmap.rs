@@ -562,9 +562,9 @@ const ROADMAP: &[RoadmapSource] = &[
         product_types: DEX,
         domains: DEX_QUOTE,
         upstreams: UP_HB_GATEWAY,
-        marketbridge_status: "partial",
+        marketbridge_status: "implemented",
         priority: "P1",
-        notes: "DexScreener-backed Solana Meteora pool quote snapshots plus liquidity/volume/swap-count metrics wired; DLMM-native route depth remains planned.",
+        notes: "Official Meteora DLMM pool-page poller emits normalized top-pool quotes, TVL, 24h volume/fees, fee/TVL, dynamic-fee, bin-step, blacklist and pagination context; swap streams and transaction signing remain out of scope.",
     },
     RoadmapSource {
         source: "raydium",

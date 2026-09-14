@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — Meteora DLMM native pool context
+
+Replaced the Meteora-specific DexScreener-only path with the official public
+DLMM `/pools` API. The connector filters configured token pairs, normalizes the
+top-pool price, and emits TVL, 24-hour volume/fees, fee/TVL ratio, turnover,
+dynamic fee, bin step, blacklist and pagination metrics as `defi_native_state`.
+Added bilingual Python monitor/recorder/replay and a synchronized BTC response
+study. Provenance: [Meteora DLMM pools API](https://docs.meteora.ag/api-reference/dlmm/pools/pools).
+Partial pages remain observe-only; no swap, transaction, wallet, signing,
+position or LP-PnL path is included.
+
 ## 2026-09-14 — Orca Whirlpool public API context
 
 Upgraded the Orca source from DexScreener-only snapshots to the official

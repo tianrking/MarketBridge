@@ -17,9 +17,9 @@ pub use aggregates::{
 };
 pub use app::AppConfig;
 pub use defi::{
-    DefiConfig, DexScreenerConfig, DexScreenerPair, EvmQuotePair, JupiterConfig, OneInchConfig,
-    OrcaConfig, OrcaPair, ParaswapConfig, RaydiumConfig, RaydiumPair, SolanaQuotePair,
-    UniswapV3Config, UniswapV3Pool,
+    DefiConfig, DexScreenerConfig, DexScreenerPair, EvmQuotePair, JupiterConfig, MeteoraConfig,
+    MeteoraPair, OneInchConfig, OrcaConfig, OrcaPair, ParaswapConfig, RaydiumConfig, RaydiumPair,
+    SolanaQuotePair, UniswapV3Config, UniswapV3Pool,
 };
 pub use fees::ExchangeConfig;
 pub use klines::KlineConfig;

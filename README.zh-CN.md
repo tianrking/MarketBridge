@@ -378,7 +378,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | Order flow | buy/sell pressure、delta、CVD、大单数量 | `GET /v1/market/order-flow` | 暂无直接流 | 从 live trades 派生 | 否 |
 | Options 期权链 | strike、expiry、bid/ask/mark、IV 类字段、OI | `GET /v1/options/chains` | `WS /v1/stream?domains=options_chain` snapshot | REST cache，默认 10 秒 | 否 |
 | Polymarket | YES/NO CLOB book、spread、midpoint、可执行价格、price history、公开 trade history | `GET /v1/prediction/books`、`/v1/prediction/trades`、`/polymarket/*` | `WS /v1/stream?domains=prediction_book` snapshot | REST seed + CLOB WS patch + Data API history | 否 |
-| DeFi | Jupiter/Raydium/Orca/Uniswap/ParaSwap/1inch/DexScreener quote 或 pool price；Orca 另有 Whirlpool native state | `GET /v1/market/quotes?exchanges=...`、`GET /v1/external/signals?sources=orca` | quote 走 `market_quote`，池上下文走 `external_signal` | `poll_secs`，默认 10 秒 | 通常否，取决于 gateway |
+| DeFi | Jupiter/Raydium/Meteora DLMM/Orca/Uniswap/ParaSwap/1inch/DexScreener quote 或 pool price；Meteora/Orca 另有原生 pool state | `GET /v1/market/quotes?exchanges=...`、`GET /v1/external/signals?sources=meteora,orca` | quote 走 `market_quote`，池上下文走 `external_signal` | `poll_secs`，默认 10 秒 | 通常否，取决于 gateway |
 | TradFi / Macro | DXY、VIX、US10Y | `GET /v1/market/quotes?exchanges=dxy,vix,us10y` | 启用后走 `market_quote` | 通常 60 秒或更慢 | US10Y 需要 FRED key |
 | 聚合行情/衍生品信号 | CoinGecko/CoinCap/CMC price、CoinGlass derivatives metrics | `GET /v1/external/signals`，价格源也走 quote surface | `external_signal` | 通常 60 秒或更慢 | 部分需要 |
 | 情绪/新闻 | Fear & Greed、CryptoPanic、Santiment、LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | source-specific poll | Fear & Greed 不需要，其余多需要 |
@@ -997,6 +997,10 @@ Raydium 现在也有一组原生状态案例：将 API v3 的池分页归一化�
 Python monitor/recorder/replay 检验高换手的分散或集中状态是否持续，并提供有界 BTC 响应研究；分页不完整时始终保持 observe-only。
 Orca 现在也接入公开 Whirlpool REST API：将 TVL、24 小时 volume/fees、yield-over-TVL、warning、adaptive-fee 和 cursor 上下文归一化，
 配套 Python monitor/recorder/replay 与有界 BTC 响应研究；cursor 分页和未知 active tick range 始终作为显式缺口。
+
+Meteora 现在也接入官方 DLMM `/pools` API：将分页、TVL、24 小时 volume/fees、fee/TVL、dynamic fee、bin step 和 blacklist
+上下文归一化，配套 `examples/crypto/defi/crypto_meteora_dlmm_*` 的 Python monitor/recorder/replay 与 BTC 响应研究。
+分页未完整时始终 observe-only；它是数据与研究案例，不构造 swap、不签名钱包、不下单。
 同时新增稳定币 USDC/USDT rotation replay：统一处理 `USDCUSDT` 与 `USDTUSDC` 两种报价方向，检验 USDC 折溢价与 BTC
 之后方向是否对齐；不声称资金流因果，也不执行兑换。
 同系列还提供 `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short、

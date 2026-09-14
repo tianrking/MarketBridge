@@ -220,3 +220,38 @@ python3 examples/crypto/defi/crypto_stablecoin_rotation_response_replay.py \
   --input work/crypto-stablecoin-depeg.jsonl --horizon-snapshots 3 \
   --threshold-bps 5 --min-observations 5
 ```
+
+## Meteora DLMM / Meteora DLMM（English + 中文）
+
+`crypto_meteora_dlmm_monitor.py` / recorder / replay use the official Meteora
+DLMM `/pools` snapshot. The falsifiable case is whether high top-pool 24-hour
+turnover combined with fee/TVL or dynamic-fee pressure persists. Pagination and
+blacklist context remain visible; partial pages stay observe-only. It does not
+claim active-bin depth, LP income or executable routing.
+
+Provenance: [Meteora DLMM pools API](https://docs.meteora.ag/api-reference/dlmm/pools/pools),
+which documents `tvl`, `volume.24h`, `fees.24h`, `fee_tvl_ratio.24h`,
+`dynamic_fee_pct`, `bin_step`, `is_blacklisted` and page fields. The response
+recorder/replay pairs these states with BTC quotes for a descriptive study.
+
+中文：这一案例使用 Meteora 官方 DLMM `/pools` 快照，检验“头部池 24 小时换手率较高且
+fee/TVL 或 dynamic fee 偏高”的状态是否持续。程序保留分页和 blacklist 上下文，分页未结束时
+保持 observe-only，不声称 active bin 深度、LP 收入或可执行路由；response recorder/replay
+再与 BTC 报价做固定记录窗口的描述性对照。MarketBridge 只做数据与研究，不构造 swap、不签名钱包、不下单。
+
+```bash
+python3 examples/crypto/defi/crypto_meteora_dlmm_monitor.py \
+  --symbols SOLUSDC --min-turnover-ratio 1.0 --min-fee-tvl-ratio 0.05
+python3 examples/crypto/defi/crypto_meteora_dlmm_recorder.py \
+  --symbols SOLUSDC --iterations 30 --interval-secs 60 \
+  --output work/crypto-meteora-dlmm.jsonl
+python3 examples/crypto/defi/crypto_meteora_dlmm_replay.py \
+  --input work/crypto-meteora-dlmm.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_meteora_dlmm_response_recorder.py \
+  --symbols SOLUSDC --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 60 \
+  --output work/crypto-meteora-dlmm-response.jsonl
+python3 examples/crypto/defi/crypto_meteora_dlmm_response_replay.py \
+  --input work/crypto-meteora-dlmm-response.jsonl --horizon-records 3 \
+  --min-observations 5
+```

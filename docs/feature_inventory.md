@@ -136,8 +136,8 @@ Status labels:
 | Source | Quote | Pool/book snapshot | Trades | API key | Notes |
 |---|---:|---:|---:|---:|---|
 | Jupiter | implemented | planned | planned | keyless | Solana aggregator quote API. |
-| Meteora | implemented | implemented | partial | keyless | DexScreener-backed Solana pool quote snapshots plus liquidity/volume/swap-count metrics. |
-| Orca | implemented | implemented | partial | keyless | DexScreener-backed Solana pool quote snapshots plus liquidity/volume/swap-count metrics. |
+| Meteora | implemented | implemented | partial | keyless | Official DLMM pool snapshots plus normalized quote, TVL, 24h volume/fees, fee/TVL, dynamic-fee, bin-step and pagination context. |
+| Orca | implemented | implemented | partial | keyless | Official Whirlpool pool snapshots plus TVL/volume/fee and CLMM risk context. |
 | Raydium | implemented | partial | planned | keyless | Raydium token price map. |
 | Uniswap V3 | implemented | implemented | partial | keyless | Subgraph pool price plus liquidity/TVL/volume/txCount snapshots. |
 | ParaSwap | implemented | planned | planned | keyless | EVM aggregator quote API. |
@@ -160,7 +160,7 @@ public endpoint is later confirmed.
 |---|---|---:|---|
 | Architect | Open interest | partial | OI normalization is wired for keyed payloads that expose OI fields; live endpoint validation still requires credentials. |
 | Decibel | Open interest | partial | OI normalization is wired for keyed market_price payloads that expose OI fields; live endpoint validation still requires credentials and market-address discovery. |
-| DeFi native state | Pool liquidity, route depth, swaps/trades | partial | DexScreener-backed pool sources emit liquidity, volume, and swap-count metrics; Uniswap V3 subgraph emits liquidity/TVL/volume/txCount; Jupiter emits a configured read-only quote-size/route-impact ladder; Raydium API v3 emits paginated pool aggregates and top-pool concentration; Orca public API emits Whirlpool TVL/volume/fee and CLMM risk context. Protocol-native swap streams remain connector-specific extensions. |
+| DeFi native state | Pool liquidity, route depth, swaps/trades | partial | DexScreener-backed pool sources emit liquidity, volume, and swap-count metrics; Uniswap V3 subgraph emits liquidity/TVL/volume/txCount; Jupiter emits a configured read-only quote-size/route-impact ladder; Raydium API v3 emits paginated pool aggregates and top-pool concentration; Orca and Meteora public APIs emit native CLMM/DLMM pool context. Protocol-native swap streams remain connector-specific extensions. |
 | Options websocket depth/trade parity | Native WS book/trades across Deribit/OKX/Bybit/Binance | partial | REST chain and per-instrument depth are wired; Deribit/OKX/Bybit/Binance WS ticker/summary updates refresh the option cache. Native WS option book/trade streams remain a latency extension, not a missing research input. |
 | Aggregator signal layer | Funding/OI/trade/liquidation analytics | implemented | SpreadAggregator emits funding divergence, OI change, trade imbalance, liquidation burst, and depth-pressure signals from normalized events. |
 

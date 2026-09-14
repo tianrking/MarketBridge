@@ -183,7 +183,8 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=meteora,orca,uniswap_
 | Uniswap V3 | implemented | Pool liquidity, TVL, volume, txCount from subgraph. | keyless by default subgraph |
 | ParaSwap | implemented | Route quote only. | keyless by default base URL |
 | 1inch | implemented configurable | Route quote only; newer gateways may need a different `base_url` or provider key. | keyless/config-dependent |
-| Meteora / PancakeSwap / Balancer / Curve / SushiSwap / QuickSwap / Trader Joe / ETCSwap | implemented | DexScreener-backed liquidity, volume, and swap-count metrics. | keyless |
+| PancakeSwap / Balancer / Curve / SushiSwap / QuickSwap / Trader Joe / ETCSwap | implemented | DexScreener-backed liquidity, volume, and swap-count metrics. | keyless |
+| Meteora DLMM | implemented | Official public `/pools` snapshots with pagination, TVL, 24h volume/fees, fee/TVL ratio, dynamic fee, bin step and blacklist context. | keyless |
 | Orca Whirlpools | implemented | Official public API pool search with TVL, 24h volume/fees, yield/TVL, warning, adaptive-fee and cursor metrics as `defi_native_state`. | keyless |
 
 ## Aggregate, Macro, And Sentiment Sources

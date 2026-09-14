@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::connectors::defi::dexscreener::DexScreenerPoller;
 use crate::connectors::defi::jupiter::JupiterQuotePoller;
+use crate::connectors::defi::meteora::MeteoraDlmmPoller;
 use crate::connectors::defi::oneinch::OneInchQuotePoller;
 use crate::connectors::defi::orca::OrcaWhirlpoolPoller;
 use crate::connectors::defi::paraswap::ParaswapQuotePoller;
@@ -17,10 +18,7 @@ pub(super) fn push_sources(out: &mut Vec<Arc<dyn ExchangeSource>>, ctx: &Registr
         out.push(Arc::new(JupiterQuotePoller::new(cfg.defi.jupiter.clone())));
     }
     if cfg.defi.meteora.enabled {
-        out.push(Arc::new(DexScreenerPoller::new(
-            "meteora",
-            cfg.defi.meteora.clone(),
-        )));
+        out.push(Arc::new(MeteoraDlmmPoller::new(cfg.defi.meteora.clone())));
     }
     if cfg.defi.orca.enabled {
         out.push(Arc::new(OrcaWhirlpoolPoller::new(cfg.defi.orca.clone())));

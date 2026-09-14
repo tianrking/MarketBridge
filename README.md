@@ -777,6 +777,7 @@ credential is absent.
 |---|---:|---|---|
 | Jupiter quotes | Implemented | `GET /v1/market/quotes?exchanges=jupiter` | Polls public Jupiter quote REST and emits normalized `market_quote` ticks. |
 | Raydium prices | Implemented | `GET /v1/market/quotes?exchanges=raydium` | Polls Raydium public price map and computes configured pair ratios. |
+| Meteora DLMM context | Implemented | `GET /v1/market/quotes?exchanges=meteora`, `GET /v1/external/signals?sources=meteora` | Polls the official DLMM pool pages and emits TVL, 24h volume/fees, fee/TVL, dynamic-fee, bin-step, blacklist and pagination metrics. |
 | Orca Whirlpool context | Implemented | `GET /v1/market/quotes?exchanges=orca`, `GET /v1/external/signals?sources=orca` | Polls official public Whirlpool search and emits normalized quotes plus TVL/volume/fee/warning/adaptive-fee/cursor metrics. |
 | Uniswap V3 pool prices | Implemented | `GET /v1/market/quotes?exchanges=uniswap_v3` | Polls configured V3 pools from a GraphQL subgraph. This is pool price, not routed execution. |
 | ParaSwap quotes | Implemented | `GET /v1/market/quotes?exchanges=paraswap` | Polls public `/prices` route and emits executable quote-derived prices. |

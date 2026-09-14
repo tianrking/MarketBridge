@@ -5,7 +5,7 @@ pub struct DefiConfig {
     #[serde(default)]
     pub jupiter: JupiterConfig,
     #[serde(default)]
-    pub meteora: DexScreenerConfig,
+    pub meteora: MeteoraConfig,
     #[serde(default)]
     pub orca: OrcaConfig,
     #[serde(default)]
@@ -42,6 +42,32 @@ pub struct JupiterConfig {
     pub poll_secs: u64,
     #[serde(default = "default_solana_quote_pairs")]
     pub pairs: Vec<SolanaQuotePair>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct MeteoraConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Retained for compatibility with the previous DexScreener-backed
+    /// configuration; native polling uses `native_base_url`.
+    #[serde(rename = "base_url", default = "default_dexscreener_base_url")]
+    pub _legacy_base_url: String,
+    #[serde(default = "default_meteora_native_base_url")]
+    pub native_base_url: String,
+    #[serde(default = "default_meteora_page_size")]
+    pub page_size: u32,
+    #[serde(default = "default_defi_poll_secs")]
+    pub poll_secs: u64,
+    #[serde(default = "default_meteora_pairs")]
+    pub pairs: Vec<MeteoraPair>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct MeteoraPair {
+    pub symbol: String,
+    pub query: String,
+    #[serde(default = "default_defi_spread_bps")]
+    pub spread_bps: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -138,7 +164,7 @@ pub struct DexScreenerConfig {
     pub base_url: String,
     #[serde(default = "default_defi_poll_secs")]
     pub poll_secs: u64,
-    #[serde(default = "default_meteora_pairs")]
+    #[serde(default = "default_dexscreener_pairs")]
     pub pairs: Vec<DexScreenerPair>,
 }
 
@@ -251,6 +277,14 @@ fn default_orca_stats() -> String {
     "24h,7d".to_string()
 }
 
+fn default_meteora_native_base_url() -> String {
+    "https://dlmm.datapi.meteora.ag/".to_string()
+}
+
+fn default_meteora_page_size() -> u32 {
+    50
+}
+
 fn default_uniswap_v3_subgraph_url() -> String {
     "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3".to_string()
 }
@@ -276,7 +310,15 @@ fn default_solana_quote_pairs() -> Vec<SolanaQuotePair> {
     }]
 }
 
-fn default_meteora_pairs() -> Vec<DexScreenerPair> {
+fn default_meteora_pairs() -> Vec<MeteoraPair> {
+    vec![MeteoraPair {
+        symbol: "SOLUSDC".to_string(),
+        query: "SOL USDC".to_string(),
+        spread_bps: default_defi_spread_bps(),
+    }]
+}
+
+fn default_dexscreener_pairs() -> Vec<DexScreenerPair> {
     vec![DexScreenerPair {
         symbol: "SOLUSDC".to_string(),
         chain_id: "solana".to_string(),
@@ -340,6 +382,19 @@ impl Default for DexScreenerConfig {
         Self {
             enabled: false,
             base_url: default_dexscreener_base_url(),
+            poll_secs: default_defi_poll_secs(),
+            pairs: default_dexscreener_pairs(),
+        }
+    }
+}
+
+impl Default for MeteoraConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            _legacy_base_url: default_dexscreener_base_url(),
+            native_base_url: default_meteora_native_base_url(),
+            page_size: default_meteora_page_size(),
             poll_secs: default_defi_poll_secs(),
             pairs: default_meteora_pairs(),
         }
