@@ -2215,3 +2215,20 @@ longer daily sample for the ETF-flow/stablecoin-supply matrix while the output
 retains the requested page count and provider coverage. This changes data
 coverage only; it does not alter the nine-state hypothesis, introduce causal
 claims, or add an execution path.
+
+## 2026-09-14 — crowded liquidation response replay and account-ratio pages
+
+Added the Python `crypto_crowded_liquidation_reversal_replay.py` case. It keeps
+the public liquidation/OI/crowding narrative falsifiable by requiring provider
+account-ratio imbalance, point-in-time OI decrease, observed side-labelled
+liquidation notional and a later fixed-window BTC response. Long-crowding and
+short-crowding flush contexts are compared with an ordinary positioning control;
+provider side labels are not universal long/short truth and no reversal trade is
+produced. Provenance: [CryptoData's public liquidation/OI discussion](https://x.com/TheCryptoData/status/1948466627365769584)
+and [Binance's official long/short ratio API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio).
+
+Extended `/v1/history/account-ratio` with bounded Binance `pages=1..48`
+time windows. Rows are filtered to caller bounds, sorted/deduplicated, and
+`coverage_detail.requested_pages` remains visible. Bybit keeps its provider
+cursor behavior. Added route and Python tests; no order, wallet, signing or
+execution path was introduced.

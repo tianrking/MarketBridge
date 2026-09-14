@@ -71,13 +71,16 @@ def main():
     parser.add_argument("--period", default="1h")
     parser.add_argument("--days", type=float, default=14.0)
     parser.add_argument("--limit", type=int, default=50)
+    parser.add_argument("--ratio-pages", type=int, default=1,
+                        help="bounded Binance history pages; Bybit keeps its provider cursor")
     parser.add_argument("--ratio-threshold", type=float, default=0.10)
     parser.add_argument("--oi-threshold", type=float, default=0.10)
     parser.add_argument("--horizon-bars", type=int, default=3)
     parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
-    if (args.days <= 0 or args.limit <= 0 or args.ratio_threshold < 0
+    if (args.days <= 0 or args.limit <= 0 or args.ratio_pages < 1 or args.ratio_pages > 48
+            or args.ratio_threshold < 0
             or args.oi_threshold < 0 or args.horizon_bars <= 0
             or args.min_observations <= 0 or args.timeout <= 0):
         parser.error("invalid window, threshold, horizon, observation or timeout argument")
@@ -87,7 +90,8 @@ def main():
               "end_ms": now_ms, "limit": min(args.limit, 500)}
     ratio_payload = fetch(args.base_url, "/v1/history/account-ratio",
                           {**common, "period": args.period,
-                           "scope": args.ratio_scope if args.exchange.lower() == "binance" else None}, args.timeout)
+                           "scope": args.ratio_scope if args.exchange.lower() == "binance" else None,
+                           "pages": args.ratio_pages if args.exchange.lower() == "binance" else None}, args.timeout)
     oi_payload = fetch(args.base_url, "/v1/history/open-interest",
                        {**common, "interval": args.period}, args.timeout)
     price_payload = fetch(args.base_url, "/v1/history/candles",
@@ -110,6 +114,7 @@ def main():
         "venue": args.exchange, "ratio_scope": args.ratio_scope, "period": args.period,
         "window": {"start_ms": start_ms, "end_ms": now_ms, "days": args.days},
         "filters": {"ratio_threshold": args.ratio_threshold, "oi_threshold": args.oi_threshold,
+                    "ratio_pages": args.ratio_pages,
                     "horizon_bars": args.horizon_bars, "min_observations": args.min_observations},
         "source_counts": {"account_ratio": len(ratios), "open_interest": len(oi), "price_bars": len(prices)},
         "observations": rows, "summary": summarize(rows),

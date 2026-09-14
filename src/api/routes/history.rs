@@ -74,6 +74,7 @@ pub struct HistoryAccountRatioQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -705,9 +706,12 @@ fn account_ratio_coverage_detail(
     q: &HistoryAccountRatioQuery,
     next_page_cursor: Option<&str>,
 ) -> Value {
-    let page_limit = q.limit.unwrap_or(50);
-    let status = if next_page_cursor.is_some() || rows.len() >= page_limit {
+    let page_limit = q.limit.unwrap_or(50).clamp(1, 500);
+    let requested_pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let status = if next_page_cursor.is_some() || rows.len() >= page_limit * requested_pages {
         "provider_page_may_be_truncated"
+    } else if requested_pages > 1 {
+        "bounded_paged_history"
     } else {
         "bounded_single_page"
     };
@@ -719,6 +723,7 @@ fn account_ratio_coverage_detail(
         "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
         "returned_rows": rows.len(),
         "page_limit": page_limit,
+        "requested_pages": requested_pages,
         "has_next_page": next_page_cursor.is_some(),
     })
 }
@@ -2102,29 +2107,44 @@ async fn fetch_binance_account_ratio(
         }
         other => bail!("unsupported Binance account-ratio period: {other}"),
     };
-    let limit = q.limit.unwrap_or(30).clamp(1, 500).to_string();
-    let mut request = http.get(endpoint).query(&[
-        ("symbol", symbol.as_str()),
-        ("period", period),
-        ("limit", limit.as_str()),
-    ]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
+    let page_limit = q.limit.unwrap_or(30).clamp(1, 500);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let period_ms = interval_to_ms(period).context("unsupported Binance account-ratio period")?;
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, period_ms, page_limit, pages)
+    {
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let limit = page_limit.to_string();
+        let payload = http
+            .get(endpoint)
+            .query(&[
+                ("symbol", symbol.as_str()),
+                ("period", period),
+                ("limit", limit.as_str()),
+                ("startTime", start_query.as_str()),
+                ("endTime", end_query.as_str()),
+            ])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Value>>()
+            .await
+            .context("failed to parse binance top account-ratio history")?;
+        for row in payload {
+            let timestamp = value_u64(row.get("timestamp"))
+                .context("missing Binance account-ratio timestamp")?;
+            if q.start_ms.is_some_and(|start| timestamp < start)
+                || q.end_ms.is_some_and(|end| timestamp > end)
+            {
+                continue;
+            }
+            rows.push(normalize_binance_account_ratio_row(row, source, semantics)?);
+        }
     }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Value>>()
-        .await
-        .context("failed to parse binance top account-ratio history")?;
-    let rows = payload
-        .into_iter()
-        .map(|row| normalize_binance_account_ratio_row(row, source, semantics))
-        .collect::<Result<Vec<_>>>()?;
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    rows.dedup_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
     Ok(AccountRatioResult {
         rows,
         next_page_cursor: None,
@@ -3060,6 +3080,7 @@ mod tests {
             start_ms: None,
             end_ms: None,
             limit: Some(2),
+            pages: None,
         };
         let detail = account_ratio_coverage_detail(
             &[serde_json::json!({"ts_ms": 1234})],
@@ -3071,6 +3092,24 @@ mod tests {
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")
         );
+    }
+
+    #[test]
+    fn account_ratio_coverage_reports_requested_pages() {
+        let query = HistoryAccountRatioQuery {
+            exchange: "binance".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            scope: Some("global".to_string()),
+            period: Some("1h".to_string()),
+            start_ms: Some(1),
+            end_ms: Some(10),
+            limit: Some(500),
+            pages: Some(4),
+        };
+        let detail =
+            account_ratio_coverage_detail(&[serde_json::json!({"ts_ms": 1})], &query, None);
+        assert_eq!(detail["requested_pages"], serde_json::json!(4));
+        assert_eq!(detail["status"], serde_json::json!("bounded_paged_history"));
     }
 
     #[test]

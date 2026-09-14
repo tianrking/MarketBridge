@@ -10,7 +10,7 @@
 | Confluence monitors | `short_squeeze_monitor.py`, `exhaustion_short_monitor.py`, `liquidation_reversal_monitor.py`, `crypto_microstructure_monitor.py` |
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
-| Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
+| Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `crypto_crowded_liquidation_reversal_replay.py`, `liquidation_reversal_replay.py` |
 | Session-range replay | `crypto_opening_range_breakout_response_replay.py` |
 | Profile/VWAP/OI confluence | `crypto_profile_vwap_oi_response_replay.py` |
 | Weekend reference replay | `crypto_weekend_gap_response_replay.py` |
@@ -26,6 +26,28 @@ venue/symbol instead of overwriting the previous event. Pass
 Binance, Bybit, BitMEX, Gate, and other enabled live feeds; use
 `--source history` for the OKX/CoinEx bounded-history path. Retention is not a
 complete historical ledger and feed gaps remain visible.
+
+`crypto_crowded_liquidation_reversal_replay.py` narrows a public positioning
+claim into a four-input test: provider account-ratio imbalance, point-in-time OI
+decrease, observed side-labelled liquidation notional and a later BTC response.
+It reports long-crowding and short-crowding flush contexts separately from an
+ordinary positioning control. It does not infer that a provider `sell` event is
+universally a long liquidation, and it does not output a reversal trade.
+
+```bash
+python3 examples/crypto/microstructure/crypto_crowded_liquidation_reversal_replay.py \
+  --symbol BTCUSDT --ratio-exchange binance --ratio-scope top_trader \
+  --liquidation-exchange okx --price-exchange binance --period 1h \
+  --days 14 --ratio-pages 4 --oi-pages 4 --price-pages 4 \
+  --ratio-threshold 0.10 --oi-drop-threshold 0.10 \
+  --min-liquidation-notional 1000000 --horizon-bars 3 \
+  --min-observations 5
+```
+
+The research lead is [CryptoData's public liquidation/OI discussion](https://x.com/TheCryptoData/status/1948466627365769584).
+The normalized account-ratio fields follow [Binance's official global long/short ratio API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio),
+which documents bounded periods and a maximum page size. Both sources motivate a
+testable context study only; they are not performance evidence.
 The liquidity-sandwich pair tests the narrower public-X claim that symmetric
 near-touch bid and ask depth with a tight spread is followed by a different
 absolute BTC move than ordinary snapshots. It does not call the displayed

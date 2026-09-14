@@ -397,7 +397,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | Open interest | OI 数量/名义金额 | `GET /v1/market/open-interest` | `WS /v1/stream?domains=open_interest` | WS 或交易所 poller | 否 |
 | ADL 风险 | Binance symbol-level ADL risk rating | `GET /v1/market/adl-risk` | 按需 provider snapshot，每 30 分钟更新 | 否 | 否 |
 | 历史主动买卖量 | Binance 聚合 taker buy/sell、总量、imbalance | `GET /v1/history/taker-volume` | 暂无直接流 | 按需请求，保留提供方覆盖状态 | 否 |
-| 历史账户多空比 | Binance 全体账户、大户账户或大户仓位占比（`scope`）与 Bybit holder-count buy/sell ratio、imbalance、分页覆盖 | `GET /v1/history/account-ratio` | 暂无直接流 | 按提供方保留语义和 coverage；不是完整名义仓位账本 | 否 |
+| 历史账户多空比 | Binance 全体账户、大户账户或大户仓位占比（`scope`、`pages`）与 Bybit holder-count buy/sell ratio、imbalance、分页覆盖 | `GET /v1/history/account-ratio` | 暂无直接流 | 按提供方保留语义和 coverage；不是完整名义仓位账本 | 否 |
 | 历史期权波动率 | Bybit option historical volatility、周期、时间戳 | `GET /v1/history/historical-volatility` | 暂无直接流 | 按需请求，保留覆盖范围；不是隐含波动率或预测 | 否 |
 | 历史基差 | Binance futures/index basis、basisRate、年化基差率 | `GET /v1/history/basis` | 暂无直接流 | 按需请求，保留 provider coverage；不是同步可成交套利 | 否 |
 | Liquidations 爆仓 | 公共强平事件 | `GET /v1/market/liquidations` | `WS /v1/stream?domains=liquidation` | 有稳定公共 feed 才推送 | 否 |

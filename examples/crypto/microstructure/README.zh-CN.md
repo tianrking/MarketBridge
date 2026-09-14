@@ -10,7 +10,7 @@
 | Confluence 监控 | `short_squeeze_monitor.py`、`exhaustion_short_monitor.py`、`liquidation_reversal_monitor.py`、`crypto_microstructure_monitor.py` |
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
-| 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`liquidation_reversal_replay.py` |
+| 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`crypto_crowded_liquidation_reversal_replay.py`、`liquidation_reversal_replay.py` |
 | 时段区间回放 | `crypto_opening_range_breakout_response_replay.py` |
 | Profile/VWAP/OI 共振 | `crypto_profile_vwap_oi_response_replay.py` |
 | 周末参考位移回放 | `crypto_weekend_gap_response_replay.py` |
@@ -24,6 +24,24 @@ ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL
 等已启用实时 feed；`--source history` 仍使用 OKX/CoinEx 有界历史路径。保留窗口不是完整历史账本，feed 缺口必须保留。
 liquidity-sandwich pair 只检验一个更窄的公开 X 假设：当买卖两侧近盘口深度都明显、点差较窄时，
 后续 BTC 绝对波动是否不同于普通快照；不会把显示深度称为持续墙体，也不推导区间交易机会。
+
+`crypto_crowded_liquidation_reversal_replay.py` 把公开的仓位叙事收窄为四个可观察输入：提供方账户多空比偏离、
+时点 OI 下降、带 side 标签的清算名义金额，以及之后 BTC 的固定窗口响应。它把多头拥挤清算上下文、空头拥挤清算上下文
+与普通仓位状态分开比较；不会把 provider 的 `sell` 事件普遍解释成多头清算，也不会输出反转交易指令。
+
+```bash
+python3 examples/crypto/microstructure/crypto_crowded_liquidation_reversal_replay.py \
+  --symbol BTCUSDT --ratio-exchange binance --ratio-scope top_trader \
+  --liquidation-exchange okx --price-exchange binance --period 1h \
+  --days 14 --ratio-pages 4 --oi-pages 4 --price-pages 4 \
+  --ratio-threshold 0.10 --oi-drop-threshold 0.10 \
+  --min-liquidation-notional 1000000 --horizon-bars 3 \
+  --min-observations 5
+```
+
+研究线索来自 [CryptoData 在 X 的清算/OI 讨论](https://x.com/TheCryptoData/status/1948466627365769584)。
+账户多空比字段对照 [Binance 官方 global long/short ratio API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Long-Short-Ratio)，
+该接口明确了有限时间粒度和单页上限。两者只用于提出可检验的上下文假设，不是业绩证据。
 
 `crypto_liquidity_sweep_response_replay.py` 检验公开“流动性扫损/收回”叙事中可以从 OHLCV 观察到的子集：当前 K 线刺破前序回看窗口的高点或低点，
 随后收盘重新穿回该水平，并且实体/波动达到阈值；然后报告按方向对齐的未来收益。这不能证明真实止损流动性、潜在 liquidity pool、CISD、displacement 意图或可执行形态。
