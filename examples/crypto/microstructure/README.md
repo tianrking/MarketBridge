@@ -93,15 +93,17 @@ and the example never places orders.
 出处：MarketBridge 使用 Binance 公开的[主动买卖量接口](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Taker-BuySell-Volume)，
 文档给出 `takerBuyVol`、`takerSellVol`、价值字段、时间戳和 5m 到 1d 周期。数据是提供方聚合，不是交易者意图；示例不下单。
 
-`crypto_account_ratio_oi_response_replay.py` uses Bybit's public account-ratio
-history to test whether holder-count crowding behaves differently when aggregate
-OI rises or falls. The endpoint reports the percentage of holders on each side;
-it is not a notional long/short position ratio. The replay keeps provider cursor
-and coverage fields, aligns the ratio with OI and candles, and reports descriptive
-fixed-horizon responses only.
+`crypto_account_ratio_oi_response_replay.py` uses Binance top-trader account-share
+or Bybit holder-count account-ratio history to test whether provider-specific
+crowding behaves differently when aggregate OI rises or falls. Binance's top
+trader accounts and Bybit's holders are distinct populations; neither is a
+notional long/short position ratio. The replay keeps provider semantics,
+cursor/coverage fields, aligns the ratio with OI and candles, and reports
+descriptive fixed-horizon responses only.
 
 出处：Bybit [Get Long Short Ratio](https://bybit-exchange.github.io/docs/v5/market/long-short-ratio)
-公开 `buyRatio`、`sellRatio`、时间戳和 `nextPageCursor`。这不是持仓名义金额，也不证明交易者意图；示例只读、只研究、不下单。
+公开 `buyRatio`、`sellRatio`、时间戳和 `nextPageCursor`；Binance [Top Trader Long/Short Account Ratio](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Top-Trader-Long-Short-Ratio)
+公开大户账户占比和时间戳。两者统计对象不同，不是持仓名义金额，也不证明交易者意图；示例只读、只研究、不下单。
 
 Run / 运行：
 

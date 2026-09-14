@@ -1,5 +1,15 @@
 # Development log
 
+## 2026-09-14 — Binance top-trader account ratio coverage
+
+Extended `/v1/history/account-ratio` to Binance's public top-trader account
+ratio endpoint. Rows retain `source` and `semantics` so Binance top-account
+shares are not conflated with Bybit holder-count shares; both remain bounded
+research context for the account-ratio/OI response replay. Provenance:
+[Binance Top Trader Long/Short Account Ratio](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Top-Trader-Long-Short-Ratio).
+No notional-position inference, order, wallet, signing or execution path is
+included.
+
 ## 2026-09-14 — Bybit historical option-volatility response input
 
 Added the read-only `/v1/history/historical-volatility` endpoint for Bybit's
