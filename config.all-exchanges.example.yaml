@@ -58,7 +58,7 @@ klines:
   intervals: [1m, 5m, 15m, 1h]
   history_limit: 1500
   backfill_on_start: false
-  sources: [binance, okx]
+  sources: [binance, okx, coinbase]
 
 onchain:
   whale_alert:

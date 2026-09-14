@@ -24,6 +24,9 @@ USD quote is materially above or below a reference spot quote, does the next
 fixed-record BTC response differ from ordinary snapshots? The default
 reference is Binance `BTCUSDT`; the USD/USDT stablecoin basis is retained as a
 limitation rather than silently labelled US spot flow.
+`crypto_coinbase_premium_historical_replay.py` runs the same hypothesis over
+bounded Coinbase and reference-venue candles served by
+`/v1/history/candles`, so the live recorder is not the only route to evidence.
 
 ## Run a complete case
 
@@ -64,6 +67,10 @@ python3 examples/crypto/carry/crypto_coinbase_premium_response_recorder.py \
 python3 examples/crypto/carry/crypto_coinbase_premium_response_replay.py \
   --input work/crypto-coinbase-premium-response.jsonl \
   --horizon-records 3 --min-observations 5
+python3 examples/crypto/carry/crypto_coinbase_premium_historical_replay.py \
+  --coinbase-symbol BTCUSDT --reference-symbol BTCUSDT \
+  --reference-exchange binance --interval 1h --days 14 \
+  --horizon-bars 3 --min-observations 5
 ```
 
 ## Provenance

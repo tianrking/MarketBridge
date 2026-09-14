@@ -938,7 +938,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow/windows` | Multi-window order-flow and CVD buckets |
 | GET | `/v1/market/footprint` | Price-bin footprint/orderflow profile |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars; can persist selected rows to the local Arrow IPC lake |
-| GET | `/v1/history/candles` | On-demand spot/futures/mark/index/premiumIndex/funding-rate candles |
+| GET | `/v1/history/candles` | On-demand Binance/OKX/Bybit/Coinbase public candles; Coinbase is spot-only and capped at 300 rows |
 | GET | `/v1/history/open-interest` | Bounded public Binance/Bybit open-interest history |
 | GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC history |
 | GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance |
@@ -1358,11 +1358,12 @@ Supported candle types:
   `funding_rate`
 - OKX: `spot`, `perp`, `mark`, `index`, `funding_rate`
 - Bybit: `funding_rate`
+- Coinbase: `spot` (`BTCUSDT` maps to the public `BTC-USD` product)
 - Hyperliquid: `funding_rate` via the public `fundingHistory` info request
 
 Query params:
 
-- `exchange=binance|okx|bybit|hyperliquid`
+- `exchange=binance|okx|bybit|coinbase|hyperliquid`
 - `symbol=BTCUSDT`
 - `candle_type=spot|futures|perp|mark|index|premiumIndex|funding_rate`
 - `interval=1m|3m|5m|15m|30m|1h|4h|1d`, where supported by the venue
@@ -1376,6 +1377,7 @@ Examples:
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark&interval=1m&limit=1000&persist=true" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=premiumIndex&interval=1m&limit=500&persist=true" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100&persist=true" | jq
+curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=coinbase&symbol=BTCUSDT&candle_type=spot&interval=1h&limit=300" | jq
 curl -s "http://127.0.0.1:8080/v1/history/candles?exchange=hyperliquid&symbol=BTCUSDT&candle_type=funding_rate&limit=100" | jq
 ```
 

@@ -520,7 +520,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow/windows` | 多窗口 order-flow 和 CVD。 |
 | GET | `/v1/market/footprint` | footprint / orderflow profile。 |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV。 |
-| GET | `/v1/history/candles` | 按需查询 spot/futures/mark/index/premiumIndex/funding-rate candles；支持 Binance、OKX、Bybit 和 Hyperliquid funding history，返回 `coverage_detail`，并附逐点 schedule。 |
+| GET | `/v1/history/candles` | 按需查询 Binance/OKX/Bybit/Coinbase 公共 candles；Coinbase 仅 spot、单页最多 300 行；返回 `coverage_detail`，funding history 附逐点 schedule。 |
 | GET | `/v1/history/liquidations` | OKX/CoinEx bounded recent public liquidation history，供回放使用；其他 venue 缺口保持显式。 |
 | GET | `/v1/history/open-interest` | Binance/Bybit 公开历史 OI 观察，保留 provider unit 和 `coverage_detail`；不代表多空方向。 |
 | GET | `/v1/history/volatility-index` | Deribit 公开波动率指数 OHLC 历史，用于波动率状态研究；不是预测或期权 PnL。 |

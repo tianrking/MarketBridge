@@ -161,7 +161,7 @@ Short version:
 | L2 books | `/v1/market/order-books` | CEX feeds | raw normalized | Latest depth snapshots. |
 | Trades | `/v1/market/trades` | CEX feeds | raw normalized | Latest trade per venue/symbol cache. |
 | Klines | `/v1/market/klines` | Binance/OKX REST + live ticks | stored + derived | SQLite OHLCV bars; optional `persist=true` writes requested rows to the local Arrow IPC lake. |
-| History candles | `/v1/history/candles` | Binance/OKX/Bybit public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; bounded `coverage_detail` reports requested/covered range and possible page truncation, while funding history also returns point-in-time adjacent timestamp intervals. |
+| History candles | `/v1/history/candles` | Binance/OKX/Bybit/Coinbase public history | raw normalized | On-demand `spot`, `futures/perp`, `mark`, `index`, `premiumIndex` where available, and `funding_rate` candles; Coinbase is spot-only with the public Exchange candles page capped at 300 rows. Bounded `coverage_detail` reports requested/covered range and possible page truncation. |
 | Historical liquidations | `/v1/history/liquidations` | OKX/CoinEx public liquidation history | raw normalized | Bounded recent liquidation details with normalized side, position side, price, quantity and timestamp; `coverage_detail` reports the requested/covered range and possible page truncation. |
 | Historical open interest | `/v1/history/open-interest` | Binance/Bybit public OI history | raw normalized | Time-bounded aggregate OI observations with provider unit, value, timestamp and bounded `coverage_detail`; not a long/short split. |
 | Historical account ratio | `/v1/history/account-ratio` | Binance/Bybit public positioning context | raw normalized | Provider-specific account/holder ratios with normalized imbalance, source semantics and bounded coverage; Binance accepts `scope=global / top_trader`; not notional positioning or trader intent. |
@@ -256,12 +256,13 @@ klines:
   intervals: [1m, 5m, 15m, 1h]
   history_limit: 1500
   backfill_on_start: false
-  sources: [binance, okx]
+  sources: [binance, okx, coinbase]
 ```
 
 Behavior:
 
-- Historical REST backfill supports Binance spot/perp and OKX spot/swap.
+- Historical REST backfill supports Binance spot/perp, OKX spot/swap, and
+  Coinbase spot when `coinbase` is included in `klines.sources`.
 - Realtime candles are aggregated from live quote ticks.
 - SQLite stores one row per `exchange + market + symbol + interval + open_time_ms`.
 - `backfill_on_start: false` avoids unexpected exchange REST bursts. Turn it on

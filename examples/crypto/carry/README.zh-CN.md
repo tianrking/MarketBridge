@@ -22,6 +22,8 @@
 Coinbase premium pair 是独立的公开 X 研究线索：当 Coinbase USD 报价相对参考现货明显升水或折价时，
 下一固定记录窗口的 BTC 响应是否不同于普通快照？默认参考是 Binance `BTCUSDT`；USD/USDT 稳定币基差会作为限制保留，
 不会被静默称作美国现货流量。
+`crypto_coinbase_premium_historical_replay.py` 还可以直接使用 `/v1/history/candles` 提供的 Coinbase 和参考 venue candles，
+在有界历史上复核同一假设，不依赖实时 recorder 才能产生证据。
 
 ## 完整运行示例
 
@@ -58,6 +60,10 @@ python3 examples/crypto/carry/crypto_coinbase_premium_response_recorder.py \
 python3 examples/crypto/carry/crypto_coinbase_premium_response_replay.py \
   --input work/crypto-coinbase-premium-response.jsonl \
   --horizon-records 3 --min-observations 5
+python3 examples/crypto/carry/crypto_coinbase_premium_historical_replay.py \
+  --coinbase-symbol BTCUSDT --reference-symbol BTCUSDT \
+  --reference-exchange binance --interval 1h --days 14 \
+  --horizon-bars 3 --min-observations 5
 ```
 
 ## 出处

@@ -4,6 +4,7 @@ use anyhow::{Context, Result, bail};
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
+use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -503,7 +504,7 @@ fn account_ratio_coverage_detail(
 }
 
 fn taker_volume_coverage_detail(rows: &[Value], q: &HistoryTakerVolumeQuery) -> Value {
-    let page_limit = q.limit.unwrap_or(500);
+    let page_limit = q.limit.unwrap_or(500).min(300);
     serde_json::json!({
         "status": open_interest_coverage_status(rows.len(), page_limit),
         "requested_start_ms": q.start_ms,
@@ -612,6 +613,7 @@ pub async fn candles(
         "okx" => fetch_okx_history(&state.http, &q, &candle_type).await,
         "bybit" => fetch_bybit_history(&state.http, &q, &candle_type).await,
         "hyperliquid" => fetch_hyperliquid_history(&state.http, &q, &candle_type).await,
+        "coinbase" => fetch_coinbase_history(&state.http, &q, &candle_type).await,
         other => Err(anyhow::anyhow!("unsupported history exchange: {other}")),
     };
 
@@ -654,7 +656,12 @@ pub async fn candles(
 }
 
 fn candle_coverage_detail(rows: &[KlineBar], q: &HistoryCandlesQuery) -> Value {
-    let page_limit = q.limit.unwrap_or(500);
+    let requested_limit = q.limit.unwrap_or(500);
+    let page_limit = if q.exchange.trim().eq_ignore_ascii_case("coinbase") {
+        requested_limit.min(300)
+    } else {
+        requested_limit
+    };
     serde_json::json!({
         "status": candle_coverage_status(rows.len(), page_limit),
         "requested_start_ms": q.start_ms,
@@ -827,6 +834,102 @@ async fn fetch_binance_funding_rate(
             })
         })
         .collect()
+}
+
+async fn fetch_coinbase_history(
+    http: &reqwest::Client,
+    q: &HistoryCandlesQuery,
+    candle_type: &str,
+) -> Result<Vec<KlineBar>> {
+    if candle_type != "spot" {
+        bail!("unsupported coinbase candle_type: {candle_type}; only spot candles are public here");
+    }
+    let interval = q.interval.as_deref().unwrap_or("1m");
+    let granularity = coinbase_granularity(interval)
+        .context("unsupported Coinbase interval; use 1m, 5m, 15m, 1h, 6h or 1d")?;
+    let product_id = coinbase_product_id(&q.symbol);
+    let mut request = http
+        .get(format!(
+            "https://api.exchange.coinbase.com/products/{product_id}/candles"
+        ))
+        .header("User-Agent", "MarketBridge/0.0.6")
+        .query(&[("granularity", granularity.to_string())]);
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("start", rfc3339_ms(start_ms)?)]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("end", rfc3339_ms(end_ms)?)]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Vec<Value>>>()
+        .await
+        .context("failed to parse Coinbase historical candles")?;
+    payload
+        .into_iter()
+        .take(q.limit.unwrap_or(300).clamp(1, 300))
+        .map(|row| parse_coinbase_row(&q.symbol, interval, row))
+        .collect()
+}
+
+fn rfc3339_ms(value: u64) -> Result<String> {
+    let millis = i64::try_from(value).context("timestamp exceeds RFC3339 range")?;
+    DateTime::<Utc>::from_timestamp_millis(millis)
+        .map(|timestamp| timestamp.to_rfc3339_opts(SecondsFormat::Secs, true))
+        .context("timestamp is outside RFC3339 range")
+}
+
+fn coinbase_granularity(interval: &str) -> Option<u64> {
+    match interval {
+        "1m" => Some(60),
+        "5m" => Some(300),
+        "15m" => Some(900),
+        "1h" => Some(3_600),
+        "6h" => Some(21_600),
+        "1d" => Some(86_400),
+        _ => None,
+    }
+}
+
+fn coinbase_product_id(symbol: &str) -> String {
+    let symbol = symbol.trim().to_ascii_uppercase();
+    if symbol.contains('-') {
+        return symbol;
+    }
+    let base = symbol
+        .strip_suffix("USDT")
+        .or_else(|| symbol.strip_suffix("USDC"))
+        .or_else(|| symbol.strip_suffix("USD"))
+        .unwrap_or(&symbol);
+    format!("{base}-USD")
+}
+
+fn parse_coinbase_row(symbol: &str, interval: &str, row: Vec<Value>) -> Result<KlineBar> {
+    if row.len() < 6 {
+        bail!("short Coinbase candle row");
+    }
+    let open_time_secs = value_u64(Some(&row[0])).context("missing Coinbase candle time")?;
+    let open_time_ms = open_time_secs
+        .checked_mul(1_000)
+        .context("Coinbase candle time overflow")?;
+    let interval_ms = interval_to_ms(interval).context("unsupported interval")?;
+    Ok(KlineBar {
+        exchange: "coinbase".to_string(),
+        market: "spot".to_string(),
+        symbol: symbol.trim().to_ascii_uppercase(),
+        interval: interval.to_string(),
+        open_time_ms,
+        close_time_ms: open_time_ms + interval_ms - 1,
+        low: value_f64(Some(&row[1])).context("missing Coinbase low")?,
+        high: value_f64(Some(&row[2])).context("missing Coinbase high")?,
+        open: value_f64(Some(&row[3])).context("missing Coinbase open")?,
+        close: value_f64(Some(&row[4])).context("missing Coinbase close")?,
+        volume: value_f64(Some(&row[5])),
+        source: "coinbase_exchange_candles".to_string(),
+        updated_at_ms: now_ms(),
+    })
 }
 
 async fn fetch_okx_history(
@@ -2192,6 +2295,31 @@ mod tests {
     }
 
     #[test]
+    fn maps_coinbase_product_and_granularity() {
+        assert_eq!(coinbase_product_id("BTCUSDT"), "BTC-USD");
+        assert_eq!(coinbase_product_id("BTC-USD"), "BTC-USD");
+        assert_eq!(coinbase_granularity("1m"), Some(60));
+        assert_eq!(coinbase_granularity("6h"), Some(21_600));
+        assert_eq!(coinbase_granularity("4h"), None);
+    }
+
+    #[test]
+    fn parses_coinbase_exchange_candle() {
+        let row = serde_json::json!([1700000000, "99.0", "101.0", "100.0", "100.5", "12.3"])
+            .as_array()
+            .expect("array")
+            .clone();
+        let bar = parse_coinbase_row("BTCUSDT", "1m", row).expect("bar");
+        assert_eq!(bar.exchange, "coinbase");
+        assert_eq!(bar.market, "spot");
+        assert_eq!(bar.symbol, "BTCUSDT");
+        assert_eq!(bar.open_time_ms, 1_700_000_000_000);
+        assert_eq!(bar.low, 99.0);
+        assert_eq!(bar.high, 101.0);
+        assert_eq!(bar.volume, Some(12.3));
+    }
+
+    #[test]
     fn okx_symbol_maps_perp_swap() {
         assert_eq!(okx_inst_id("BTCUSDT", "perp"), "BTC-USDT-SWAP");
         assert_eq!(okx_inst_id("BTCUSDT", "spot"), "BTC-USDT");
@@ -2498,6 +2626,11 @@ mod tests {
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")
         );
+        let mut coinbase_query = query;
+        coinbase_query.exchange = "coinbase".to_string();
+        coinbase_query.limit = Some(500);
+        let coinbase_detail = candle_coverage_detail(&rows, &coinbase_query);
+        assert_eq!(coinbase_detail["page_limit"], serde_json::json!(300));
     }
 
     #[test]

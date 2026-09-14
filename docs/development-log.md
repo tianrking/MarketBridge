@@ -1569,6 +1569,9 @@ with a reference venue quote (default Binance `BTCUSDT`), classifies premium,
 discount and ordinary spread states, and keeps USD/USDT basis and timestamp
 coverage visible. Replay compares later fixed-record BTC responses; it does not
 claim pure US spot-flow causality, arbitrage, conversion, or execution.
+The follow-up `crypto_coinbase_premium_historical_replay.py` consumes the new
+Coinbase history path and compares aligned candle states without requiring a
+live snapshot archive.
 
 Provenance: the unverified [XWIN flow-confirmation discussion](https://x.com/xwinfinance/status/2023155692916646257)
 mentions Coinbase premium alongside ETF and spot-demand confirmation. Coinbase

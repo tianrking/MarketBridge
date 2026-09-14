@@ -215,6 +215,9 @@ pub async fn backfill_history(
                     "okx" => {
                         fetch_okx_klines(http, "spot", symbol, interval, cfg.history_limit).await?
                     }
+                    "coinbase" => {
+                        fetch_coinbase_klines(http, symbol, interval, cfg.history_limit).await?
+                    }
                     _ => Vec::new(),
                 };
                 store.upsert_many(rows).await?;
@@ -268,6 +271,84 @@ async fn fetch_binance_klines(
     rows.into_iter()
         .map(|row| parse_binance_row(market, symbol, interval, row))
         .collect()
+}
+
+async fn fetch_coinbase_klines(
+    http: &reqwest::Client,
+    symbol: &str,
+    interval: &str,
+    limit: usize,
+) -> Result<Vec<KlineBar>> {
+    let product_id = coinbase_product_id(symbol);
+    let granularity = coinbase_granularity(interval)
+        .context("unsupported Coinbase interval; use 1m, 5m, 15m, 1h, 6h or 1d")?;
+    let rows = http
+        .get(format!(
+            "https://api.exchange.coinbase.com/products/{product_id}/candles"
+        ))
+        .header("User-Agent", "MarketBridge/0.0.6")
+        .query(&[("granularity", granularity.to_string())])
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<Vec<Value>>>()
+        .await
+        .context("failed to parse Coinbase kline payload")?;
+    rows.into_iter()
+        .take(limit.clamp(1, 300))
+        .map(|row| parse_coinbase_row(symbol, interval, row))
+        .collect()
+}
+
+fn coinbase_product_id(symbol: &str) -> String {
+    let symbol = symbol.trim().to_ascii_uppercase();
+    if symbol.contains('-') {
+        return symbol;
+    }
+    let base = symbol
+        .strip_suffix("USDT")
+        .or_else(|| symbol.strip_suffix("USDC"))
+        .or_else(|| symbol.strip_suffix("USD"))
+        .unwrap_or(&symbol);
+    format!("{base}-USD")
+}
+
+fn coinbase_granularity(interval: &str) -> Option<u64> {
+    match interval {
+        "1m" => Some(60),
+        "5m" => Some(300),
+        "15m" => Some(900),
+        "1h" => Some(3_600),
+        "6h" => Some(21_600),
+        "1d" => Some(86_400),
+        _ => None,
+    }
+}
+
+fn parse_coinbase_row(symbol: &str, interval: &str, row: Vec<Value>) -> Result<KlineBar> {
+    if row.len() < 6 {
+        bail!("short Coinbase kline row");
+    }
+    let open_time_secs = value_u64(&row[0]).context("missing Coinbase candle time")?;
+    let open_time_ms = open_time_secs
+        .checked_mul(1_000)
+        .context("Coinbase candle time overflow")?;
+    let interval_ms = interval_to_ms(interval).context("unsupported interval")?;
+    Ok(KlineBar {
+        exchange: "coinbase".to_string(),
+        market: "spot".to_string(),
+        symbol: symbol.trim().to_ascii_uppercase(),
+        interval: interval.to_string(),
+        open_time_ms,
+        close_time_ms: open_time_ms + interval_ms - 1,
+        low: value_f64(&row[1]).context("missing Coinbase low")?,
+        high: value_f64(&row[2]).context("missing Coinbase high")?,
+        open: value_f64(&row[3]).context("missing Coinbase open")?,
+        close: value_f64(&row[4]).context("missing Coinbase close")?,
+        volume: value_f64(&row[5]),
+        source: "coinbase_exchange_candles".to_string(),
+        updated_at_ms: crate::types::now_ms(),
+    })
 }
 
 fn parse_binance_row(
@@ -639,7 +720,10 @@ pub fn interval_to_ms(interval: &str) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{KlineStore, RealtimeKlineAggregator, interval_to_ms};
+    use super::{
+        KlineStore, RealtimeKlineAggregator, coinbase_granularity, coinbase_product_id,
+        interval_to_ms, parse_coinbase_row,
+    };
     use crate::event_snapshots::NormalizedTick;
 
     #[test]
@@ -647,6 +731,22 @@ mod tests {
         assert_eq!(interval_to_ms("1m"), Some(60_000));
         assert_eq!(interval_to_ms("1h"), Some(3_600_000));
         assert_eq!(interval_to_ms("nope"), None);
+    }
+
+    #[test]
+    fn coinbase_backfill_maps_public_product_and_candle() {
+        assert_eq!(coinbase_product_id("BTCUSDT"), "BTC-USD");
+        assert_eq!(coinbase_granularity("1h"), Some(3_600));
+        assert_eq!(coinbase_granularity("4h"), None);
+        let row = serde_json::json!([1700000000, "99.0", "101.0", "100.0", "100.5", "12.3"])
+            .as_array()
+            .expect("array")
+            .clone();
+        let bar = parse_coinbase_row("BTCUSDT", "1m", row).expect("bar");
+        assert_eq!(bar.exchange, "coinbase");
+        assert_eq!(bar.market, "spot");
+        assert_eq!(bar.open_time_ms, 1_700_000_000_000);
+        assert_eq!(bar.volume, Some(12.3));
     }
 
     #[test]
