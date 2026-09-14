@@ -70,12 +70,13 @@ universe cases. It surfaces historical markets whose current quote is missing
 or stale, but deliberately does not call that proof of delisting or perform an
 automatic exclusion.
 
+The aggregate Rust research-regime files live under `crypto/macro/`:
 `crypto_market_regime_monitor.py` exposes the aggregate Rust research-regime
 snapshot (fragmented, high-volatility, leveraged or normal) as Python JSON
 context. Its guidance only tells a researcher which evidence checks deserve
 attention; it does not choose or execute a strategy.
 
-`crypto_market_regime_recorder.py` / `crypto_market_regime_replay.py` turn that
+`crypto/macro/crypto_market_regime_recorder.py` / `crypto/macro/crypto_market_regime_replay.py` turn that
 current context into a temporal study: the recorder freezes the regime beside a
 BTC quote, and replay reports forward-return, absolute-move and downside
 distributions by regime. The feature is still a current aggregate snapshot,
@@ -174,16 +175,20 @@ breadth 定义对照 [BlockchainCenter 的 Altcoin Season Index 说明](https://
 `crypto_universe_delist_risk_monitor.py` 是其他 universe 案例前的数据质量护栏：它显示历史市场当前报价缺失或
 过期，但不把这直接解释为退市证明，也不自动排除标的。
 
-`crypto_market_regime_monitor.py` 将 Rust 聚合研究状态（fragmented、high_volatility、leveraged、normal）
+Rust 聚合研究状态文件位于 `crypto/macro/`：`crypto_market_regime_monitor.py` 将 Rust 聚合研究状态（fragmented、high_volatility、leveraged、normal）
 作为 Python JSON 上下文输出。提示只告诉研究者应该检查哪些证据，不选择策略，也不执行交易。
 
-`crypto_market_regime_recorder.py` / `crypto_market_regime_replay.py` 把当前上下文扩展成时间研究：记录状态和 BTC
+`crypto/macro/crypto_market_regime_recorder.py` / `crypto/macro/crypto_market_regime_replay.py` 把当前上下文扩展成时间研究：记录状态和 BTC
 报价，再按 regime 报告未来收益、绝对波动和下行比例。该特征仍是当前聚合快照，不是 point-in-time 历史因子，
 也不是策略选择器。
 
 `crypto_global_market_regime_monitor.py` 补充提供方级别的全市场宏观快照：根据 CoinGecko 总市值变化和 BTC
 dominance 分类为 stress、BTC-dominant risk-on、broad risk-on 或 mixed。它用于给 breadth 或 momentum 回放
 提供上下文；单次快照不是历史 dominance 因子、收益预测或资金分配指令。
+
+`crypto_global_market_regime_recorder.py` / `crypto_global_market_regime_replay.py` 将该快照与同步的 BTC
+报价写入 JSONL，并按固定记录窗口报告各 regime 的收益、绝对波动和下行比例；缺少历史 global 快照、精确时间间隔和
+成交成本时保持为证据缺口。
 
 聚合状态研究线索参考未经验证的 [XWIN 趋势与持仓讨论](https://x.com/xwinfinance/status/2023155692916646257)；
 MarketBridge 只检验自己明确输出的 Rust regime 标签的响应分布。
@@ -242,14 +247,20 @@ python3 examples/crypto/universe/crypto_pairs_mean_reversion_replay.py \
 python3 examples/crypto/universe/crypto_universe_delist_risk_monitor.py \
   --exchange binance --market perp --interval 1d \
   --stale-after-ms 86400000 --limit 100
-python3 examples/crypto/universe/crypto_market_regime_monitor.py \
+python3 examples/crypto/macro/crypto_market_regime_monitor.py \
   --symbols BTCUSDT,ETHUSDT --intervals 1h,4h,1d
-python3 examples/crypto/universe/crypto_market_regime_recorder.py \
+python3 examples/crypto/macro/crypto_market_regime_recorder.py \
   --symbols BTCUSDT,ETHUSDT --exchange binance --market perp \
   --intervals 1h,4h,1d --price-symbol BTCUSDT --iterations 30 \
   --interval-secs 30 --output work/crypto-market-regime.jsonl
-python3 examples/crypto/universe/crypto_market_regime_replay.py \
+python3 examples/crypto/macro/crypto_market_regime_replay.py \
   --input work/crypto-market-regime.jsonl --horizon-records 7 \
   --min-observations 5 --paper-cost-bps 10
 python3 examples/crypto/universe/crypto_global_market_regime_monitor.py
+python3 examples/crypto/universe/crypto_global_market_regime_recorder.py \
+  --iterations 30 --interval-secs 600 \
+  --output work/crypto-global-market-regime.jsonl
+python3 examples/crypto/universe/crypto_global_market_regime_replay.py \
+  --input work/crypto-global-market-regime.jsonl --horizon-records 3 \
+  --min-observations 5 --paper-cost-bps 10
 ```

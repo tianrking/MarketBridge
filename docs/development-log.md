@@ -12,6 +12,13 @@ a strategy signal. Provenance: [CoinGecko Crypto Global Market Data](https://doc
 and the unverified [public X BTC-dominance lead](https://x.com/1881Erdem/status/2041949708864643566).
 No order, wallet, signing or execution path is included.
 
+The same round added `crypto_global_market_regime_recorder.py` and
+`crypto_global_market_regime_replay.py`. The recorder stores the provider
+snapshot beside a synchronized BTC quote; the replay compares fixed-record
+forward return, absolute move and downside distributions by global regime.
+Missing historical dominance coverage, exact elapsed time and execution costs
+remain explicit evidence gaps.
+
 ## 2026-09-14 — Binance funding provider-band context
 
 Extended on-demand perpetual funding rows with Binance's published adjusted
