@@ -11,7 +11,7 @@
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `liquidation_reversal_replay.py` |
-| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
+| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
@@ -133,6 +133,23 @@ python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_rep
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --lookback-bars 90 --level-tolerance 0.03 \
   --horizon-bars 6 --min-observations 5
+```
+
+`crypto_fair_value_gap_response_replay.py` tests a separate three-candle
+imbalance proxy. Candle one and candle three must leave a wick non-overlap,
+while the middle candle must meet an explicit body-fraction filter. The replay
+then records untouched, touched, and wick-filled zones and compares bullish,
+bearish, and ordinary-bar responses. It does not claim an untraded volume void,
+institutional intent, support/resistance, or a fill. The research lead is
+[a public FVG discussion on X](https://x.com/Bradgohtrades/status/2058684241958031814),
+cross-checked with [Binance Academy's candlestick guidance](https://www.binance.com/en/square/post/492082)
+and the [official kline field documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_fair_value_gap_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --min-gap-bps 5 --min-middle-body-fraction 0.50 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only

@@ -11,7 +11,7 @@
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`liquidation_reversal_replay.py` |
-| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
+| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
@@ -105,6 +105,20 @@ python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_rep
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --lookback-bars 90 --level-tolerance 0.03 \
   --horizon-bars 6 --min-observations 5
+```
+
+`crypto_fair_value_gap_response_replay.py` 研究独立的三根 K 线 imbalance 代理：第一根与第三根 wick 不重叠，
+中间 K 线实体还必须达到显式比例；随后记录区域是 untouched、touched 还是 wick_filled，比较 bullish、bearish 和普通 K 线的响应。
+它不声称看到了未成交量、机构意图、支撑/阻力或可成交价。研究线索来自
+[X 上的 FVG 讨论](https://x.com/Bradgohtrades/status/2058684241958031814)，字段对照
+[Binance Academy 蜡烛图说明](https://www.binance.com/en/square/post/492082)
+和 [官方 K 线字段文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_fair_value_gap_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --min-gap-bps 5 --min-middle-body-fraction 0.50 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的

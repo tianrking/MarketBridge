@@ -59,6 +59,7 @@ Cases:
 - `crypto_ichimoku_cloud_response_replay.py`: groups as-of cloud, Tenkan/Kijun and Chikou alignment states for later BTC response analysis.
 - `crypto_rsi_bollinger_extreme_response_replay.py`: separates joint RSI/Bollinger extremes from one-indicator and ordinary states.
 - `crypto_fibonacci_retracement_response_replay.py`: groups point-in-time 38.2%, 50% and 61.8% retracement zones against control ranges.
+- `crypto_fair_value_gap_response_replay.py`: tests three-candle wick non-overlap zones, later touches/fills and ordinary-bar responses.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -550,6 +551,13 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 定义对照 [Binance Academy Fibonacci 指南](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
 和 [Binance 词典](https://www.binance.com/en/academy/glossary/fibonacci-retracement)。
 最高点和最低点若落在同一根 K 线，则保留为 `missing_swing`，不人为补方向。
+
+`crypto_fair_value_gap_response_replay.py` 研究三根 K 线的 wick 不重叠区域：中间 K 线实体必须达到给定比例，
+当前 K 线形成 bullish 或 bearish zone 后，后续窗口分别记录 untouched、touched 和 wick_filled，
+并与普通 K 线比较未来响应。这里的 gap 是 OHLCV 代理，不是未成交量或机构意图；研究线索来自
+[X 上的 FVG 教学讨论](https://x.com/Bradgohtrades/status/2058684241958031814)，字段对照
+[Binance Academy 的蜡烛图说明](https://www.binance.com/en/square/post/492082)
+和 [Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
 
 ```bash
 python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \

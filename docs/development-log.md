@@ -80,6 +80,20 @@ The research lead is [a public WIF Fibonacci discussion on X](https://x.com/Cryp
 Definitions are cross-checked against [Binance Academy's Fibonacci guide](https://www.binance.com/en/academy/articles/a-guide-to-mastering-fibonacci-retracement)
 and [Binance's glossary](https://www.binance.com/en/academy/glossary/fibonacci-retracement).
 
+## 2026-09-14 — Added fair-value-gap response replay
+
+Added `crypto_fair_value_gap_response_replay.py` under microstructure. It
+defines a three-candle OHLCV imbalance proxy from wick non-overlap, applies a
+minimum middle-body filter, and records whether later wicks touch or fill the
+zone before comparing bullish, bearish and ordinary-bar responses. The case
+keeps thresholds, overlapping windows, wick-based fill semantics and 24/7 crypto
+gap limitations explicit; it does not infer untraded volume, institutional
+intent, causality or execution.
+
+The research lead is [a public FVG discussion on X](https://x.com/Bradgohtrades/status/2058684241958031814).
+Candlestick context is cross-checked against [Binance Academy's guidance](https://www.binance.com/en/square/post/492082)
+and the [official kline field documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.
