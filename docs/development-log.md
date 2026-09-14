@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — Added joint option-IV panic regime replay
+
+Added `crypto_options_panic_regime_response_replay.py` using the existing
+option-skew response archive. It separates high ATM IV, positive
+`put_call_skew_iv`, their joint state, and ordinary observations before
+measuring later BTC responses. The implementation records the MarketBridge
+skew convention (`put_iv - call_iv`) and leaves expiry roll, dealer sign,
+option PnL, hedging and execution outside scope.
+
+The research lead is the public [Gate Launch options brief on X](https://x.com/Gate_Launch/status/2063810805552845140),
+treated as an unverified panic-regime hypothesis rather than a recommendation.
+
 ## 2026-09-14 — Added price-only trend-template response replay
 
 Added `crypto_trend_template_response_replay.py` to the universe family. It

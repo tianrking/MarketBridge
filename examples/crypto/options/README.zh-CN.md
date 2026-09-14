@@ -6,6 +6,8 @@
 ## 案例地图
 
 - `crypto_options_skew_*` 与期限结构回放：翼部 IV、近/远端 ATM slope 的持续性或 BTC 响应。
+- `crypto_options_panic_regime_response_replay.py`：联合高 ATM IV 与正的
+  put-minus-call skew 响应研究。
 - `crypto_options_put_call_oi_*`：把提供方 OI 构成为 defensive、call-dominant 或 balanced 上下文。
 - `crypto_options_gamma_*`、`crypto_options_max_pain_*`、`crypto_options_bull_call_spread_*`：
   透明的曲面/报价几何研究。
@@ -25,6 +27,18 @@ python3 examples/crypto/options/crypto_options_skew_replay.py \
 
 Response pair 会加入同步 BTC 报价并使用 `--horizon-records`；它测量曲面状态关联，不是期权收益。
 到期身份、缺失 greeks、moneyness bucket、报价新鲜度和覆盖都必须保留。
+
+Panic-regime 回放明确沿用 MarketBridge 约定：
+`put_call_skew_iv = put_iv - call_iv`，所以正值表示 put 翼 IV 相对更高。
+它会把联合状态与单一条件、普通状态分别比较；高 IV 阈值由调用者提供，
+不是所有市场都通用的常数。
+
+```bash
+python3 examples/crypto/options/crypto_options_panic_regime_response_replay.py \
+  --input work/crypto-options-skew-response.jsonl \
+  --horizon-records 3 --high-atm-iv 60 --downside-skew-iv 3 \
+  --min-observations 5
+```
 
 ## 证据规则
 

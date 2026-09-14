@@ -7,6 +7,8 @@
 
 - `crypto_options_skew_*` and term-structure replays: wing IV and near/far ATM
   slope persistence or BTC response.
+- `crypto_options_panic_regime_response_replay.py`: a joint high-ATM-IV and
+  positive put-minus-call-skew response study.
 - `crypto_options_put_call_oi_*`: provider open-interest composition as defensive,
   call-dominant, or balanced context.
 - `crypto_options_gamma_*`, `crypto_options_max_pain_*`, and
@@ -29,6 +31,18 @@ python3 examples/crypto/options/crypto_options_skew_replay.py \
 Response pairs add a synchronized BTC quote and use `--horizon-records`; they
 measure surface-state association, not option returns. Expiry identity, missing
 greeks, moneyness buckets, quote freshness and coverage must remain visible.
+
+The panic-regime replay keeps the MarketBridge convention explicit:
+`put_call_skew_iv = put_iv - call_iv`, so positive values mean relatively higher
+put-wing IV. It compares the joint state with one-dimensional and ordinary
+states; a high-IV label is caller-supplied, not a universal market threshold.
+
+```bash
+python3 examples/crypto/options/crypto_options_panic_regime_response_replay.py \
+  --input work/crypto-options-skew-response.jsonl \
+  --horizon-records 3 --high-atm-iv 60 --downside-skew-iv 3 \
+  --min-observations 5
+```
 
 ## Evidence rules
 

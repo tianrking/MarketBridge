@@ -49,6 +49,13 @@ also accepts `--bucket-mode delta` to use provider `delta` greeks for ATM and
 25-delta wings when available; missing greeks stay out of the comparable
 sample rather than falling back silently.
 
+`crypto_options_panic_regime_response_replay.py` is a separate joint-state
+case. It consumes the existing skew-response JSONL and compares high ATM IV
+with positive `put_call_skew_iv` against one-dimensional and ordinary states.
+The public [options market brief on X](https://x.com/Gate_Launch/status/2063810805552845140)
+is only a research lead; no panic forecast, dealer sign, option PnL or hedge is
+inferred.
+
 `crypto_options_put_call_oi_monitor.py` / recorder / replay adds a separate
 open-interest composition case. It sums provider-reported call and put OI by
 expiry window, labels `defensive_put_oi`, `call_dominant_oi` or `balanced_oi`,
