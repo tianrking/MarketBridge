@@ -1474,6 +1474,21 @@ and [stablecoin growth discussion](https://x.com/wintermute_t/status/19856315600
 motivate the hypothesis. Data semantics are cross-checked against DefiLlama's
 [stablecoin documentation](https://docs.llama.fi/).
 
+## 2026-09-14 — stablecoin supply response replay
+
+Extended the DefiLlama stablecoin context case with
+`crypto_stablecoin_liquidity_response_recorder.py` and
+`crypto_stablecoin_liquidity_response_replay.py`. The recorder freezes
+expansion, contraction, and flat seven-day supply-change states beside a
+synchronized MarketBridge BTC quote; replay compares fixed-record signed and
+absolute responses with a minimum observation gate. Circulating supply remains
+provider context rather than exchange flow, reserves, redemption pressure or
+execution evidence.
+
+Provenance remains the [stablecoin liquidity discussion on X](https://x.com/Cointelegraph/status/2029519994652942494)
+and [stablecoin growth discussion](https://x.com/wintermute_t/status/1985631560021000352),
+with fields cross-checked against DefiLlama's [stablecoin documentation](https://docs.llama.fi/).
+
 ## 2026-09-14 — Bitcoin mempool fee-pressure context
 
 Added the keyless `/v1/onchain/mempool` endpoint. It combines mempool.space's

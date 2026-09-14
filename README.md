@@ -286,6 +286,10 @@ The DeFi family also includes a stablecoin depeg monitor/recorder/replay that
 keeps quote deviation and spread stress visible and compares stressed snapshots
 with later absolute BTC movement; it does not infer reserves, redemptions or
 executable mean reversion.
+It also includes a stablecoin-supply response recorder/replay that freezes
+DefiLlama expansion, contraction and flat states beside a BTC quote, then
+compares later fixed-record responses without treating circulating supply as
+exchange flow, reserves or an execution signal.
 The DeFi family now also includes a pool-flow response recorder/replay: it
 joins normalized `defi_native_state` pressure snapshots with a synchronized BTC
 quote and compares fixed-record forward responses for pressure versus ordinary

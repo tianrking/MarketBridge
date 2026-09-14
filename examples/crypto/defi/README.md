@@ -38,6 +38,13 @@ seven-day changes and chain distribution, classifying expansion, contraction
 or missing-change states. Supply is not exchange inventory, bridge flow or a
 price signal.
 
+`crypto_stablecoin_liquidity_response_recorder.py` freezes those supply states
+beside a synchronized MarketBridge BTC quote, and
+`crypto_stablecoin_liquidity_response_replay.py` compares later BTC signed and
+absolute responses after expansion, contraction and flat states. The result is
+a fixed-record association study; it does not convert supply into exchange
+inflows, a price forecast, a redemption model or an execution path.
+
 `crypto_defi_yield_context_monitor.py` adds a pool-yield context case using
 DefiLlama's public `/pools` snapshot. It separates base-yield-dominant pools,
 reward-dependent pools, non-positive APY and missing-metric states. APY/TVL are
@@ -155,6 +162,10 @@ redemptions, solvency or executable mean reversion.
 `crypto_stablecoin_liquidity_monitor.py` 新增供应侧上下文案例：读取 DefiLlama 公开稳定币快照，输出筛选后的流通供应、
 7 日变化和链分布，并明确区分供应扩张、收缩和缺失变化。流通供应不是交易所库存、桥接流量或价格信号。
 
+`crypto_stablecoin_liquidity_response_recorder.py` 会把这些供应状态与同步的 MarketBridge BTC 报价冻结到 JSONL，
+`crypto_stablecoin_liquidity_response_replay.py` 比较扩张、收缩和横盘状态之后的 BTC 有符号/绝对响应。这是固定记录窗口的
+关联研究，不把供应变化转换成交易所流入、价格预测、赎回模型或执行路径。
+
 `crypto_defi_yield_context_monitor.py` 新增收益池上下文案例：读取 DefiLlama 公开 `/pools` 快照，区分基础收益主导、
 奖励依赖、非正 APY 和指标缺失状态。APY/TVL 只是提供方观察，不是保证收益或赎回流动性；监控不会存款、提款、签名钱包或执行策略。
 
@@ -216,6 +227,13 @@ python3 examples/crypto/defi/crypto_defi_funding_yield_risk_recorder.py \
   --output work/crypto-defi-funding-yield-risk.jsonl
 python3 examples/crypto/defi/crypto_defi_funding_yield_risk_replay.py \
   --input work/crypto-defi-funding-yield-risk.jsonl --min-run 3
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_recorder.py \
+  --symbols USDT,USDC --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 600 \
+  --output work/crypto-stablecoin-liquidity-response.jsonl
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_replay.py \
+  --input work/crypto-stablecoin-liquidity-response.jsonl \
+  --horizon-records 12 --min-observations 3
 python3 examples/crypto/defi/crypto_defi_pool_flow_recorder.py \
   --sources uniswap_v3,meteora --iterations 30 --interval-secs 30 \
   --output work/crypto-defi-pool-flow.jsonl

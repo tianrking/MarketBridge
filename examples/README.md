@@ -94,6 +94,7 @@ there are no root-level compatibility copies.
 | `crypto/defi/crypto_stablecoin_depeg_monitor.py` / recorder / replay | Stablecoin quote deviation and spread stress may coincide with larger later absolute BTC movement | `/v1/market/quotes` for selected CEX/DEX pairs and BTCUSDT, plus JSONL archive | Depeg-risk event study; no reserve, redemption, solvency, mean-reversion or execution model |
 | `crypto/defi/crypto_stablecoin_rotation_response_replay.py` | A normalized USDC discount/premium versus USDT may align with later BTC direction | JSONL from `crypto_stablecoin_depeg_recorder.py` | Directional response study; one-venue quote, flow causality, conversion, redemption and execution remain explicit gaps |
 | `crypto/defi/crypto_defi_pool_flow_recorder.py` / `crypto_defi_pool_flow_replay.py` | Test whether high-turnover or thin-liquidity/high-flow pool states persist across snapshots | JSONL from the DeFi monitor | Persistence diagnostic; provider coverage, on-chain completeness and swap execution remain explicit |
+| `crypto/defi/crypto_stablecoin_liquidity_response_recorder.py` / `crypto_stablecoin_liquidity_response_replay.py` | Compare later BTC responses after DefiLlama stablecoin supply expansion, contraction and flat states | `/v1/external/stablecoins`, `/v1/market/quotes`, JSONL archive | Fixed-record association study; circulating supply is not exchange flow, reserves, redemption or execution evidence |
 | `crypto/defi/crypto_defi_pool_flow_response_recorder.py` / `crypto_defi_pool_flow_response_replay.py` | Compare later BTC movement after pressure versus ordinary DEX-pool snapshots | `/v1/external/signals?categories=defi_native_state`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no causal, LP-PnL, route, gas or wallet-execution claim |
 | `crypto/defi/crypto_defi_yield_context_monitor.py` | Separate provider-reported base-yield-dominant and reward-dependent DeFi pool states | `/v1/external/defi-yields` | APY/TVL snapshot only; no yield guarantee, pool-safety certification, deposit, withdrawal or execution |
 | `crypto/defi/crypto_defi_funding_yield_risk_monitor.py` / recorder / replay | Negative selected perp funding plus reward-heavy pools may form a persistent yield-risk context | `/v1/external/defi-yields`, `/v1/market/perpetual-funding`, JSONL archive | Funding basket is a transparent proxy; no protocol accounting, causal claim, deposit, redemption or execution |
@@ -331,6 +332,13 @@ python3 examples/crypto/defi/crypto_defi_pool_flow_response_recorder.py \
 python3 examples/crypto/defi/crypto_defi_pool_flow_response_replay.py \
   --input work/crypto-defi-pool-flow-response.jsonl \
   --horizon-records 3 --min-observations 10
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_recorder.py \
+  --symbols USDT,USDC --price-exchange binance --price-symbol BTCUSDT \
+  --iterations 30 --interval-secs 600 \
+  --output work/crypto-stablecoin-liquidity-response.jsonl
+python3 examples/crypto/defi/crypto_stablecoin_liquidity_response_replay.py \
+  --input work/crypto-stablecoin-liquidity-response.jsonl \
+  --horizon-records 12 --min-observations 3
 python3 examples/crypto/defi/crypto_jupiter_route_impact_monitor.py \
   --symbols SOLUSDC --min-impact-ratio 0.005
 python3 examples/crypto/defi/crypto_jupiter_route_impact_recorder.py \
