@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — event-time trade-imbalance-bar replay
+
+Added `crypto_trade_imbalance_bar_replay.py` under microstructure. It closes
+event bars at a fixed quote-notional threshold or trade-count cap, preserves
+provider taker-side semantics, and compares strong signed imbalance with
+balanced controls over later event bars. The research lead is the public
+[delta/imbalance-bar discussion on X](https://x.com/quantbeckman/status/1931965694251253967),
+cross-checked with the event-based [crypto microstructure study](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6057134)
+and [Binance's public futures market-data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+The case remains a bounded representation/response study with no fill or
+execution path.
+
 ## 2026-09-14 — cross-venue funding-spread response replay
 
 Added `crypto_funding_spread_response_replay.py` under the carry family. It

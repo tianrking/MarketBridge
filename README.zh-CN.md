@@ -963,6 +963,9 @@ replay 按可观察字段去重跨快照重复事件，再比较 burst 与普通
 反向移动；它不代表全市场 CVD，也不构成执行信号。
 microstructure 系列现在还新增 `crypto_quarter_hour_flow_replay.py`：检验 UTC 每 15 分钟开盘后的主动买卖
 差值是否与固定窗口的永续收益方向一致，同时明确公开成交历史、时钟阶段因果性、成本和执行缺口。
+现在还提供事件时间 trade-imbalance-bar 回放：累计主动成交名义金额达到固定阈值或交易笔数上限才关闭事件条，
+再把强主动买卖不平衡与平衡控制条的后续事件条收益做对照。阈值、交易所 side 语义和事件时间覆盖保持显式，
+不构成成交或执行模型。
 同系列还新增独立的 Bollinger BandWidth squeeze 回放：用前置 close-only BandWidth 历史分位识别压缩，
 再检验上下轨突破后的固定窗口延续；它与已有 realized-volatility 区间突破案例分开，也不加入 ATR 止损、杠杆或执行。
 同系列还新增 short-squeeze response recorder/replay：把已有资金费率、OI、现货/永续流量共振与报价一起冻结，

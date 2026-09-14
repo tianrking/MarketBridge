@@ -22,6 +22,7 @@ Cases:
 - `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`: freeze imbalance/funding states beside a quote and compare later BTC responses.
 - `crypto_flow_book_confirmation.py`: taker flow confirms or rejects L2 pressure.
 - `crypto_cvd_divergence_replay.py`: tests whether a price move that disagrees with single-venue taker-flow delta is followed by a fixed-horizon reversal.
+- `crypto_trade_imbalance_bar_replay.py`: closes event bars at a fixed quote-notional threshold and compares strong signed taker imbalance with balanced bars over the next event bars.
 - `crypto_derivatives_sentiment_monitor.py`: reads optional CoinGlass funding/OI/long-short/liquidation context without treating aggregate metrics as ownership.
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`: freeze aggregate CoinGlass context and require consecutive crowding states before promoting persistence.
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`: freeze the same context beside a price snapshot and compare signed fixed-record responses after long/short crowding, with a separate liquidation-qualified bucket.
@@ -186,6 +187,17 @@ which studies phase-aligned order flow and later futures returns, and against
 MarketBridge only tests the observable single-venue flow/return association;
 it does not infer a causal clock effect or provide a timing instruction.
 
+The trade-imbalance-bar replay is a separate event-time case, not another
+quarter-hour or candle-window flow test. It closes a bar when cumulative signed
+taker notional reaches a caller-fixed threshold (or a hard trade-count cap),
+then compares strong buy/sell imbalance bars with balanced controls over the
+next event bars. The lead is the public [delta/imbalance-bar discussion on
+X](https://x.com/quantbeckman/status/1931965694251253967), cross-checked with
+the event-based [crypto microstructure study](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6057134)
+and [Binance's public futures market-data documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info).
+Those sources motivate a falsifiable representation test; they do not establish
+that an event bar predicts returns or can be executed after fees and latency.
+
 The footprint-response case is the temporal companion to the persistence replay.
 It uses the same `/v1/market/footprint` state, joins a MarketBridge quote, and
 tests whether bid pressure, ask pressure and ordinary snapshots have different
@@ -261,6 +273,7 @@ side 语义不一定相同，因此回放会保留来源和覆盖元数据，缺
 - `crypto_microstructure_response_recorder.py` / `crypto_microstructure_response_replay.py`：把盘口失衡/资金费率状态与同步报价冻结，比较压力、冲突和普通状态之后的 BTC 响应。
 - `crypto_flow_book_confirmation.py`：订单流确认或否定 L2 压力。
 - `crypto_cvd_divergence_replay.py`：检验单交易所价格与主动买卖差值背离后，固定窗口是否反转。
+- `crypto_trade_imbalance_bar_replay.py`：按固定名义金额阈值（或交易笔数上限）构造事件条，比较强主动买卖不平衡与普通平衡事件条之后的事件时间收益。
 - `crypto_derivatives_sentiment_monitor.py`：读取可选 CoinGlass 的资金费率、OI、long/short 与清算上下文，不把聚合指标解释成持仓归属。
 - `crypto_derivatives_sentiment_recorder.py` / `crypto_derivatives_sentiment_replay.py`：记录 CoinGlass 聚合情绪并要求连续拥挤状态后才报告持续性。
 - `crypto_derivatives_crowding_response_recorder.py` / `crypto_derivatives_crowding_response_replay.py`：把同一聚合上下文和价格快照一起冻结，比较多头/空头拥挤后的固定记录窗口签名收益，并单独统计伴随清算的样本。
@@ -353,6 +366,13 @@ BTC 有符号/绝对波动。这不会把展示深度优势转成对冲路由、
 只作为未经验证的研究线索；实现对照一级研究 [Quarter-Hour Effect](https://arxiv.org/abs/2607.09426)，
 并对照 [Binance 官方资金费率与盘口文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
 MarketBridge 只检验单交易所可观测的流量与收益关联，不提供择时指令。
+
+`crypto_trade_imbalance_bar_replay.py` 是独立的事件时间案例，不重复 15 分钟或 K 线窗口流量检验：累计带符号的主动成交名义金额
+达到调用者阈值（或交易笔数上限）才关闭事件条，再把强买/强卖不平衡与平衡控制条的后续事件条收益做对照。研究线索来自公开
+[X 上的 delta/imbalance-bars 讨论](https://x.com/quantbeckman/status/1931965694251253967)，并对照
+[加密市场事件型微结构研究](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6057134)
+和 [Binance 公共 futures 市场数据文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)。
+这些资料只支持可证伪的数据表示测试，不证明事件条能预测收益，也不证明扣除手续费和延迟后可执行。
 
 `crypto_session_momentum_replay.py` 把已有的当前快照筛选升级成历史事件研究：在调用者指定的本地时段内，计算
 session VWAP、EMA(9/21)、MACD 加成交量确认，并测量固定未来 K 线窗口的方向收益。研究线索来自未经验证的
@@ -548,6 +568,11 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
   --exchange binance --symbol BTCUSDT --days 3 --window-minutes 5 \
   --horizon-bars 240 --min-flow-ratio 0.20 --paper-cost-bps 10 \
   --min-edge-bps 0 --min-observations 5
+python3 examples/crypto/microstructure/crypto_trade_imbalance_bar_replay.py \
+  --exchange binance --symbol BTCUSDT --days 2 --trade-pages 12 \
+  --bar-notional 1000000 --max-trades-per-bar 500 \
+  --min-imbalance-ratio 0.60 --horizon-bars 3 \
+  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
 python3 examples/crypto/microstructure/crypto_session_momentum_replay.py \
   --exchange binance --symbol BTCUSDT --interval 1m --days 3 \
   --timezone America/New_York --session-start 09:00 --session-end 09:15 \

@@ -195,6 +195,11 @@ The microstructure family now also includes a quarter-hour flow replay: it
 tests whether a UTC quarter-hour opening taker-flow imbalance aligns with a
 fixed-horizon perp return, while keeping bounded trade history and clock-phase
 causality explicit.
+It now also includes an event-time trade-imbalance-bar replay: completed bars
+close at a fixed quote-notional threshold or trade-count cap, and strong signed
+taker imbalance is compared with balanced controls over later event bars. The
+threshold, provider side semantics and event-time coverage remain explicit;
+this is not an execution or fill model.
 It also includes a standalone Bollinger BandWidth squeeze replay: a trailing
 close-only squeeze quantile followed by an upper/lower-band break is compared
 with fixed-horizon continuation, separate from the existing realized-volatility

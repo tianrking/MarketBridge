@@ -42,6 +42,7 @@ categorized command is the recommended one.
 | `crypto/microstructure/crypto_volatility_breakout_replay.py` | A compressed range break with volume/flow confirmation may continue after a fixed horizon | `/v1/history/candles`, optional `/v1/history/trades` | Gross and optional after-cost replay; no execution or fill model |
 | `crypto/microstructure/crypto_bollinger_squeeze_replay.py` | A trailing close-only BandWidth squeeze followed by an upper/lower-band break may continue over a fixed horizon | `/v1/history/candles` | Separate Bollinger response study; parameter sensitivity, bounded candles, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_cvd_divergence_replay.py` | A material price move against single-venue taker-flow delta may be followed by a fixed-horizon reversal | `/v1/history/candles`, `/v1/history/trades` | Bounded CVD divergence replay; venue coverage and direction semantics remain explicit |
+| `crypto/microstructure/crypto_trade_imbalance_bar_replay.py` | Completed quote-notional event bars with strong signed taker imbalance may continue over the next event bars versus balanced controls | `/v1/history/trades` | Event-time continuation study; threshold choice, bounded history, side semantics and execution remain explicit gaps |
 | `crypto/microstructure/crypto_quarter_hour_flow_replay.py` | UTC quarter-hour opening taker-flow imbalance may align with a fixed-horizon perp return | `/v1/history/candles` at 1m and `/v1/history/trades` | Phase-aligned single-venue replay; bounded history, clock-phase causality, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_session_momentum_replay.py` | Session VWAP/EMA(9/21)/MACD/volume confluence may align with a fixed-horizon return | `/v1/history/candles` | Timezone-aware close-to-close replay; session definition, missing bars, costs and execution remain explicit gaps |
 | `crypto/microstructure/crypto_weekday_hour_effect_replay.py` | A selected weekday/hour may have a different event, bounce and later return than other weekdays at the same UTC hour | `/v1/history/candles` | Matched-clock calendar study; weekday selection, missing bars, sample size, costs and execution remain explicit gaps |
@@ -212,6 +213,11 @@ python3 examples/crypto/microstructure/crypto_cvd_divergence_replay.py \
   --interval 5m --lookback-bars 12 --horizon-bars 3 \
   --min-price-move-pct 0.5 --min-flow-ratio 0.2 \
   --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/microstructure/crypto_trade_imbalance_bar_replay.py \
+  --exchange binance --symbol BTCUSDT --days 2 --trade-pages 12 \
+  --bar-notional 1000000 --max-trades-per-bar 500 \
+  --min-imbalance-ratio 0.60 --horizon-bars 3 \
+  --paper-cost-bps 10 --min-edge-bps 0 --min-observations 5
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_monitor.py \
   --symbol BTC --long-short-high 1.2 --long-short-low 0.8
 python3 examples/crypto/microstructure/crypto_derivatives_sentiment_recorder.py \
@@ -509,6 +515,7 @@ rewritten as falsifiable hypotheses:
 - [Macro liquidity, ETF-flow and crypto-regime context (unverified public claim)](https://x.com/wintermute_t/status/1985631560021000352)
 - [Crowded positioning and liquidation-to-reversal context (unverified public claim)](https://x.com/TheCryptoData/status/1948466627365769584)
 - [L2 imbalance plus funding-extreme perp logic (unverified public claim)](https://x.com/instaclaws/status/2038363051213181035)
+- [Delta/imbalance bars and event-driven sampling discussion (unverified public claim)](https://x.com/quantbeckman/status/1931965694251253967)
 - [Realized-volatility compression context (unverified public claim)](https://x.com/glassnode/status/1955218957490594099)
 - [Breakout confirmation / hold-above-level context (unverified public claim)](https://x.com/rektcapital/status/1893996786173259958)
 - [BTC/ETH ATM IV and 25D skew options brief (unverified public claim)](https://x.com/Gate_Launch/status/2063810805552845140)
