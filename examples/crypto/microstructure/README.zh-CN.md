@@ -37,6 +37,19 @@ python3 examples/crypto/microstructure/crypto_liquidity_sweep_response_replay.py
 MarketBridge 的字段语义对照 [Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)，
 并主动收窄 X 帖子术语：只检验前序区间突破、收回和 K 线几何，不把术语变成订单执行规则。
 
+`crypto_atr_regime_response_replay.py` 是独立的波动率上下文研究：计算简单平均真实波幅（ATR），用当前时点以前的滚动分布把状态分为压缩、普通和扩张，
+再比较各状态之后的有符号收益、绝对收益和路径风险。它不预测方向、不计算仓位、不设置止损，也不执行交易。研究线索来自
+[X 上的 regime/ATR 讨论](https://x.com/viviennaBTC/status/2037854988442235187)，计算口径对照
+[Binance Academy 的 ATR 说明](https://www.binance.com/en/square/post/510812)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_atr_regime_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --atr-period 14 --regime-lookback 96 \
+  --low-quantile 0.20 --high-quantile 0.80 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
 RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
 也不会把 X 帖子里的回撤描述变成预测。

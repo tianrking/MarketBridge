@@ -48,6 +48,22 @@ MarketBridge uses the official [Binance kline/candlestick field semantics](https
 and keeps the X terminology narrower than the post: only prior-range breach,
 reclaim and candle geometry are tested.
 
+`crypto_atr_regime_response_replay.py` is a separate volatility-context study.
+It computes a simple-average true range, classifies the current value against a
+trailing as-of distribution, and compares compressed/ordinary/expanded states
+with later signed and absolute BTC returns. It does not forecast direction,
+size positions, place stops, or execute trades. The research lead is the
+[public regime/ATR discussion on X](https://x.com/viviennaBTC/status/2037854988442235187),
+and the calculation is cross-checked against [Binance Academy's ATR explanation](https://www.binance.com/en/square/post/510812).
+
+```bash
+python3 examples/crypto/microstructure/crypto_atr_regime_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 90 --atr-period 14 --regime-lookback 96 \
+  --low-quantile 0.20 --high-quantile 0.80 \
+  --horizon-bars 8 --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
 hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
 average, does the next fixed number of weekly closes show a different signed

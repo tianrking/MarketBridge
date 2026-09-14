@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — Added ATR volatility-regime response replay
+
+Added `crypto_atr_regime_response_replay.py` under microstructure. It computes
+a simple-average true range from historical candles, classifies each current
+ATR against a trailing as-of distribution as compressed, ordinary or expanded,
+and compares later signed, absolute and path-risk responses. Current values are
+excluded from their own threshold history, and missing/short samples stay
+visible. This is a volatility-context study, not a directional forecast,
+position-sizing engine, stop-loss engine or execution path.
+
+The research lead is the public [regime/ATR discussion on X](https://x.com/viviennaBTC/status/2037854988442235187).
+The true-range construction is cross-checked against [Binance Academy's ATR explanation](https://www.binance.com/en/square/post/510812).
+
 ## 2026-09-14 — Added OHLCV liquidity-sweep response replay
 
 Added `crypto_liquidity_sweep_response_replay.py` under microstructure. The
