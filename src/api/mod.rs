@@ -101,6 +101,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/history/basis" => routes::history::basis,
         "/v1/history/trades" => routes::history::trades,
         "/v1/history/stablecoins" => routes::history::stablecoins,
+        "/v1/history/mining" => routes::history::mining_history,
         "/v1/market/liquidations" => routes::market::v1_market_liquidations,
         "/v1/market/order-books" => routes::market::v1_market_order_books,
         "/v1/options/chains" => routes::options::v1_options_chains,

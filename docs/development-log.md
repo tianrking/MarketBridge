@@ -1,5 +1,22 @@
 # Development log
 
+## 2026-09-14 — Added historical Bitcoin mining context and hash-ribbon replay
+
+Added read-only `/v1/history/mining`, backed by mempool.space's public trailing
+network-hashrate endpoint. The normalized response keeps hashrate samples and
+sparse difficulty-adjustment events separate, exposes window/limit coverage,
+and preserves provider estimates instead of inventing miner profitability or
+forced-selling semantics. Added the Python
+`crypto_hash_ribbon_response_replay.py` case: it computes timestamp-aware
+short/long hashrate means, labels recovery/capitulation/ordinary states, keeps
+price momentum as a separate filter, and measures later BTC candle responses.
+
+The hypothesis is motivated by the public [Glassnode Hash Ribbon definition](https://studio.glassnode.com/charts/indicators.HashRibbon)
+and its [tutorial on miner-cycle interpretation](https://docs.glassnode.com/guides-and-tutorials/getting-started/use-case-tutorials/tutorial-1-navigating-market-tops-and-bottoms),
+with raw history semantics cross-checked against [mempool.space's official
+REST API](https://mempool.space/docs/api/rest). These sources motivate a
+reproducible response study, not a buy signal or a miner-cash-flow claim.
+
 ## 2026-09-14 — Added two-channel ETF/stablecoin liquidity impulse replay
 
 Added the Python-first `crypto_liquidity_impulse_replay.py` case under the

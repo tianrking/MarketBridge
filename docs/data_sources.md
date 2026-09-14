@@ -235,7 +235,7 @@ curl -s "http://127.0.0.1:8080/v1/external/signals?sources=meteora,orca,uniswap_
 
 | Source | Scope | Endpoint | Key | Notes |
 |---|---|---|---|---|
-| mempool.space | Bitcoin difficulty and hashrate | `/v1/onchain/mining` | keyless | On-demand difficulty-adjustment and trailing one-week hashrate context; estimates do not identify miner profitability or capitulation. |
+| mempool.space | Bitcoin difficulty and hashrate | `/v1/onchain/mining`, `/v1/history/mining` | keyless | On-demand snapshot plus bounded hashrate/difficulty history; estimates do not identify miner profitability or capitulation. |
 
 Etherscan is intentionally address-watchlist based and waits for configured safe
 confirmations. It is not a full-chain Ethereum firehose.

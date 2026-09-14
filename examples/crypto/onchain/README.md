@@ -51,6 +51,13 @@ classifies `miner_stress_context`, `miner_tailwind_context`, or
 provider's seven-day hashrate change. The recorder freezes the state beside a
 BTC quote; the replay compares later signed and absolute BTC responses by state.
 
+`crypto_hash_ribbon_response_replay.py` uses the new
+`/v1/history/mining?window=3y` endpoint to calculate timestamp-aware 30/60-day
+hashrate moving-average states and compare later BTC candles. The 10/20-day
+price-momentum condition remains a separate observable filter. It is a
+provider-context response study, not proof of miner capitulation, profitability,
+causality or a trade signal.
+
 This does not turn a negative difficulty change into a miner-capitulation claim.
 Hashrate is estimated, difficulty is a protocol adjustment, and neither field
 identifies a miner's reserve, profitability, treasury sale, or forced selling.

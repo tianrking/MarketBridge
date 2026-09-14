@@ -457,6 +457,20 @@ This is provider-estimated network context. It does not identify miners,
 profitability, reserves, forced selling or capitulation, and does not provide a
 BTC direction, wallet, transaction or execution path.
 
+### Historical mining history
+
+`GET /v1/history/mining?window=1y&limit=500` fetches the bounded public
+`mempool.space` network hashrate series and sparse difficulty-adjustment rows.
+Supported windows are `1d`, `1w`, `1m`, `3m`, `6m`, `1y`, `2y` and `3y`. The
+response contains `hashrates` with `ts_ms` and `avg_hashrate_hs`, plus
+`difficulty_adjustments` with `ts_ms`, `height`, `difficulty` and optional
+`adjustment`. Rows are sorted oldest to newest and the local limit keeps the
+latest rows. `coverage_detail` exposes the returned counts and covered bounds.
+
+This endpoint makes hash-ribbon-style response research reproducible, but it
+does not turn provider estimates into miner cash flow, profitability, forced
+selling, price causality or execution evidence.
+
 ## Prediction, Options, External Data
 
 | Data | Endpoint | Notes |
@@ -530,6 +544,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars with optional Arrow IPC persistence. |
 | GET | `/v1/history/candles` | On-demand special candle history; inspect `coverage_detail` before treating a bounded page as complete. |
 | GET | `/v1/history/stablecoins` | Bounded DefiLlama `peggedUSD` circulating-supply history, optionally filtered by chain and UTC timestamp bounds. |
+| GET | `/v1/history/mining` | Bounded mempool.space Bitcoin hashrate and difficulty-adjustment history for provider-context research. |
 | GET | `/v1/history/liquidations` | Bounded public OKX/CoinEx liquidation history for research replay. |
 | GET | `/v1/history/open-interest` | Binance/Bybit historical open-interest observations. |
 | GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC candles for volatility-regime research. |

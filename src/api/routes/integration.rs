@@ -149,6 +149,11 @@ fn capability_rows() -> Vec<IntegrationCapability> {
             purpose: "Fetch bounded DefiLlama peggedUSD stablecoin circulating-supply history for time-aligned research.",
         },
         IntegrationCapability {
+            name: "history_bitcoin_mining",
+            endpoint: "/v1/history/mining",
+            purpose: "Fetch bounded mempool.space network hashrate and difficulty-adjustment history for miner-context research.",
+        },
+        IntegrationCapability {
             name: "predicted_funding",
             endpoint: "/v1/market/predicted-funding",
             purpose: "Inspect Hyperliquid's named-venue predicted funding estimates without treating them as settled rates.",

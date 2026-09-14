@@ -113,6 +113,12 @@ pub struct HistoryTradesQuery {
     pages: Option<usize>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct HistoryMiningQuery {
+    window: Option<String>,
+    limit: Option<usize>,
+}
+
 const BINANCE_AGG_TRADE_WINDOW_MS: u64 = 60 * 60 * 1000;
 type TradeWindow = (Option<u64>, Option<u64>);
 type TradeWindowPlan = (Vec<TradeWindow>, usize);
@@ -473,6 +479,161 @@ pub async fn stablecoins(
         }))
         .into_response(),
     }
+}
+
+/// Fetch bounded Bitcoin hashrate and difficulty history from mempool.space.
+///
+/// The endpoint is intentionally provider-shaped: hashrate is a trailing
+/// network estimate and difficulty adjustments are sparse retarget events.
+/// It is suitable for reproducible context studies such as hash-ribbon
+/// response research, not for miner identity, profitability or execution.
+pub async fn mining_history(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryMiningQuery>,
+) -> impl IntoResponse {
+    let window = match mining_history_window(q.window.as_deref()) {
+        Ok(window) => window,
+        Err(error) => {
+            return Json(serde_json::json!({
+                "version": "v1",
+                "domain": "history_mining",
+                "source": "mempool_space",
+                "error": error.to_string(),
+                "hashrates": [],
+                "difficulty_adjustments": []
+            }));
+        }
+    };
+    let limit = q.limit.unwrap_or(500).clamp(2, 5_000);
+    let url = format!("https://mempool.space/api/v1/mining/hashrate/{window}");
+    let result = async {
+        let payload = state
+            .http
+            .get(url)
+            .send()
+            .await
+            .context("failed to fetch mempool.space hashrate history")?
+            .error_for_status()
+            .context("mempool.space hashrate history returned an error")?
+            .json::<Value>()
+            .await
+            .context("failed to parse mempool.space hashrate history")?;
+        normalize_mining_history(&payload, window, limit)
+    }
+    .await;
+
+    match result {
+        Ok((hashrates, difficulty_adjustments, coverage_detail)) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_mining",
+            "source": "mempool_space",
+            "window": window,
+            "coverage": "bounded_public_history",
+            "coverage_detail": coverage_detail,
+            "hashrates": hashrates,
+            "difficulty_adjustments": difficulty_adjustments,
+            "limitations": [
+                "hashrate is a provider-estimated network series, not miner identity or realized profitability",
+                "difficulty adjustments are sparse retarget events and do not replace a miner cash-flow ledger",
+                "provider retention, sampling cadence, revisions and timestamp alignment remain explicit",
+                "this read-only endpoint does not sign wallets, broadcast transactions or execute trades"
+            ]
+        })),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_mining",
+            "source": "mempool_space",
+            "window": window,
+            "error": error.to_string(),
+            "hashrates": [],
+            "difficulty_adjustments": []
+        })),
+    }
+}
+
+fn mining_history_window(raw: Option<&str>) -> Result<&'static str> {
+    match raw.unwrap_or("1y").trim().to_ascii_lowercase().as_str() {
+        "1d" => Ok("1d"),
+        "1w" => Ok("1w"),
+        "1m" => Ok("1m"),
+        "3m" => Ok("3m"),
+        "6m" => Ok("6m"),
+        "1y" => Ok("1y"),
+        "2y" => Ok("2y"),
+        "3y" => Ok("3y"),
+        other => bail!("unsupported mempool.space mining window: {other}"),
+    }
+}
+
+fn normalize_mining_history(
+    payload: &Value,
+    window: &str,
+    limit: usize,
+) -> Result<(Vec<Value>, Vec<Value>, Value)> {
+    let mut hashrates = payload
+        .get("hashrates")
+        .and_then(Value::as_array)
+        .context("mempool.space hashrate payload is missing hashrates")?
+        .iter()
+        .filter_map(|row| {
+            let timestamp = row
+                .get("timestamp")
+                .and_then(|value| value_u64(Some(value)))?;
+            let avg_hashrate = value_f64(row.get("avgHashrate"))?;
+            (avg_hashrate.is_finite() && avg_hashrate > 0.0).then(|| {
+                serde_json::json!({
+                    "ts_ms": timestamp.checked_mul(1_000),
+                    "avg_hashrate_hs": avg_hashrate,
+                    "source": "mempool_space"
+                })
+            })
+        })
+        .filter(|row| row.get("ts_ms").is_some_and(|value| !value.is_null()))
+        .collect::<Vec<_>>();
+    hashrates.sort_by_key(|row| row.get("ts_ms").and_then(Value::as_u64).unwrap_or_default());
+    if hashrates.len() > limit {
+        hashrates.drain(..hashrates.len() - limit);
+    }
+
+    let mut difficulty_adjustments = payload
+        .get("difficulty")
+        .and_then(Value::as_array)
+        .context("mempool.space hashrate payload is missing difficulty")?
+        .iter()
+        .filter_map(|row| {
+            let timestamp = row
+                .get("time")
+                .or_else(|| row.get("timestamp"))
+                .and_then(|value| value_u64(Some(value)))?;
+            let difficulty = value_f64(row.get("difficulty"))?;
+            (difficulty.is_finite() && difficulty > 0.0).then(|| {
+                serde_json::json!({
+                    "ts_ms": timestamp.checked_mul(1_000),
+                    "height": value_u64(row.get("height")),
+                    "difficulty": difficulty,
+                    "adjustment": value_f64(row.get("adjustment")),
+                    "source": "mempool_space"
+                })
+            })
+        })
+        .filter(|row| row.get("ts_ms").is_some_and(|value| !value.is_null()))
+        .collect::<Vec<_>>();
+    difficulty_adjustments
+        .sort_by_key(|row| row.get("ts_ms").and_then(Value::as_u64).unwrap_or_default());
+    if difficulty_adjustments.len() > limit {
+        difficulty_adjustments.drain(..difficulty_adjustments.len() - limit);
+    }
+
+    let coverage_detail = serde_json::json!({
+        "status": if hashrates.len() >= limit { "locally_limited" } else { "bounded_provider_history" },
+        "window": window,
+        "returned_hashrate_rows": hashrates.len(),
+        "returned_difficulty_rows": difficulty_adjustments.len(),
+        "covered_start_ms": hashrates.iter().filter_map(|row| row.get("ts_ms").and_then(Value::as_u64)).min(),
+        "covered_end_ms": hashrates.iter().filter_map(|row| row.get("ts_ms").and_then(Value::as_u64)).max(),
+        "limit": limit
+    });
+    Ok((hashrates, difficulty_adjustments, coverage_detail))
 }
 
 fn stablecoin_coverage_detail(rows: &[Value], q: &HistoryStablecoinQuery) -> Value {
@@ -2497,6 +2658,34 @@ mod tests {
     fn stablecoin_history_rejects_reversed_bounds_and_invalid_chain() {
         assert!(validate_stablecoin_chain("all/../private").is_err());
         assert!(validate_stablecoin_chain("Ethereum").is_ok());
+    }
+
+    #[test]
+    fn normalizes_mining_history_to_millisecond_rows_and_keeps_latest_limit() {
+        let payload = serde_json::json!({
+            "hashrates": [
+                {"timestamp": 100, "avgHashrate": 10.0},
+                {"timestamp": 200, "avgHashrate": 20.0},
+                {"timestamp": 300, "avgHashrate": 30.0}
+            ],
+            "difficulty": [
+                {"time": 150, "height": 10, "difficulty": 100.0, "adjustment": 1.01},
+                {"time": 250, "height": 20, "difficulty": 110.0, "adjustment": 1.10}
+            ]
+        });
+        let (hashrates, adjustments, coverage) =
+            normalize_mining_history(&payload, "1y", 2).expect("mining history");
+        assert_eq!(hashrates.len(), 2);
+        assert_eq!(hashrates[0]["ts_ms"], serde_json::json!(200_000_u64));
+        assert_eq!(hashrates[1]["avg_hashrate_hs"], serde_json::json!(30.0));
+        assert_eq!(adjustments[0]["height"], serde_json::json!(10));
+        assert_eq!(coverage["status"], serde_json::json!("locally_limited"));
+    }
+
+    #[test]
+    fn mining_history_window_rejects_unbounded_provider_paths() {
+        assert_eq!(mining_history_window(Some("1y")).unwrap(), "1y");
+        assert!(mining_history_window(Some("90d")).is_err());
     }
 
     #[test]

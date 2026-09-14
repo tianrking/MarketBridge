@@ -873,3 +873,13 @@ curl -s "$MB/v1/onchain/mempool" | jq
 ```bash
 curl -s "$MB/v1/onchain/mining" | jq
 ```
+
+### Q123. Query Bitcoin mining history for hash-ribbon research
+
+```bash
+curl -s "$MB/v1/history/mining?window=3y&limit=5000" | jq
+```
+
+`hashrates` is a provider-estimated network series; `difficulty_adjustments`
+is a sparse retarget series. Neither is a miner identity, profitability or
+forced-selling ledger.

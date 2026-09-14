@@ -11,6 +11,8 @@
   recommended sat/vB and virtual-size pressure states.
 - `crypto_onchain_mining_pressure_monitor.py` / recorder / replay:
   difficulty-adjustment and seven-day hashrate context.
+- `crypto_hash_ribbon_response_replay.py`: a timestamp-aware 30/60-day
+  hashrate-crossing response study using `/v1/history/mining` and BTC candles.
 
 ## Quickstart
 
@@ -34,6 +36,20 @@ not proof of exchange inflow/outflow, wallet ownership, or intent. Mining
 difficulty and hashrate are network context, not a miner PnL or price forecast.
 Provider/node snapshots, deduplication, timestamp alignment and missing BTC
 quotes remain visible in every replay.
+
+The hash-ribbon case follows the public 30/60-day moving-average definition
+described by [Glassnode](https://studio.glassnode.com/charts/indicators.HashRibbon)
+and tests it as a response distribution only. It requires timestamp coverage
+for the requested windows, keeps the optional 10/20-day price-momentum
+confirmation separate, and never labels a provider estimate as miner
+capitulation or a buy signal.
+
+```bash
+python3 examples/crypto/onchain/crypto_hash_ribbon_response_replay.py \
+  --mining-window 3y --short-window-days 30 --long-window-days 60 \
+  --price-short-days 10 --price-long-days 20 \
+  --horizon-days 30 --min-observations 3
+```
 
 Provenance is maintained in [`README.md`](README.md), including the
 [mempool.space REST API](https://mempool.space/docs/api/rest) and its
