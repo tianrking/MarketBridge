@@ -5,6 +5,7 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::api::ApiState;
 use crate::api::error::upstream_error;
@@ -133,4 +134,110 @@ pub async fn v1_external_signals(
         "domain": "external_signal",
         "signals": rows
     }))
+}
+
+pub async fn v1_external_global_market(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    let source = "coingecko_global";
+    let response = state
+        .http
+        .get("https://api.coingecko.com/api/v3/global")
+        .send()
+        .await
+        .and_then(|response| response.error_for_status());
+    match response {
+        Ok(response) => match response.json::<Value>().await {
+            Ok(payload) => match normalize_coingecko_global(&payload) {
+                Some(data) => Json(serde_json::json!({
+                    "version": "v1",
+                    "domain": "global_market_context",
+                    "source": source,
+                    "coverage": "provider_snapshot",
+                    "data": data,
+                    "limitations": [
+                        "global market cap and dominance are provider aggregates, not exchange-executable prices",
+                        "the snapshot is not a historical dominance series and does not establish causality",
+                        "no order, wallet, signing or execution path is included"
+                    ]
+                }))
+                .into_response(),
+                None => (
+                    StatusCode::BAD_GATEWAY,
+                    Json(serde_json::json!({
+                        "version": "v1",
+                        "domain": "global_market_context",
+                        "source": source,
+                        "error": "CoinGecko global payload missing required data"
+                    })),
+                )
+                    .into_response(),
+            },
+            Err(error) => upstream_error(source, error),
+        },
+        Err(error) => upstream_error(source, error),
+    }
+}
+
+fn normalize_coingecko_global(payload: &Value) -> Option<Value> {
+    let data = payload.get("data")?;
+    let total_market_cap_usd = data
+        .pointer("/total_market_cap/usd")
+        .and_then(Value::as_f64)?;
+    let total_volume_usd = data.pointer("/total_volume/usd").and_then(Value::as_f64);
+    let market_cap_percentage = data.get("market_cap_percentage")?.clone();
+    let btc_dominance_pct = market_cap_percentage.get("btc").and_then(Value::as_f64);
+    let eth_dominance_pct = market_cap_percentage.get("eth").and_then(Value::as_f64);
+    let active_cryptocurrencies = data.get("active_cryptocurrencies").and_then(Value::as_u64);
+    let markets = data.get("markets").and_then(Value::as_u64);
+    let updated_at_ms = data
+        .get("updated_at")
+        .and_then(Value::as_u64)
+        .map(|seconds| seconds.saturating_mul(1_000));
+    Some(serde_json::json!({
+        "total_market_cap_usd": total_market_cap_usd,
+        "total_volume_usd": total_volume_usd,
+        "market_cap_change_24h_pct": data.get("market_cap_change_percentage_24h_usd").and_then(Value::as_f64),
+        "volume_change_24h_pct": data.get("volume_change_percentage_24h_usd").and_then(Value::as_f64),
+        "btc_dominance_pct": btc_dominance_pct,
+        "eth_dominance_pct": eth_dominance_pct,
+        "market_cap_percentage": market_cap_percentage,
+        "active_cryptocurrencies": active_cryptocurrencies,
+        "markets": markets,
+        "updated_at_ms": updated_at_ms,
+        "source": "coingecko_global"
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_coingecko_global;
+
+    #[test]
+    fn normalizes_global_market_dominance_and_totals() {
+        let payload = serde_json::json!({
+            "data": {
+                "total_market_cap": {"usd": 2_000_000_000_000.0},
+                "total_volume": {"usd": 80_000_000_000.0},
+                "market_cap_percentage": {"btc": 52.5, "eth": 17.2},
+                "market_cap_change_percentage_24h_usd": -1.5,
+                "active_cryptocurrencies": 12000,
+                "markets": 900,
+                "updated_at": 1700000000
+            }
+        });
+        let data = normalize_coingecko_global(&payload).expect("normalized global context");
+        assert_eq!(data["btc_dominance_pct"], serde_json::json!(52.5));
+        assert_eq!(
+            data["total_market_cap_usd"],
+            serde_json::json!(2_000_000_000_000.0)
+        );
+        assert_eq!(
+            data["updated_at_ms"],
+            serde_json::json!(1_700_000_000_000u64)
+        );
+    }
+
+    #[test]
+    fn rejects_global_payload_without_usd_market_cap() {
+        assert!(normalize_coingecko_global(&serde_json::json!({"data": {}})).is_none());
+    }
 }

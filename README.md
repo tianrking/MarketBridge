@@ -692,6 +692,7 @@ tables below are a shorter runtime summary.
 | DeFi prices/quotes | Jupiter/Raydium/Uniswap/ParaSwap/1inch/DexScreener quote or pool price | `GET /v1/market/quotes?exchanges=...` | `market_quote` when enabled | `poll_secs`, default 10s | Usually no; depends on configured gateway |
 | TradFi references | DXY, VIX, US10Y | `GET /v1/market/quotes?exchanges=dxy,vix,us10y` | `market_quote` when enabled | `poll_secs`, usually 60s+ | US10Y needs FRED key |
 | Aggregate crypto signals | CoinGecko/CoinCap/CMC prices, CoinGlass derivatives metrics | `GET /v1/external/signals`, quote surface for price sources | `external_signal` | `poll_secs`, usually 60s+ | Some sources require keys |
+| Global crypto market context | CoinGecko total market cap/volume, BTC/ETH dominance and active-market counts | `GET /v1/external/global-market` | No direct stream | on-demand public REST snapshot | Keyless public path; provider rate limits apply |
 | Sentiment/news | Fear & Greed, CryptoPanic, Santiment, LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | `poll_secs`, source-specific | Most except Fear & Greed need keys |
 | On-chain transfers | Whale Alert, mempool.space BTC, Etherscan watched-address transfers | `GET /v1/onchain/transfers` | No direct stream | `poll_secs`, default 60s | Whale Alert/Etherscan need keys |
 | Catalog and health | enabled sources, API-key status, domains, instruments, freshness | `/v1/catalog/*`, `/coverage`, `/metrics` | No | updated from runtime caches/metrics | No |
@@ -880,6 +881,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |
+| GET | `/v1/external/global-market` | CoinGecko global market-cap, volume and dominance context |
 | GET | `/v1/onchain/transfers` | Large on-chain transfer feed from Whale Alert, mempool.space, and Etherscan |
 | GET | `/v1/universe/top-volume` | Universe filter by historical quote volume |
 | GET | `/v1/universe/percent-change` | Universe filter by percent change |

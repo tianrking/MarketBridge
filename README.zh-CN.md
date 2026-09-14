@@ -386,6 +386,7 @@ curl -s "http://127.0.0.1:8080/v1/catalog/sources" | jq
 | DeFi | Jupiter/Raydium/Meteora DLMM/Orca/Uniswap/ParaSwap/1inch/DexScreener quote 或 pool price；Meteora/Orca 另有原生 pool state | `GET /v1/market/quotes?exchanges=...`、`GET /v1/external/signals?sources=meteora,orca` | quote 走 `market_quote`，池上下文走 `external_signal` | `poll_secs`，默认 10 秒 | 通常否，取决于 gateway |
 | TradFi / Macro | DXY、VIX、US10Y | `GET /v1/market/quotes?exchanges=dxy,vix,us10y` | 启用后走 `market_quote` | 通常 60 秒或更慢 | US10Y 需要 FRED key |
 | 聚合行情/衍生品信号 | CoinGecko/CoinCap/CMC price、CoinGlass derivatives metrics | `GET /v1/external/signals`，价格源也走 quote surface | `external_signal` | 通常 60 秒或更慢 | 部分需要 |
+| 全市场加密上下文 | CoinGecko 总市值/成交量、BTC/ETH dominance、活跃币和市场数量 | `GET /v1/external/global-market` | 暂无直接流 | 按需公共 REST 快照 | 公共无 key 路径；受提供方额度限制 |
 | 情绪/新闻 | Fear & Greed、CryptoPanic、Santiment、LunarCrush | `GET /v1/external/signals?sources=...` | `external_signal` | source-specific poll | Fear & Greed 不需要，其余多需要 |
 | 天气观察 | Open-Meteo forecast/archive | `GET /v1/external/weather` | 按需只读 | keyless；坐标、模型、市场 bucket 与结算规则需调用者明确 |
 | 链上大额转账 | Whale Alert、mempool.space BTC、Etherscan watched addresses | `GET /v1/onchain/transfers` | 暂无直接流 | 默认 60 秒 | Whale Alert/Etherscan 需要 |
@@ -521,6 +522,7 @@ Base URL：`http://127.0.0.1:8080`
 | GET | `/v1/options/chains` | 多交易所 option chains。 |
 | GET | `/v1/prediction/books` | cached Polymarket books。 |
 | GET | `/v1/external/signals` | 聚合、新闻、情绪、宏观信号。 |
+| GET | `/v1/external/global-market` | CoinGecko 全市场市值、成交量和 dominance 上下文。 |
 | GET | `/v1/onchain/transfers` | 链上大额转账。 |
 | GET | `/snapshot` | legacy 最新 tick 快照。 |
 | GET | `/funding` | legacy funding view。 |

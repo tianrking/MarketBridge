@@ -1,5 +1,17 @@
 # Development log
 
+## 2026-09-14 — CoinGecko global market context monitor
+
+Added the read-only `/v1/external/global-market` endpoint, normalizing
+CoinGecko's total market cap/volume, BTC/ETH dominance, 24-hour changes, active
+cryptocurrency count, market count and provider timestamp. Added the Python
+`crypto_global_market_regime_monitor.py` case, which classifies stress,
+BTC-dominant, broad-risk-on and mixed context without turning one snapshot into
+a strategy signal. Provenance: [CoinGecko Crypto Global Market Data](https://docs.coingecko.com/reference/crypto-global),
+[CoinGecko market research guidance](https://docs.coingecko.com/docs/market-research),
+and the unverified [public X BTC-dominance lead](https://x.com/1881Erdem/status/2041949708864643566).
+No order, wallet, signing or execution path is included.
+
 ## 2026-09-14 — Binance funding provider-band context
 
 Extended on-demand perpetual funding rows with Binance's published adjusted

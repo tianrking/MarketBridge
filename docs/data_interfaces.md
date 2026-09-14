@@ -432,6 +432,7 @@ Important boundaries:
 | Polymarket batch prices | `/polymarket/midpoints`, `/polymarket/spreads`, `/polymarket/prices`, `/polymarket/last-trade-prices` | Public CLOB wrappers. |
 | Polymarket price history | `/polymarket/prices-history` | Public CLOB history/OHLCV wrapper. |
 | External signals | `/v1/external/signals` | CoinGlass, Farside ETF flow, Fear & Greed, CryptoPanic, Santiment, LunarCrush, and DeFi native-state metrics emitted by pool connectors. `source_instance` distinguishes repeated items such as CryptoPanic `news_item` URLs; rows remain current snapshots, not a complete history endpoint. |
+| Global market context | `/v1/external/global-market` | CoinGecko public global market data; normalized total market cap/volume, BTC/ETH dominance, 24-hour changes, active cryptocurrencies and market count; provider snapshot, not a historical index. |
 | Weather observations | `/v1/external/weather` | On-demand Open-Meteo forecast or historical archive response with explicit coordinates, mode, dates and requested variables. |
 
 Known non-Polymarket gaps are centralized in
@@ -516,6 +517,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/prediction/books` | Cached Polymarket books. |
 | GET | `/v1/prediction/trades` | Normalized public Polymarket trade history for research and replay input. |
 | GET | `/v1/external/signals` | Aggregates, macro, news, and sentiment. |
+| GET | `/v1/external/global-market` | CoinGecko global crypto market context. |
 | GET | `/v1/external/weather` | Read-only weather forecast/archive input for event studies and prediction-market calibration. |
 | GET | `/v1/onchain/transfers` | Large transfer feed. |
 | GET | `/snapshot` | Legacy latest quote tick snapshot. |

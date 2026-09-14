@@ -15,6 +15,12 @@ high breadth states. This is intentionally an equal-count proxy: it does not
 reproduce BlockchainCenter's market-cap-weighted Top-50 universe or claim to be
 an official Altcoin Season Index.
 
+`crypto_global_market_regime_monitor.py` adds a provider-level macro snapshot:
+it classifies CoinGecko total-market change and BTC dominance as stress,
+BTC-dominant risk-on, broad risk-on or mixed context. This is a regime label to
+condition later breadth or momentum replays; one snapshot is not a historical
+dominance factor, return forecast or allocation instruction.
+
 `crypto_universe_opportunity_recorder.py` / `crypto_universe_opportunity_replay.py`
 freeze the scanner's candidate sets and test whether the top-k universe remains
 present across snapshots. This is persistence evidence only; it does not turn a
@@ -104,6 +110,12 @@ The aggregate-regime framing is motivated by the unverified [XWIN trend and
 positioning discussion on X](https://x.com/xwinfinance/status/2023155692916646257);
 MarketBridge only measures the response distribution of its own explicit Rust
 regime labels.
+The global-context case is cross-checked against CoinGecko's official [Crypto
+Global Market Data](https://docs.coingecko.com/reference/crypto-global) and
+[market-research guidance](https://docs.coingecko.com/docs/market-research),
+which document BTC dominance, total market cap/volume and active-market counts.
+The public X lead is the unverified [BTC-dominance/alt-season discussion](https://x.com/1881Erdem/status/2041949708864643566);
+it motivates a falsifiable context test, not a timing claim.
 
 ## 中文
 
@@ -169,8 +181,15 @@ breadth 定义对照 [BlockchainCenter 的 Altcoin Season Index 说明](https://
 报价，再按 regime 报告未来收益、绝对波动和下行比例。该特征仍是当前聚合快照，不是 point-in-time 历史因子，
 也不是策略选择器。
 
+`crypto_global_market_regime_monitor.py` 补充提供方级别的全市场宏观快照：根据 CoinGecko 总市值变化和 BTC
+dominance 分类为 stress、BTC-dominant risk-on、broad risk-on 或 mixed。它用于给 breadth 或 momentum 回放
+提供上下文；单次快照不是历史 dominance 因子、收益预测或资金分配指令。
+
 聚合状态研究线索参考未经验证的 [XWIN 趋势与持仓讨论](https://x.com/xwinfinance/status/2023155692916646257)；
 MarketBridge 只检验自己明确输出的 Rust regime 标签的响应分布。
+全市场上下文对照 CoinGecko 官方 [Crypto Global Market Data](https://docs.coingecko.com/reference/crypto-global)
+和[市场研究说明](https://docs.coingecko.com/docs/market-research)，其中明确列出 BTC dominance、总市值/成交量和活跃市场数量。
+公开 X 的[BTC dominance/alt-season 讨论](https://x.com/1881Erdem/status/2041949708864643566)只作为未经验证的假设来源。
 
 ## Commands / 命令
 
@@ -232,4 +251,5 @@ python3 examples/crypto/universe/crypto_market_regime_recorder.py \
 python3 examples/crypto/universe/crypto_market_regime_replay.py \
   --input work/crypto-market-regime.jsonl --horizon-records 7 \
   --min-observations 5 --paper-cost-bps 10
+python3 examples/crypto/universe/crypto_global_market_regime_monitor.py
 ```
