@@ -15,6 +15,19 @@ Provenance: the public [options-volatility regime lead on X](https://x.com/Gate_
 is an unverified research lead. Field and resolution semantics are cross-checked
 against [Deribit's official volatility-index history documentation](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data).
 
+## 2026-09-14 — Deribit volatility-index minus RV response study
+
+Added `crypto_deribit_volatility_index_vrp_response_replay.py` as a separate
+research case over the new volatility-index endpoint. It computes an explicit
+close-to-close annualized RV window from MarketBridge perp candles, classifies
+index-minus-RV premium, discount and aligned states, and compares later fixed
+BTC responses against the aligned bucket. Different constructions, horizons,
+missing candles, option PnL, hedging and execution remain explicit gaps.
+
+Provenance: the public [volatility-risk-premium research lead on X](https://x.com/ConcretumR/status/1952298941745172695)
+is treated as a falsifiable lead only; the Deribit OHLC semantics remain
+grounded in the [official volatility-index API documentation](https://docs.deribit.com/api-reference/market-data/public-get_volatility_index_data).
+
 ## 2026-09-14 — Binance global account-ratio scope
 
 Extended `/v1/history/account-ratio` with `scope=global|top_trader` for

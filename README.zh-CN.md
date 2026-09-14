@@ -18,6 +18,8 @@ MarketBridge：多市场、多平台的市场数据与策略研究基座，统�
 期权系列还提供 Deribit 波动率指数历史响应回放：通过
 `/v1/history/volatility-index` 比较高、低和普通 provider 状态之后的 BTC 绝对波动，
 只做描述性研究，不建模波动率仓位或执行。
+同时提供 DVOL 减已实现波动率（RV）的响应回放，明确计算收盘价 RV 窗口，
+不把公开风险溢价讨论直接包装成卖波动率回测。
 
 [English README](README.md)
 

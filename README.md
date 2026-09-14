@@ -126,6 +126,9 @@ The options family also includes a Deribit volatility-index response replay
 over `/v1/history/volatility-index`; it compares high/low/ordinary provider
 index states with later BTC absolute movement and does not model a volatility
 position or execution.
+The same family includes a DVOL-minus-realized-volatility response replay so
+the public risk-premium claim is tested against an explicit close-to-close RV
+window rather than treated as a short-volatility backtest.
 The carry family now also includes a funding-regime persistence replay: it
 tests consecutive extreme funding runs against later perp returns while
 keeping schedule gaps and the no-order boundary explicit.

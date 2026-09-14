@@ -98,6 +98,7 @@ there are no root-level compatibility copies.
 | `crypto/options/crypto_options_vrp_response_replay.py` | Compare later BTC signed/absolute responses after IV-premium, RV-above-IV and aligned regimes | Reuses VRP JSONL from `/v1/options/chains` and `/v1/history/candles` | Fixed-record surface-response study; expiry roll, IV/RV horizon mismatch and execution remain explicit |
 | `crypto/options/crypto_historical_volatility_response_replay.py` | High or low Bybit option-market historical volatility may be followed by a different absolute BTC response than ordinary provider-volatility states | `/v1/history/historical-volatility`, `/v1/history/candles` | Provider-volatility response study; cross-venue price alignment, option PnL, hedge, costs and execution remain explicit |
 | `crypto/options/crypto_deribit_volatility_index_response_replay.py` | High or low Deribit volatility-index closes may be followed by a different absolute BTC response than ordinary states | `/v1/history/volatility-index`, `/v1/history/candles` | Public index response study; not a complete surface, forecast, option PnL or execution model |
+| `crypto/options/crypto_deribit_volatility_index_vrp_response_replay.py` | Deribit volatility-index minus close-to-close RV premium/discount states may have different later absolute BTC responses than aligned states | `/v1/history/volatility-index`, `/v1/history/candles` | DVOL-RV regime study; constructions, horizons, option PnL, hedging and execution remain explicit gaps |
 | `crypto_options_gamma_monitor.py` | Map unsigned gamma concentration near spot and dominant strikes without inferring dealer long/short gamma | `/v1/options/chains` plus bounded `/options/deribit/book` enrichment | Snapshot gamma map; relative mass only, partial coverage is reported, not USD exposure or a directional signal |
 | `crypto_options_gamma_recorder.py` / `crypto_options_gamma_replay.py` | Test whether unsigned near-spot gamma concentration persists across snapshots | `/v1/options/chains` JSONL archive | Descriptive persistence replay; no dealer sign, realized-volatility response or hedge PnL |
 | `crypto/options/crypto_options_gamma_response_recorder.py` / `crypto_options_gamma_response_replay.py` | Compare later BTC absolute and signed movement after unsigned near-spot gamma concentration versus other snapshots | `/v1/options/chains`, `/v1/market/quotes`, JSONL archive | Fixed-record response study; no dealer sign, option PnL, hedge, causality or execution |
@@ -407,6 +408,10 @@ python3 examples/crypto/options/crypto_deribit_volatility_index_response_replay.
   --currency BTC --resolution 3600 --days 30 \
   --price-symbol BTCUSDT --price-interval 1h \
   --low-threshold 25 --high-threshold 75 \
+  --horizon-bars 3 --min-observations 5
+python3 examples/crypto/options/crypto_deribit_volatility_index_vrp_response_replay.py \
+  --currency BTC --resolution 3600 --days 30 --price-symbol BTCUSDT \
+  --price-interval 1h --rv-bars 24 --vrp-threshold 5 \
   --horizon-bars 3 --min-observations 5
 python3 examples/crypto/universe/crypto_universe_opportunity_scan.py \
   --exchange binance --market perp --interval 5m \
