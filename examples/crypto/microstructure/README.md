@@ -75,6 +75,7 @@ Cases:
 - `crypto_vortex_response_replay.py`: compares VI+/VI− pressure, cross events and balanced controls.
 - `crypto_pivot_response_replay.py`: compares prior-UTC-day traditional pivot touches/reclaims with inside-range controls.
 - `crypto_heikin_ashi_response_replay.py`: compares synthetic Heikin-Ashi wickless trend states with mixed/doji controls using real closes.
+- `crypto_cci_response_replay.py`: compares typical-price CCI extremes, zero crosses and neutral deviations.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -761,6 +762,18 @@ python3 examples/crypto/microstructure/crypto_heikin_ashi_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --wick-tolerance-bps 1 --doji-body-bps 5 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_cci_response_replay.py` 用典型价 `(high+low+close)/3`、trailing SMA 和 mean deviation 计算 CCI，并按 `overbought`、`oversold`、正/负中性偏离和 `neutral` 分组，单独保留正/负零线交叉。
+极值与中性偏离控制组比较固定窗口响应；CCI 极值既可能是强趋势，也可能是反转候选，因此实现不预设方向、不生成入场/止损/执行规则。周期、`.015` 缩放常数、阈值和 horizon 都显式输出，zero-deviation 窗口保持缺失。
+公式对照 [TradingView 的 CCI 说明](https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_cci_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 20 --constant 0.015 \
+  --overbought 100 --oversold -100 --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

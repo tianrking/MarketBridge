@@ -310,6 +310,18 @@ python3 examples/crypto/microstructure/crypto_heikin_ashi_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_cci_response_replay.py` 用典型价 `(high+low+close)/3`、trailing SMA 和 mean deviation 计算 CCI，按 `overbought`、`oversold`、正/负中性偏离和 `neutral` 分组，并单独保留正/负零线交叉事件。
+极值与中性偏离控制组比较固定窗口响应；CCI 极值既可能是强趋势，也可能是反转候选，因此实现不预设方向、不生成入场/止损/执行规则。周期、`.015` 缩放常数、阈值和 horizon 都显式输出，zero-deviation 窗口保持缺失。
+公式对照 [TradingView 的 CCI 说明](https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_cci_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 20 --constant 0.015 \
+  --overbought 100 --oversold -100 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

@@ -410,6 +410,24 @@ python3 examples/crypto/microstructure/crypto_heikin_ashi_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_cci_response_replay.py` computes CCI from typical price
+`(high+low+close)/3`, a trailing SMA and mean deviation. Bars are grouped as
+`overbought`, `oversold`, positive/negative neutral deviation or `neutral`,
+with positive and negative zero-line crosses retained as events. Extremes are
+compared with neutral deviation controls over a fixed horizon. CCI extremes can
+represent strength as well as reversal context, so the implementation does not
+pre-assign direction or create entry, stop or execution rules. Period, `.015`
+scaling constant, thresholds and horizon are explicit; zero-deviation windows
+stay missing. Formula details are cross-checked against [TradingView's CCI documentation](https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/),
+and candle fields use [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_cci_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --period 20 --constant 0.015 \
+  --overbought 100 --oversold -100 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

@@ -2118,3 +2118,15 @@ visible, with no stop, wallet action or order.
 Provenance: [TradingView's Heikin-Ashi construction and price caveat](https://www.tradingview.com/support/solutions/43000619436-understanding-heikin-ashi-charts/)
 defines the transformation, [Binance's Heikin-Ashi guide](https://www.binance.com/en/square/post/474846)
 provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — CCI response replay
+
+Added `crypto_cci_response_replay.py` under the microstructure family. The
+Python case computes typical-price SMA/mean deviation CCI, separates extreme
+and neutral-deviation states, retains zero-line crosses, and compares fixed-
+horizon responses. It explicitly keeps the ambiguity that CCI extremes can be
+trend strength or reversal context; zero-deviation windows, thresholds and
+coverage remain visible, with no order or wallet path.
+
+Provenance: [TradingView's CCI calculation](https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/)
+defines the formula, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
