@@ -58,6 +58,14 @@ return after an extreme or shocked cross-venue spread with ordinary spread
 windows. The spread is a carry-context/stress feature, not a direction signal;
 the result does not estimate funding cash flow or claim a hedge can be filled.
 
+`crypto_premium_funding_response_replay.py` uses Binance's historical premium
+index, funding-rate points and perpetual candles to test a narrower market-data
+hypothesis: when premium and funding have material opposite signs, is the next
+fixed-horizon absolute or signed response different from ordinary observations?
+Funding is carried only from the latest point within a bounded age window, and
+missing alignment stays observe-only. This is not an executable carry trade,
+funding-income estimate or directional signal.
+
 `crypto_cross_venue_price_gap_replay.py` isolates same-asset price
 fragmentation: it aligns two venue candle series, detects an extreme log-price
 gap relative to a frozen trailing mean, and measures subsequent contraction.
@@ -116,6 +124,11 @@ documentation](https://developers.binance.com/docs/derivatives/coin-margined-fut
 and [OKX's funding-rate-history documentation](https://app.okx.com/docs-v5/zh/#rest-api-public-data-get-funding-rate-history).
 Those sources document public funding observations; they do not establish a
 profitable spread trade or a price-volatility forecast.
+The premium/funding decomposition is motivated by the public [cross-venue
+funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817)
+and uses Binance's official [Premium Index Kline API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Premium-Index-Kline-Data).
+The premium index is exchange-derived market context; the case does not infer
+funding cash flow, trader intent or executable convergence.
 The cross-venue gap decomposition is cross-checked against the academic
 [Trading and Arbitrage in Cryptocurrency Markets](https://www.sciencedirect.com/science/article/pii/S0304405X19301746)
 and [Arbitrage across different Bitcoin exchange venues](https://onlinelibrary.wiley.com/doi/10.1111/acfi.13102).
@@ -177,6 +190,11 @@ Useful inputs:
 并与普通价差窗口对照。价差这里只是 carry 上下文/压力特征，不是方向信号；不会计算实际资金费收入，
 也不会声称对冲一定可成交。
 
+`crypto_premium_funding_response_replay.py` 使用 Binance 历史 premium index、资金费率点和永续 K 线，
+检验更窄的市场数据假设：当 premium 与 funding 出现明显相反符号时，之后固定窗口的有符号或绝对收益，
+是否不同于普通对齐观测？资金费率只在限定的最大陈旧时间内按最近点对齐，缺失对齐保持 observe-only。
+这不是可执行的 carry 交易、资金费收入估算或方向信号。
+
 `crypto_cross_venue_orderbook_monitor.py` 是更窄的盘口快照案例：读取两边 ask/bid，按目标名义金额计算
 两边 VWAP，拒绝超出时间偏差阈值的快照，并扣除调用者提供的纸面双边成本。recorder/replay 再检验盘口
 edge 是否连续出现。它仍不模拟预存库存、结算、队列位置、转账费或执行。
@@ -204,6 +222,9 @@ triangular response recorder 还会记录同步的 MarketBridge BTC 报价；rep
 并以 [Binance 资金费率历史文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
 和 [OKX 资金费率历史文档](https://app.okx.com/docs-v5/zh/#rest-api-public-data-get-funding-rate-history)
 保留各平台逐点结算间隔语义。这些资料只证明公开资金费率可观察，不证明价差交易有收益，也不证明它能预测价格波动。
+premium/funding 拆解参考公开的 [跨交易所资金费率差异讨论](https://x.com/leondoteth/status/2012127303850213817)，
+并使用 Binance 官方 [Premium Index Kline API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Premium-Index-Kline-Data)。
+premium index 是交易所衍生的市场上下文，不代表资金费现金流、交易者意图或可执行收敛。
 
 盘口案例对照 [Binance 公开 order-book 文档](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-options/api/rest-api/market-data)
 以及[跨交易所套利摩擦研究](https://academic.oup.com/rof/article/28/4/1345?guestAccessKey=50540e27-1995-48e8-bb51-6b93b219d2ad)。
@@ -259,6 +280,10 @@ python3 examples/crypto/carry/crypto_funding_spread_response_replay.py \
   --price-exchange binance --interval 1h --days 14 \
   --min-abs-spread-bps-per-year 1000 --shock-bps-per-year 0 \
   --horizon-bars 3 --paper-cost-bps 10 --min-edge-bps 0
+python3 examples/crypto/carry/crypto_premium_funding_response_replay.py \
+  --symbol BTCUSDT --exchange binance --interval 1h --days 14 \
+  --premium-threshold-bps 1 --funding-threshold-bps 1 \
+  --horizon-bars 3 --min-observations 5
 python3 examples/crypto/carry/crypto_cross_venue_price_gap_replay.py \
   --exchange-a binance --exchange-b okx --symbol BTCUSDT --market spot \
   --interval 5m --lookback-bars 24 --horizon-bars 6 --entry-z 2 \

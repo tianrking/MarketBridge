@@ -1,5 +1,16 @@
 # Development log
 
+## 2026-09-14 — premium-index/funding response replay
+
+Added the Python carry-family `crypto_premium_funding_response_replay.py` case.
+It aligns Binance `premiumIndex` candles, funding-rate observations and perp
+candles, labels opposite-sign divergence versus aligned/ordinary states, and
+compares fixed-horizon signed and absolute responses. The example uses the
+existing read-only history API and keeps provider page limits, as-of age and
+missing alignment explicit. Provenance: [Binance Premium Index Kline API](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Premium-Index-Kline-Data)
+and the public [cross-venue funding differential discussion on X](https://x.com/leondoteth/status/2012127303850213817).
+No funding-income, hedge, order or execution path is included.
+
 ## 2026-09-14 — Bybit account-ratio/OI response research input
 
 Added the read-only `/v1/history/account-ratio` endpoint for Bybit's public
