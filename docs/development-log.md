@@ -1,5 +1,24 @@
 # Development log
 
+## 2026-09-14 — Added weekly RSI crossover response replay
+
+Added `crypto_weekly_rsi_cross_response_replay.py` under microstructure. It
+uses MarketBridge weekly candles, computes a documented close-only simple
+RSI(14) and 14-week RSI average, identifies up/down cross states without future
+inputs, and reports both fixed-horizon close returns and the minimum future
+path return. The case keeps indicator convention, missing weeks,
+multiple-testing, costs and execution limitations explicit.
+
+The research lead is [Ali Charts' public X discussion](https://x.com/ali_charts/status/1952905714957177085)
+about weekly RSI/SMA behavior. It is deliberately treated as an unverified
+hypothesis; the replay does not inherit the post's 20–30% correction claim.
+
+During live validation, the new case exposed that Binance's public weekly
+candles were rejected by the common interval parser. Added normalized `1w`
+support (`604800000` ms) with a Rust unit test; the same endpoint now returns
+weekly Binance futures candles for Python research without changing any order
+or execution path.
+
 ## 2026-09-14 — Added Mayer Multiple valuation-regime replay
 
 Added the Python `crypto_mayer_multiple_response_replay.py` case to the on-chain

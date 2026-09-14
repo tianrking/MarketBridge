@@ -714,6 +714,7 @@ pub fn interval_to_ms(interval: &str) -> Option<u64> {
         "1h" => Some(3_600_000),
         "4h" => Some(14_400_000),
         "1d" => Some(86_400_000),
+        "1w" => Some(604_800_000),
         _ => None,
     }
 }
@@ -730,6 +731,7 @@ mod tests {
     fn interval_parser_supports_common_bars() {
         assert_eq!(interval_to_ms("1m"), Some(60_000));
         assert_eq!(interval_to_ms("1h"), Some(3_600_000));
+        assert_eq!(interval_to_ms("1w"), Some(604_800_000));
         assert_eq!(interval_to_ms("nope"), None);
     }
 

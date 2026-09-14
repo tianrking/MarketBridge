@@ -306,6 +306,13 @@ kline documentation](https://developers.binance.com/docs/derivatives/coin-margin
 The result reports aligned close-to-close returns after a paper hurdle; it is
 not a universal session edge or an execution instruction.
 
+The weekly RSI case is a separate fixed-window response test. It computes a
+close-only RSI(14) and its 14-week simple average on `/v1/history/candles`
+with `interval=1w`, then reports both the future close return and the minimum
+path return after each state. The public [Ali Charts RSI discussion on X](https://x.com/ali_charts/status/1952905714957177085)
+is treated as an unverified hypothesis lead; the implementation does not claim
+the cited 20–30% correction or use it as a trading signal.
+
 The weekday/hour replay turns a recurring-clock claim into a matched control
 study. It compares the selected weekday/hour (Tuesday 05:00 UTC by default)
 with all other weekdays at that UTC hour, and reports the event candle return,

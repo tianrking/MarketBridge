@@ -11,7 +11,7 @@
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `liquidation_reversal_replay.py` |
-| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_session_*`, `crypto_weekday_hour_effect_replay.py` |
+| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
@@ -27,6 +27,20 @@ The liquidity-sandwich pair tests the narrower public-X claim that symmetric
 near-touch bid and ask depth with a tight spread is followed by a different
 absolute BTC move than ordinary snapshots. It does not call the displayed
 levels persistent walls or infer a range-trading opportunity.
+
+`crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
+hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
+average, does the next fixed number of weekly closes show a different signed
+return or minimum path return? RSI is implemented explicitly as a simple
+average-gain/loss oscillator; the output does not inherit any platform-specific
+indicator convention or turn an X post into a forecast.
+
+```bash
+python3 examples/crypto/microstructure/crypto_weekly_rsi_cross_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1w --days 3650 \
+  --rsi-period 14 --rsi-sma-period 14 --horizon-weeks 4 \
+  --min-observations 3
+```
 
 ## Quickstart
 

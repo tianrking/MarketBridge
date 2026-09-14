@@ -11,7 +11,7 @@
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`liquidation_reversal_replay.py` |
-| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_session_*`、`crypto_weekday_hour_effect_replay.py` |
+| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
@@ -21,6 +21,17 @@ ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL
 等已启用实时 feed；`--source history` 仍使用 OKX/CoinEx 有界历史路径。保留窗口不是完整历史账本，feed 缺口必须保留。
 liquidity-sandwich pair 只检验一个更窄的公开 X 假设：当买卖两侧近盘口深度都明显、点差较窄时，
 后续 BTC 绝对波动是否不同于普通快照；不会把显示深度称为持续墙体，也不推导区间交易机会。
+
+`crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
+RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
+也不会把 X 帖子里的回撤描述变成预测。
+
+```bash
+python3 examples/crypto/microstructure/crypto_weekly_rsi_cross_response_replay.py \
+  --exchange binance --symbol BTCUSDT --interval 1w --days 3650 \
+  --rsi-period 14 --rsi-sma-period 14 --horizon-weeks 4 \
+  --min-observations 3
+```
 
 ## 快速开始
 

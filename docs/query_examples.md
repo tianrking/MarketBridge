@@ -360,6 +360,15 @@ curl -s "$MB/v1/history/candles?exchange=binance&symbol=BTCUSDT&candle_type=mark
 curl -s "$MB/v1/history/candles?exchange=okx&symbol=BTCUSDT&candle_type=funding_rate&limit=100" | jq
 ```
 
+### Q046. Query weekly Binance candles for long-horizon research
+
+```bash
+curl -s "$MB/v1/history/candles?exchange=binance&market=perp&symbol=BTCUSDT&interval=1w&limit=1500" | jq
+```
+
+The normalized interval is seven days; inspect `coverage_detail` and provider
+timestamps before assuming a complete long-term series.
+
 ### Q046a. Query historical stablecoin circulating supply
 
 ```bash
