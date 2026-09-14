@@ -63,6 +63,19 @@ python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py
   --paper-cost-bps 10 --min-observations 5
 ```
 
+`crypto_ichimoku_cloud_response_replay.py` 实现 point-in-time Ichimoku 响应表：同时观察价格相对云层的位置、Tenkan/Kijun 关系、云颜色和 Chikou 对比；当前可见的 Senkou 云值只读取位移以前已经计算出的历史线，避免把未来投影云层当成当前已知数据。
+这些状态只是描述性分组，不包含预测、资金分配、止损或执行。研究线索来自未经验证的
+[X 上 Ichimoku/云层讨论](https://x.com/Invst_Informant/status/2014788740992929906)，公式对照
+[Binance Academy 的 Ichimoku 说明](https://www.binance.com/en/academy/articles/ichimoku-clouds-explained)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_ichimoku_cloud_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --conversion-period 9 --base-period 26 \
+  --span-b-period 52 --displacement 26 --horizon-bars 6 \
+  --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` 是独立的收盘价研究：在 `1w` K 线上计算明确实现的
 RSI(14) 与其 14 周简单均线，比较上穿/下穿后固定周数的有符号收益和路径最低收益。它不会继承平台私有指标口径，
 也不会把 X 帖子里的回撤描述变成预测。

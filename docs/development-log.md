@@ -25,6 +25,19 @@ support/resistance, resting orders, volume confirmation or execution.
 The research lead is [Rekt Capital's public BTC breakout/retest discussion](https://x.com/rektcapital/status/1850982324621676715),
 cross-checked with [Binance Academy's crypto breakout guidance](https://www.binance.com/en/academy/articles/a-beginners-guide-to-swing-trading-cryptocurrency).
 
+## 2026-09-14 — Added as-of Ichimoku cloud response replay
+
+Added `crypto_ichimoku_cloud_response_replay.py` under microstructure. It
+computes Tenkan, Kijun, displaced Senkou spans and a Chikou comparison from
+historical candles, then reports later responses by bullish/bearish alignment,
+mixed above/below-cloud and inside-cloud states. The visible cloud is built
+from spans calculated `displacement` bars earlier, so future projected values
+cannot leak into the current feature. The case is descriptive only and has no
+forecast, allocation, stop or execution path.
+
+The research lead is the unverified [public Ichimoku/cloud discussion on X](https://x.com/Invst_Informant/status/2014788740992929906),
+and formulas are cross-checked against [Binance Academy's Ichimoku guide](https://www.binance.com/en/academy/articles/ichimoku-clouds-explained).
+
 ## 2026-09-14 — Added OHLCV liquidity-sweep response replay
 
 Added `crypto_liquidity_sweep_response_replay.py` under microstructure. The

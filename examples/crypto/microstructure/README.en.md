@@ -81,6 +81,23 @@ python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py
   --paper-cost-bps 10 --min-observations 5
 ```
 
+`crypto_ichimoku_cloud_response_replay.py` implements an as-of Ichimoku
+response table. It evaluates the price/cloud position, Tenkan/Kijun relation,
+cloud color and Chikou comparison, while reading the visible Senkou spans from
+their displaced historical calculation. This prevents the common mistake of
+using a future-projected cloud as if it were known today. The states are
+descriptive; there is no forecast, allocation, stop or execution path. The
+research lead is an [unverified public Ichimoku/cloud discussion on X](https://x.com/Invst_Informant/status/2014788740992929906),
+and formulas are cross-checked against [Binance Academy's Ichimoku guide](https://www.binance.com/en/academy/articles/ichimoku-clouds-explained).
+
+```bash
+python3 examples/crypto/microstructure/crypto_ichimoku_cloud_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 4h \
+  --days 730 --conversion-period 9 --base-period 26 \
+  --span-b-period 52 --displacement 26 --horizon-bars 6 \
+  --min-observations 5
+```
+
 `crypto_weekly_rsi_cross_response_replay.py` tests a separate close-only
 hypothesis on `1w` candles: after weekly RSI(14) crosses its own 14-week simple
 average, does the next fixed number of weekly closes show a different signed
