@@ -2130,3 +2130,20 @@ coverage remain visible, with no order or wallet path.
 
 Provenance: [TradingView's CCI calculation](https://www.tradingview.com/support/solutions/43000502001-commodity-channel-index-cci/)
 defines the formula, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — UTC opening-range breakout response replay
+
+Added `crypto_opening_range_breakout_response_replay.py` under the
+microstructure family. The Python case fixes the first configurable number of
+UTC-day candles as an opening range, labels the first bullish/bearish close
+break, persistent outside states and inside-range controls, and measures a
+later fixed-bar response. It is intentionally a session-range proxy for a
+24/7 market, not a universal exchange-open model; UTC convention, opening-bar
+count, buffer, missing bars and overlapping observations remain visible. The
+case does not infer support/resistance, continuation, fills, stops, costs,
+funding or execution; a history window that begins mid-day is not silently
+backfilled before defining that day's opening range.
+
+Provenance: the session framing follows [TradingView's day-range definition](https://www.tradingview.com/support/solutions/43000703653-day-s-range/),
+the public breakout lead is [Binance Square's market-structure discussion](https://www.binance.com/en/square/post/35953981408314),
+and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

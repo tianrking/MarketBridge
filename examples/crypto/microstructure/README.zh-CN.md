@@ -11,6 +11,7 @@
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`liquidation_reversal_replay.py` |
+| 时段区间回放 | `crypto_opening_range_breakout_response_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
@@ -61,6 +62,27 @@ python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py
   --days 90 --lookback-bars 24 --breakout-buffer-bps 2 \
   --retest-window 8 --retest-tolerance-bps 15 --horizon-bars 8 \
   --paper-cost-bps 10 --min-observations 5
+```
+
+`crypto_opening_range_breakout_response_replay.py` 研究固定时段的开盘区间突破，
+与滚动 Donchian 突破严格区分。对每个 UTC 自然日，前 `--opening-bars` 根 K 线定义当日
+最高价和最低价；后续收盘价分为首次向上/向下突破、持续在区间外以及区间内控制组，
+只有标签已经可见后才开始计算响应窗口。UTC 是可复现的加密研究约定，不是所有交易所的
+真实开盘时间；缓冲、开盘 K 线数量和 horizon 都是敏感性参数。案例不声称真实支撑/阻力、
+突破延续、成交、止损、手续费、资金费率或执行结果。
+如果请求历史从某个 UTC 日的中途开始，第一根返回 K 线会被当作该日第一根 K 线；案例不会
+静默补齐缺失的日初数据。
+
+时段范围的定义参考 [TradingView 的 day range 说明](https://www.tradingview.com/support/solutions/43000703653-day-s-range/)。
+突破术语仅作为 [Binance Square 的市场结构讨论](https://www.binance.com/en/square/post/35953981408314)
+提供的公开研究线索；K 线字段和边界以 [Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)
+为准。
+
+```bash
+python3 examples/crypto/microstructure/crypto_opening_range_breakout_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --opening-bars 4 --breakout-buffer-bps 0 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_ichimoku_cloud_response_replay.py` 实现 point-in-time Ichimoku 响应表：同时观察价格相对云层的位置、Tenkan/Kijun 关系、云颜色和 Chikou 对比；当前可见的 Senkou 云值只读取位移以前已经计算出的历史线，避免把未来投影云层当成当前已知数据。

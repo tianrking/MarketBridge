@@ -11,6 +11,7 @@
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
+| Session-range replay | `crypto_opening_range_breakout_response_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
@@ -79,6 +80,32 @@ python3 examples/crypto/microstructure/crypto_breakout_retest_response_replay.py
   --days 90 --lookback-bars 24 --breakout-buffer-bps 2 \
   --retest-window 8 --retest-tolerance-bps 15 --horizon-bars 8 \
   --paper-cost-bps 10 --min-observations 5
+```
+
+`crypto_opening_range_breakout_response_replay.py` tests a fixed-session
+opening-range hypothesis rather than another rolling breakout. For each UTC
+calendar day, the first `--opening-bars` candles define the day's high and low.
+Later closes are split into first bullish/bearish breaks, persistent outside
+states, and inside-range controls; the response horizon starts only after the
+state is observable. UTC is a reproducible crypto convention, not a universal
+exchange open. The buffer, opening-bar count and horizon are sensitivity
+parameters, and the case makes no support/resistance, continuation, fill,
+stop, fee, funding or execution claim.
+If the requested history starts partway through a UTC day, the first returned
+candle is treated as that day's first bar; the case does not silently backfill
+the missing session.
+
+The framing follows [TradingView's day-range definition](https://www.tradingview.com/support/solutions/43000703653-day-s-range/).
+Breakout vocabulary is treated as a public research lead from [Binance
+Square's market-structure discussion](https://www.binance.com/en/square/post/35953981408314),
+while candle fields and boundaries follow [Binance's official kline
+documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_opening_range_breakout_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --opening-bars 4 --breakout-buffer-bps 0 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_ichimoku_cloud_response_replay.py` implements an as-of Ichimoku

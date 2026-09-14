@@ -76,6 +76,7 @@ Cases:
 - `crypto_pivot_response_replay.py`: compares prior-UTC-day traditional pivot touches/reclaims with inside-range controls.
 - `crypto_heikin_ashi_response_replay.py`: compares synthetic Heikin-Ashi wickless trend states with mixed/doji controls using real closes.
 - `crypto_cci_response_replay.py`: compares typical-price CCI extremes, zero crosses and neutral deviations.
+- `crypto_opening_range_breakout_response_replay.py`: compares first-break UTC opening-range events, persistent outside states and inside-range controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -114,6 +115,33 @@ execution-aware risk discussion on X](https://x.com/PineAnalytics/status/1974474
 which emphasizes real order-book depth, target-size slippage and short-horizon
 EWMA volatility. The implementation is an independently testable hypothesis,
 not an endorsement or a claim that the post's idea is profitable.
+
+`crypto_opening_range_breakout_response_replay.py` is a fixed-session breakout
+study. For each UTC calendar day, the first `--opening-bars` candles define a
+high/low opening range. Later closes are labelled as the first bullish or
+bearish break, persistent outside states, or an inside-range control; the
+forward window begins only after the label is observable. This is deliberately
+different from a rolling Donchian range: crypto trades continuously, so UTC is
+only a reproducible research convention, not an exchange open or a claim about
+institutional session behaviour. The buffer, opening-bar count and horizon
+are sensitivity parameters. No support/resistance, continuation, fill, stop,
+fee, funding or execution claim is made.
+If the requested history begins partway through a UTC day, the first returned
+candle is treated as bar one; missing day-start data is not silently backfilled.
+
+Provenance: the session-range framing follows [TradingView's day-range
+definition](https://www.tradingview.com/support/solutions/43000703653-day-s-range/),
+while the breakout vocabulary is treated as a public research lead from
+[Binance Square's market-structure discussion](https://www.binance.com/en/square/post/35953981408314).
+Actual fields and candle boundaries come from [Binance's official kline
+documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_opening_range_breakout_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --opening-bars 4 --breakout-buffer-bps 0 \
+  --horizon-bars 8 --min-observations 5
+```
 
 `crypto_taker_oi_response_replay.py` adds a native historical taker-volume
 input. It does not assume that aggressive flow means informed flow: buy/sell
