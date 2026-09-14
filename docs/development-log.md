@@ -2092,3 +2092,16 @@ reversal, stop, wallet action or order.
 
 Provenance: [TradingView's Vortex Indicator calculation](https://www.tradingview.com/support/solutions/43000591352-vortex-indicator/)
 defines the formula, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+## 2026-09-14 — UTC pivot response replay
+
+Added `crypto_pivot_response_replay.py` under the microstructure family. The
+Python case aggregates prior UTC-day OHLC, computes traditional P/R1/S1/R2/S2,
+labels next-day level rejection/reclaim and inside-range controls, and measures
+fixed-horizon responses. UTC boundaries, tolerance and coverage stay explicit;
+levels are not promoted to validated support/resistance, stops, wallets or
+orders.
+
+Provenance: [TradingView's Pivot Points Standard formulas](https://www.tradingview.com/support/solutions/43000521824-pivot-points-standard/)
+define the traditional levels, [Binance's pivot/support-resistance note](https://www.binance.com/en/square/post/375172)
+provides crypto context, and candle fields are bounded by [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).

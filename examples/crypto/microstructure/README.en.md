@@ -374,6 +374,24 @@ python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_pivot_response_replay.py` fixes the pivot timeframe to a UTC day. It
+uses the previous UTC day's high/low/close to compute traditional `P`, `R1/S1`
+and `R2/S2`, then labels each next-day candle as `r1_rejection`, `s1_reclaim`,
+`above_r1`, `below_s1`, `inside_pivot_range` or `near_pivot`. Events are
+compared with inside-range controls using fixed-horizon signed, aligned,
+absolute and path responses. These are OHLC level proxies, not validated
+support/resistance; UTC boundaries, near tolerance and horizon are explicit
+parameters and never create an entry, stop or order. Formula boundaries are
+cross-checked against [TradingView's Pivot Points Standard documentation](https://www.tradingview.com/support/solutions/43000521824-pivot-points-standard/),
+crypto intraday context against [Binance's pivot/support-resistance note](https://www.binance.com/en/square/post/375172),
+and candle fields against [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_pivot_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --tolerance-bps 10 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
 to the absolute liquidation-burst and price-cluster cases. It divides observed
 liquidation notional by typical-price times base-volume turnover over the same

@@ -285,6 +285,18 @@ python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
   --horizon-bars 8 --min-observations 5
 ```
 
+`crypto_pivot_response_replay.py` 固定使用 UTC 日作为枢轴周期，用上一 UTC 日的 high/low/close 计算传统 `P`、`R1/S1`、`R2/S2`，然后给下一日每根 K 线标记 `r1_rejection`、`s1_reclaim`、`above_r1`、`below_s1`、`inside_pivot_range` 或 `near_pivot`。
+事件与区间控制组比较固定窗口的有符号、方向对齐、绝对和路径响应。枢轴是 OHLC 水平代理，不是真实支撑/阻力；UTC 日界线、near tolerance 和 horizon 都是显式参数，不生成入场、止损或订单。
+公式对照 [TradingView 的 Pivot Points Standard 说明](https://www.tradingview.com/support/solutions/43000521824-pivot-points-standard/)，加密日内语境参考
+[Binance 的 Pivot/支撑阻力说明](https://www.binance.com/en/square/post/375172)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_pivot_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --tolerance-bps 10 --horizon-bars 8 --min-observations 5
+```
+
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：
 把观察到的清算名义额除以同一回看窗口内的 typical-price × base-volume 成交额代理，再比较高强度和普通窗口的后续绝对波动。
 清算 venue、价格 venue 和覆盖元数据都会保留；side 只是提供方字段，有界历史也不是完整 cascade 账本。

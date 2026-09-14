@@ -73,6 +73,7 @@ Cases:
 - `crypto_stochastic_response_replay.py`: compares smoothed Stochastic overbought/oversold states, K/D crosses and neutral controls.
 - `crypto_stochrsi_response_replay.py`: compares RSI-relative StochRSI extremes, K/D crosses and neutral controls.
 - `crypto_vortex_response_replay.py`: compares VI+/VI− pressure, cross events and balanced controls.
+- `crypto_pivot_response_replay.py`: compares prior-UTC-day traditional pivot touches/reclaims with inside-range controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -734,6 +735,18 @@ python3 examples/crypto/microstructure/crypto_vortex_response_replay.py \
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --period 14 --minimum-spread 0.05 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_pivot_response_replay.py` 固定以 UTC 日为枢轴周期，用上一 UTC 日的 high/low/close 计算传统 `P`、`R1/S1`、`R2/S2`，然后在下一日的每根 K 线上标记 `r1_rejection`、`s1_reclaim`、`above_r1`、`below_s1`、`inside_pivot_range` 或 `near_pivot`。
+事件与区间控制组比较固定窗口的有符号、方向对齐、绝对和路径响应。枢轴是 OHLC 水平代理，不是真实支撑/阻力；UTC 日界线、near tolerance 和 horizon 都是显式研究参数，不生成入场、止损或订单。
+公式对照 [TradingView 的 Pivot Points Standard 说明](https://www.tradingview.com/support/solutions/43000521824-pivot-points-standard/)，加密日内语境参考
+[Binance 的 Pivot/支撑阻力说明](https://www.binance.com/en/square/post/375172)，输入字段对照
+[Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_pivot_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --tolerance-bps 10 --horizon-bars 8 --min-observations 5
 ```
 
 ```bash
