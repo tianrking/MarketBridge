@@ -64,6 +64,13 @@ return or absolute-move distribution than other snapshots? It measures signed
 and absolute spot responses only; it does not infer dealer gamma sign, option
 PnL, hedge demand or a volatility-capture trade.
 
+`crypto_historical_volatility_response_replay.py` consumes Bybit's public
+option historical-volatility series and pairs each hourly provider observation
+with a bounded Binance perpetual price window. It tests whether high or low
+provider volatility is followed by a different absolute movement distribution
+than ordinary observations. The provider value is not treated as implied
+volatility, a forecast, option PnL or a trade instruction.
+
 Provenance: the public [IV-minus-realized-volatility discussion on
 X](https://x.com/isellpremium/status/2072350364385349678) is treated as a
 research lead and cross-checked against the [Bitcoin-options risk-premia
@@ -83,6 +90,11 @@ and cross-checks the observable option-book fields against [Deribit's public
 market-data documentation](https://docs.deribit.com/api-reference/market-data/public-get-order-book).
 Those sources motivate a testable concentration/response comparison, not a
 claim that gamma walls predict direction or volatility.
+The historical-volatility response lead is informed by the public [realized-volatility regime observation from Glassnode on X](https://x.com/glassnode/status/1955218957490594099)
+and uses Bybit's first-party [Get Historical Volatility API](https://bybit-exchange.github.io/docs/v5/market/iv),
+which documents hourly option historical-volatility values and bounded time windows.
+The X post is a research lead, not a performance claim; provider volatility is
+kept separate from implied volatility and no option position is modeled.
 
 ## 中文
 
@@ -136,11 +148,23 @@ PnL、对冲需求或波动率交易。
 Gamma 响应案例保留公开的 [X 上 gamma wall 讨论](https://x.com/david_eng_mba/status/2042265877488533758)，
 并对照 [Deribit 公开市场数据文档](https://docs.deribit.com/api-reference/market-data/public-get-order-book)
 中的期权盘口字段。出处只用于提出“集中度与后续响应是否有关”的可验证假设，不表示 Gamma wall 能预测方向或波动率。
+`crypto_historical_volatility_response_replay.py` 使用 Bybit 公开的期权历史波动率，
+把每个小时的提供方波动率观测和有界 Binance 永续价格窗口配对，检验高/低波动率状态之后的绝对波动分布
+是否不同于普通状态。这里的 provider volatility 不是隐含波动率、预测、期权 PnL 或交易指令。
+
+出处：研究线索参考 [Glassnode 在 X 上的实现波动率状态观察](https://x.com/glassnode/status/1955218957490594099)，
+数据字段和小时频率以 Bybit 官方 [Get Historical Volatility API](https://bybit-exchange.github.io/docs/v5/market/iv)
+为准。X 内容不被当作收益证明，跨交易所价格只是响应对照。
 
 ## Commands / 命令
 
 ```bash
 MARKETBRIDGE_CONFIG=./config.options-research.example.yaml cargo run
+python3 examples/crypto/options/crypto_historical_volatility_response_replay.py \
+  --base-coin BTC --quote-coin USD --period 30 --days 30 \
+  --price-symbol BTCUSDT --price-interval 1h \
+  --low-threshold-pct 25 --high-threshold-pct 50 \
+  --horizon-bars 3 --min-observations 5
 python3 examples/crypto/options/crypto_options_gamma_monitor.py \
   --currency BTC --venue deribit --expiry-days 30 --max-book-fetches 24
 python3 examples/crypto/options/crypto_options_gamma_recorder.py \

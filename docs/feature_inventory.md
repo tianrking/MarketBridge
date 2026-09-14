@@ -67,6 +67,7 @@ Status labels:
 | Historical open interest | `/v1/history/open-interest` | implemented | keyless | Binance/Bybit public time-bounded OI history with explicit provider units; not directional positioning. |
 | Historical taker buy/sell volume | `/v1/history/taker-volume` | implemented | keyless | Binance public aggregate taker buy/sell volume normalized with total value and imbalance; not trader identity or intent. |
 | Historical account ratio | `/v1/history/account-ratio` | implemented | keyless | Bybit public holder-count buy/sell ratio with cursor and coverage metadata; not notional positioning or ownership. |
+| Historical option volatility | `/v1/history/historical-volatility` | implemented | keyless | Bybit public hourly option historical volatility with bounded time window and period; not implied volatility or a forecast. |
 | Historical trades | `/v1/history/trades` | implemented | keyless | Bounded Binance/OKX public trades normalized with taker side for CVD research; retention is provider-controlled. |
 | Order books | `/v1/market/order-books` | implemented | mixed | Latest L2 snapshot per venue/symbol. |
 | Trades | `/v1/market/trades` | implemented | mixed | Latest trade per venue/symbol. |

@@ -1,5 +1,18 @@
 # Development log
 
+## 2026-09-14 — Bybit historical option-volatility response input
+
+Added the read-only `/v1/history/historical-volatility` endpoint for Bybit's
+public option historical-volatility values. It validates supported periods,
+base/quote parameters and paired time bounds, then normalizes provider values
+with timestamps and coverage metadata. Added the Python
+`crypto_historical_volatility_response_replay.py` case, which compares high,
+low and ordinary provider-volatility states with later bounded BTC movement.
+Provenance: [Bybit Get Historical Volatility](https://bybit-exchange.github.io/docs/v5/market/iv)
+and the public [Glassnode realized-volatility observation on X](https://x.com/glassnode/status/1955218957490594099).
+No implied-volatility forecast, option PnL, order, wallet, signing or execution
+path is included.
+
 ## 2026-09-14 — premium-index/funding response replay
 
 Added the Python carry-family `crypto_premium_funding_response_replay.py` case.

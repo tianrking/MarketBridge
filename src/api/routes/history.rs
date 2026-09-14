@@ -64,6 +64,16 @@ pub struct HistoryAccountRatioQuery {
 }
 
 #[derive(Debug, Deserialize, Default)]
+pub struct HistoryHistoricalVolatilityQuery {
+    exchange: String,
+    base_coin: Option<String>,
+    quote_coin: Option<String>,
+    period: Option<u32>,
+    start_ms: Option<u64>,
+    end_ms: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 pub struct HistoryTradesQuery {
     exchange: String,
     symbol: String,
@@ -279,6 +289,62 @@ pub async fn account_ratio(
         }))
         .into_response(),
     }
+}
+
+pub async fn historical_volatility(
+    State(state): State<Arc<ApiState>>,
+    Query(q): Query<HistoryHistoricalVolatilityQuery>,
+) -> impl IntoResponse {
+    let result = match q.exchange.trim().to_ascii_lowercase().as_str() {
+        "bybit" => fetch_bybit_historical_volatility(&state.http, &q).await,
+        other => Err(anyhow::anyhow!(
+            "unsupported historical-volatility exchange: {other}; public history is currently available for bybit"
+        )),
+    };
+    match result {
+        Ok(rows) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_historical_volatility",
+            "exchange": q.exchange,
+            "base_coin": q.base_coin,
+            "quote_coin": q.quote_coin,
+            "period": q.period,
+            "coverage": "bounded_public_history",
+            "coverage_detail": historical_volatility_coverage_detail(&rows, &q),
+            "rows": rows,
+            "limitations": [
+                "Bybit historical volatility is an option-market provider metric, not a forecast or executable volatility trade",
+                "provider retention and the requested time window are bounded",
+                "the metric does not expose the option surface, strike selection, hedge, fees or execution"
+            ]
+        }))
+        .into_response(),
+        Err(error) => Json(serde_json::json!({
+            "version": "v1",
+            "domain": "history_historical_volatility",
+            "exchange": q.exchange,
+            "base_coin": q.base_coin,
+            "quote_coin": q.quote_coin,
+            "error": error.to_string(),
+            "rows": []
+        }))
+        .into_response(),
+    }
+}
+
+fn historical_volatility_coverage_detail(
+    rows: &[Value],
+    q: &HistoryHistoricalVolatilityQuery,
+) -> Value {
+    serde_json::json!({
+        "status": if rows.is_empty() { "empty_or_provider_limited" } else { "bounded_single_page" },
+        "requested_start_ms": q.start_ms,
+        "requested_end_ms": q.end_ms,
+        "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
+        "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
+        "returned_rows": rows.len(),
+        "period_days": q.period,
+    })
 }
 
 fn account_ratio_coverage_detail(
@@ -1171,6 +1237,99 @@ async fn fetch_bybit_account_ratio(
     })
 }
 
+async fn fetch_bybit_historical_volatility(
+    http: &reqwest::Client,
+    q: &HistoryHistoricalVolatilityQuery,
+) -> Result<Vec<Value>> {
+    let base_coin = q
+        .base_coin
+        .as_deref()
+        .unwrap_or("BTC")
+        .trim()
+        .to_ascii_uppercase();
+    let period = q.period.unwrap_or(7);
+    if !matches!(period, 7 | 14 | 21 | 30 | 60 | 90 | 180 | 270) {
+        bail!("unsupported Bybit historical-volatility period: {period}");
+    }
+    if q.start_ms.is_some() != q.end_ms.is_some() {
+        bail!("Bybit historical-volatility start_ms and end_ms must be provided together");
+    }
+    if let (Some(start_ms), Some(end_ms)) = (q.start_ms, q.end_ms)
+        && end_ms < start_ms
+    {
+        bail!("Bybit historical-volatility end_ms must be >= start_ms");
+    }
+    let mut request = http
+        .get("https://api.bybit.com/v5/market/historical-volatility")
+        .query(&[
+            ("category", "option"),
+            ("baseCoin", base_coin.as_str()),
+            ("period", period.to_string().as_str()),
+        ]);
+    if let Some(quote_coin) = q.quote_coin.as_deref() {
+        let quote_coin = quote_coin.trim().to_ascii_uppercase();
+        if !matches!(quote_coin.as_str(), "USD" | "USDT") {
+            bail!("unsupported Bybit historical-volatility quote_coin: {quote_coin}");
+        }
+        request = request.query(&[("quoteCoin", quote_coin.as_str())]);
+    }
+    if let Some(start_ms) = q.start_ms {
+        request = request.query(&[("startTime", start_ms.to_string())]);
+    }
+    if let Some(end_ms) = q.end_ms {
+        request = request.query(&[("endTime", end_ms.to_string())]);
+    }
+    let payload = request
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
+        .context("failed to parse bybit historical volatility")?;
+    if payload.get("retCode").and_then(Value::as_i64) != Some(0) {
+        bail!(
+            "bybit historical-volatility error: {}",
+            payload
+                .get("retMsg")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown provider error")
+        );
+    }
+    let rows = payload
+        .pointer("/result/list")
+        .and_then(Value::as_array)
+        .or_else(|| payload.get("result").and_then(Value::as_array))
+        .cloned()
+        .unwrap_or_default();
+    let quote_coin = q
+        .quote_coin
+        .as_deref()
+        .unwrap_or("USD")
+        .to_ascii_uppercase();
+    rows.into_iter()
+        .map(|row| normalize_bybit_historical_volatility_row(row, &base_coin, &quote_coin, period))
+        .collect()
+}
+
+fn normalize_bybit_historical_volatility_row(
+    row: Value,
+    base_coin: &str,
+    quote_coin: &str,
+    default_period: u32,
+) -> Result<Value> {
+    let ts_ms = value_u64(row.get("time")).context("missing Bybit volatility time")?;
+    let volatility = value_f64(row.get("value")).context("missing Bybit volatility value")?;
+    Ok(serde_json::json!({
+        "exchange": "bybit",
+        "base_coin": base_coin,
+        "quote_coin": quote_coin,
+        "period_days": value_u64(row.get("period")).unwrap_or(default_period as u64),
+        "volatility": volatility,
+        "ts_ms": ts_ms,
+        "source": "bybit_historical_volatility"
+    }))
+}
+
 fn normalize_bybit_account_ratio_row(row: Value) -> Result<Value> {
     let ts_ms = value_u64(row.get("timestamp")).context("missing Bybit account-ratio timestamp")?;
     let buy_ratio = value_f64(row.get("buyRatio")).context("missing Bybit buy ratio")?;
@@ -1821,5 +1980,32 @@ mod tests {
             truncated.coverage_status(),
             "provider_page_may_be_truncated"
         );
+    }
+
+    #[test]
+    fn normalizes_bybit_historical_volatility_and_coverage() {
+        let row = normalize_bybit_historical_volatility_row(
+            serde_json::json!({"period": 30, "value": "0.45", "time": "1234"}),
+            "BTC",
+            "USD",
+            7,
+        )
+        .expect("normalized volatility row");
+        assert_eq!(row["base_coin"], serde_json::json!("BTC"));
+        assert_eq!(row["quote_coin"], serde_json::json!("USD"));
+        assert_eq!(row["period_days"], serde_json::json!(30));
+        assert_eq!(row["volatility"], serde_json::json!(0.45));
+        let query = HistoryHistoricalVolatilityQuery {
+            exchange: "bybit".to_string(),
+            base_coin: Some("BTC".to_string()),
+            quote_coin: Some("USD".to_string()),
+            period: Some(30),
+            start_ms: Some(1000),
+            end_ms: Some(2000),
+        };
+        let detail = historical_volatility_coverage_detail(&[row], &query);
+        assert_eq!(detail["returned_rows"], serde_json::json!(1));
+        assert_eq!(detail["covered_start_ms"], serde_json::json!(1234));
+        assert_eq!(detail["status"], serde_json::json!("bounded_single_page"));
     }
 }
