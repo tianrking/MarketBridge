@@ -950,7 +950,7 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance, explicit unit/source and optional bounded `pages` |
 | GET | `/v1/history/account-ratio` | Bounded public Binance global/top-trader account or top-trader position ratio (`scope`, `pages`) and Bybit holder-count ratio with provider semantics and coverage metadata |
 | GET | `/v1/history/historical-volatility` | Bounded public Bybit option historical-volatility observations |
-| GET | `/v1/history/basis` | Bounded public Binance historical futures basis and basis-rate observations |
+| GET | `/v1/history/basis` | Bounded public Binance historical futures basis and basis-rate observations (`pages` 1–48) |
 | GET | `/v1/options/chains` | Envelope-based cached Deribit/OKX/Bybit/Binance option chains |
 | GET | `/v1/prediction/books` | Envelope-based cached Polymarket CLOB books |
 | GET | `/v1/external/signals` | External aggregate, news, and sentiment signals |

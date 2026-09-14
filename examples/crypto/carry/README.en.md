@@ -41,6 +41,20 @@ and their signed paper sum for `short_perp` or `long_perp`. It is deliberately
 not an executable carry backtest: public closes are not fills, and borrow,
 margin, collateral, fees and slippage remain outside the ledger.
 
+`crypto_historical_basis_replay.py` tests a separate provider-basis hypothesis:
+after an unusually wide Binance basis-rate observation, does the absolute basis
+contract over the next fixed provider window more often than ordinary states?
+Use `--basis-pages` (1–48) when the requested period needs more than one bounded
+500-row provider page. The API reports the requested page count and covered
+timestamps; Binance's public retention remains bounded, so this is not a full
+history or executable carry PnL.
+
+```bash
+python3 examples/crypto/carry/crypto_historical_basis_replay.py \
+  --symbol BTCUSDT --period 1h --days 20 --limit 500 --basis-pages 2 \
+  --horizon-bars 3 --extreme-threshold-bps 50 --min-observations 5
+```
+
 ```bash
 python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
   --symbol BTCUSDT --funding-exchange binance \

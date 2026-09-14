@@ -105,6 +105,7 @@ pub struct HistoryBasisQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -657,14 +658,16 @@ fn stablecoin_coverage_detail(rows: &[Value], q: &HistoryStablecoinQuery) -> Val
 
 fn basis_coverage_detail(rows: &[Value], q: &HistoryBasisQuery) -> Value {
     let page_limit = q.limit.unwrap_or(30).clamp(1, 500);
+    let requested_pages = q.pages.unwrap_or(1).clamp(1, 48);
     serde_json::json!({
-        "status": if rows.is_empty() { "empty_or_provider_limited" } else if rows.len() >= page_limit { "provider_page_may_be_truncated" } else { "bounded_single_page" },
+        "status": if rows.is_empty() { "empty_or_provider_limited" } else if rows.len() >= page_limit * requested_pages { "provider_page_may_be_truncated" } else if requested_pages > 1 { "bounded_paged_history" } else if rows.len() >= page_limit { "provider_page_may_be_truncated" } else { "bounded_single_page" },
         "requested_start_ms": q.start_ms,
         "requested_end_ms": q.end_ms,
         "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
         "covered_end_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).max(),
         "returned_rows": rows.len(),
         "page_limit": page_limit,
+        "requested_pages": requested_pages,
     })
 }
 
@@ -2370,32 +2373,46 @@ async fn fetch_binance_basis(http: &reqwest::Client, q: &HistoryBasisQuery) -> R
         }
         other => bail!("unsupported Binance basis period: {other}"),
     };
-    let limit = q.limit.unwrap_or(30).clamp(1, 500).to_string();
-    let mut request = http
-        .get("https://fapi.binance.com/futures/data/basis")
-        .query(&[
-            ("pair", pair.as_str()),
-            ("contractType", contract_type.as_str()),
-            ("period", period),
-            ("limit", limit.as_str()),
-        ]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
+    let page_limit = q.limit.unwrap_or(30).clamp(1, 500);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let period_ms = interval_to_ms(period).context("unsupported Binance basis period")?;
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, period_ms, page_limit, pages)
+    {
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let limit = page_limit.to_string();
+        let payload = http
+            .get("https://fapi.binance.com/futures/data/basis")
+            .query(&[
+                ("pair", pair.as_str()),
+                ("contractType", contract_type.as_str()),
+                ("period", period),
+                ("limit", limit.as_str()),
+                ("startTime", start_query.as_str()),
+                ("endTime", end_query.as_str()),
+            ])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Value>>()
+            .await
+            .context("failed to parse binance historical basis")?;
+        for row in payload {
+            let timestamp =
+                value_u64(row.get("timestamp")).context("missing Binance basis timestamp")?;
+            if q.start_ms.is_some_and(|start| timestamp < start)
+                || q.end_ms.is_some_and(|end| timestamp > end)
+            {
+                continue;
+            }
+            rows.push(normalize_binance_basis_row(row)?);
+        }
     }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Value>>()
-        .await
-        .context("failed to parse binance historical basis")?;
-    payload
-        .into_iter()
-        .map(normalize_binance_basis_row)
-        .collect()
+    rows.sort_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    rows.dedup_by_key(|row| value_u64(row.get("ts_ms")).unwrap_or_default());
+    Ok(rows)
 }
 
 fn normalize_binance_basis_row(row: Value) -> Result<Value> {
@@ -3229,10 +3246,28 @@ mod tests {
             start_ms: Some(1000),
             end_ms: Some(2000),
             limit: Some(30),
+            pages: None,
         };
         let detail = basis_coverage_detail(&[row], &query);
         assert_eq!(detail["covered_start_ms"], serde_json::json!(1234));
         assert_eq!(detail["status"], serde_json::json!("bounded_single_page"));
+    }
+
+    #[test]
+    fn basis_coverage_reports_requested_pages() {
+        let query = HistoryBasisQuery {
+            exchange: "binance".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            contract_type: Some("PERPETUAL".to_string()),
+            period: Some("1h".to_string()),
+            start_ms: Some(1),
+            end_ms: Some(10),
+            limit: Some(30),
+            pages: Some(3),
+        };
+        let detail = basis_coverage_detail(&[serde_json::json!({"ts_ms": 1})], &query);
+        assert_eq!(detail["requested_pages"], serde_json::json!(3));
+        assert_eq!(detail["status"], serde_json::json!("bounded_paged_history"));
     }
 
     #[test]

@@ -32,6 +32,17 @@ API 会保留单位和时间戳。这样 `crypto_funding_oi_replay.py` 可以扩
 观察到的现货/永续基差变化，以及 `short_perp` 或 `long_perp` 方向下的带符号纸面合计。它不是可执行 carry 回测：公共收盘价不是成交价，
 借币、保证金、抵押品、手续费和滑点都不在账本内。
 
+`crypto_historical_basis_replay.py` 是独立的提供方基差假设：当 Binance basis-rate 明显偏宽时，
+接下来固定的提供方窗口里，绝对基差是否比普通状态更容易收敛？当单个 500 行页面不够覆盖研究区间时，
+使用 `--basis-pages`（1–48）。API 会保留请求页数和实际覆盖时间戳；Binance 公共历史仍有保留上限，
+所以这不是完整历史，也不是可执行 carry PnL。
+
+```bash
+python3 examples/crypto/carry/crypto_historical_basis_replay.py \
+  --symbol BTCUSDT --period 1h --days 20 --limit 500 --basis-pages 2 \
+  --horizon-bars 3 --extreme-threshold-bps 50 --min-observations 5
+```
+
 ```bash
 python3 examples/crypto/carry/crypto_funding_carry_accrual_replay.py \
   --symbol BTCUSDT --funding-exchange binance \

@@ -2232,3 +2232,14 @@ time windows. Rows are filtered to caller bounds, sorted/deduplicated, and
 `coverage_detail.requested_pages` remains visible. Bybit keeps its provider
 cursor behavior. Added route and Python tests; no order, wallet, signing or
 execution path was introduced.
+
+## 2026-09-14 — Binance basis history pagination
+
+Extended `/v1/history/basis` with bounded Binance `pages=1..48` sequential
+windows. Added `--basis-pages` to `crypto_historical_basis_replay.py`, so its
+provider-basis contraction hypothesis can use a longer bounded window without
+silently treating one 500-row page as complete. Rows are filtered to caller
+bounds, sorted/deduplicated, and `coverage_detail.requested_pages` remains
+visible. Provenance: [Binance Futures Basis API](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Get-Funding-Info)
+and the existing [public basis-trade discussion](https://x.com/0xscarlettw/status/1944584946670276938).
+The change adds no hedge, order, wallet, signing or execution path.

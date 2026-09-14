@@ -115,13 +115,16 @@ def main():
     parser.add_argument("--period", default="1h")
     parser.add_argument("--days", type=float, default=14.0)
     parser.add_argument("--limit", type=int, default=500)
+    parser.add_argument("--basis-pages", type=int, default=1,
+                        help="bounded Binance basis-history pages (1-48)")
     parser.add_argument("--horizon-bars", type=int, default=3)
     parser.add_argument("--extreme-threshold-bps", type=float, default=50.0)
     parser.add_argument("--min-contraction-bps", type=float, default=0.0)
     parser.add_argument("--min-observations", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
-    if (args.days <= 0 or args.limit <= 0 or args.horizon_bars <= 0
+    if (args.days <= 0 or args.limit <= 0 or args.basis_pages < 1 or args.basis_pages > 48
+            or args.horizon_bars <= 0
             or args.extreme_threshold_bps < 0 or args.min_contraction_bps < 0
             or args.min_observations <= 0 or args.timeout <= 0):
         parser.error("invalid window, threshold, horizon, observation or timeout argument")
@@ -132,6 +135,7 @@ def main():
         "exchange": args.exchange, "symbol": args.symbol,
         "contract_type": args.contract_type, "period": args.period,
         "start_ms": start_ms, "end_ms": now_ms, "limit": min(args.limit, 500),
+        "pages": args.basis_pages,
     }, args.timeout)
     points = basis_points(payload)
     rows = observations(points, args.horizon_bars, args.extreme_threshold_bps)
@@ -141,6 +145,7 @@ def main():
         "contract_type": args.contract_type, "period": args.period,
         "window": {"start_ms": start_ms, "end_ms": now_ms, "days": args.days},
         "filters": {"extreme_threshold_bps": args.extreme_threshold_bps,
+                    "basis_pages": args.basis_pages,
                     "horizon_bars": args.horizon_bars,
                     "min_contraction_bps": args.min_contraction_bps,
                     "min_observations": args.min_observations},
