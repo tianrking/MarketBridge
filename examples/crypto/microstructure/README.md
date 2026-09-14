@@ -63,6 +63,7 @@ Cases:
 - `crypto_obv_divergence_response_replay.py`: compares close-signed volume-flow divergence, confirmation and mixed controls.
 - `crypto_liquidation_intensity_response_replay.py`: normalizes observed liquidation notional by OHLCV quote turnover and compares stress windows with ordinary controls.
 - `crypto_keltner_channel_response_replay.py`: compares EMA/ATR channel breakouts, persistent outside states and inside-channel controls.
+- `crypto_donchian_channel_response_replay.py`: compares prior-range Donchian breakouts, persistent outside states and inside controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -586,6 +587,18 @@ python3 examples/crypto/microstructure/crypto_keltner_channel_response_replay.py
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --ema-period 20 --atr-period 10 --atr-multiplier 2 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_donchian_channel_response_replay.py` 只用当前 K 线以前的回看窗口最高/最低构造 Donchian channel，
+区分首次突破上/下轨、持续在轨外和区间内控制，再比较未来固定窗口的方向对齐、绝对和路径响应。
+它不把滚动极值称作真实支撑/阻力，也不生成趋势、止损或执行规则。字段语义对照
+[Binance 上的 ATR/Keltner/Donchian 教学](https://www.binance.com/pt/square/post/22339649998217)
+和 [Binance 官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_donchian_channel_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --lookback-bars 20 --horizon-bars 8 --min-observations 5
 ```
 
 ```bash

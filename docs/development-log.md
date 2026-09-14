@@ -144,6 +144,17 @@ match, breakout certainty, reversal, stop or execution rule.
 Definitions are cross-checked against [Binance Academy's Keltner comparison](https://academy.binance.com/lt/articles/bollinger-bands-explained)
 and [Binance's ATR/Keltner tutorial](https://www.binance.com/pt/square/post/22339649998217).
 
+## 2026-09-14 — Added Donchian channel response replay
+
+Added `crypto_donchian_channel_response_replay.py` under microstructure. It
+uses only the prior lookback high and low, labels first bullish/bearish breaks,
+persistent outside states and inside controls, and reports later aligned,
+absolute and path responses. The rolling extrema remain an OHLCV proxy rather
+than true support/resistance, a trend guarantee, a stop or an execution rule.
+
+Definitions are cross-checked against [Binance's ATR/Keltner/Donchian tutorial](https://www.binance.com/pt/square/post/22339649998217)
+and [official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.

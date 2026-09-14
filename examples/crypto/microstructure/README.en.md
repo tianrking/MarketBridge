@@ -11,7 +11,7 @@
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
-| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
+| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
@@ -181,6 +181,20 @@ python3 examples/crypto/microstructure/crypto_keltner_channel_response_replay.py
   --exchange binance --symbol BTCUSDT --market perp --interval 1h \
   --days 180 --ema-period 20 --atr-period 10 --atr-multiplier 2 \
   --horizon-bars 8 --min-observations 5
+```
+
+`crypto_donchian_channel_response_replay.py` uses only the prior lookback
+high and low, excluding the current candle, to separate first upper/lower
+breaks, persistent outside states, and inside-channel controls. It reports
+later aligned, absolute and path responses; it does not call rolling extrema
+true support/resistance or create a trend, stop, or execution rule. Field
+semantics are cross-checked against [Binance's ATR/Keltner/Donchian tutorial](https://www.binance.com/pt/square/post/22339649998217)
+and [official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
+
+```bash
+python3 examples/crypto/microstructure/crypto_donchian_channel_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --lookback-bars 20 --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
