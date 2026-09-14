@@ -62,6 +62,7 @@ pub struct HistoryTakerVolumeQuery {
     start_ms: Option<u64>,
     end_ms: Option<u64>,
     limit: Option<usize>,
+    pages: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -723,9 +724,10 @@ fn account_ratio_coverage_detail(
 }
 
 fn taker_volume_coverage_detail(rows: &[Value], q: &HistoryTakerVolumeQuery) -> Value {
-    let page_limit = q.limit.unwrap_or(500).min(300);
+    let page_limit = q.limit.unwrap_or(500).clamp(1, 500);
     serde_json::json!({
         "status": open_interest_coverage_status(rows.len(), page_limit),
+        "requested_pages": q.pages.unwrap_or(1).clamp(1, 96),
         "requested_start_ms": q.start_ms,
         "requested_end_ms": q.end_ms,
         "covered_start_ms": rows.iter().filter_map(|row| value_u64(row.get("ts_ms"))).min(),
@@ -1147,31 +1149,40 @@ async fn fetch_binance_funding_rate(
     q: &HistoryCandlesQuery,
 ) -> Result<Vec<KlineBar>> {
     let symbol = q.symbol.trim().to_ascii_uppercase();
-    let limit = q.limit.unwrap_or(500).clamp(1, 1000).to_string();
-    let mut request = http
-        .get("https://fapi.binance.com/fapi/v1/fundingRate")
-        .query(&[("symbol", symbol.as_str()), ("limit", limit.as_str())]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
-    }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Value>>()
-        .await
-        .context("failed to parse binance funding history")?;
+    let page_limit = q.limit.unwrap_or(500).clamp(1, 1000);
+    let pages = q.pages.unwrap_or(1).clamp(1, 48);
+    let limit = page_limit.to_string();
     let interval = q.interval.as_deref().unwrap_or("8h");
     let interval_ms = interval_to_ms(interval).unwrap_or(28_800_000);
-    payload
-        .into_iter()
-        .map(|row| {
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, 28_800_000, page_limit, pages)
+    {
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let payload = http
+            .get("https://fapi.binance.com/fapi/v1/fundingRate")
+            .query(&[
+                ("symbol", symbol.as_str()),
+                ("limit", limit.as_str()),
+                ("startTime", start_query.as_str()),
+                ("endTime", end_query.as_str()),
+            ])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Value>>()
+            .await
+            .context("failed to parse binance funding history")?;
+        for row in payload {
             let open_time_ms = value_u64(row.get("fundingTime")).context("missing fundingTime")?;
+            if q.start_ms.is_some_and(|start| open_time_ms < start)
+                || q.end_ms.is_some_and(|end| open_time_ms > end)
+            {
+                continue;
+            }
             let funding_rate = value_f64(row.get("fundingRate")).context("missing fundingRate")?;
-            Ok(KlineBar {
+            rows.push(KlineBar {
                 exchange: "binance".to_string(),
                 market: "perp".to_string(),
                 symbol: symbol.clone(),
@@ -1185,9 +1196,10 @@ async fn fetch_binance_funding_rate(
                 volume: None,
                 source: "binance_funding_rate_history".to_string(),
                 updated_at_ms: now_ms(),
-            })
-        })
-        .collect()
+            });
+        }
+    }
+    Ok(rows)
 }
 
 async fn fetch_coinbase_history(
@@ -1729,32 +1741,72 @@ async fn fetch_binance_taker_volume(
     if !allowed_period {
         bail!("unsupported Binance taker-volume period: {period}");
     }
-    let limit = q.limit.unwrap_or(500).clamp(1, 500).to_string();
-    let mut request = http
-        .get("https://fapi.binance.com/futures/data/takerBuySellVol")
-        .query(&[
-            ("symbol", symbol.as_str()),
-            ("contractType", "PERPETUAL"),
-            ("period", period),
-            ("limit", limit.as_str()),
-        ]);
-    if let Some(start_ms) = q.start_ms {
-        request = request.query(&[("startTime", start_ms.to_string())]);
+    let period_ms = match period {
+        "5m" => 300_000,
+        "15m" => 900_000,
+        "30m" => 1_800_000,
+        "1h" => 3_600_000,
+        "2h" => 7_200_000,
+        "4h" => 14_400_000,
+        "6h" => 21_600_000,
+        "12h" => 43_200_000,
+        "1d" => 86_400_000,
+        _ => unreachable!("period was validated above"),
+    };
+    let page_limit = q.limit.unwrap_or(500).clamp(1, 500);
+    let pages = q.pages.unwrap_or(1).clamp(1, 96);
+    let limit = page_limit.to_string();
+    let mut rows = Vec::new();
+    for (window_start, window_end) in
+        history_windows(q.start_ms, q.end_ms, period_ms, page_limit, pages)
+    {
+        let start_query = window_start.to_string();
+        let end_query = window_end.to_string();
+        let payload = http
+            .get("https://fapi.binance.com/fapi/v1/klines")
+            .query(&[
+                ("symbol", symbol.as_str()),
+                ("interval", period),
+                ("limit", limit.as_str()),
+                ("startTime", start_query.as_str()),
+                ("endTime", end_query.as_str()),
+            ])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Vec<Vec<Value>>>()
+            .await
+            .context("failed to parse binance taker buy/sell volume history")?;
+        for row in payload {
+            let timestamp =
+                value_u64(row.first()).context("missing Binance taker-volume timestamp")?;
+            if q.start_ms.is_some_and(|start| timestamp < start)
+                || q.end_ms.is_some_and(|end| timestamp > end)
+            {
+                continue;
+            }
+            let total_volume = value_f64(row.get(5)).context("missing Binance kline volume")?;
+            let total_value = value_f64(row.get(7));
+            let buy_volume =
+                value_f64(row.get(9)).context("missing Binance kline taker-buy volume")?;
+            let buy_value = value_f64(row.get(10));
+            if buy_volume < 0.0 || buy_volume > total_volume {
+                bail!("invalid Binance kline taker-buy volume");
+            }
+            rows.push(normalize_binance_taker_volume_row(serde_json::json!({
+                "symbol": symbol,
+                "contractType": "PERPETUAL",
+                "takerBuyVol": buy_volume,
+                "takerSellVol": total_volume - buy_volume,
+                "takerBuyVolValue": buy_value,
+                "takerSellVolValue": total_value.map(|value| value - buy_value.unwrap_or(0.0)),
+                "timestamp": timestamp,
+                "source": "binance_futures_klines_taker_volume",
+                "unit": "base_asset",
+            }))?);
+        }
     }
-    if let Some(end_ms) = q.end_ms {
-        request = request.query(&[("endTime", end_ms.to_string())]);
-    }
-    let payload = request
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Vec<Value>>()
-        .await
-        .context("failed to parse binance taker buy/sell volume history")?;
-    payload
-        .into_iter()
-        .map(normalize_binance_taker_volume_row)
-        .collect()
+    Ok(rows)
 }
 
 fn normalize_binance_taker_volume_row(row: Value) -> Result<Value> {
@@ -1782,7 +1834,14 @@ fn normalize_binance_taker_volume_row(row: Value) -> Result<Value> {
         "imbalance": imbalance,
         "buy_sell_ratio": (sell_volume > 0.0).then_some(buy_volume / sell_volume),
         "ts_ms": ts_ms,
-        "source": "binance_taker_buy_sell_volume"
+        "source": row
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("binance_taker_buy_sell_volume"),
+        "unit": row
+            .get("unit")
+            .and_then(Value::as_str)
+            .unwrap_or("provider_contracts")
     }))
 }
 
@@ -2913,11 +2972,11 @@ mod tests {
         let detail = open_interest_coverage_detail(&rows, &query);
         assert_eq!(detail["covered_start_ms"], serde_json::json!(1));
         assert_eq!(detail["covered_end_ms"], serde_json::json!(3));
+        assert_eq!(detail["requested_pages"], serde_json::json!(1));
         assert_eq!(
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")
         );
-        assert_eq!(detail["requested_pages"], serde_json::json!(1));
     }
 
     #[test]
@@ -2949,6 +3008,7 @@ mod tests {
         let imbalance = row["imbalance"].as_f64().expect("numeric imbalance");
         assert!((imbalance - 0.2).abs() < 1e-12);
         assert_eq!(row["buy_sell_ratio"], serde_json::json!(1.5));
+        assert_eq!(row["unit"], serde_json::json!("provider_contracts"));
     }
 
     #[test]
@@ -2960,6 +3020,7 @@ mod tests {
             start_ms: Some(1),
             end_ms: Some(3),
             limit: Some(2),
+            pages: None,
         };
         let rows = vec![
             serde_json::json!({"ts_ms": 1}),
@@ -2972,6 +3033,7 @@ mod tests {
             detail["status"],
             serde_json::json!("provider_page_may_be_truncated")
         );
+        assert_eq!(detail["requested_pages"], serde_json::json!(1));
     }
 
     #[test]

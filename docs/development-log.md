@@ -2193,3 +2193,16 @@ requested timestamps, and `coverage_detail` now reports `requested_pages`.
 Other providers retain their existing provider-specific limits. Added route
 tests for window partitioning, default bounds and coverage metadata; no order,
 wallet, signing or execution capability was introduced.
+
+## 2026-09-14 — bounded Binance funding and taker-volume pagination
+
+Extended the same read-only time-window pagination to Binance funding-rate
+history served through `/v1/history/candles?candle_type=funding_rate` and to
+`/v1/history/taker-volume`. Funding accepts 1–48 windows and taker volume
+accepts 1–96 windows; each page is filtered to the caller's timestamp bounds,
+and coverage now reports `requested_pages`. Provider retention, interval
+semantics, aggregate-flow limitations and possible truncation remain explicit.
+The USDⓈ-M taker-volume path uses Binance's official futures kline taker-buy
+fields (`unit=base_asset`) rather than relying on the provider aggregate route
+that returned 404 in the live smoke test. No execution, order, wallet or
+signing path was added.

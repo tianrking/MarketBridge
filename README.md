@@ -944,10 +944,10 @@ Base URL: `http://127.0.0.1:8080`
 | GET | `/v1/market/order-flow/windows` | Multi-window order-flow and CVD buckets |
 | GET | `/v1/market/footprint` | Price-bin footprint/orderflow profile |
 | GET | `/v1/market/klines` | SQLite-backed OHLCV bars; can persist selected rows to the local Arrow IPC lake |
-| GET | `/v1/history/candles` | On-demand Binance/OKX/Bybit/Coinbase public candles; Coinbase is spot-only and capped at 300 rows |
+| GET | `/v1/history/candles` | On-demand Binance/OKX/Bybit/Coinbase public candles; Binance supports bounded `pages`, while Coinbase is spot-only and capped at 300 rows |
 | GET | `/v1/history/open-interest` | Bounded public Binance/Bybit open-interest history |
 | GET | `/v1/history/volatility-index` | Bounded public Deribit volatility-index OHLC history |
-| GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance |
+| GET | `/v1/history/taker-volume` | Bounded public Binance taker buy/sell volume with normalized imbalance, explicit unit/source and optional bounded `pages` |
 | GET | `/v1/history/account-ratio` | Bounded public Binance global/top-trader account or top-trader position ratio (`scope`) and Bybit holder-count ratio with provider semantics and coverage metadata |
 | GET | `/v1/history/historical-volatility` | Bounded public Bybit option historical-volatility observations |
 | GET | `/v1/history/basis` | Bounded public Binance historical futures basis and basis-rate observations |
