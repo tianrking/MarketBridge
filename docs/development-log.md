@@ -1,5 +1,19 @@
 # Development log
 
+## 2026-09-14 — Added cross-asset lead-lag response replay
+
+Added `crypto_cross_asset_lead_lag_response_replay.py` under the universe
+family. It intersects leader and follower candle timestamps exactly, uses only
+the leader's past/current return, and measures the follower's subsequent
+fixed-horizon return by leader-up, leader-down and leader-flat states. The
+implementation keeps missing bars and coverage visible and does not claim
+Granger causality, portfolio performance or execution.
+
+The research input is the [BTC–ETH lead-lag study](https://www.sciencedirect.com/science/article/pii/S0275531919300522),
+treated as motivation for a fresh, bounded replay rather than as evidence of a
+current exploitable relationship. Candle semantics remain grounded in
+[Binance's public market-data documentation](https://developers.binance.com/en/docs/products/spot/rest-api).
+
 ## 2026-09-14 — Added paper funding-carry accrual replay
 
 Added `crypto_funding_carry_accrual_replay.py` under carry. For each fixed

@@ -19,6 +19,12 @@ high breadth states. This is intentionally an equal-count proxy: it does not
 reproduce BlockchainCenter's market-cap-weighted Top-50 universe or claim to be
 an official Altcoin Season Index.
 
+`crypto_cross_asset_lead_lag_response_replay.py` is a separate timing test. It
+uses exact candle timestamp intersections, measures the leader's past return,
+then starts the follower return only after the current timestamp. This keeps
+future follower information out of the feature; the output is an association
+study, not Granger causality, a portfolio or an execution signal.
+
 `crypto_global_market_regime_monitor.py` adds a provider-level macro snapshot:
 it classifies CoinGecko total-market change and BTC dominance as stress,
 BTC-dominant risk-on, broad risk-on or mixed context. This is a regime label to

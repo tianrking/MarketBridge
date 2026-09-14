@@ -7,6 +7,7 @@
 - `crypto_universe_opportunity_scan.py` / recorder / replay / response pair：流动性、已实现波动率、资金费率候选的持续性。
 - `crypto_cross_asset_momentum_replay.py`、`crypto_volatility_adjusted_momentum_*`、`crypto_adaptive_cross_asset_replay.py`：
   排名、敏感性和按时间切分的样本外研究。
+- `crypto_cross_asset_lead_lag_response_replay.py`：严格按时间戳对齐的领先资产收益与跟随资产未来响应研究。
 - `crypto_altcoin_breadth_replay.py`、`crypto_global_market_regime_*`：市场参与度和提供方级全市场上下文。
 - `crypto_pairs_mean_reversion_replay.py`：固定参数价差偏离和收敛诊断。
 - `crypto_universe_delist_risk_monitor.py`：报价缺失/过期的数据质量护栏。
@@ -27,6 +28,16 @@ python3 examples/crypto/universe/crypto_volatility_adjusted_momentum_walkforward
 “Top-k”不是资金分配指令，也不保证 Sharpe；breadth 案例是近似，不是官方指数。
 
 完整命令矩阵和出处见 [`README.md`](README.md)。
+
+```bash
+python3 examples/crypto/universe/crypto_cross_asset_lead_lag_response_replay.py \
+  --exchange binance --leader-symbol BTCUSDT --follower-symbol ETHUSDT \
+  --interval 1h --days 90 --lookback-bars 1 --horizon-bars 1 \
+  --leader-threshold-pct 0.10 --min-observations 20
+```
+
+Lead-lag 回放只使用两种资产的精确共同时间戳：领先资产的当前 K 线收益可见，跟随资产收益从该时间之后开始，
+避免使用未来跟随数据。它检验的是关联，不是 Granger 因果、可交易 edge 或组合规则。
 
 ```bash
 python3 examples/crypto/universe/crypto_trend_template_response_replay.py \

@@ -11,6 +11,8 @@
   `crypto_volatility_adjusted_momentum_*`, and
   `crypto_adaptive_cross_asset_replay.py`: ranking, sensitivity and chronological
   holdout studies.
+- `crypto_cross_asset_lead_lag_response_replay.py`: exact-timestamp leader
+  return versus follower forward-response study.
 - `crypto_altcoin_breadth_replay.py` and `crypto_global_market_regime_*`:
   participation and provider-level global-market context.
 - `crypto_pairs_mean_reversion_replay.py`: fixed-parameter spread deviation and
@@ -36,6 +38,18 @@ hurdles must be explicit. “Top-k” is not an allocation instruction or a Shar
 guarantee; the breadth case is an approximation, not an official index.
 
 The complete command matrix and provenance links are in [`README.md`](README.md).
+
+```bash
+python3 examples/crypto/universe/crypto_cross_asset_lead_lag_response_replay.py \
+  --exchange binance --leader-symbol BTCUSDT --follower-symbol ETHUSDT \
+  --interval 1h --days 90 --lookback-bars 1 --horizon-bars 1 \
+  --leader-threshold-pct 0.10 --min-observations 20
+```
+
+The lead-lag replay uses only exact timestamp intersections. A leader move is
+known at the current candle, while the follower return starts afterward; this
+prevents using future follower information. It tests an association, not
+Granger causality, a tradable edge, or a portfolio rule.
 
 ```bash
 python3 examples/crypto/universe/crypto_trend_template_response_replay.py \
