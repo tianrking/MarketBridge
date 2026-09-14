@@ -62,6 +62,7 @@ Cases:
 - `crypto_fair_value_gap_response_replay.py`: tests three-candle wick non-overlap zones, later touches/fills and ordinary-bar responses.
 - `crypto_obv_divergence_response_replay.py`: compares close-signed volume-flow divergence, confirmation and mixed controls.
 - `crypto_liquidation_intensity_response_replay.py`: normalizes observed liquidation notional by OHLCV quote turnover and compares stress windows with ordinary controls.
+- `crypto_keltner_channel_response_replay.py`: compares EMA/ATR channel breakouts, persistent outside states and inside-channel controls.
 - `crypto_liquidity_sweep_response_replay.py`: tests whether a prior-range high/low sweep followed by a close reclaim and directional candle has a different aligned forward response.
 - `crypto_footprint_imbalance_monitor.py` / recorder / replay: observes price-bin bid/ask delta and stacked imbalance persistence from the rolling trade buffer.
 - `crypto_footprint_response_recorder.py` / `crypto_footprint_response_replay.py`: freeze footprint state beside a quote and compare pressure states with later signed and absolute responses.
@@ -573,6 +574,19 @@ K 线语义对照 [Binance 官方文档](https://developers.binance.com/docs/der
 比例化线索来自[清算感知回测框架](https://candlefeed.ai/blog/liquidation-aware-backtesting/)，字段对照
 [Binance 清算流文档](https://developers.binance.com/en/docs/derivatives/coin-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
 和 [官方 K 线文档](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data)。
+
+`crypto_keltner_channel_response_replay.py` 使用显式 EMA 中线和 trailing true-range ATR 宽度构造 Keltner proxy，
+把当前收盘首次越过上/下轨、持续在轨外和通道内分开，再比较未来固定窗口的方向对齐、绝对和路径响应。
+它不把越轨当作突破保证、反转保证、止损规则或执行信号。定义对照
+[Binance Academy 的 Keltner 对比说明](https://academy.binance.com/lt/articles/bollinger-bands-explained)
+和 [Binance 上的 ATR/Keltner 教学](https://www.binance.com/pt/square/post/22339649998217)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_keltner_channel_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --ema-period 20 --atr-period 10 --atr-multiplier 2 \
+  --horizon-bars 8 --min-observations 5
+```
 
 ```bash
 python3 examples/crypto/microstructure/crypto_fibonacci_retracement_response_replay.py \

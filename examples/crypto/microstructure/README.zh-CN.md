@@ -11,7 +11,7 @@
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`liquidation_reversal_replay.py` |
-| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
+| 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
@@ -132,6 +132,19 @@ python3 examples/crypto/microstructure/crypto_obv_divergence_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --lookback-bars 20 --price-threshold-bps 20 \
   --obv-threshold 0.10 --horizon-bars 6 --min-observations 5
+```
+
+`crypto_keltner_channel_response_replay.py` 使用显式 EMA 中线和 trailing true-range ATR 通道宽度，
+区分首次越过上/下轨、持续在轨外和通道内控制，再比较未来固定窗口的方向对齐、绝对和路径响应。
+它不是平台私有指标复刻，也不是突破保证、反转规则、止损规则或执行模型。定义对照
+[Binance Academy Keltner 对比说明](https://academy.binance.com/lt/articles/bollinger-bands-explained)
+和 [Binance ATR/Keltner 教学](https://www.binance.com/pt/square/post/22339649998217)。
+
+```bash
+python3 examples/crypto/microstructure/crypto_keltner_channel_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --ema-period 20 --atr-period 10 --atr-multiplier 2 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_liquidation_intensity_response_replay.py` 是绝对清算 burst 和价格 cluster 案例的归一化 companion：

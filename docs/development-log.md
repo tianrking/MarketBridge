@@ -132,6 +132,18 @@ Research context is [CME's BTC/ETH correlation analysis](https://www.cmegroup.co
 and [rolling-correlation research](https://www.tandfonline.com/doi/full/10.1080/01605682.2026.2671242);
 field semantics follow [Binance's official kline documentation](https://developers.binance.com/docs/derivatives/coin-margined-futures/market-data/rest-api/Kline-Candlestick-Data).
 
+## 2026-09-14 — Added Keltner channel response replay
+
+Added `crypto_keltner_channel_response_replay.py` under microstructure. It
+constructs an explicit EMA centerline plus trailing simple true-range ATR
+channel, separates first bullish/bearish channel crosses from persistent
+outside and inside states, and reports fixed-horizon aligned, absolute and path
+responses. The implementation does not claim a platform-specific indicator
+match, breakout certainty, reversal, stop or execution rule.
+
+Definitions are cross-checked against [Binance Academy's Keltner comparison](https://academy.binance.com/lt/articles/bollinger-bands-explained)
+and [Binance's ATR/Keltner tutorial](https://www.binance.com/pt/square/post/22339649998217).
+
 ## 2026-09-14 — Added drawdown/recovery response replay
 
 Added `crypto_drawdown_recovery_response_replay.py` under the universe family.

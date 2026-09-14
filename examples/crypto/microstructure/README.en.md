@@ -11,7 +11,7 @@
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `liquidation_reversal_replay.py` |
-| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
+| Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
@@ -166,6 +166,21 @@ python3 examples/crypto/microstructure/crypto_obv_divergence_response_replay.py 
   --exchange binance --symbol BTCUSDT --market perp --interval 4h \
   --days 730 --lookback-bars 20 --price-threshold-bps 20 \
   --obv-threshold 0.10 --horizon-bars 6 --min-observations 5
+```
+
+`crypto_keltner_channel_response_replay.py` uses an explicit EMA centerline
+and trailing simple true-range ATR width. It separates first crosses above/below
+the channel from persistent outside states and inside-channel controls, then
+reports aligned, absolute and path responses. This is not a platform-specific
+indicator guarantee, breakout rule, reversal rule, stop, or execution model.
+Definitions are cross-checked against [Binance Academy's Keltner comparison](https://academy.binance.com/lt/articles/bollinger-bands-explained)
+and [Binance's ATR/Keltner tutorial](https://www.binance.com/pt/square/post/22339649998217).
+
+```bash
+python3 examples/crypto/microstructure/crypto_keltner_channel_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 180 --ema-period 20 --atr-period 10 --atr-multiplier 2 \
+  --horizon-bars 8 --min-observations 5
 ```
 
 `crypto_liquidation_intensity_response_replay.py` is the normalized companion
