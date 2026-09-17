@@ -17,6 +17,32 @@
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
+`crypto_forced_vs_voluntary_liquidation_replay.py` is a deliberately bounded
+consumer for the public ["Forced or Frantic?" replication package](https://github.com/edwinyeeshunwan/forced-or-frantic).
+That study pre-registers a Hyperliquid event design and separates complete
+liquidation-triggered events into `deleverage` and `churn` using the event-window
+change in aggregate OI. This replay consumes its derived CSV/JSON/JSONL event
+table and reports class medians for peak absolute dislocation, transitory share
+and time-to-recovery, with deterministic permutation controls.
+
+The classification is not currently reconstructed by MarketBridge: its
+historical liquidation endpoint covers bounded OKX/CoinEx data, not Hyperliquid's
+complete on-chain liquidation record. Treat this case as **needs a new data
+source** until a Hyperliquid connector preserves liquidation fills, ADL events,
+OI, price and coverage metadata. It is an event-study report, not a liquidation
+signal, trade rule or P&L backtest.
+
+```bash
+python3 examples/crypto/microstructure/crypto_forced_vs_voluntary_liquidation_replay.py \
+  --input work/hyperliquid-event-table.jsonl \
+  --min-observations 5 --permutations 2000 --seed 0
+```
+
+The source package's `event_table_liq` schema can be exported to CSV/JSON after
+its documented Hyperliquid pull/build steps. Keep the original source archive,
+classification parameters and coverage beside the converted file; do not call
+the derived class a venue-independent label.
+
 The recorder/replay pairs freeze a state beside a quote and measure a later
 fixed-record signed or absolute return. The ADL pair treats Binance's rating as
 provider context—not proof that ADL occurred or a private account was at risk.

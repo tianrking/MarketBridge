@@ -193,6 +193,7 @@ not repeated as research cases.
 - `crypto_keltner_channel_response_replay.py`
 - `crypto_liquidation_burst_replay.py`
 - `crypto_crowded_liquidation_reversal_replay.py`
+- `crypto_forced_vs_voluntary_liquidation_replay.py`
 - `crypto_liquidation_burst_response_recorder.py`
 - `crypto_liquidation_burst_response_replay.py`
 - `crypto_liquidation_intensity_response_replay.py`

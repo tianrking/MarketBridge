@@ -17,6 +17,24 @@
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
+`crypto_forced_vs_voluntary_liquidation_replay.py` 是对公开 [“Forced or Frantic?” 复现实验包](https://github.com/edwinyeeshunwan/forced-or-frantic)
+的有界消费器。该研究预先定义 Hyperliquid 事件设计，并用事件窗口内聚合 OI 的变化把完整清算触发事件分成
+`deleverage` 与 `churn`。本 replay 读取它导出的 CSV/JSON/JSONL 事件表，报告峰值绝对位移、暂态占比和恢复时间的组内中位数，
+并使用确定种子的置换对照。
+
+这里不会假装 MarketBridge 已经重建这个分类：当前历史清算接口覆盖的是有界 OKX/CoinEx 数据，不包含 Hyperliquid 完整链上清算记录。
+因此本案例明确标为**需要新数据源**；未来接入 Hyperliquid 时必须同时保留清算成交、ADL 事件、OI、价格和覆盖元数据。
+它是事件研究报告，不是清算信号、交易规则或 PnL 回测。
+
+```bash
+python3 examples/crypto/microstructure/crypto_forced_vs_voluntary_liquidation_replay.py \
+  --input work/hyperliquid-event-table.jsonl \
+  --min-observations 5 --permutations 2000 --seed 0
+```
+
+源复现实验的 `event_table_liq` 可按其文档的 Hyperliquid 拉取/构建步骤导出成 CSV/JSON 后使用。
+请把原始归档、分类参数和覆盖信息与转换后的文件一起保存；不能把该派生类别当成跨交易所通用标签。
+
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
 ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL，也不推断私人账户风险。
 实时清算存储现在按 venue/symbol 保留有界的近期事件窗口，不再覆盖上一条事件。给

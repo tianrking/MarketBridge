@@ -2277,3 +2277,15 @@ motivated by [OKX's automatic funding settlement-frequency update](https://www.o
 and the public cross-venue funding differential discussion
 ([X](https://x.com/leondoteth/status/2012127303850213817)); both are research
 leads/context, not performance evidence.
+
+## 2026-09-17 — forced versus voluntary liquidation event replay
+
+Added `crypto_forced_vs_voluntary_liquidation_replay.py` as a narrow consumer
+for Edwin Wan's public ["Forced or Frantic?" replication package](https://github.com/edwinyeeshunwan/forced-or-frantic).
+The package provides a pre-registered Hyperliquid event design and reproducible
+public-data pipeline that separates `deleverage` from `churn` using liquidation
+events and event-window OI change. MarketBridge reports the derived class
+medians and deterministic permutation controls, but deliberately marks the
+case **needs a new data source**: the current historical-liquidations API does
+not reconstruct Hyperliquid's complete on-chain liquidation record. No trading,
+wallet, signing or execution path was added.
