@@ -2289,3 +2289,15 @@ medians and deterministic permutation controls, but deliberately marks the
 case **needs a new data source**: the current historical-liquidations API does
 not reconstruct Hyperliquid's complete on-chain liquidation record. No trading,
 wallet, signing or execution path was added.
+
+## 2026-09-19 — 24-hour display roll-out response replay
+
+Added `crypto_24h_rollout_response_replay.py` from the reproducible
+[24-Hour Roll-Out Effect](https://github.com/OctopusTakopi/24h-rollout-effect)
+replication package. The example uses only contiguous completed MarketBridge
+hourly candles: when the candle exactly 24 hours old is the largest positive or
+negative return in the preceding 24 candles, it records the next candle's
+direction-adjusted response. The source study's multi-contract Binance archive,
+placebo ages, funding/fee stress and tail-risk analysis remain outside this
+small replay and are called out in both bilingual microstructure READMEs. No
+display-statistic, order, wallet, signing or execution feature was added.

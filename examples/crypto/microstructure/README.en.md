@@ -14,6 +14,7 @@
 | Session-range replay | `crypto_opening_range_breakout_response_replay.py` |
 | Profile/VWAP/OI confluence | `crypto_profile_vwap_oi_response_replay.py` |
 | Weekend reference replay | `crypto_weekend_gap_response_replay.py` |
+| 24-hour display roll-out replay | `crypto_24h_rollout_response_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
@@ -42,6 +43,27 @@ The source package's `event_table_liq` schema can be exported to CSV/JSON after
 its documented Hyperliquid pull/build steps. Keep the original source archive,
 classification parameters and coverage beside the converted file; do not call
 the derived class a venue-independent label.
+
+`crypto_24h_rollout_response_replay.py` is a small, single-symbol MarketBridge
+replay of the public [24-Hour Roll-Out Effect](https://github.com/OctopusTakopi/24h-rollout-effect).
+For each completed hourly candle it checks whether the candle exactly 24 hours
+old was the largest positive or negative return in the preceding 24 candles,
+then reports the next completed candle's direction-adjusted response. This is
+the directly verifiable OHLCV subset of the source study; the original work
+used frozen Binance archives across many contracts and also tested placebo ages,
+fees, funding and tail risk. MarketBridge does not observe the exchange's
+displayed statistic or participant reaction, so this remains an event-study
+report, not a signal or execution model.
+
+```bash
+python3 examples/crypto/microstructure/crypto_24h_rollout_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 60 --limit 1500 --paper-cost-bps 0 --min-observations 5
+```
+
+Only contiguous hourly candles are eligible. Missing bars, funding, spread,
+slippage, capacity and the study's multi-symbol survivorship controls remain
+visible limitations; `execution` is always `research_only_no_orders`.
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
 fixed-record signed or absolute return. The ADL pair treats Binance's rating as

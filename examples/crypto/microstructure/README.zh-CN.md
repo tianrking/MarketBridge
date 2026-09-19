@@ -14,6 +14,7 @@
 | 时段区间回放 | `crypto_opening_range_breakout_response_replay.py` |
 | Profile/VWAP/OI 共振 | `crypto_profile_vwap_oi_response_replay.py` |
 | 周末参考位移回放 | `crypto_weekend_gap_response_replay.py` |
+| 24 小时显示滚动回放 | `crypto_24h_rollout_response_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
@@ -34,6 +35,21 @@ python3 examples/crypto/microstructure/crypto_forced_vs_voluntary_liquidation_re
 
 源复现实验的 `event_table_liq` 可按其文档的 Hyperliquid 拉取/构建步骤导出成 CSV/JSON 后使用。
 请把原始归档、分类参数和覆盖信息与转换后的文件一起保存；不能把该派生类别当成跨交易所通用标签。
+
+`crypto_24h_rollout_response_replay.py` 是对公开 [24-Hour Roll-Out Effect](https://github.com/OctopusTakopi/24h-rollout-effect)
+的单品种、MarketBridge 版本回放。对每根已经完成的 1 小时 K 线，它检查恰好 24 小时前的 K 线是否为此前 24 根中的最大正收益或最小负收益，
+然后报告下一根完整 K 线的方向对齐响应。这里仅实现来源研究中可以用 OHLCV 直接验证的子集；原研究使用覆盖多合约的 Binance 冻结归档，
+并额外做了 placebo 年龄、手续费、资金费率与尾部风险检验。MarketBridge 不直接观察交易所展示的 24 小时数字，也不知道参与者是否因其交易，
+因此本例是事件研究报告，不是信号或执行模型。
+
+```bash
+python3 examples/crypto/microstructure/crypto_24h_rollout_response_replay.py \
+  --exchange binance --symbol BTCUSDT --market perp --interval 1h \
+  --days 60 --limit 1500 --paper-cost-bps 0 --min-observations 5
+```
+
+只有连续的 1 小时 K 线才会进入样本。缺失 K 线、资金费率、点差、滑点、容量以及来源研究的多品种生存偏差控制仍是显式限制；
+`execution` 始终为 `research_only_no_orders`。
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
 ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL，也不推断私人账户风险。
