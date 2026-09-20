@@ -76,6 +76,7 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 `crypto_binance_short_opportunity_scanner.py` 面向 Binance 永续合约：先从
 `/v1/research/squeeze/scan` 得到已观测候选，再对完成 K 线重新执行反转门槛，最后计算透明的机械参考点位：
 失败跌破参考入场、ATR 缓冲失效位、固定 1R/2R 目标和近期摆动支撑。
+完成 K 线不足以计算机械点位的候选不会进入通知，而会列在 `levels_unavailable` 中。
 这些点位用于后续结果归档与统计，不是保证成交、价格预测或下单指令。它只拉取有限候选列表，适合作为多币种网页的后端扫描器。
 
 ```bash

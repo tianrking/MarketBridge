@@ -115,7 +115,7 @@ def short_research_levels(rows, structure, atr_period=14, lookback_bars=24,
 
 
 def scan_payload(payload, candle_payloads, args, as_of_ms, candle_errors=None):
-    candidates = []
+    candidates, levels_unavailable = [], []
     for candidate in payload.get("candidates", []) if isinstance(payload, dict) else []:
         if str(candidate.get("exchange", "")).lower() != "binance":
             continue
@@ -130,6 +130,9 @@ def scan_payload(payload, candle_payloads, args, as_of_ms, candle_errors=None):
         structure = price_structure(rows, args.lookback_bars)
         levels = short_research_levels(rows, structure, args.atr_period, args.lookback_bars)
         if decision["verdict"] != "reversal_confirmed_research_candidate":
+            continue
+        if not levels.get("available"):
+            levels_unavailable.append({"symbol": symbol, "reason": levels.get("reason")})
             continue
         candidates.append({
             "symbol": symbol,
@@ -150,6 +153,7 @@ def scan_payload(payload, candle_payloads, args, as_of_ms, candle_errors=None):
         "candidates": candidates,
         "observed_candidates": len(payload.get("candidates", [])) if isinstance(payload, dict) else 0,
         "candle_errors": candle_errors or {},
+        "levels_unavailable": levels_unavailable,
         "limitations": [
             "Levels are completed-bar reference levels, not guaranteed fills or price forecasts.",
             "The provider liquidation side remains a directional proxy and is not universal across venues.",

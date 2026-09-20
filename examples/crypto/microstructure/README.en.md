@@ -99,8 +99,9 @@ core long-squeeze state is still triggered it emits `squeeze_active_no_short`.
 from `/v1/research/squeeze/scan`, re-runs the reversal gate on completed candles,
 and reports transparent reference levels: the failed-breakdown entry reference,
 an ATR-buffered invalidation, fixed 1R/2R targets, and recent swing support.
-These are research levels for later outcome measurement, not guaranteed fills,
-forecasts, or orders. It fetches only the bounded candidate list so it can be
+Candidates without enough completed bars for a mechanical level are withheld
+from notifications and listed under `levels_unavailable`. These are research
+levels for later outcome measurement, not guaranteed fills, forecasts, or orders. It fetches only the bounded candidate list so it can be
 used as the backend for a multi-symbol dashboard.
 
 ```bash
