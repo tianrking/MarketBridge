@@ -8,7 +8,7 @@
 | Evidence | Entrypoints |
 |---|---|
 | Confluence monitors | `short_squeeze_monitor.py`, `exhaustion_short_monitor.py`, `liquidation_reversal_monitor.py`, `crypto_microstructure_monitor.py` |
-| Squeeze exhaustion -> reversal | `crypto_short_squeeze_reversal_monitor.py` |
+| Squeeze exhaustion -> reversal | `crypto_short_squeeze_reversal_monitor.py`, `crypto_binance_short_opportunity_scanner.py` |
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `crypto_crowded_liquidation_reversal_replay.py`, `liquidation_reversal_replay.py` |
@@ -94,6 +94,20 @@ normalization and a completed-bar lower-high/lower-low plus negative 15-minute
 response before emitting `reversal_confirmed_research_candidate`. Without the
 last structure confirmation it remains `squeeze_exhaustion_watch`; while the
 core long-squeeze state is still triggered it emits `squeeze_active_no_short`.
+
+`crypto_binance_short_opportunity_scanner.py` ranks Binance perpetual symbols
+from `/v1/research/squeeze/scan`, re-runs the reversal gate on completed candles,
+and reports transparent reference levels: the failed-breakdown entry reference,
+an ATR-buffered invalidation, fixed 1R/2R targets, and recent swing support.
+These are research levels for later outcome measurement, not guaranteed fills,
+forecasts, or orders. It fetches only the bounded candidate list so it can be
+used as the backend for a multi-symbol dashboard.
+
+```bash
+python3 examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.py \
+  --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 \
+  --candle-interval 5m --candle-limit 120
+```
 The core now also exposes `perp_volume_notional_15m` and
 `liquidation_to_perp_volume_ratio_15m`, so a future calibrated study can require
 liquidation intensity relative to actual same-window perp volume instead of a

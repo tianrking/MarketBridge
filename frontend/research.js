@@ -21,6 +21,21 @@ bind("connect",async()=>{try{const info=await api("/v1/system/info");$("connecti
 async function refresh(){const path=$("view").value;try{const result=await api(path);show("observation",result);$("observedAt").textContent=`查询完成 ${new Date().toISOString()} · ${path} · 此时间不是源数据时间`;}catch(e){$("observedAt").textContent=`查询失败 ${new Date().toISOString()}；下方为之前结果，可能已过期`;throw e;}}
 bind("refresh",refresh);
 setInterval(async()=>{if(!$("poll").checked||polling||document.hidden)return;polling=true;try{await refresh();}catch(e){$("poll").checked=false;message(`${e.message}；自动刷新已停止`,true);}finally{polling=false;}},5000);
+async function refreshSqueeze(){
+  const minimumScore=Number($("squeezeMinScore").value), limit=Number($("squeezeLimit").value);
+  if(!Number.isInteger(minimumScore)||minimumScore<0||minimumScore>10||!Number.isInteger(limit)||limit<1||limit>100) throw Error("扫描参数必须在允许范围内");
+  const result=await api(`/v1/research/squeeze/scan?exchange=binance&minimum_score=${minimumScore}&limit=${limit}&max_data_age_ms=15000`);
+  const rows=$("squeezeRows"); rows.textContent="";
+  for(const candidate of result.candidates||[]){
+    const row=document.createElement("tr");
+    const values=[candidate.symbol,candidate.state,`${candidate.score}/${candidate.max_score}`,candidate.data_quality?.fresh?"新鲜":"过期",(candidate.evidence||[]).join("；")||"—"];
+    for(const value of values){const cell=document.createElement("td");cell.textContent=String(value);row.appendChild(cell);} rows.appendChild(row);
+  }
+  if(!rows.children.length){const row=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=5;cell.className="empty";cell.textContent="当前没有满足评分或新鲜度条件的 Binance 候选";row.appendChild(cell);rows.appendChild(row);}
+  $("squeezeObservedAt").textContent=`扫描完成 ${new Date().toISOString()} · 已观测 ${result.observed_symbols??0} 个状态`;
+  show("squeezeResult",result);
+}
+bind("squeezeRefresh",refreshSqueeze);
 const runId=()=>`ui-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
 $("runid").value=runId();
 bind("template",async()=>{const example=await api("/workbench/example.json");const model=$("model").value;let value;

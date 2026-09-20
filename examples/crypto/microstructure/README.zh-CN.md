@@ -8,7 +8,7 @@
 | 证据 | 入口 |
 |---|---|
 | Confluence 监控 | `short_squeeze_monitor.py`、`exhaustion_short_monitor.py`、`liquidation_reversal_monitor.py`、`crypto_microstructure_monitor.py` |
-| 逼空衰竭 → 反转研究 | `crypto_short_squeeze_reversal_monitor.py` |
+| 逼空衰竭 → 反转研究 | `crypto_short_squeeze_reversal_monitor.py`、`crypto_binance_short_opportunity_scanner.py` |
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`crypto_crowded_liquidation_reversal_replay.py`、`liquidation_reversal_replay.py` |
@@ -72,6 +72,17 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 只有同时观察到提供方买方清算（仅是代理字段）、OI 去杠杆、资金费率归一化，以及已完成 K 线的 lower high/lower low 和 15 分钟负响应，
 才会输出 `reversal_confirmed_research_candidate`。如果还没有结构确认，会保持 `squeeze_exhaustion_watch`；如果核心逼空状态仍在触发，
 会输出 `squeeze_active_no_short`。
+
+`crypto_binance_short_opportunity_scanner.py` 面向 Binance 永续合约：先从
+`/v1/research/squeeze/scan` 得到已观测候选，再对完成 K 线重新执行反转门槛，最后计算透明的机械参考点位：
+失败跌破参考入场、ATR 缓冲失效位、固定 1R/2R 目标和近期摆动支撑。
+这些点位用于后续结果归档与统计，不是保证成交、价格预测或下单指令。它只拉取有限候选列表，适合作为多币种网页的后端扫描器。
+
+```bash
+python3 examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.py \
+  --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 \
+  --candle-interval 5m --candle-limit 120
+```
 核心层现在还提供 `perp_volume_notional_15m` 和
 `liquidation_to_perp_volume_ratio_15m`；未来完成历史校准后，可以按同一窗口的真实永续成交量要求清算强度，
 而不是只用清算绝对名义额阈值。

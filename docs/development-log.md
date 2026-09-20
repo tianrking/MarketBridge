@@ -2338,3 +2338,12 @@ trade notional and `liquidation_notional_15m / perp_volume_notional_15m` when
 both observations exist. This is an actual normalized intensity feature, not a
 claim about liquidation-wall locations or trader intent; missing volume keeps
 the ratio null.
+
+Added the Binance perpetual short-opportunity research subproject. The Python
+scanner consumes the bounded `/v1/research/squeeze/scan` queue, re-applies the
+completed-bar reversal gate, and derives auditable failed-breakdown, ATR
+invalidation, 1R/2R, and recent-support reference levels. The embedded
+`/workbench` now shows the Binance research queue; it intentionally does not
+show an order ticket or infer hidden liquidation walls. A concrete level is a
+research reference until archived outcomes and walk-forward calibration support
+any probability claim.

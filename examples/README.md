@@ -176,6 +176,7 @@ not repeated as research cases.
 - `crypto_cvd_divergence_replay.py`
 - `crypto_24h_rollout_response_replay.py`
 - `crypto_short_squeeze_reversal_monitor.py`
+- `crypto_binance_short_opportunity_scanner.py`
 - `crypto_derivatives_crowding_response_recorder.py`
 - `crypto_derivatives_crowding_response_replay.py`
 - `crypto_derivatives_sentiment_monitor.py`
