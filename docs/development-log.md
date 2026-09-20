@@ -2301,3 +2301,17 @@ direction-adjusted response. The source study's multi-contract Binance archive,
 placebo ages, funding/fee stress and tail-risk analysis remain outside this
 small replay and are called out in both bilingual microstructure READMEs. No
 display-statistic, order, wallet, signing or execution feature was added.
+
+## 2026-09-20 — quarter-hour paper provenance and L2 source boundary
+
+Mapped the reproducible [Quarter-Hour Effect paper](https://arxiv.org/abs/2607.09426)
+to the existing `crypto_quarter_hour_flow_replay.py` and added provenance to its
+JSON output. The current example remains a bounded UTC quarter-hour signed-flow
+and forward-response subset; it does not claim the paper's six-contract archive,
+10-second autocorrelation map, rolling LASSO or out-of-sample inference.
+
+Also recorded [When Does Order Flow Matter?](https://arxiv.org/abs/2607.09230)
+as **needs a new data source**: its top-20 historical L2 snapshots and scheduled
+event calendar are not available through the current MarketBridge public
+interfaces. Existing liquidity-stress examples are intentionally not relabeled
+as that paper's state-transition result. No execution feature was added.

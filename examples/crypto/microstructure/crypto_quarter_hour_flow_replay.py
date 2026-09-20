@@ -188,6 +188,11 @@ def main():
         "coverage": {"candles": candle_payload.get("coverage_detail"),
                       "trades": trade_payload.get("coverage_detail")},
         "evidence": evidence,
+        "provenance": {
+            "research": "https://arxiv.org/abs/2607.09426",
+            "mapping": "quarter-hour opening signed taker-flow response subset",
+            "source_data": "MarketBridge candles and bounded public trade history",
+        },
         "upstream_errors": [
             {"source": name, "error": payload.get("error")}
             for name, payload in (("candles", candle_payload), ("trades", trade_payload))

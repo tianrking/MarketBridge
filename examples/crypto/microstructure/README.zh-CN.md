@@ -15,6 +15,7 @@
 | Profile/VWAP/OI 共振 | `crypto_profile_vwap_oi_response_replay.py` |
 | 周末参考位移回放 | `crypto_weekend_gap_response_replay.py` |
 | 24 小时显示滚动回放 | `crypto_24h_rollout_response_replay.py` |
+| 15 分钟整点流量回放 | `crypto_quarter_hour_flow_replay.py` |
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
@@ -50,6 +51,24 @@ python3 examples/crypto/microstructure/crypto_24h_rollout_response_replay.py \
 
 只有连续的 1 小时 K 线才会进入样本。缺失 K 线、资金费率、点差、滑点、容量以及来源研究的多品种生存偏差控制仍是显式限制；
 `execution` 始终为 `research_only_no_orders`。
+
+`crypto_quarter_hour_flow_replay.py` 是 [The Quarter-Hour Effect](https://arxiv.org/abs/2607.09426)
+在 MarketBridge 中可以直接验证的子集。该论文研究 Binance 永续合约的周期性活动、成交量整齐度和相位依赖，
+并把 15 分钟整点开盘的订单流不平衡与 4–12 小时收益联系起来。本回放只计算 UTC 每个 15 分钟边界的有限带符号主动成交窗口，
+再连接固定未来 K 线响应；不会声称重建论文的六合约归档、10 秒自相关图、滚动 LASSO 或样本外推断。它是描述性响应表，
+必须保留提供方覆盖信息。
+
+```bash
+python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
+  --exchange binance --symbol BTCUSDT --days 3 --window-minutes 5 \
+  --horizon-bars 240 --min-flow-ratio 0.20 --min-observations 5
+```
+
+来源论文是研究证据，不是业绩证明；本例不包含配置、下单、钱包、签名或执行路径。
+
+较新的 [状态依赖 L2 流动性状态转换研究](https://arxiv.org/abs/2607.09230)
+目前标记为**需要新数据源**。它需要逐分钟前 20 档历史盘口、计划事件日历和按事件聚类的滚动样本外协议，
+这些都不是 MarketBridge 当前公共接口重建出来的。现有 liquidity stress 示例仍是快照/响应研究，不能包装成该论文的结果。
 
 Recorder/replay pair 会把状态与报价一起冻结，再测量固定记录窗口的有符号或绝对收益。
 ADL pair 只把 Binance rating 当作提供方上下文，不证明发生了 ADL，也不推断私人账户风险。

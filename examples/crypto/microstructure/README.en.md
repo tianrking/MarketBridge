@@ -15,6 +15,7 @@
 | Profile/VWAP/OI confluence | `crypto_profile_vwap_oi_response_replay.py` |
 | Weekend reference replay | `crypto_weekend_gap_response_replay.py` |
 | 24-hour display roll-out replay | `crypto_24h_rollout_response_replay.py` |
+| Quarter-hour flow replay | `crypto_quarter_hour_flow_replay.py` |
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
@@ -64,6 +65,32 @@ python3 examples/crypto/microstructure/crypto_24h_rollout_response_replay.py \
 Only contiguous hourly candles are eligible. Missing bars, funding, spread,
 slippage, capacity and the study's multi-symbol survivorship controls remain
 visible limitations; `execution` is always `research_only_no_orders`.
+
+`crypto_quarter_hour_flow_replay.py` is the directly verifiable MarketBridge
+subset of [The Quarter-Hour Effect](https://arxiv.org/abs/2607.09426). The
+paper reports periodic Binance-perpetual activity, roundness and phase-specific
+dependence, then studies quarter-hour opening order imbalance against 4–12 hour
+returns. The replay measures only a UTC quarter-hour's bounded signed taker-flow
+window and a fixed forward candle response; it does not claim to reconstruct the
+paper's six-contract archive, 10-second autocorrelation maps, rolling LASSO or
+out-of-sample inference. Treat it as a descriptive response table and keep
+provider coverage visible.
+
+```bash
+python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
+  --exchange binance --symbol BTCUSDT --days 3 --window-minutes 5 \
+  --horizon-bars 240 --min-flow-ratio 0.20 --min-observations 5
+```
+
+The source paper is research evidence, not performance proof; this example
+contains no allocation, order, wallet, signing or execution path.
+
+The newer [state-dependent L2 liquidity-transition study](https://arxiv.org/abs/2607.09230)
+is tracked as **needs a new data source**. Its top-20 historical book snapshots,
+scheduled-event calendar and event-clustered walk-forward protocol are not
+reconstructed by MarketBridge's current public interfaces. Existing liquidity
+stress examples therefore remain snapshot/response studies rather than being
+presented as that paper's result.
 
 The recorder/replay pairs freeze a state beside a quote and measure a later
 fixed-record signed or absolute return. The ADL pair treats Binance's rating as
