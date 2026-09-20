@@ -8,6 +8,7 @@
 | 证据 | 入口 |
 |---|---|
 | Confluence 监控 | `short_squeeze_monitor.py`、`exhaustion_short_monitor.py`、`liquidation_reversal_monitor.py`、`crypto_microstructure_monitor.py` |
+| 逼空衰竭 → 反转研究 | `crypto_short_squeeze_reversal_monitor.py` |
 | 流量与深度 | `crypto_flow_book_confirmation.py`、`crypto_footprint_imbalance_*`、`crypto_spot_perp_depth_gap_*`、`crypto_liquidity_stress_*` |
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`crypto_crowded_liquidation_reversal_replay.py`、`liquidation_reversal_replay.py` |
@@ -65,6 +66,25 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 ```
 
 来源论文是研究证据，不是业绩证明；本例不包含配置、下单、钱包、签名或执行路径。
+
+`crypto_short_squeeze_reversal_monitor.py` 是从现有 `/v1/research/symbol-state`
+证据进入保守“逼空后反转候选”的 Python 层。它**不会在逼空仍然活跃时做空**。
+只有同时观察到提供方买方清算（仅是代理字段）、OI 去杠杆、资金费率归一化，以及已完成 K 线的 lower high/lower low 和 15 分钟负响应，
+才会输出 `reversal_confirmed_research_candidate`。如果还没有结构确认，会保持 `squeeze_exhaustion_watch`；如果核心逼空状态仍在触发，
+会输出 `squeeze_active_no_short`。
+
+以 FIL 纸面研究为例，先把 `FILUSDT` 加入 MarketBridge 观察池，并等待状态服务预热，然后运行：
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --candle-interval 5m \
+  --candle-limit 120 --iterations 5 --interval-secs 30 \
+  --min-fuel-score 6 --min-oi-drop-pct 3 --funding-normalized-abs 0.0002
+```
+
+输出是可以归档的 JSONL 证据流。`buy_liquidation` 会刻意标记为提供方 side 的代理，
+不会直接写成“空单已经爆仓”；在跨交易所比较前必须核实各 provider 的清算 side 语义。
+本 monitor 不下单、不借币、不签名、不配置资金，也不宣称出现实时做空入口。
 
 较新的 [状态依赖 L2 流动性状态转换研究](https://arxiv.org/abs/2607.09230)
 目前标记为**需要新数据源**。它需要逐分钟前 20 档历史盘口、计划事件日历和按事件聚类的滚动样本外协议，

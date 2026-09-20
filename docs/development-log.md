@@ -2315,3 +2315,15 @@ as **needs a new data source**: its top-20 historical L2 snapshots and scheduled
 event calendar are not available through the current MarketBridge public
 interfaces. Existing liquidity-stress examples are intentionally not relabeled
 as that paper's state-transition result. No execution feature was added.
+
+## 2026-09-20 — post-squeeze reversal-gated research monitor
+
+Added `crypto_short_squeeze_reversal_monitor.py` as a Python-first consumer of
+`/v1/research/symbol-state` and completed history candles. It separates
+`squeeze_active_no_short`, `squeeze_exhaustion_watch` and
+`reversal_confirmed_research_candidate`: the final state requires provider
+buy-side liquidation proxy evidence, OI deleveraging, funding normalization and
+a lower-high/lower-low plus failed-retest confirmation. FILUSDT is documented as
+a paper-study showcase, but no FIL-specific fundamental claim is encoded in the
+core. Provider liquidation side semantics remain explicit and no order, wallet,
+borrowing, signing or execution path was added.

@@ -8,6 +8,7 @@
 | Evidence | Entrypoints |
 |---|---|
 | Confluence monitors | `short_squeeze_monitor.py`, `exhaustion_short_monitor.py`, `liquidation_reversal_monitor.py`, `crypto_microstructure_monitor.py` |
+| Squeeze exhaustion -> reversal | `crypto_short_squeeze_reversal_monitor.py` |
 | Flow and depth | `crypto_flow_book_confirmation.py`, `crypto_footprint_imbalance_*`, `crypto_spot_perp_depth_gap_*`, `crypto_liquidity_stress_*` |
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `crypto_crowded_liquidation_reversal_replay.py`, `liquidation_reversal_replay.py` |
@@ -84,6 +85,31 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 
 The source paper is research evidence, not performance proof; this example
 contains no allocation, order, wallet, signing or execution path.
+
+`crypto_short_squeeze_reversal_monitor.py` is the Python-first bridge from the
+existing `/v1/research/symbol-state` evidence to a conservative post-squeeze
+research state. It does **not** short while the squeeze is active. It requires
+provider buy-side liquidation evidence (a proxy only), OI deleveraging, funding
+normalization and a completed-bar lower-high/lower-low plus negative 15-minute
+response before emitting `reversal_confirmed_research_candidate`. Without the
+last structure confirmation it remains `squeeze_exhaustion_watch`; while the
+core long-squeeze state is still triggered it emits `squeeze_active_no_short`.
+
+For a FIL paper study, first add `FILUSDT` to the MarketBridge observation pool
+and allow the state service to warm up. Then run:
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --candle-interval 5m \
+  --candle-limit 120 --iterations 5 --interval-secs 30 \
+  --min-fuel-score 6 --min-oi-drop-pct 3 --funding-normalized-abs 0.0002
+```
+
+The output is a JSONL evidence stream suitable for archiving. `buy_liquidation`
+is deliberately labeled as a provider-side proxy rather than “shorts were
+liquidated”; venue liquidation side semantics must be verified before any
+cross-venue comparison. This monitor never creates an order, borrows, signs,
+allocates capital or claims a live short entry.
 
 The newer [state-dependent L2 liquidity-transition study](https://arxiv.org/abs/2607.09230)
 is tracked as **needs a new data source**. Its top-20 historical book snapshots,

@@ -364,6 +364,42 @@ Invoke-RestMethod -Uri "$mb/v1/reference/venue-asset-status?venue=binance&asset_
 `scope=account_observed` 表示一个账户观察到的状态，不能解释为全局停充；只有
 `scope=public_announcement_observed` 且来源链接可复核时，才可作为公开事件证据。
 
+## 11.3 逼空之后的做空候选：必须等反转确认
+
+如果研究问题是“空头已经被迫回补后，是否出现了可以进一步研究的做空候选”，不能把“刚刚有买方清算”直接当成做空点。
+逼空中段的强制买盘可能仍在推高价格；此时最安全的研究结论通常是**不做空、继续观察**。
+
+仓库提供一个 Python 只读 monitor：
+`examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py`。它同时读取
+`/v1/research/symbol-state` 和已完成 K 线，并按以下状态输出 JSONL：
+
+```text
+observe_only
+squeeze_active_no_short
+squeeze_exhaustion_watch
+reversal_confirmed_research_candidate
+```
+
+只有下面四类证据同一时点都满足，才会出现最后一个研究状态：
+
+1. 逼空分数和近期提供方买方清算名义额达到阈值；该 side 只是代理，不能直接写成“空单强平”；
+2. 15 分钟或 1 小时 OI 出现去杠杆；
+3. funding 回到配置的归一化带内；
+4. 完成 K 线形成 lower high、lower low、冲高失败回测，且 15 分钟响应为负。
+
+FIL 纸面研究示例：
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --candle-interval 5m \
+  --candle-limit 120 --iterations 5 --interval-secs 30 \
+  --min-fuel-score 6 --min-oi-drop-pct 3 --funding-normalized-abs 0.0002
+```
+
+先把 `FILUSDT` 加入观察配置，并等待状态服务预热；不要把单次输出当成入场指令。
+建议把连续 JSONL 保存到研究目录，与未触发、仍在上涨、数据不足的样本一起做事件统计。
+MarketBridge 在这里仍是数据与研究基础设施，不下单、不借币、不签名、不管理仓位。
+
 ## 12. 一个每日研究节奏
 
 一个保守、可重复的节奏可以是：

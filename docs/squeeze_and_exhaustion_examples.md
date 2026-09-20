@@ -9,6 +9,9 @@ symbol and run two read-only example monitors:
   confluence.
 - `exhaustion_short_monitor`: a short-side example for long-crowding and
   liquidity exhaustion.
+- `crypto_short_squeeze_reversal_monitor.py`: a post-squeeze, reversal-gated
+  research monitor; it never emits a short candidate while the squeeze is
+  still active.
 
 MarketBridge remains a data unification layer. It does not place orders, sign
 wallets, prove factor validity, run PnL, or manage execution. The state machine
@@ -153,6 +156,43 @@ onchain:
     addresses:
       - "0x..."
 ```
+
+## Example 3: Short-Squeeze Exhaustion to Reversal Candidate
+
+This example is intentionally stricter than the long-following squeeze radar.
+It consumes `/v1/research/symbol-state` plus completed history candles and
+classifies one of four research states:
+
+```text
+observe_only
+squeeze_active_no_short
+squeeze_exhaustion_watch
+reversal_confirmed_research_candidate
+```
+
+The last state requires all of the following in the same as-of snapshot:
+
+1. A sufficiently high long-squeeze score and recent provider buy-side
+   liquidation notional (only a liquidation-side proxy).
+2. OI decline over 15 minutes or one hour.
+3. Funding inside the configured normalization band.
+4. A completed-bar lower high, lower low, failed retest of the recent impulse
+   high and negative 15-minute response.
+
+For a FIL paper study:
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --candle-interval 5m \
+  --candle-limit 120 --iterations 5 --interval-secs 30 \
+  --min-fuel-score 6 --min-oi-drop-pct 3 --funding-normalized-abs 0.0002
+```
+
+`buy_liquidation_notional_15m` is not silently renamed to “short liquidation”:
+the exchange/provider side convention must be checked first. A single snapshot
+cannot establish that a prior squeeze state happened, so archive the JSONL
+outputs and evaluate transitions over time. The monitor has no order, wallet,
+borrowing, signing, sizing or execution path.
 
 ## Recommended Single-Symbol Analysis Order
 
