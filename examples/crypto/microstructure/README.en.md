@@ -111,6 +111,22 @@ liquidated”; venue liquidation side semantics must be verified before any
 cross-venue comparison. This monitor never creates an order, borrows, signs,
 allocates capital or claims a live short entry.
 
+By default, only confirmed research candidates are appended to
+`work/crypto-short-squeeze-reversal-signals.jsonl`; all polling observations
+still go to stdout. To connect a private notification relay, pass a webhook
+that accepts the JSON body:
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --iterations 5 --interval-secs 30 \
+  --webhook-url https://your-private-relay.example/marketbridge
+```
+
+The relay is optional and no URL or credential
+is stored in the repository. A notification is emitted at most once per
+`--signal-cooldown-secs` for the same confirmed candidate. If no webhook is
+configured, the JSONL file is the local signal channel.
+
 The newer [state-dependent L2 liquidity-transition study](https://arxiv.org/abs/2607.09230)
 is tracked as **needs a new data source**. Its top-20 historical book snapshots,
 scheduled-event calendar and event-clustered walk-forward protocol are not

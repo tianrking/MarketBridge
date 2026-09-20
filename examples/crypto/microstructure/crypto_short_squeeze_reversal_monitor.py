@@ -11,6 +11,7 @@ reported as ``squeeze_active_no_short``.
 import argparse
 import json
 import time
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -140,6 +141,40 @@ def classify(state, structure, min_fuel_score=6, min_oi_drop_pct=3.0,
     }
 
 
+def signal_payload(decision, structure, symbol, exchange, as_of_ms):
+    if decision.get("verdict") != "reversal_confirmed_research_candidate":
+        return None
+    return {
+        "event": "marketbridge_research_signal",
+        "strategy": "crypto_short_squeeze_reversal_monitor",
+        "symbol": symbol,
+        "exchange": exchange,
+        "as_of_ms": as_of_ms,
+        "verdict": decision["verdict"],
+        "evidence": decision.get("evidence", []),
+        "inputs": decision.get("inputs", {}),
+        "price_structure": structure,
+        "execution": "research_only_no_orders",
+    }
+
+
+def append_signal(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def post_webhook(url, payload, timeout):
+    request = Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=timeout) as response:
+        return response.status
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
@@ -154,13 +189,23 @@ def main():
     parser.add_argument("--min-oi-drop-pct", type=float, default=3.0)
     parser.add_argument("--funding-normalized-abs", type=float, default=0.0002)
     parser.add_argument("--min-liquidation-notional", type=float, default=0.0)
+    parser.add_argument("--signal-file",
+                        default="work/crypto-short-squeeze-reversal-signals.jsonl",
+                        help="append only confirmed research candidates here; empty string disables local signal persistence")
+    parser.add_argument("--webhook-url", default=None,
+                        help="optional private notification webhook; no external notification is sent by default")
+    parser.add_argument("--signal-cooldown-secs", type=float, default=900.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if (args.candle_limit < 3 or args.candle_limit > 1500 or args.lookback_bars <= 0 or args.iterations <= 0
             or args.interval_secs < 0 or args.min_fuel_score < 0
             or args.min_oi_drop_pct < 0 or args.funding_normalized_abs < 0
-            or args.min_liquidation_notional < 0 or args.timeout <= 0):
+            or args.min_liquidation_notional < 0 or args.signal_cooldown_secs < 0
+            or args.timeout <= 0):
         parser.error("invalid candle, threshold, iteration or timeout arguments")
+    signal_path = Path(args.signal_file) if args.signal_file else None
+    last_signal_signature = None
+    last_signal_ms = 0
     for iteration in range(args.iterations):
         now_ms = int(time.time() * 1000)
         state_payload = fetch(args.base_url, "/v1/research/symbol-state", {
@@ -175,6 +220,24 @@ def main():
         structure = price_structure(candle_rows(candle_payload), args.lookback_bars)
         decision = classify(state, structure, args.min_fuel_score, args.min_oi_drop_pct,
                             args.funding_normalized_abs, args.min_liquidation_notional)
+        signal = signal_payload(decision, structure, args.symbol, args.exchange, now_ms)
+        notification = {"eligible": signal is not None, "emitted": False}
+        if signal is not None:
+            signature = json.dumps(signal, ensure_ascii=False, sort_keys=True)
+            cooled_down = now_ms - last_signal_ms >= args.signal_cooldown_secs * 1000
+            if signature != last_signal_signature or cooled_down:
+                if signal_path is not None:
+                    append_signal(signal_path, signal)
+                    notification["file"] = str(signal_path)
+                if args.webhook_url:
+                    try:
+                        notification["webhook_status"] = post_webhook(
+                            args.webhook_url, signal, args.timeout
+                        )
+                    except Exception as error:  # network failures must not stop observation
+                        notification["webhook_error"] = type(error).__name__
+                notification["emitted"] = bool(signal_path or args.webhook_url)
+                last_signal_signature, last_signal_ms = signature, now_ms
         print(json.dumps({
             "strategy": "crypto_short_squeeze_reversal_monitor",
             "iteration": iteration + 1,
@@ -182,6 +245,7 @@ def main():
             "market": {"exchange": args.exchange, "symbol": args.symbol,
                        "candle_interval": args.candle_interval},
             "decision": decision,
+            "notification": notification,
             "price_structure": structure,
             "source_counts": {"candles": len(candle_rows(candle_payload)),
                               "states": len(state_payload.get("states", []))},

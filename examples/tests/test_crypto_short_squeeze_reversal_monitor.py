@@ -2,7 +2,7 @@
 
 import unittest
 
-from crypto_short_squeeze_reversal_monitor import classify, price_structure
+from crypto_short_squeeze_reversal_monitor import classify, price_structure, signal_payload
 
 
 def candle(ts_ms, high, low, close):
@@ -40,6 +40,13 @@ class ShortSqueezeReversalTests(unittest.TestCase):
         result = classify({"long_squeeze": {"score": 8}, "metrics": {}},
                           {"confirmed": False})
         self.assertEqual(result["verdict"], "observe_only")
+
+    def test_signal_payload_is_only_created_for_confirmed_candidate(self):
+        decision = {"verdict": "reversal_confirmed_research_candidate",
+                    "evidence": ["open_interest_deleveraging"], "inputs": {"oi_change_15m_pct": -5}}
+        signal = signal_payload(decision, {"confirmed": True}, "FILUSDT", "binance", 123)
+        self.assertEqual(signal["execution"], "research_only_no_orders")
+        self.assertIsNone(signal_payload({"verdict": "squeeze_active_no_short"}, {}, "FILUSDT", "binance", 123))
 
 
 if __name__ == "__main__":

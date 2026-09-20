@@ -86,6 +86,20 @@ python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py 
 不会直接写成“空单已经爆仓”；在跨交易所比较前必须核实各 provider 的清算 side 语义。
 本 monitor 不下单、不借币、不签名、不配置资金，也不宣称出现实时做空入口。
 
+默认只有确认后的研究候选会追加到
+`work/crypto-short-squeeze-reversal-signals.jsonl`，所有轮询观察仍然输出到终端。
+如果你有自己的通知中继，可以传入一个接受 JSON body 的私有 webhook：
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --iterations 5 --interval-secs 30 \
+  --webhook-url https://your-private-relay.example/marketbridge
+```
+
+不要把真实 webhook、token 或密码提交到仓库。相同候选默认遵守
+`--signal-cooldown-secs 900`，避免逼空候选持续存在时每 30 秒刷屏；不配置 webhook 时，
+本地 JSONL 文件就是信号通道。
+
 较新的 [状态依赖 L2 流动性状态转换研究](https://arxiv.org/abs/2607.09230)
 目前标记为**需要新数据源**。它需要逐分钟前 20 档历史盘口、计划事件日历和按事件聚类的滚动样本外协议，
 这些都不是 MarketBridge 当前公共接口重建出来的。现有 liquidity stress 示例仍是快照/响应研究，不能包装成该论文的结果。

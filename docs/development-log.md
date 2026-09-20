@@ -2327,3 +2327,8 @@ a lower-high/lower-low plus failed-retest confirmation. FILUSDT is documented as
 a paper-study showcase, but no FIL-specific fundamental claim is encoded in the
 core. Provider liquidation side semantics remain explicit and no order, wallet,
 borrowing, signing or execution path was added.
+
+The monitor now appends confirmed candidates to a local JSONL signal file and
+supports an optional user-owned notification webhook with a cooldown. The
+webhook is never configured in the repository and receives research JSON only;
+without it, the local file and stdout remain the complete signal channel.

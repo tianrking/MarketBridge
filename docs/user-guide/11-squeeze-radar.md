@@ -400,6 +400,28 @@ python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py 
 建议把连续 JSONL 保存到研究目录，与未触发、仍在上涨、数据不足的样本一起做事件统计。
 MarketBridge 在这里仍是数据与研究基础设施，不下单、不借币、不签名、不管理仓位。
 
+### 本地信号与可选推送
+
+monitor 默认把确认候选追加到：
+
+```text
+work/crypto-short-squeeze-reversal-signals.jsonl
+```
+
+终端 stdout 会继续打印每次完整观察。若要接入 Discord、Slack 或自建 Telegram relay，
+传入一个只负责通知的私有 webhook：
+
+```bash
+python3 examples/crypto/microstructure/crypto_short_squeeze_reversal_monitor.py \
+  --symbol FILUSDT --exchange binance --iterations 1000000 --interval-secs 30 \
+  --webhook-url https://your-private-relay.example/marketbridge
+```
+
+MarketBridge 只 POST 研究 JSON，不知道你的聊天平台 token，也不会调用交易接口。
+如果没有 webhook，直接监控 JSONL 文件即可。相同候选受
+`--signal-cooldown-secs` 限流，默认 900 秒一次；停止终端进程后不会继续运行，
+要长期运行请使用你自己的 launchd、systemd、tmux 或容器服务。
+
 ## 12. 一个每日研究节奏
 
 一个保守、可重复的节奏可以是：
