@@ -89,20 +89,25 @@ def rolling_change(metrics, window_ms):
 
 
 def classify(state, structure, min_fuel_score=6, min_oi_drop_pct=3.0,
-             funding_normalized_abs=0.0002, min_liquidation_notional=0.0):
+             funding_normalized_abs=0.0002, min_liquidation_notional=0.0,
+             min_liquidation_volume_ratio=0.0):
     """Return a conservative state machine decision from one as-of snapshot."""
     state = state or {}
     metrics = state.get("metrics") or {}
     long_squeeze = state.get("long_squeeze") or {}
     score = number(long_squeeze.get("score"))
     buy_liq = number(metrics.get("buy_liquidation_notional_15m"))
+    liquidation_volume_ratio = number(metrics.get("liquidation_to_perp_volume_ratio_15m"))
     funding = number(metrics.get("funding_rate"))
     oi_15m = rolling_change(metrics, 900_000)
     oi_1h = rolling_change(metrics, 3_600_000)
     price_15m = next((number(row.get("change_pct")) for row in metrics.get("price_changes", []) or []
                       if row.get("window_ms") == 900_000), None)
     fuel = ((score is not None and score >= min_fuel_score)
-            and buy_liq is not None and buy_liq >= min_liquidation_notional)
+            and buy_liq is not None and buy_liq >= min_liquidation_notional
+            and (min_liquidation_volume_ratio <= 0.0
+                 or (liquidation_volume_ratio is not None
+                     and liquidation_volume_ratio >= min_liquidation_volume_ratio)))
     active = long_squeeze.get("state") == "triggered_long_squeeze"
     deleveraging = ((oi_15m is not None and oi_15m <= -min_oi_drop_pct)
                     or (oi_1h is not None and oi_1h <= -min_oi_drop_pct))
@@ -136,6 +141,7 @@ def classify(state, structure, min_fuel_score=6, min_oi_drop_pct=3.0,
         "reversal_confirmed": reversal,
         "evidence": evidence,
         "inputs": {"squeeze_score": score, "buy_liquidation_notional_15m": buy_liq,
+                   "liquidation_to_perp_volume_ratio_15m": liquidation_volume_ratio,
                    "funding_rate": funding, "oi_change_15m_pct": oi_15m,
                    "oi_change_1h_pct": oi_1h, "price_change_15m_pct": price_15m},
     }
@@ -189,6 +195,8 @@ def main():
     parser.add_argument("--min-oi-drop-pct", type=float, default=3.0)
     parser.add_argument("--funding-normalized-abs", type=float, default=0.0002)
     parser.add_argument("--min-liquidation-notional", type=float, default=0.0)
+    parser.add_argument("--min-liquidation-volume-ratio", type=float, default=0.0,
+                        help="optional 15m liquidation/perp-volume gate; keep zero until calibrated")
     parser.add_argument("--signal-file",
                         default="work/crypto-short-squeeze-reversal-signals.jsonl",
                         help="append only confirmed research candidates here; empty string disables local signal persistence")
@@ -200,7 +208,8 @@ def main():
     if (args.candle_limit < 3 or args.candle_limit > 1500 or args.lookback_bars <= 0 or args.iterations <= 0
             or args.interval_secs < 0 or args.min_fuel_score < 0
             or args.min_oi_drop_pct < 0 or args.funding_normalized_abs < 0
-            or args.min_liquidation_notional < 0 or args.signal_cooldown_secs < 0
+            or args.min_liquidation_notional < 0 or args.min_liquidation_volume_ratio < 0
+            or args.signal_cooldown_secs < 0
             or args.timeout <= 0):
         parser.error("invalid candle, threshold, iteration or timeout arguments")
     signal_path = Path(args.signal_file) if args.signal_file else None
@@ -219,7 +228,8 @@ def main():
         state = latest_state(state_payload, args.symbol, args.exchange)
         structure = price_structure(candle_rows(candle_payload), args.lookback_bars)
         decision = classify(state, structure, args.min_fuel_score, args.min_oi_drop_pct,
-                            args.funding_normalized_abs, args.min_liquidation_notional)
+                            args.funding_normalized_abs, args.min_liquidation_notional,
+                            args.min_liquidation_volume_ratio)
         signal = signal_payload(decision, structure, args.symbol, args.exchange, now_ms)
         notification = {"eligible": signal is not None, "emitted": False}
         if signal is not None:

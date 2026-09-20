@@ -94,6 +94,10 @@ normalization and a completed-bar lower-high/lower-low plus negative 15-minute
 response before emitting `reversal_confirmed_research_candidate`. Without the
 last structure confirmation it remains `squeeze_exhaustion_watch`; while the
 core long-squeeze state is still triggered it emits `squeeze_active_no_short`.
+The core now also exposes `perp_volume_notional_15m` and
+`liquidation_to_perp_volume_ratio_15m`, so a future calibrated study can require
+liquidation intensity relative to actual same-window perp volume instead of a
+raw notional threshold.
 
 For a FIL paper study, first add `FILUSDT` to the MarketBridge observation pool
 and allow the state service to warm up. Then run:

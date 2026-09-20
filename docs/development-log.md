@@ -2332,3 +2332,9 @@ The monitor now appends confirmed candidates to a local JSONL signal file and
 supports an optional user-owned notification webhook with a cooldown. The
 webhook is never configured in the repository and receives research JSON only;
 without it, the local file and stdout remain the complete signal channel.
+
+The Rust strategy-state core now calculates same-window 15-minute spot/perp
+trade notional and `liquidation_notional_15m / perp_volume_notional_15m` when
+both observations exist. This is an actual normalized intensity feature, not a
+claim about liquidation-wall locations or trader intent; missing volume keeps
+the ratio null.

@@ -72,6 +72,9 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 只有同时观察到提供方买方清算（仅是代理字段）、OI 去杠杆、资金费率归一化，以及已完成 K 线的 lower high/lower low 和 15 分钟负响应，
 才会输出 `reversal_confirmed_research_candidate`。如果还没有结构确认，会保持 `squeeze_exhaustion_watch`；如果核心逼空状态仍在触发，
 会输出 `squeeze_active_no_short`。
+核心层现在还提供 `perp_volume_notional_15m` 和
+`liquidation_to_perp_volume_ratio_15m`；未来完成历史校准后，可以按同一窗口的真实永续成交量要求清算强度，
+而不是只用清算绝对名义额阈值。
 
 以 FIL 纸面研究为例，先把 `FILUSDT` 加入 MarketBridge 观察池，并等待状态服务预热，然后运行：
 

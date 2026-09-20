@@ -176,7 +176,7 @@ Short version:
 | Footprint | `/v1/market/footprint` | trade events | derived | Price-bin footprint, imbalance, stacked imbalance, and optional raw trades. |
 | Universe filters | `/v1/universe/*` | klines, quotes, external signals | derived | Volume, percent change, volatility, spread, cross-market, market cap, age/listing, and delist-risk filters. |
 | Research features | `/v1/research/features` | klines, quotes, funding, OI, books | derived | Multi-timeframe features, correlated assets, basis/funding/OI/liquidity regimes. |
-| Strategy state | `/v1/research/symbol-state` | live events | derived | Real-time short-squeeze and exhaustion-short state machines with CVD, OFI, OI change, depth pressure, liquidation windows, and read-only risk context. |
+| Strategy state | `/v1/research/symbol-state` | live events | derived | Real-time short-squeeze and exhaustion-short state machines with CVD, 15-minute spot/perp volume, OFI, OI change, depth pressure, liquidation windows, liquidation/perp-volume ratio, and read-only risk context. |
 | Squeeze radar | `/v1/research/squeeze/scan` | live state | derived | Read-only ranked squeeze candidates with fixed-window OI/price baselines, freshness gates, raw evidence, and explicit missing-data fields. |
 | Supply reference | `/v1/reference/supply` | explicit CoinGecko asset mappings | reference | Provider-reported circulating supply / market-cap snapshots; ticker-only joins are prohibited. |
 | Venue asset status | `/v1/reference/venue-asset-status` | externally observed evidence | reference | Auditable deposit/withdrawal/maintenance observations with scope, network, source URL, and timestamps. |

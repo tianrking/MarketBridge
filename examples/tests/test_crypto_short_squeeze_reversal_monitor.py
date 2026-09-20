@@ -48,6 +48,17 @@ class ShortSqueezeReversalTests(unittest.TestCase):
         self.assertEqual(signal["execution"], "research_only_no_orders")
         self.assertIsNone(signal_payload({"verdict": "squeeze_active_no_short"}, {}, "FILUSDT", "binance", 123))
 
+    def test_optional_liquidation_volume_gate_requires_core_ratio(self):
+        state = {"long_squeeze": {"state": "fuel_exhaustion", "score": 7},
+                 "metrics": {"buy_liquidation_notional_15m": 1000,
+                             "liquidation_to_perp_volume_ratio_15m": 0.01,
+                             "open_interest_changes": [{"window_ms": 900000, "change_pct": -5}],
+                             "funding_rate": 0.0,
+                             "price_changes": [{"window_ms": 900000, "change_pct": -1}]}}
+        result = classify(state, {"confirmed": True}, min_liquidation_notional=1,
+                          min_liquidation_volume_ratio=0.02)
+        self.assertEqual(result["verdict"], "observe_only")
+
 
 if __name__ == "__main__":
     unittest.main()

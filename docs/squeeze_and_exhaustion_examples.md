@@ -54,6 +54,8 @@ Important response fields:
 | `metrics.depth_pressure_10` | `(bid_depth - ask_depth) / total_depth`. |
 | `metrics.ofi_best_level_1m` | One-minute best-level OFI notional. |
 | `metrics.buy_liquidation_notional_15m` | Buy-side liquidation notional over the last 15 minutes. |
+| `metrics.perp_volume_notional_15m` | Perpetual trade notional over the same 15-minute window. |
+| `metrics.liquidation_to_perp_volume_ratio_15m` | Total observed liquidation notional divided by same-window perpetual volume; null when either side is unavailable. |
 | `long_squeeze.state` | Current long squeeze stage. |
 | `short_exhaustion.state` | Current short exhaustion stage. |
 | `risk_context` | Read-only risk context; no execution. |

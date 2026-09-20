@@ -15,6 +15,7 @@ use crate::types::{
 
 const FLOW_WINDOW_MS: u64 = 60_000;
 const LIQUIDATION_WINDOW_MS: u64 = 15 * 60_000;
+const TRADE_FLOW_RETENTION_MS: u64 = LIQUIDATION_WINDOW_MS;
 /// Longest rolling window exposed by the read-only squeeze research API.
 /// This is deliberately bounded in memory; durable multi-day research belongs
 /// in the configured data lake / replay workflow.
@@ -65,6 +66,8 @@ pub struct StrategyMetrics {
     pub funding_observations_24h: usize,
     pub spot_cvd_notional_1m: Option<f64>,
     pub perp_cvd_notional_1m: Option<f64>,
+    pub spot_volume_notional_15m: Option<f64>,
+    pub perp_volume_notional_15m: Option<f64>,
     pub cvd_divergence: Option<String>,
     pub bid_depth_notional_10: Option<f64>,
     pub ask_depth_notional_10: Option<f64>,
@@ -74,6 +77,8 @@ pub struct StrategyMetrics {
     pub order_book_observed_at_ms: Option<u64>,
     pub buy_liquidation_notional_15m: Option<f64>,
     pub sell_liquidation_notional_15m: Option<f64>,
+    pub liquidation_notional_15m: Option<f64>,
+    pub liquidation_to_perp_volume_ratio_15m: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -143,6 +148,7 @@ struct SymbolRuntimeState {
 struct FlowSample {
     ts_ms: u64,
     signed_notional: f64,
+    notional: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -312,6 +318,7 @@ impl StrategyStateStore {
         target.push_back(FlowSample {
             ts_ms: tick.ts_ms,
             signed_notional: signed,
+            notional: signed.abs(),
         });
         while target.len() > MAX_FLOW_EVENTS_PER_SIDE {
             target.pop_front();
@@ -357,6 +364,7 @@ impl StrategyStateStore {
                 state.ofi_samples.push_back(FlowSample {
                     ts_ms: tick.ts_ms,
                     signed_notional: ofi,
+                    notional: ofi.abs(),
                 });
             }
         }
@@ -387,8 +395,8 @@ impl StrategyStateInner {
 
 impl SymbolRuntimeState {
     fn prune(&mut self, now: u64) {
-        prune_flow(&mut self.spot_flow, now, FLOW_WINDOW_MS);
-        prune_flow(&mut self.perp_flow, now, FLOW_WINDOW_MS);
+        prune_flow(&mut self.spot_flow, now, TRADE_FLOW_RETENTION_MS);
+        prune_flow(&mut self.perp_flow, now, TRADE_FLOW_RETENTION_MS);
         prune_flow(&mut self.ofi_samples, now, FLOW_WINDOW_MS);
         while self
             .liquidations
@@ -403,7 +411,7 @@ impl SymbolRuntimeState {
     }
 
     fn snapshot(&self, now: u64) -> StrategySymbolState {
-        let metrics = self.metrics();
+        let metrics = self.metrics(now);
         let long_squeeze = long_squeeze_state(&metrics);
         let short_exhaustion = short_exhaustion_state(&metrics);
         let risk_context = risk_context(self.latest_price, &long_squeeze, &short_exhaustion);
@@ -419,10 +427,17 @@ impl SymbolRuntimeState {
         }
     }
 
-    fn metrics(&self) -> StrategyMetrics {
-        let spot_cvd = sum_flow(&self.spot_flow);
-        let perp_cvd = sum_flow(&self.perp_flow);
-        let (buy_liq, sell_liq) = liquidation_totals(&self.liquidations);
+    fn metrics(&self, now: u64) -> StrategyMetrics {
+        let spot_cvd = sum_flow(&self.spot_flow, now, FLOW_WINDOW_MS);
+        let perp_cvd = sum_flow(&self.perp_flow, now, FLOW_WINDOW_MS);
+        let spot_volume = sum_volume(&self.spot_flow, now, LIQUIDATION_WINDOW_MS);
+        let perp_volume = sum_volume(&self.perp_flow, now, LIQUIDATION_WINDOW_MS);
+        let (buy_liq, sell_liq, total_liq) = liquidation_totals(&self.liquidations);
+        let liquidation_to_perp_volume_ratio = total_liq
+            .zip(perp_volume)
+            .filter(|(_, volume)| *volume > 0.0)
+            .map(|(liquidation, volume)| liquidation / volume)
+            .filter(|ratio| ratio.is_finite());
         let (bid_depth, ask_depth, ratio, pressure) = self
             .latest_book
             .as_ref()
@@ -466,15 +481,19 @@ impl SymbolRuntimeState {
             funding_observations_24h: self.funding_history.len(),
             spot_cvd_notional_1m: spot_cvd,
             perp_cvd_notional_1m: perp_cvd,
+            spot_volume_notional_15m: spot_volume,
+            perp_volume_notional_15m: perp_volume,
             cvd_divergence,
             bid_depth_notional_10: bid_depth,
             ask_depth_notional_10: ask_depth,
             bid_ask_depth_ratio_10: ratio,
             depth_pressure_10: pressure,
-            ofi_best_level_1m: sum_flow(&self.ofi_samples),
+            ofi_best_level_1m: sum_flow(&self.ofi_samples, now, FLOW_WINDOW_MS),
             order_book_observed_at_ms: self.order_book_observed_at_ms,
             buy_liquidation_notional_15m: buy_liq,
             sell_liquidation_notional_15m: sell_liq,
+            liquidation_notional_15m: total_liq,
+            liquidation_to_perp_volume_ratio_15m: liquidation_to_perp_volume_ratio,
         }
     }
 }
@@ -791,13 +810,35 @@ fn prune_flow(samples: &mut VecDeque<FlowSample>, now: u64, window_ms: u64) {
     }
 }
 
-fn sum_flow(samples: &VecDeque<FlowSample>) -> Option<f64> {
-    (!samples.is_empty()).then(|| samples.iter().map(|sample| sample.signed_notional).sum())
+fn sum_flow(samples: &VecDeque<FlowSample>, now: u64, window_ms: u64) -> Option<f64> {
+    let total: f64 = samples
+        .iter()
+        .filter(|sample| now.saturating_sub(sample.ts_ms) <= window_ms)
+        .map(|sample| sample.signed_notional)
+        .sum();
+    samples
+        .iter()
+        .any(|sample| now.saturating_sub(sample.ts_ms) <= window_ms)
+        .then_some(total)
 }
 
-fn liquidation_totals(samples: &VecDeque<LiquidationSample>) -> (Option<f64>, Option<f64>) {
+fn sum_volume(samples: &VecDeque<FlowSample>, now: u64, window_ms: u64) -> Option<f64> {
+    let total: f64 = samples
+        .iter()
+        .filter(|sample| now.saturating_sub(sample.ts_ms) <= window_ms)
+        .map(|sample| sample.notional)
+        .sum();
+    samples
+        .iter()
+        .any(|sample| now.saturating_sub(sample.ts_ms) <= window_ms)
+        .then_some(total)
+}
+
+fn liquidation_totals(
+    samples: &VecDeque<LiquidationSample>,
+) -> (Option<f64>, Option<f64>, Option<f64>) {
     if samples.is_empty() {
-        return (None, None);
+        return (None, None, None);
     }
     let mut buy = 0.0;
     let mut sell = 0.0;
@@ -808,7 +849,11 @@ fn liquidation_totals(samples: &VecDeque<LiquidationSample>) -> (Option<f64>, Op
             TradeSide::Unknown => {}
         }
     }
-    ((buy > 0.0).then_some(buy), (sell > 0.0).then_some(sell))
+    (
+        (buy > 0.0).then_some(buy),
+        (sell > 0.0).then_some(sell),
+        (buy + sell > 0.0).then_some(buy + sell),
+    )
 }
 
 fn signed_notional(side: TradeSide, price: f64, qty: f64) -> f64 {
@@ -948,5 +993,25 @@ mod tests {
                 .iter()
                 .all(|change| change.window_ms != 60 * 60_000)
         );
+    }
+
+    #[test]
+    fn liquidation_ratio_uses_same_window_perp_volume() {
+        let now = 900_000;
+        let mut state = SymbolRuntimeState::default();
+        state.perp_flow.push_back(FlowSample {
+            ts_ms: now - 1_000,
+            signed_notional: 8_000.0,
+            notional: 8_000.0,
+        });
+        state.liquidations.push_back(LiquidationSample {
+            ts_ms: now - 2_000,
+            side: TradeSide::Buy,
+            notional: 2_000.0,
+        });
+        let metrics = state.metrics(now);
+        assert_eq!(metrics.perp_volume_notional_15m, Some(8_000.0));
+        assert_eq!(metrics.liquidation_notional_15m, Some(2_000.0));
+        assert_eq!(metrics.liquidation_to_perp_volume_ratio_15m, Some(0.25));
     }
 }
