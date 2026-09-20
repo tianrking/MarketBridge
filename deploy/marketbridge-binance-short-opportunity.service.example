@@ -1,0 +1,17 @@
+[Unit]
+Description=MarketBridge Binance perpetual short research scanner
+After=marketbridge.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/marketbridge
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/marketbridge/.venv/bin/python3 /opt/marketbridge/examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.py --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 --candle-workers 8 --interval-secs 30 --iterations 0 --signal-file /opt/marketbridge/work/binance-short-opportunities.jsonl
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
