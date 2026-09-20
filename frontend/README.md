@@ -51,6 +51,25 @@ The default configuration is deliberately bounded. Add reviewed Binance
 perpetual symbols to `perp_symbols` before expanding the scan; use a process
 supervisor (systemd, launchd, or Docker restart policy) for unattended uptime.
 
+## One-command analysis startup
+
+If the Rust MarketBridge API is already running, the repository includes a
+small supervisor that opens the workbench and starts the continuous scanner in
+one child process. It waits for `/health`, forwards the scanner settings, and
+restarts the scanner after an unexpected exit:
+
+```bash
+python3 scripts/start_marketbridge_analysis.py \
+  --base-url http://127.0.0.1:8080 \
+  --minimum-score 5 --limit 100 \
+  --candle-workers 8 --interval-secs 30 \
+  --signal-file work/binance-short-opportunities.jsonl
+```
+
+Use `--no-browser` on a headless host. Add `--webhook-url` only when a
+private, user-owned notification endpoint is available. The supervisor does
+not place orders, sign transactions, or create wallet connections.
+
 To generate a bounded 100-symbol snippet from MarketBridge's own discovery
 endpoint, start a small MarketBridge instance first, then run:
 

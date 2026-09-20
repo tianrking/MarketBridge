@@ -65,6 +65,21 @@ On macOS, run the same two commands in separate Terminal tabs or wrap them in
 launchd/`nohup`; the process must keep the Rust service running before the
 scanner can query `127.0.0.1:8080`.
 
+For a local workstation where the Rust service is already running, one child
+process can open the read-only workbench and supervise the Python scanner:
+
+```bash
+python3 scripts/start_marketbridge_analysis.py \
+  --base-url http://127.0.0.1:8080 \
+  --minimum-score 5 --limit 100 \
+  --candle-workers 8 --interval-secs 30 \
+  --signal-file work/binance-short-opportunities.jsonl
+```
+
+Add `--no-browser` for a headless machine. This helper is intentionally a
+research/notification supervisor only; it never adds an order, wallet, or
+signing capability.
+
 For a broad but explicit Binance universe, use
 `scripts/export_binance_perp_universe.py` against a running local API, review
 the generated `work/binance-perp-symbols.yaml`, paste it into the local config,

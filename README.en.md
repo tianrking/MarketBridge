@@ -29,10 +29,21 @@ From the repository root:
 # Start a localhost-only, read-only research service.
 MARKETBRIDGE_CONFIG=config.research.yaml cargo run
 
-# In another terminal, inspect one Python case.
+# In another terminal, open the workbench and supervise the Python scanner.
+python3 scripts/start_marketbridge_analysis.py \
+  --base-url http://127.0.0.1:8080 --limit 100 \
+  --minimum-score 5 --candle-workers 8 --interval-secs 30
+
+# Or inspect one Python case directly.
 python3 examples/crypto/carry/crypto_funding_band_monitor.py \
   --symbol BTCUSDT --exchange binance
 ```
+
+The supervisor waits for the Rust API, opens `http://127.0.0.1:8080/workbench`,
+and keeps the read-only Binance research scanner alive. Use `--no-browser` on
+a headless host. The workbench exposes observed facts, freshness, missing
+fields, research states, and auditable reference levels; it never places an
+order or signs a wallet.
 
 The monitor prints the normalized payload, freshness, provider coverage, and
 an explicit `observe_only` result when required evidence is missing. To create

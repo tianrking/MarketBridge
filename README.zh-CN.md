@@ -258,6 +258,18 @@ cargo build --release
 MARKETBRIDGE_CONFIG=./config.yaml cargo run
 ```
 
+Rust 服务启动后，另开一个终端启动只读分析工作台和持续扫描器：
+
+```bash
+python3 scripts/start_marketbridge_analysis.py \
+  --base-url http://127.0.0.1:8080 --limit 100 \
+  --minimum-score 5 --candle-workers 8 --interval-secs 30
+```
+
+监督脚本会等待 API 健康后打开 `http://127.0.0.1:8080/workbench`，并在扫描器
+异常退出时重启。无图形环境可加 `--no-browser`。工作台展示事实指标、时间新鲜度、
+缺失字段、研究状态和可审计的参考点位；它不会下单，也不会签名钱包。
+
 运行全交易所示例配置：
 
 ```bash

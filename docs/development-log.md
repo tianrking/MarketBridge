@@ -2354,3 +2354,10 @@ private webhook. The workbench adds state filtering and a five-second
 single-symbol facts view backed by `/v1/research/symbol-state`. These are
 notification and inspection paths only; process supervision and any external
 notification relay remain user-owned.
+
+Added `scripts/start_marketbridge_analysis.py` as the one-command local
+supervisor. After the Rust API becomes healthy it opens `/workbench`, starts
+the continuous scanner, forwards the bounded-universe settings, and restarts
+the scanner after an unexpected exit. It can be run with `--no-browser` on a
+headless host and remains strictly read-only: alerts contain research facts
+and reference levels, never orders or wallet actions.
