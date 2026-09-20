@@ -64,3 +64,9 @@ sudo journalctl -u marketbridge-binance-short-opportunity.service -f
 On macOS, run the same two commands in separate Terminal tabs or wrap them in
 launchd/`nohup`; the process must keep the Rust service running before the
 scanner can query `127.0.0.1:8080`.
+
+For a broad but explicit Binance universe, use
+`scripts/export_binance_perp_universe.py` against a running local API, review
+the generated `work/binance-perp-symbols.yaml`, paste it into the local config,
+and restart MarketBridge. This avoids silently subscribing to every newly
+listed contract.

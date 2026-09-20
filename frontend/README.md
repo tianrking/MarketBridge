@@ -51,6 +51,19 @@ The default configuration is deliberately bounded. Add reviewed Binance
 perpetual symbols to `perp_symbols` before expanding the scan; use a process
 supervisor (systemd, launchd, or Docker restart policy) for unattended uptime.
 
+To generate a bounded 100-symbol snippet from MarketBridge's own discovery
+endpoint, start a small MarketBridge instance first, then run:
+
+```bash
+python3 scripts/export_binance_perp_universe.py \
+  --base-url http://127.0.0.1:8080 --max-symbols 100 \
+  --output work/binance-perp-symbols.yaml
+```
+
+Review that file and copy its two lines into the local runtime configuration
+before restarting the Rust service. The exporter never edits a configuration
+file in place.
+
 For a VPS API:
 
 ```text
