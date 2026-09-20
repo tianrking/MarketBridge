@@ -9,7 +9,9 @@ personalized investment advice.
 """
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+from pathlib import Path
 import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -27,6 +29,20 @@ def fetch(base_url, path, params, timeout):
     request = Request(f"{base_url.rstrip('/')}{path}?{query}")
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)
+
+
+def fetch_candidate_candles(base_url, candidate, interval, limit, end_ms, timeout):
+    symbol = str(candidate.get("symbol", "")).upper()
+    if not symbol:
+        return "", {}, "missing_symbol"
+    try:
+        payload = fetch(base_url, "/v1/history/candles", {
+            "exchange": "binance", "market": "perp", "symbol": symbol,
+            "interval": interval, "limit": limit, "end_ms": end_ms,
+        }, timeout)
+        return symbol, payload, None
+    except Exception as error:  # one stale symbol must not stop the universe scan
+        return symbol, {}, f"{type(error).__name__}: {error}"
 
 
 def number(value):
@@ -98,7 +114,7 @@ def short_research_levels(rows, structure, atr_period=14, lookback_bars=24,
     }
 
 
-def scan_payload(payload, candle_payloads, args, as_of_ms):
+def scan_payload(payload, candle_payloads, args, as_of_ms, candle_errors=None):
     candidates = []
     for candidate in payload.get("candidates", []) if isinstance(payload, dict) else []:
         if str(candidate.get("exchange", "")).lower() != "binance":
@@ -133,6 +149,7 @@ def scan_payload(payload, candle_payloads, args, as_of_ms):
         "exchange": "binance",
         "candidates": candidates,
         "observed_candidates": len(payload.get("candidates", [])) if isinstance(payload, dict) else 0,
+        "candle_errors": candle_errors or {},
         "limitations": [
             "Levels are completed-bar reference levels, not guaranteed fills or price forecasts.",
             "The provider liquidation side remains a directional proxy and is not universal across venues.",
@@ -142,6 +159,42 @@ def scan_payload(payload, candle_payloads, args, as_of_ms):
         ],
         "execution": "research_only_no_orders",
     }
+
+
+def scan_once(base_url, args, as_of_ms=None):
+    """Fetch one bounded Binance universe scan and return its JSON report."""
+    as_of_ms = as_of_ms or int(time.time() * 1000)
+    payload = fetch(base_url, "/v1/research/squeeze/scan", {
+        "exchange": "binance", "max_data_age_ms": args.max_data_age_ms,
+        "minimum_score": args.minimum_score, "limit": args.limit,
+    }, args.timeout)
+    candle_payloads, candle_errors = {}, {}
+    candidates = payload.get("candidates", []) if isinstance(payload, dict) else []
+    with ThreadPoolExecutor(max_workers=args.candle_workers) as pool:
+        futures = [pool.submit(fetch_candidate_candles, base_url, candidate,
+                                args.candle_interval, args.candle_limit,
+                                as_of_ms - 60_000, args.timeout)
+                   for candidate in candidates]
+        for future in as_completed(futures):
+            symbol, candle_payload, error = future.result()
+            if symbol:
+                candle_payloads[symbol] = candle_payload
+                if error:
+                    candle_errors[symbol] = error
+    return scan_payload(payload, candle_payloads, args, as_of_ms, candle_errors)
+
+
+def append_jsonl(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def post_webhook(url, payload, timeout):
+    request = Request(url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                      headers={"Content-Type": "application/json"}, method="POST")
+    with urlopen(request, timeout=timeout) as response:
+        return response.status
 
 
 def main():
@@ -159,31 +212,60 @@ def main():
     parser.add_argument("--funding-normalized-abs", type=float, default=0.0002)
     parser.add_argument("--min-liquidation-notional", type=float, default=0.0)
     parser.add_argument("--min-liquidation-volume-ratio", type=float, default=0.0)
+    parser.add_argument("--candle-workers", type=int, default=8,
+                        help="parallel local API candle requests per scan")
+    parser.add_argument("--iterations", type=int, default=1,
+                        help="number of scans; 0 runs continuously until Ctrl-C")
+    parser.add_argument("--interval-secs", type=float, default=30.0,
+                        help="delay between continuous scans")
+    parser.add_argument("--signal-file", default="work/binance-short-opportunities.jsonl",
+                        help="append confirmed candidates; empty disables local persistence")
+    parser.add_argument("--webhook-url", default=None,
+                        help="optional private JSON webhook for candidate notifications")
+    parser.add_argument("--signal-cooldown-secs", type=float, default=900.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
     if (args.candle_limit < args.atr_period + 2 or args.lookback_bars < 2
             or args.atr_period <= 0 or args.limit <= 0 or args.timeout <= 0
+            or args.candle_workers < 1 or args.candle_workers > 32
+            or args.iterations < 0 or args.interval_secs < 0
+            or args.signal_cooldown_secs < 0
             or args.minimum_score < 0 or args.max_data_age_ms <= 0
             or args.min_fuel_score < 0 or args.min_oi_drop_pct < 0
             or args.funding_normalized_abs < 0 or args.min_liquidation_notional < 0
             or args.min_liquidation_volume_ratio < 0):
         parser.error("invalid scan, candle, threshold or timeout arguments")
-    now_ms = int(time.time() * 1000)
-    payload = fetch(args.base_url, "/v1/research/squeeze/scan", {
-        "exchange": "binance", "max_data_age_ms": args.max_data_age_ms,
-        "minimum_score": args.minimum_score, "limit": args.limit,
-    }, args.timeout)
-    candle_payloads = {}
-    for candidate in payload.get("candidates", []):
-        symbol = str(candidate.get("symbol", "")).upper()
-        if symbol:
-            candle_payloads[symbol] = fetch(args.base_url, "/v1/history/candles", {
-                "exchange": "binance", "market": "perp", "symbol": symbol,
-                "interval": args.candle_interval, "limit": args.candle_limit,
-                "end_ms": now_ms - 60_000,
-            }, args.timeout)
-    print(json.dumps(scan_payload(payload, candle_payloads, args, now_ms),
-                     ensure_ascii=False, sort_keys=True))
+    signal_path = Path(args.signal_file) if args.signal_file else None
+    last_signatures, last_emitted_ms = {}, {}
+    iteration = 0
+    while args.iterations == 0 or iteration < args.iterations:
+        now_ms = int(time.time() * 1000)
+        report = scan_once(args.base_url, args, now_ms)
+        notification = {"eligible": bool(report["candidates"]), "emitted": []}
+        for candidate in report["candidates"]:
+            symbol = candidate["symbol"]
+            signature = json.dumps({"symbol": symbol, "levels": candidate["levels"],
+                                    "verdict": candidate["verdict"]}, sort_keys=True)
+            cooled_down = now_ms - last_emitted_ms.get(symbol, 0) >= args.signal_cooldown_secs * 1000
+            if signature == last_signatures.get(symbol) and not cooled_down:
+                continue
+            if signal_path is not None:
+                append_jsonl(signal_path, candidate)
+                notification["file"] = str(signal_path)
+            if args.webhook_url:
+                try:
+                    notification.setdefault("webhook_status", {})[symbol] = post_webhook(
+                        args.webhook_url, candidate, args.timeout)
+                except Exception as error:  # notification failure must not stop observation
+                    notification.setdefault("webhook_error", {})[symbol] = type(error).__name__
+            notification["emitted"].append(symbol)
+            last_signatures[symbol], last_emitted_ms[symbol] = signature, now_ms
+        report["notification"] = notification
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True), flush=True)
+        iteration += 1
+        if args.iterations and iteration >= args.iterations:
+            break
+        time.sleep(args.interval_secs)
 
 
 if __name__ == "__main__":

@@ -83,6 +83,17 @@ python3 examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.
   --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 \
   --candle-interval 5m --candle-limit 120
 ```
+
+要让后台持续运行，使用 `--iterations 0`；Rust MarketBridge 服务必须保持运行。
+扫描器会把新候选追加到 JSONL，也可以把研究 JSON POST 到私有 webhook。
+它使用有界并行 K 线请求，因此监控 100 个标的不需要启动 100 个 Python 进程：
+
+```bash
+python3 examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.py \
+  --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 \
+  --candle-workers 8 --interval-secs 30 --iterations 0 \
+  --signal-file work/binance-short-opportunities.jsonl
+```
 核心层现在还提供 `perp_volume_notional_15m` 和
 `liquidation_to_perp_volume_ratio_15m`；未来完成历史校准后，可以按同一窗口的真实永续成交量要求清算强度，
 而不是只用清算绝对名义额阈值。

@@ -2347,3 +2347,10 @@ invalidation, 1R/2R, and recent-support reference levels. The embedded
 show an order ticket or infer hidden liquidation walls. A concrete level is a
 research reference until archived outcomes and walk-forward calibration support
 any probability claim.
+
+The scanner now supports continuous `--iterations 0` operation, bounded
+parallel candle requests, JSONL de-duplication/cooldown, and an optional
+private webhook. The workbench adds state filtering and a five-second
+single-symbol facts view backed by `/v1/research/symbol-state`. These are
+notification and inspection paths only; process supervision and any external
+notification relay remain user-owned.

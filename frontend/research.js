@@ -26,7 +26,9 @@ async function refreshSqueeze(){
   if(!Number.isInteger(minimumScore)||minimumScore<0||minimumScore>10||!Number.isInteger(limit)||limit<1||limit>100) throw Error("扫描参数必须在允许范围内");
   const result=await api(`/v1/research/squeeze/scan?exchange=binance&minimum_score=${minimumScore}&limit=${limit}&max_data_age_ms=15000`);
   const rows=$("squeezeRows"); rows.textContent="";
+  const stateFilter=$("squeezeState").value;
   for(const candidate of result.candidates||[]){
+    if(stateFilter!=="all"&&candidate.state!==stateFilter) continue;
     const row=document.createElement("tr");
     const values=[candidate.symbol,candidate.state,`${candidate.score}/${candidate.max_score}`,candidate.data_quality?.fresh?"新鲜":"过期",(candidate.evidence||[]).join("；")||"—"];
     for(const value of values){const cell=document.createElement("td");cell.textContent=String(value);row.appendChild(cell);} rows.appendChild(row);
@@ -36,6 +38,15 @@ async function refreshSqueeze(){
   show("squeezeResult",result);
 }
 bind("squeezeRefresh",refreshSqueeze);
+setInterval(async()=>{if(!$("squeezePoll").checked||document.hidden)return;try{await refreshSqueeze();}catch(error){message(`${error.message}；做空研究自动刷新已停止`,true);$("squeezePoll").checked=false;}},5000);
+async function refreshFacts(){
+  const symbol=$("factsSymbol").value.trim().toUpperCase(), exchange=$("factsExchange").value;
+  if(!/^[A-Z0-9._-]{2,30}$/.test(symbol)) throw Error("Symbol 格式无效");
+  const result=await api(`/v1/research/symbol-state?symbol=${encodeURIComponent(symbol)}&exchange=${encodeURIComponent(exchange)}`);
+  show("factsResult",result); $("factsObservedAt").textContent=`查询完成 ${new Date().toISOString()} · ${exchange}:${symbol}`;
+}
+bind("factsRefresh",refreshFacts);
+setInterval(async()=>{if(!$("factsPoll").checked||document.hidden)return;try{await refreshFacts();}catch(error){message(`${error.message}；事实指标自动刷新已停止`,true);$("factsPoll").checked=false;}},5000);
 const runId=()=>`ui-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
 $("runid").value=runId();
 bind("template",async()=>{const example=await api("/workbench/example.json");const model=$("model").value;let value;

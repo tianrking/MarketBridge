@@ -108,6 +108,18 @@ python3 examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.
   --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 \
   --candle-interval 5m --candle-limit 120
 ```
+
+For continuous background observation, use `--iterations 0`. The Rust service
+must remain running; the scanner writes new candidates to JSONL and optionally
+notifies a private webhook. It uses bounded parallel candle requests so a
+100-symbol universe does not create 100 separate Python processes:
+
+```bash
+python3 examples/crypto/microstructure/crypto_binance_short_opportunity_scanner.py \
+  --base-url http://127.0.0.1:8080 --minimum-score 5 --limit 100 \
+  --candle-workers 8 --interval-secs 30 --iterations 0 \
+  --signal-file work/binance-short-opportunities.jsonl
+```
 The core now also exposes `perp_volume_notional_15m` and
 `liquidation_to_perp_volume_ratio_15m`, so a future calibrated study can require
 liquidation intensity relative to actual same-window perp volume instead of a
