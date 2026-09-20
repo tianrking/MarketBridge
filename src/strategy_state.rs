@@ -305,8 +305,12 @@ impl StrategyStateStore {
     }
 
     async fn update_trade(&self, tick: &TradeTick) {
+        let notional = tick.price * tick.qty;
+        if !notional.is_finite() || notional <= 0.0 {
+            return;
+        }
         let signed = signed_notional(tick.side, tick.price, tick.qty);
-        if !signed.is_finite() || signed == 0.0 {
+        if !signed.is_finite() {
             return;
         }
         let mut guard = self.inner.write().await;
@@ -318,7 +322,7 @@ impl StrategyStateStore {
         target.push_back(FlowSample {
             ts_ms: tick.ts_ms,
             signed_notional: signed,
-            notional: signed.abs(),
+            notional,
         });
         while target.len() > MAX_FLOW_EVENTS_PER_SIDE {
             target.pop_front();
@@ -1004,14 +1008,19 @@ mod tests {
             signed_notional: 8_000.0,
             notional: 8_000.0,
         });
+        state.perp_flow.push_back(FlowSample {
+            ts_ms: now - 500,
+            signed_notional: 0.0,
+            notional: 2_000.0,
+        });
         state.liquidations.push_back(LiquidationSample {
             ts_ms: now - 2_000,
             side: TradeSide::Buy,
             notional: 2_000.0,
         });
         let metrics = state.metrics(now);
-        assert_eq!(metrics.perp_volume_notional_15m, Some(8_000.0));
+        assert_eq!(metrics.perp_volume_notional_15m, Some(10_000.0));
         assert_eq!(metrics.liquidation_notional_15m, Some(2_000.0));
-        assert_eq!(metrics.liquidation_to_perp_volume_ratio_15m, Some(0.25));
+        assert_eq!(metrics.liquidation_to_perp_volume_ratio_15m, Some(0.2));
     }
 }
