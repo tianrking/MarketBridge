@@ -2361,3 +2361,16 @@ the continuous scanner, forwards the bounded-universe settings, and restarts
 the scanner after an unexpected exit. It can be run with `--no-browser` on a
 headless host and remains strictly read-only: alerts contain research facts
 and reference levels, never orders or wallet actions.
+
+## 2026-09-21 — taker-flow variance compression subset
+
+Reviewed the reproducible [seven-cascade early-warning study](https://arxiv.org/abs/2607.27070)
+and its public X/research context. The study rejects a universal price/OI
+critical-slowing-down alarm and reports only a population-level compression in
+taker order-flow variance that survives its placebo test. Added
+`crypto_taker_flow_variance_compression_replay.py`, which uses existing bounded
+`/v1/history/taker-volume` and candle data to compare recent 5-minute
+imbalance variance with a prior baseline and later absolute returns. This is a
+directly verifiable single-symbol subset, not the paper's seven-event archive,
+and its verdict remains `observe only` unless the requested response sample is
+present. No new core feature or execution path was added.

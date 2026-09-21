@@ -13,6 +13,7 @@
 | Two-sided walls | `crypto_liquidity_sandwich_monitor.py`, `crypto_liquidity_sandwich_response_recorder.py`, `crypto_liquidity_sandwich_response_replay.py` |
 | Liquidation studies | `crypto_liquidation_burst_*`, `crypto_liquidation_price_cluster_*`, `crypto_liquidation_intensity_response_replay.py`, `crypto_crowded_liquidation_reversal_replay.py`, `liquidation_reversal_replay.py` |
 | Session-range replay | `crypto_opening_range_breakout_response_replay.py` |
+| Taker-flow variance | `crypto_taker_flow_variance_compression_replay.py` |
 | Profile/VWAP/OI confluence | `crypto_profile_vwap_oi_response_replay.py` |
 | Weekend reference replay | `crypto_weekend_gap_response_replay.py` |
 | 24-hour display roll-out replay | `crypto_24h_rollout_response_replay.py` |
@@ -85,6 +86,27 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 
 The source paper is research evidence, not performance proof; this example
 contains no allocation, order, wallet, signing or execution path.
+
+`crypto_taker_flow_variance_compression_replay.py` is a bounded MarketBridge
+subset of the reproducible [seven-cascade early-warning study](https://arxiv.org/abs/2607.27070).
+It compares recent 5-minute taker-imbalance variance with a prior baseline and
+reports later absolute candle movement. The paper's only cross-event
+regularity was compression of taker-flow variance, but it also shows that
+price/OI/autocorrelation signatures are event-heterogeneous and that the
+compression result is a population-level precursor, not a per-event alarm.
+This example therefore remains a response table, not a liquidation forecast.
+
+```bash
+python3 examples/crypto/microstructure/crypto_taker_flow_variance_compression_replay.py \
+  --exchange binance --symbol BTCUSDT --period 5m --days 7 \
+  --baseline-bars 48 --window-bars 12 --compression-ratio 0.5 \
+  --horizon-bars 12 --min-observations 5
+```
+
+MarketBridge supplies the bounded historical taker-volume and candle inputs;
+it does not reconstruct the source study's seven-event archive, cascade
+labels, placebo panel or publication-time audit. The output is always
+`research_only_no_orders`.
 
 `crypto_short_squeeze_reversal_monitor.py` is the Python-first bridge from the
 existing `/v1/research/symbol-state` evidence to a conservative post-squeeze

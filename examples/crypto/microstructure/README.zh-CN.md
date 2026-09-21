@@ -13,6 +13,7 @@
 | 双侧墙体 | `crypto_liquidity_sandwich_monitor.py`、`crypto_liquidity_sandwich_response_recorder.py`、`crypto_liquidity_sandwich_response_replay.py` |
 | 清算研究 | `crypto_liquidation_burst_*`、`crypto_liquidation_price_cluster_*`、`crypto_liquidation_intensity_response_replay.py`、`crypto_crowded_liquidation_reversal_replay.py`、`liquidation_reversal_replay.py` |
 | 时段区间回放 | `crypto_opening_range_breakout_response_replay.py` |
+| 主动成交流方差压缩 | `crypto_taker_flow_variance_compression_replay.py` |
 | Profile/VWAP/OI 共振 | `crypto_profile_vwap_oi_response_replay.py` |
 | 周末参考位移回放 | `crypto_weekend_gap_response_replay.py` |
 | 24 小时显示滚动回放 | `crypto_24h_rollout_response_replay.py` |
@@ -66,6 +67,23 @@ python3 examples/crypto/microstructure/crypto_quarter_hour_flow_replay.py \
 ```
 
 来源论文是研究证据，不是业绩证明；本例不包含配置、下单、钱包、签名或执行路径。
+
+`crypto_taker_flow_variance_compression_replay.py` 是可复现的[七次永续清算事件早期预警研究](https://arxiv.org/abs/2607.27070)
+的 MarketBridge 子集。它用最近 5 分钟主动成交不平衡的方差，与更早的基线方差比较，
+再统计后续 K 线的绝对波动。原研究发现跨事件唯一较稳定的群体级特征是主动成交流方差
+压缩，但同时证明价格、OI 和自相关特征具有事件异质性；方差压缩不是单事件警报，也
+不是清算预测。因此本案例只输出响应分布，不输出交易信号。
+
+```bash
+python3 examples/crypto/microstructure/crypto_taker_flow_variance_compression_replay.py \
+  --exchange binance --symbol BTCUSDT --period 5m --days 7 \
+  --baseline-bars 48 --window-bars 12 --compression-ratio 0.5 \
+  --horizon-bars 12 --min-observations 5
+```
+
+MarketBridge 只提供有界的历史主动成交量和 K 线输入；没有重建原研究的七事件档案、
+清算事件标签、placebo 对照或发布时间审计。输出始终标记为
+`research_only_no_orders`。
 
 `crypto_short_squeeze_reversal_monitor.py` 是从现有 `/v1/research/symbol-state`
 证据进入保守“逼空后反转候选”的 Python 层。它**不会在逼空仍然活跃时做空**。

@@ -12,6 +12,7 @@
 | Squeeze/exhaustion | `short_squeeze_monitor.py`, `exhaustion_short_monitor.py` |
 | Liquidations | `crypto_liquidation_*`, `crypto_crowded_liquidation_reversal_replay.py`, `liquidation_reversal_replay.py` |
 | Flow/depth | `crypto_*flow*`, `crypto_*depth*`, `crypto_liquidity_*` |
+| Taker-flow variance compression | `crypto_taker_flow_variance_compression_replay.py` |
 | Technical response | `crypto_*breakout*`, `crypto_*vwap*`, `crypto_*volatility*` |
 | Derivatives crowding | `crypto_*oi*`, `crypto_account_ratio_oi_response_replay.py` |
 
