@@ -2374,3 +2374,22 @@ imbalance variance with a prior baseline and later absolute returns. This is a
 directly verifiable single-symbol subset, not the paper's seven-event archive,
 and its verdict remains `observe only` unless the requested response sample is
 present. No new core feature or execution path was added.
+
+## 2026-09-22 — order-flow role boundary and historical depth gap
+
+Reviewed the large-sample [QuantScopeX BTC order-flow evaluation](https://www.quantscopex.com/research/strategy/bitcoin-order-flow-statistical-evaluation)
+and related public X discussion. Its fixed, point-in-time tests treat CVD,
+OI, funding and liquidations as current pressure/crowding/deleveraging
+diagnostics rather than stable 2–24 hour directional predictors. The narrower
+result is that unusually low visible BTC depth is associated with larger later
+absolute excursions, not a reliable sign. MarketBridge currently exposes live
+depth snapshots and response recorders, but not the study's historical
+cumulative depth-by-price bands with a frozen 180-day threshold and
+de-clustered event archive. This is therefore marked **needs a new data
+source**; no directional depth signal or automatic trade behavior was added.
+
+The frozen [ByKaranteli public dataset](https://github.com/bykarantelicom/crypto-datasets)
+was also checked as a possible source boundary. Its daily funding/OI/liquidation
+and venue snapshots do not provide the required historical depth bands, while
+its live continuation has a separate data licence. It remains an external
+research input, not an integrated MarketBridge connector.
