@@ -2393,3 +2393,22 @@ was also checked as a possible source boundary. Its daily funding/OI/liquidation
 and venue snapshots do not provide the required historical depth bands, while
 its live continuation has a separate data licence. It remains an external
 research input, not an integrated MarketBridge connector.
+
+## 2026-09-23 — funding sign asymmetry and external microstructure archives
+
+Reviewed the SSRN study [Apparent Roughness and Funding-Rate Asymmetry: Evidence from Bitcoin and Ether Perpetuals](https://papers.ssrn.com/sol3/Delivery.cfm?abstractid=7397158),
+which separates lagged positive funding from the magnitude of negative funding
+on frozen Binance BTC/ETH tapes. The hypothesis is **directly verifiable as a
+bounded subset** with MarketBridge funding history and the existing
+`crypto_positioning_regime_replay.py`; no new Rust field is required. The
+paper's frozen archive, estimator details and full statistical corrections are
+not silently treated as reproduced by the live monitor.
+
+The [CRYPTODATACOLLECTOR](https://github.com/nopervA/CRYPTODATACOLLECTOR)
+project was also reviewed as a possible source for one-second depth, force-order
+snapshots, mark price, OI and taker delta. It is useful evidence that a richer
+archive is technically feasible, but it is an external collector with its own
+retention, resource and source-coverage boundaries. MarketBridge's current
+public interfaces do not import that archive, so full historical depth/liquidation
+research remains **needs a new data source**. No external collector or
+execution path was added.
