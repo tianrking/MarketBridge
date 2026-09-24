@@ -2412,3 +2412,25 @@ retention, resource and source-coverage boundaries. MarketBridge's current
 public interfaces do not import that archive, so full historical depth/liquidation
 research remains **needs a new data source**. No external collector or
 execution path was added.
+
+## 2026-09-24 — walk-forward strategy mapping and basis-data boundary
+
+Reviewed the reproducible [Binance futures walk-forward framework](https://github.com/Gotodataru/binance-futures-backtest),
+which tests funding mean reversion, sustained taker momentum and OI/price
+divergence with explicit lagged signals and out-of-sample windows. The three
+hypotheses are already represented by MarketBridge's funding-regime/carry,
+taker-flow and OI-price response examples, so no duplicate strategy or Rust
+feature was added. Its external multi-year tick/metrics archive is not treated
+as MarketBridge validation.
+
+The [funding-adjusted cross-exchange perp arbitrage study](https://github.com/yoho369/crypto-perpetual-arbitrage)
+uses rolling OU spreads, funding normalization and BBO/illiquidity gates. The
+research design is relevant to the existing cross-venue price-gap and orderbook
+response cases, but its required historical BBO matrices and external data
+package are absent from MarketBridge. It remains **needs a new data source**;
+no executable arbitrage or order-routing path was added.
+
+Also retained the negative controls from the [funding-arbitrage audit](https://github.com/zwmjj/funding-rate-arb):
+timestamp alignment, realistic fees, opportunity cost and sparse-trade sample
+size must be visible before any carry result is interpreted. This is a research
+quality guard, not a live-trading claim.
