@@ -2434,3 +2434,22 @@ Also retained the negative controls from the [funding-arbitrage audit](https://g
 timestamp alignment, realistic fees, opportunity cost and sparse-trade sample
 size must be visible before any carry result is interpreted. This is a research
 quality guard, not a live-trading claim.
+
+## 2026-09-25 — spot-led versus leverage-led rally state
+
+Reviewed the [Coinmico September BTC funding/OI/liquidation report](https://coinmico.com/research/spot-led-rally-funding-and-liquidations),
+which states its funding, OI and liquidation series are polled from public
+Binance, Bybit and OKX feeds and aggregated with explicit UTC settlement and
+side rules. Its case study separates a spot-led rally (moderate funding,
+non-explosive OI growth, long liquidations on green days) from a leverage-led
+move. This is **directly verifiable as a bounded state classification** with
+MarketBridge's funding, OI, liquidation and perp/spot candle fields, but it is
+not a directional or short-entry rule; no duplicate example was added because
+the existing positioning and liquidation replays already expose the required
+states.
+
+The [dynamic collateral-control paper](https://arxiv.org/abs/2605.05089) was
+also mapped as **needs a new data source**: its solvency boundary and
+execution-aware rebalancing require permissionless perp on-chain liquidity,
+collateral and routed execution observations that MarketBridge does not expose.
+No collateral management, allocation or execution feature was added.
