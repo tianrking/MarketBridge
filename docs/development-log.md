@@ -2453,3 +2453,36 @@ also mapped as **needs a new data source**: its solvency boundary and
 execution-aware rebalancing require permissionless perp on-chain liquidity,
 collateral and routed execution observations that MarketBridge does not expose.
 No collateral management, allocation or execution feature was added.
+
+## 2026-10-01 — liquidation mechanism, state-first liquidity, and prediction-market negative control
+
+Reviewed the open replication package [Forced or Frantic?](https://github.com/edwinyeeshunwan/forced-or-frantic).
+Its pre-declared Hyperliquid study separates complete on-chain forced-deleveraging
+fills from voluntary position churn and reports materially different price
+dislocations after controlling for liquidation size. This distinction is
+**needs a new data source** for MarketBridge: public exchange liquidation feeds
+are venue-specific and may be throttled, while the current API does not expose
+the complete on-chain fill record or a forced-versus-voluntary label. The
+existing `crypto_liquidation_intensity_response_replay.py` remains a useful
+bounded intensity check, but it must not be described as mechanism
+classification or a short-entry signal.
+
+The reproducible [state-dependent L2 transition study](https://arxiv.org/abs/2607.09230)
+reinforces a state-first design: pre-event top-20 spread, depth and imbalance
+are the baseline for post-event liquidity-state transitions; order flow adds
+value only as an asset- and regime-conditional overlay (strongest for ETH,
+not established for BTC). MarketBridge can observe the live book and record
+the same descriptors through `crypto_liquidity_stress_monitor.py`, so this is
+**directly verifiable as a bounded state-transition replay** once enough
+point-in-time records exist. The paper's event-conditioned 2023–2026 archive,
+training-fold thresholds and macro-event controls are not silently reproduced;
+no directional or execution behavior was added.
+
+Finally, [OpenMarket](https://arxiv.org/abs/2607.26245) is retained as a
+prediction-market negative control. Its synchronized Polymarket/Binance
+archive reports that a 43-feature walk-forward model did not beat the
+Polymarket mid prior out of sample and produced negative simulated payoff after
+fees and slippage. MarketBridge's Polymarket endpoints therefore remain data
+and synchronization infrastructure, not an implied cross-venue trading edge.
+The archive's millisecond pairing and frozen history are external inputs, so
+no new prediction-market strategy or execution path was added.
