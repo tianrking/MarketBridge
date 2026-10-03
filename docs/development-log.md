@@ -2486,3 +2486,20 @@ fees and slippage. MarketBridge's Polymarket endpoints therefore remain data
 and synchronization infrastructure, not an implied cross-venue trading edge.
 The archive's millisecond pairing and frozen history are external inputs, so
 no new prediction-market strategy or execution path was added.
+
+## 2026-10-03 — volatility-adjusted cross-sectional momentum research mapping
+
+Reviewed the reproducible research folder in [Perp Quant Lab](https://github.com/AbdullaE100/perp-quant-lab).
+Its claimed surviving hypothesis is daily cross-sectional momentum scaled by
+realized volatility across a liquid perpetual universe, with an explicit
+time-ordered holdout and taker-cost assumption. The repository also contains
+order-placement and live-trading code, which is outside MarketBridge's scope;
+only the read-only research claim is considered.
+This is **directly verifiable as a bounded research replay** with
+crypto_volatility_adjusted_momentum_walkforward.py and the existing
+cross-asset candle universe. The reported result is not treated as reproduced:
+the external study has its own universe selection, survivorship exposure,
+funding/slippage assumptions and sample history, while MarketBridge's replay
+does not create positions or claim PnL. No new core field or execution path
+was added; the next valid step is an independently recorded, fee/funding-aware
+walk-forward sample if this hypothesis is prioritized.
