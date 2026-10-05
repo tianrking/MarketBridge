@@ -2503,3 +2503,23 @@ funding/slippage assumptions and sample history, while MarketBridge's replay
 does not create positions or claim PnL. No new core field or execution path
 was added; the next valid step is an independently recorded, fee/funding-aware
 walk-forward sample if this hypothesis is prioritized.
+
+## 2026-10-05 — breakout post-mortem and evaluation guardrails
+
+Reviewed the frozen [Momentum Breakout Postmortem](https://github.com/HodlHook/momentum-breakout-postmortem).
+Its auditable campaign evaluates roughly 670,000 Qullamaggie-style breakout
+configurations with a frozen validation period, measured slippage and funding;
+every locked variant lost on the untouched 2024–2026 holdout. This is a
+**directly verifiable negative control** for MarketBridge's existing breakout
+replays: a strong in-sample grid is not evidence of a live opportunity, and
+survivorship, funding and slippage must remain visible. No new breakout
+signal or execution behavior was added.
+
+The research-first [MarketTensor](https://github.com/SebastianBoehler/MarketTensor)
+project independently reinforces the same implementation guardrails—chronological
+splits, train-only preprocessing, lagged alignment, deterministic artifacts,
+and a clear separation between forecast metrics and simulated trading metrics.
+These principles are already reflected in MarketBridge's replay boundaries;
+its roadmap items for reproducible liquidation history and richer mark-index
+features remain **needs a new data source**, not an excuse to infer missing
+fields.
