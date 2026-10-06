@@ -2523,3 +2523,22 @@ These principles are already reflected in MarketBridge's replay boundaries;
 its roadmap items for reproducible liquidation history and richer mark-index
 features remain **needs a new data source**, not an excuse to infer missing
 fields.
+
+## 2026-10-06 — funding and L1-sweep kill-process mapping
+
+Reviewed the public-data [crypto-perps-research](https://github.com/rsipavan/crypto-perps-research)
+artifact. Its pre-committed tests cover funding/basis transmission, cross-venue
+dispersion, structural breaks, taker flow and Binance L1 book features. The
+headline result is intentionally conservative: extreme funding is
+coin- and venue-dependent, the apparent sweep continuation tilt shrinks to
+approximately breakeven after maker costs on fresh coins, and taker costs
+erase it. This is **directly verifiable as bounded response research** with
+the existing funding/basis, sweep, taker-flow and liquidity examples; the
+external Hyperliquid history, fresh-coin panel and exact cost model are not
+silently treated as reproduced.
+
+The artifact's remaining untested tier is full multi-level order-book depth.
+MarketBridge exposes live normalized books and bounded snapshot replays, but
+does not yet retain the long historical depth archive needed to test that
+claim. That remains **needs a new data source**. No directional sweep signal,
+maker-fill assumption or execution path was added.
