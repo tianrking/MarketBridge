@@ -28,6 +28,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Independently verify committed native recovery evidence
+        run: python -B scripts/verify_native_evidence.py docs/validation/2026-10-19-native-recovery-books
+
       - name: Enforce Python-only strategy examples
         run: >
           python -c "from pathlib import Path; p=next(Path('examples').rglob('*.rs'), None); assert p is None, f'Rust strategy example found: {p}'"

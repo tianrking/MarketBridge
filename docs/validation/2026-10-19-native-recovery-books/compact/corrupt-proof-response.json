@@ -1,0 +1,7 @@
+{
+  "http_status": 503,
+  "body": {
+    "error": "invalid_request_or_corrupt_recovery_evidence",
+    "recovered": null
+  }
+}

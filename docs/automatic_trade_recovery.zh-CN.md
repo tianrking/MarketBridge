@@ -38,3 +38,5 @@ python -B scripts/accept_native_protocols.py --binary target/debug/market-bridge
 ```
 
 工具启动独立真实服务进程及仅回环 HTTP/WebSocket 协议对端，制造成交 10→13、深度 11→13、第一次 REST 429、分页、重启和证据损坏。核验 1501 条窗口成交、前后原生边界、旧订单簿失效与新会话重建，以及补采未混入实时累计和 Redis 成交流。原始 JSON 报告、请求记录、二进制及源码 SHA256 留在指定目录。这是生产协议代码的本地故障验收，不是公网交易所或长期 VPS 运行证明。
+
+本次千档盘口、自动补采、重启、真实 Redis AOF 与独立证据重算结果见[功能验收记录](validation/2026-10-19-native-recovery-books/README.md)。

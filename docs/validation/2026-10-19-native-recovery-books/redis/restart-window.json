@@ -1,0 +1,72 @@
+{
+  "frozen_native_boundaries": {
+    "after": {
+      "key": "binance:trade:spot:BTCUSDT",
+      "sequence": 13,
+      "signature": [
+        4621819117588971520,
+        4607182418800017408,
+        1792399920260,
+        1
+      ]
+    },
+    "before": {
+      "key": "binance:trade:spot:BTCUSDT",
+      "sequence": 10,
+      "signature": [
+        4621819117588971520,
+        4607182418800017408,
+        1792399920200,
+        2
+      ]
+    }
+  },
+  "global_quality_cleared": false,
+  "job_id": 1,
+  "model_version": "native-gap-recovery/v1",
+  "provenance": "durable native-ID backfill verified against frozen live boundaries",
+  "source_quality": {
+    "has_known_loss": false,
+    "loss_epoch": 0,
+    "observation_origin": "de4988621e39bfdc35d0e88daf10aab4",
+    "reasons": {},
+    "scope": "process_ingestion_observation",
+    "upstream_completeness": "not_verified"
+  },
+  "source_window": {
+    "end_ms": 1792399980000,
+    "exchange": "binance",
+    "market": "spot",
+    "start_ms": 1792399920000,
+    "symbol": "BTCUSDT"
+  },
+  "window": {
+    "quality": {
+      "after_sequence": 1502,
+      "before_sequence": 0,
+      "canonicalized_duplicates": 0,
+      "evidence_crc32": 897599851,
+      "lifetime_cvd_repaired": false,
+      "scope": {
+        "end_ms": 1792399980000,
+        "exchange": "binance",
+        "market": "spot",
+        "start_ms": 1792399920000,
+        "symbol": "BTCUSDT"
+      },
+      "status": "verified_native_window",
+      "upstream_assumption": "ordered immutable native aggregate-trade IDs and source timestamps; normalized evidence is not exchange attestation",
+      "verified": true
+    },
+    "recovered": {
+      "buy_notional": 7510.0,
+      "buy_qty": 751.0,
+      "cvd_anchor": "window_start_only",
+      "delta_notional": 10.0,
+      "delta_qty": 1.0,
+      "sell_notional": 7500.0,
+      "sell_qty": 750.0,
+      "trade_count": 1501
+    }
+  }
+}

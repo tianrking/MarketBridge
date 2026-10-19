@@ -7,6 +7,7 @@ The fixture deliberately withholds trades 11/12 and depth update 12.
 import argparse
 import base64
 import hashlib
+import gzip
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -17,8 +18,9 @@ import struct
 import subprocess
 import threading
 import time
+import zlib
 from urllib.parse import parse_qs, urlencode, urlsplit
-from accept_pipeline import ROOT, Redis, check, digest, fetch, port, stop, write_json
+from accept_pipeline import ROOT, Redis, check, digest, fetch, port, stop as stop_unix, write_json
 
 
 class Fixture:
@@ -73,6 +75,17 @@ def read_control(peer):
         send_frame(peer, 10, data)
 
 
+def stop(child):
+    if os.name == "nt":
+        if child is not None and child.poll() is None:
+            # CREATE_NEW_PROCESS_GROUP ignores CTRL_C; the server does not
+            # register CTRL_BREAK. Exercise durable crash recovery on Windows.
+            child.terminate()
+            child.wait(timeout=20)
+    else:
+        stop_unix(child)
+
+
 def handler(fixture):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -106,7 +119,8 @@ def handler(fixture):
                     fixture.allow_resync.wait(20)
                 time.sleep(0.08)  # Force diff buffering before the snapshot.
                 self.respond(200, {"lastUpdateId": 10 if connection == 1 else 20,
-                                   "bids": [["99", "1"], ["98", "2"]], "asks": [["101", "3"], ["102", "4"]]})
+                                   "bids": [[f"{(9900-n)//100}.{(9900-n)%100:02d}", "1"] for n in range(1000)],
+                                   "asks": [[f"{(10100+n)//100}.{(10100+n)%100:02d}", "3"] for n in range(1000)]})
             elif path.path == "/aggTrades":
                 query = parse_qs(path.query)
                 first = int(query.get("fromId", [0])[0])
@@ -144,7 +158,8 @@ def handler(fixture):
 
             def depth(n):
                 send({"e": "depthUpdate", "s": "BTCUSDT", "E": int(time.time() * 1000),
-                      "U": n, "u": n, "b": [["99", "5"]], "a": [["101", "6"]]})
+                      "U": n, "u": n, "b": [["99.00", "5"], ["94.00", "7"], ["98.99", "0"]],
+                      "a": [["101.00", "6"], ["106.00", "8"], ["101.01", "0"]]})
             try:
                 if book:
                     depth(11 if connection == 1 else 21)
@@ -176,7 +191,7 @@ def handler(fixture):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/market-bridge")
+    parser.add_argument("--binary", type=Path, default=ROOT / "target/debug" / ("market-bridge.exe" if os.name == "nt" else "market-bridge"))
     parser.add_argument("--redis-server", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -235,6 +250,7 @@ def main():
                     conn.close()
             wait_for("Redis startup", redis_ready)
             config = config.replace("runtime:\n", f'runtime:\n  redis_url: "redis://127.0.0.1:{redis_port}/"\n  redis_stream_prefix: native_acceptance\n', 1)
+        config = config.replace("runtime:\n", "runtime:\n  order_books:\n    publish_levels: 1000\n", 1)
         config_path = directory / "config.yaml"
         config_path.write_text(config, encoding="utf-8")
         fixture_path = directory / "fixture.json"
@@ -246,12 +262,15 @@ def main():
         write_json(directory / "metadata.json", {"scope": "actual main process with loopback Binance spot WS/REST protocol fixtures; no public exchange claim",
                    "binary_sha256": digest(binary), "harness_sha256": digest(Path(__file__)), "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                    "source_hashes": {str(p.relative_to(ROOT)): digest(p) for p in sorted((ROOT / "src").rglob("*.rs"))},
-                   "redis_aof": bool(args.redis_server), "started_at_unix": time.time()})
+                   "redis_aof": bool(args.redis_server), "process_stop": "TerminateProcess crash recovery" if os.name == "nt" else "SIGTERM graceful restart", "started_at_unix": time.time()})
         server = launch([binary, "--protocol-fixture", fixture_path], "main")
         wait_for("HTTP startup", lambda: get("/health")[0] == 200)
         initial = wait_for("initial L2 snapshot + buffered delta", lambda: (lambda value: value if value["books"] and value["books"][0]["book_quality"]["synchronized"] else None)(get("/v1/market/order-books")[1]))
         book = initial["books"][0]
         check(book["bids"][0] == {"price": 99.0, "qty": 5.0} and book["asks"][0] == {"price": 101.0, "qty": 6.0}, "buffered delta was not merged into REST snapshot")
+        check(len(book["bids"]) == len(book["asks"]) == 999, "full 1000-level reconstruction or zero-size deletion failed")
+        check({row["price"]: row["qty"] for row in book["bids"]}[94.0] == 7 and {row["price"]: row["qty"] for row in book["asks"]}[106.0] == 8, "deep delta was not merged into the complete book")
+        check(all(row["price"] != 98.99 for row in book["bids"]) and all(row["price"] != 101.01 for row in book["asks"]), "zero-size depth did not delete the exact decimal level")
         first_session = book["book_quality"]["session"]
         write_json(directory / "initial-book.json", initial)
         fixture.break_book.set()
@@ -286,6 +305,11 @@ def main():
             checkpoint = json.loads(conn.execute("SELECT checkpoint FROM source_checkpoints").fetchone()[0])
             check(checkpoint["sequence"] == 13, "native checkpoint was not committed")
             origin = conn.execute("SELECT origin FROM outbox_state WHERE id=1").fetchone()[0]
+            evidence = []
+            for job_id, sequence, body, checksum in conn.execute("SELECT job_id,sequence,body,crc32 FROM recovery_records ORDER BY job_id,sequence"):
+                check(zlib.crc32(struct.pack("<QQ", job_id, sequence) + body.encode()) == checksum, "raw proof CRC failed before export")
+                evidence.append(json.dumps({"job_id": job_id, "sequence": sequence, "body": body, "crc32": checksum}, separators=(",", ":")))
+            (directory / "verified-native-records.jsonl.gz").write_bytes(gzip.compress(("\n".join(evidence) + "\n").encode(), mtime=0))
         retry = subprocess.run([str(binary), "--recovery", "retry", str(db), str(job["id"])], cwd=ROOT, env=env, capture_output=True, text=True, timeout=10)
         check(retry.returncode != 0, "verified evidence must not be overwritten by retry")
         requests_before_restart = fixture.agg_requests
@@ -305,12 +329,23 @@ def main():
             wait_for("durable outbox drain", drained)
             conn = Redis(("127.0.0.1", redis_port))
             native_ids, audit_events, book_events = [], 0, 0
+            durable_evidence, event_ids = [], set()
             for key in conn.command("KEYS", "native_acceptance*:origin:*"):
                 if conn.command("TYPE", key) != b"stream":
                     continue
-                for _, fields in conn.command("XRANGE", key, "-", "+"):
+                for native_id, fields in conn.command("XRANGE", key, "-", "+"):
                     row = dict(zip(fields[::2], fields[1::2]))
-                    event = json.loads(row[b"payload"])
+                    event_id = row[b"event_id"].decode()
+                    check(event_id not in event_ids, "duplicate stable event identity in Redis")
+                    event_ids.add(event_id)
+                    sequence = int(native_id.split(b"-")[0])
+                    check(event_id == f"{origin}:{sequence}", "durable identity changed")
+                    payload = row[b"payload"].decode()
+                    logical = key.decode().split(":origin:")[0]
+                    checksum_input = [{"origin": origin, "sequence": sequence}, logical, int(row[b"received_at_ms"]), payload]
+                    check(zlib.crc32(json.dumps(checksum_input, ensure_ascii=False, separators=(",", ":")).encode()) == int(row[b"event_crc32"]), "Redis event evidence CRC mismatch")
+                    durable_evidence.append(json.dumps({"stream": key.decode(), "stream_id": native_id.decode(), "fields": {k.decode(): v.decode() for k, v in row.items()}}, ensure_ascii=False, separators=(",", ":")))
+                    event = json.loads(payload)
                     if event["type"] == "trade":
                         native_ids.append(int(event["trade_id"]))
                     elif event["type"] == "order_book":
@@ -318,6 +353,7 @@ def main():
                     elif event.get("category") == "order_book_integrity":
                         audit_events += 1
             conn.close()
+            (directory / "redis-events.jsonl.gz").write_bytes(gzip.compress(("\n".join(durable_evidence) + "\n").encode(), mtime=0))
             check(sorted(native_ids) == [10, 13], "REST history or duplicate restart trade leaked into live durable stream")
             check(book_events >= 2 and audit_events >= 2, "book reconstruction evidence missing from actual Redis")
         else:
@@ -336,7 +372,8 @@ def main():
         report = {"passed": True, "scope": "localhost actual main process, production Binance spot protocol codecs",
                   "global_quality_cleared": False, "recovered_trades": 1501, "native_boundary_ids": [0, 1502],
                   "rest_requests": fixture.agg_requests, "rate_limit_retry_exercised": True,
-                  "order_book_gap_invalidated_old_session": True, "order_book_resynchronized_new_session": True,
+                  "snapshot_levels_per_side": 1000, "published_levels_after_zero_delete_per_side": 999,
+                  "deep_level_updates_verified": True, "order_book_gap_invalidated_old_session": True, "order_book_resynchronized_new_session": True,
                   "restart_retained_native_checkpoint_and_proof": True, "corrupt_evidence_http_status": code,
                   "sqlite_integrity": "ok before deliberate corruption", "store_origin": origin,
                   "real_redis_aof": bool(args.redis_server), "redis_book_events": book_events, "redis_book_audit_events": audit_events}

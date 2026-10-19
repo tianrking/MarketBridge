@@ -1,0 +1,30 @@
+[
+  {
+    "fromId": 0,
+    "limit": [
+      "1000"
+    ],
+    "rate_limited": true
+  },
+  {
+    "fromId": 0,
+    "limit": [
+      "1000"
+    ],
+    "rate_limited": false
+  },
+  {
+    "fromId": 0,
+    "limit": [
+      "1000"
+    ],
+    "rate_limited": false
+  },
+  {
+    "fromId": 1000,
+    "limit": [
+      "1000"
+    ],
+    "rate_limited": false
+  }
+]

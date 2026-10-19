@@ -1,0 +1,15 @@
+{
+  "health": 200,
+  "ready": 200,
+  "research_only": true,
+  "data_ready": false,
+  "existing_documents_preserved": 4,
+  "existing_documents_sha256": "fa5f9eb213ad411dad7514de81011b287a4971354d434bab2122bbaa8a023d08",
+  "new_startup_events": [
+    {
+      "namespace": "events",
+      "kind": "scanner_reset"
+    }
+  ],
+  "sqlite_integrity": "ok"
+}

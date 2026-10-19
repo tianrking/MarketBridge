@@ -1,0 +1,45 @@
+{
+  "coalesced_gap_observations": 0,
+  "deferred_streams": 0,
+  "enabled": true,
+  "evicted_terminal_jobs": 0,
+  "evidence_bytes": 403590,
+  "global_quality_cleared": false,
+  "jobs": [
+    {
+      "attempt": 2,
+      "candidate_from_sequence": 11,
+      "candidate_to_sequence": 12,
+      "error": null,
+      "id": 1,
+      "next_attempt_ms": 1792400078003,
+      "range_may_include_observed_trades": true,
+      "scope": {
+        "end_ms": 1792399980000,
+        "exchange": "binance",
+        "market": "spot",
+        "start_ms": 1792399920000,
+        "symbol": "BTCUSDT"
+      },
+      "state": "verified",
+      "verified": true
+    }
+  ],
+  "last_evicted_id": 0,
+  "limits": {
+    "enabled": true,
+    "max_attempts": 1000,
+    "max_database_bytes": 268435456,
+    "max_deferred_streams": 4096,
+    "max_evidence_bytes": 134217728,
+    "max_jobs": 256,
+    "max_requests_per_attempt": 256,
+    "max_rows_per_job": 100000,
+    "max_window_ms": 900000,
+    "path": "data/trade-recovery.sqlite",
+    "request_timeout_ms": 10000,
+    "window_ms": 60000
+  },
+  "model_version": "native-gap-recovery/v1",
+  "store_origin": "ab31206a194076f8d52cc58ff434ed6d"
+}

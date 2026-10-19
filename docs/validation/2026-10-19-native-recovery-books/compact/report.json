@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "scope": "localhost actual main process, production Binance spot protocol codecs",
+  "global_quality_cleared": false,
+  "recovered_trades": 1501,
+  "native_boundary_ids": [
+    0,
+    1502
+  ],
+  "rest_requests": 4,
+  "rate_limit_retry_exercised": true,
+  "snapshot_levels_per_side": 1000,
+  "published_levels_after_zero_delete_per_side": 999,
+  "deep_level_updates_verified": true,
+  "order_book_gap_invalidated_old_session": true,
+  "order_book_resynchronized_new_session": true,
+  "restart_retained_native_checkpoint_and_proof": true,
+  "corrupt_evidence_http_status": 503,
+  "sqlite_integrity": "ok before deliberate corruption",
+  "store_origin": "ab31206a194076f8d52cc58ff434ed6d",
+  "real_redis_aof": false,
+  "redis_book_events": null,
+  "redis_book_audit_events": null
+}
