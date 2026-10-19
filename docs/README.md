@@ -6,6 +6,8 @@ English architecture/API reference, and `README.zh-CN.md` is the Chinese
 entry point. The Chinese step-by-step research
 manual is at [user-guide/README.md](user-guide/README.md), including setup,
 models, live scanning, archives, SDKs, the workbench and operational boundaries.
+A Chinese [practical runtime review](practical_runtime_review.zh-CN.md) records
+cross-platform reliability findings, benchmark evidence and Linux/PREEMPT_RT guidance.
 
 For runnable strategy research, use the bilingual
 [`examples/`](../examples/README.en.md) index. It is Python-first and keeps
@@ -52,6 +54,7 @@ All releases:
 | [`ccxt_parity_audit.md`](ccxt_parity_audit.md) | Reference audit for exchange connector parity and public-data coverage decisions. |
 | [`source_expansion_inventory.md`](source_expansion_inventory.md) | External source expansion inventory and possible future connector families. |
 | [`performance_review.md`](performance_review.md) | Performance review notes for the event bus, streaming, cache scans, serialization, and retention behavior. |
+| [`practical_runtime_review.zh-CN.md`](practical_runtime_review.zh-CN.md) | Chinese engineering assessment: confirmed fixes, measured workloads, rejected optimizations and remaining operational gaps. |
 
 ## Quick Binary Workflow
 

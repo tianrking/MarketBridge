@@ -14,6 +14,9 @@
 [中文案例入口](examples/README.zh-CN.md) · [案例索引](examples/README.md) ·
 [文档索引](docs/README.md)
 
+[实战可靠性与性能复核](docs/practical_runtime_review.zh-CN.md)记录普通 VPS、Windows/macOS
+兼容性、已确认问题、压测证据和 PREEMPT_RT 的适用边界。
+
 未发布的研究 API / CLI 见[使用与限制](docs/research-api.md)。先用
 `config.research.yaml` 启动仅监听本机、不开启采集器的研究服务；启动后打开
 `/workbench` 使用内置研究工作台。
