@@ -8,6 +8,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
+use crate::data_quality::SubscriptionQuality;
 use crate::event_bus::{EventBus, EventDomain};
 use crate::types::{DataEvent, TradeSide, TradeTick};
 
@@ -133,6 +134,7 @@ pub struct OrderFlowStore {
 
 #[derive(Default)]
 struct OrderFlowState {
+    subscription_quality: SubscriptionQuality,
     buckets: HashMap<String, OrderFlowBucket>,
     cumulative_qty: HashMap<String, f64>,
     cumulative_notional: HashMap<String, f64>,
@@ -158,6 +160,18 @@ impl OrderFlowStore {
             inner: Arc::new(RwLock::new(OrderFlowState::default())),
             large_trade_notional_usdt,
         }
+    }
+
+    pub async fn subscription_quality(&self) -> SubscriptionQuality {
+        self.inner.read().await.subscription_quality.clone()
+    }
+
+    async fn record_subscriber_gap(&self, skipped: u64) {
+        self.inner
+            .write()
+            .await
+            .subscription_quality
+            .record_gap(skipped, crate::types::now_ms());
     }
 
     pub async fn update_trade(&self, trade: &TradeTick) {
@@ -586,8 +600,8 @@ pub fn spawn_order_flow_service(
     store: OrderFlowStore,
     shutdown: CancellationToken,
 ) -> JoinHandle<()> {
+    let mut rx = bus.subscribe_domain(EventDomain::Trade);
     tokio::spawn(async move {
-        let mut rx = bus.subscribe_domain(EventDomain::Trade);
         loop {
             tokio::select! {
                 _ = shutdown.cancelled() => break,
@@ -599,6 +613,7 @@ pub fn spawn_order_flow_service(
                             }
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                            store.record_subscriber_gap(skipped).await;
                             warn!(skipped, "order-flow subscriber lagged");
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -934,5 +949,52 @@ mod tests {
         assert_eq!(rows[0].trades.len(), 3);
         assert_eq!(rows[0].levels.len(), 2);
         assert_eq!(rows[0].delta_qty, 4.0);
+    }
+
+    #[tokio::test]
+    async fn subscriber_loss_taints_order_flow_and_does_not_expire_with_new_trades() {
+        let bus = crate::event_bus::EventBus::new_sharded(2, 10_000, 1);
+        let store = OrderFlowStore::new(100_000.0);
+        let stop = tokio_util::sync::CancellationToken::new();
+        let task = super::spawn_order_flow_service(bus.clone(), store.clone(), stop.clone());
+        let mut trade = TradeTick {
+            exchange: "binance",
+            market: MarketKind::Perp,
+            symbol: "BTCUSDT".into(),
+            price: 100.0,
+            qty: 1.0,
+            side: TradeSide::Buy,
+            trade_id: None,
+            ts_ms: 60_000,
+        };
+        // The single-thread test runtime cannot poll the subscription forwarder
+        // until this ring has lost exactly 14 entries.
+        for ts in 0..16 {
+            trade.ts_ms = 60_000 + ts;
+            bus.publish_shared_event(std::sync::Arc::new(crate::types::DataEvent::Trade(
+                trade.clone(),
+            )));
+        }
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !store.subscription_quality().await.has_known_gap {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(store.subscription_quality().await.skipped_events_total, 14);
+        // Even after all original buckets are outside retention, CVD history
+        // cannot be repaired by elapsed time or a later complete observation.
+        trade.ts_ms += BUCKET_RETENTION_MS * 2;
+        store.update_trade(&trade).await;
+        let quality = store.subscription_quality().await;
+        assert!(quality.has_known_gap);
+        assert_eq!(quality.gap_epoch, 1);
+        assert_eq!(
+            serde_json::to_value(&quality).unwrap()["upstream_completeness"],
+            "not_verified"
+        );
+        stop.cancel();
+        task.await.unwrap();
     }
 }

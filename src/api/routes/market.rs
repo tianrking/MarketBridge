@@ -394,7 +394,10 @@ pub async fn v1_market_order_flow(
             limit: q.limit.unwrap_or(500),
         })
         .await;
-    Json(serde_json::json!({"version":"v1","domain":"market_order_flow","order_flow":rows}))
+    let subscription_quality = state.order_flow_store.subscription_quality().await;
+    Json(
+        serde_json::json!({"version":"v1","domain":"market_order_flow","subscription_quality":subscription_quality,"order_flow":rows}),
+    )
 }
 
 pub async fn v1_market_order_flow_windows(
@@ -425,7 +428,10 @@ pub async fn v1_market_order_flow_windows(
             .then(a.window_ms.cmp(&b.window_ms))
             .then(b.bucket_start_ms.cmp(&a.bucket_start_ms))
     });
-    Json(serde_json::json!({"version":"v1","domain":"market_order_flow_windows","order_flow":rows}))
+    let subscription_quality = state.order_flow_store.subscription_quality().await;
+    Json(
+        serde_json::json!({"version":"v1","domain":"market_order_flow_windows","subscription_quality":subscription_quality,"order_flow":rows}),
+    )
 }
 
 pub async fn v1_market_footprint(
@@ -449,7 +455,10 @@ pub async fn v1_market_footprint(
             limit: q.limit.unwrap_or(100),
         })
         .await;
-    Json(serde_json::json!({"version":"v1","domain":"market_footprint","footprints":rows}))
+    let subscription_quality = state.order_flow_store.subscription_quality().await;
+    Json(
+        serde_json::json!({"version":"v1","domain":"market_footprint","subscription_quality":subscription_quality,"footprints":rows}),
+    )
 }
 
 pub async fn v1_market_klines(

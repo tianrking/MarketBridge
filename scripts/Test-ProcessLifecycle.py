@@ -114,6 +114,35 @@ class ProcessLifecycleTests(unittest.TestCase):
         log = (self.state / "process-0.log").read_text(encoding="utf-8")
         self.assertIn("redis_sink", log)
 
+    def test_empty_market_responses_expose_subscription_quality(self):
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        self.environment["MARKETBRIDGE_API_ADDR"] = f"127.0.0.1:{port}"
+        child = self.launch()
+        self.ready(child, port)
+        headers = {}
+        if self.environment.get("MARKETBRIDGE_API_KEY"):
+            headers["x-api-key"] = self.environment["MARKETBRIDGE_API_KEY"]
+        for path, rows in (
+            ("/v1/market/order-flow", "order_flow"),
+            ("/v1/market/order-flow/windows", "order_flow"),
+            ("/v1/market/footprint", "footprints"),
+            ("/v1/research/symbol-state", "states"),
+        ):
+            with self.subTest(path=path):
+                request = Request(f"http://127.0.0.1:{port}{path}", headers=headers)
+                with urlopen(request, timeout=5) as response:
+                    payload = json.load(response)
+                self.assertEqual(payload[rows], [])
+                quality = payload["subscription_quality"]
+                self.assertFalse(quality["has_known_gap"])
+                self.assertEqual(quality["gap_epoch"], 0)
+                self.assertEqual(quality["upstream_completeness"], "not_verified")
+        request = Request(f"http://127.0.0.1:{port}/v1/research/squeeze/scan", headers=headers)
+        with urlopen(request, timeout=5) as response:
+            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v1")
+
     @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
     def test_sigterm_and_sigint_seal_recordings(self):
         for shutdown_signal in (signal.SIGTERM, signal.SIGINT):

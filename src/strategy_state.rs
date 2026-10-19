@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
+use crate::data_quality::SubscriptionQuality;
 use crate::event_bus::EventBus;
 use crate::types::{
     BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
@@ -31,11 +32,13 @@ pub struct SymbolStateResponse {
     pub symbol: String,
     pub exchange: Option<String>,
     pub generated_at_ms: u64,
+    pub subscription_quality: SubscriptionQuality,
     pub states: Vec<StrategySymbolState>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StrategySymbolState {
+    pub subscription_quality: SubscriptionQuality,
     pub exchange: String,
     pub symbol: String,
     pub generated_at_ms: u64,
@@ -115,6 +118,7 @@ pub struct StrategyStateStore {
 
 #[derive(Default)]
 struct StrategyStateInner {
+    subscription_quality: SubscriptionQuality,
     symbols: HashMap<String, SymbolRuntimeState>,
 }
 
@@ -203,10 +207,9 @@ impl StrategyStateStore {
         let now = now_ms();
         let symbol = symbol.to_ascii_uppercase();
         let exchange_filter = exchange.map(str::to_ascii_lowercase);
-        let mut rows = self
-            .inner
-            .write()
-            .await
+        let mut guard = self.inner.write().await;
+        let quality = guard.subscription_quality.clone();
+        let mut rows = guard
             .symbols
             .values_mut()
             .filter(|state| state.symbol.eq_ignore_ascii_case(&symbol))
@@ -217,9 +220,10 @@ impl StrategyStateStore {
             })
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now)
+                state.snapshot(now, &quality)
             })
             .collect::<Vec<_>>();
+        drop(guard);
 
         rows.sort_by(|a, b| a.exchange.cmp(&b.exchange).then(a.symbol.cmp(&b.symbol)));
         SymbolStateResponse {
@@ -228,6 +232,7 @@ impl StrategyStateStore {
             symbol,
             exchange: exchange_filter,
             generated_at_ms: now,
+            subscription_quality: quality,
             states: rows,
         }
     }
@@ -237,19 +242,27 @@ impl StrategyStateStore {
     /// observed since this process started, not that a market does not exist.
     pub async fn query_all(&self) -> Vec<StrategySymbolState> {
         let now = now_ms();
-        let mut rows = self
-            .inner
-            .write()
-            .await
+        let mut guard = self.inner.write().await;
+        let quality = guard.subscription_quality.clone();
+        let mut rows = guard
             .symbols
             .values_mut()
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now)
+                state.snapshot(now, &quality)
             })
             .collect::<Vec<_>>();
+        drop(guard);
         rows.sort_by(|a, b| a.exchange.cmp(&b.exchange).then(a.symbol.cmp(&b.symbol)));
         rows
+    }
+
+    async fn record_subscriber_gap(&self, skipped: u64) {
+        self.inner
+            .write()
+            .await
+            .subscription_quality
+            .record_gap(skipped, now_ms());
     }
 
     async fn update_tick(&self, tick: &MarketTick) {
@@ -414,12 +427,22 @@ impl SymbolRuntimeState {
         prune_numeric(&mut self.funding_history, now);
     }
 
-    fn snapshot(&self, now: u64) -> StrategySymbolState {
+    fn snapshot(&self, now: u64, quality: &SubscriptionQuality) -> StrategySymbolState {
         let metrics = self.metrics(now);
-        let long_squeeze = long_squeeze_state(&metrics);
-        let short_exhaustion = short_exhaustion_state(&metrics);
+        let mut long_squeeze = long_squeeze_state(&metrics);
+        let mut short_exhaustion = short_exhaustion_state(&metrics);
+        if quality.has_known_gap {
+            for leg in [&mut long_squeeze, &mut short_exhaustion] {
+                leg.state = "incomplete_data";
+                leg.score = 0;
+                leg.progress.clear();
+                leg.invalidation
+                    .push("process-local subscription lost events; state rebuild required".into());
+            }
+        }
         let risk_context = risk_context(self.latest_price, &long_squeeze, &short_exhaustion);
         StrategySymbolState {
+            subscription_quality: quality.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             generated_at_ms: now,
@@ -583,14 +606,18 @@ pub fn spawn_strategy_state_service(
     store: StrategyStateStore,
     shutdown: CancellationToken,
 ) -> JoinHandle<()> {
+    let mut rx = bus.subscribe_events();
     tokio::spawn(async move {
-        let mut rx = bus.subscribe_events();
         loop {
             tokio::select! {
                 _ = shutdown.cancelled() => break,
                 result = rx.recv() => match result {
                     Ok(shared) => store.update_event(shared.event.as_ref()).await,
-                    Err(error) => warn!(%error, "strategy state stream lagged or closed"),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                        store.record_subscriber_gap(skipped).await;
+                        warn!(skipped, "strategy state subscriber lagged; research triggers disabled");
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
         }
@@ -1022,5 +1049,79 @@ mod tests {
         assert_eq!(metrics.perp_volume_notional_15m, Some(10_000.0));
         assert_eq!(metrics.liquidation_notional_15m, Some(2_000.0));
         assert_eq!(metrics.liquidation_to_perp_volume_ratio_15m, Some(0.2));
+    }
+
+    #[tokio::test]
+    async fn subscriber_loss_is_serialized_for_all_symbols_and_blocks_legacy_triggers() {
+        let bus = EventBus::new_sharded(2, 10_000, 1);
+        let store = StrategyStateStore::new();
+        let stop = CancellationToken::new();
+        let task = spawn_strategy_state_service(bus.clone(), store.clone(), stop.clone());
+        // Heartbeat loss has no symbol attribution in this subscription, so
+        // even a symbol first observed later must carry the global gap.
+        for ts in 0..16 {
+            bus.publish_shared_event(Arc::new(DataEvent::Heartbeat {
+                exchange: "test",
+                ts_ms: ts,
+            }));
+        }
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !store
+                .query("BTCUSDT", None)
+                .await
+                .subscription_quality
+                .has_known_gap
+            {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        for symbol in ["BTCUSDT", "ETHUSDT"] {
+            store
+                .update_event(&DataEvent::Trade(TradeTick {
+                    exchange: "binance",
+                    market: MarketKind::Perp,
+                    symbol: symbol.into(),
+                    price: 100.0,
+                    qty: 1.0,
+                    side: TradeSide::Buy,
+                    trade_id: None,
+                    ts_ms: now_ms(),
+                }))
+                .await;
+        }
+        let rows = store.query_all().await;
+        assert_eq!(rows.len(), 2);
+        for row in &rows {
+            assert!(row.subscription_quality.has_known_gap);
+            assert_eq!(row.subscription_quality.skipped_events_total, 14);
+            assert_eq!(row.long_squeeze.state, "incomplete_data");
+            assert_eq!(row.short_exhaustion.state, "incomplete_data");
+            assert_eq!(row.long_squeeze.score, 0);
+        }
+        let response = serde_json::to_value(store.query("BTCUSDT", None).await).unwrap();
+        assert_eq!(response["subscription_quality"]["gap_epoch"], 1);
+        assert_eq!(
+            response["states"][0]["subscription_quality"]["has_known_gap"],
+            true
+        );
+        stop.cancel();
+        task.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn closed_subscription_exits_instead_of_spinning() {
+        let bus = EventBus::new_sharded(2, 10_000, 1);
+        let task = spawn_strategy_state_service(
+            bus.clone(),
+            StrategyStateStore::new(),
+            CancellationToken::new(),
+        );
+        drop(bus);
+        tokio::time::timeout(std::time::Duration::from_secs(1), task)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }

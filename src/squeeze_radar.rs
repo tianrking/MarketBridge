@@ -11,7 +11,7 @@ use crate::strategy_state::{RollingChange, StrategySymbolState};
 use crate::supply::SupplySnapshot;
 use crate::venue_status::VenueAssetStatusObservation;
 
-pub const MODEL_VERSION: &str = "squeeze-radar/v0";
+pub const MODEL_VERSION: &str = "squeeze-radar/v1";
 const ONE_HOUR_MS: u64 = 60 * 60_000;
 const FIFTEEN_MINUTES_MS: u64 = 15 * 60_000;
 
@@ -59,6 +59,7 @@ pub struct SupplyContext {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SqueezeDataQuality {
+    pub subscription_quality: crate::data_quality::SubscriptionQuality,
     pub observed_at_ms: u64,
     pub age_ms: Option<u64>,
     pub fresh: bool,
@@ -126,7 +127,7 @@ pub fn scan_with_references(
         candidates,
         limitations: vec![
             "A ranking is a research hypothesis, not a trade instruction or a profitability claim.",
-            "Funding is not normalized across venue funding intervals or caps in v0; compare within a venue before using it as a factor.",
+            "Funding is not normalized across venue funding intervals or caps; compare within a venue before using it as a factor.",
             "No issuer supply, borrow availability, deposit status, exchange reserve, wallet-label, liquidation-wall, or execution evidence is inferred.",
             "The state is process-local live observation; restart clears rolling baselines unless a separate replay dataset is supplied.",
         ],
@@ -238,6 +239,10 @@ fn evaluate(
             .push("aligned 15m price baseline unavailable; no right-side confirmation".into()),
     }
 
+    if raw.subscription_quality.has_known_gap {
+        missing.push(format!("process-local subscription lost {} events (gap epoch {}); rebuild state before research triggers",
+            raw.subscription_quality.skipped_events_total, raw.subscription_quality.gap_epoch));
+    }
     if !fresh {
         missing.push(format!(
             "market data stale: age {}ms exceeds {}ms",
@@ -267,7 +272,8 @@ fn evaluate(
         missing
             .push("no explicit supply identity mapping; OI/Mcap is intentionally omitted".into());
     }
-    let ready_for_trigger = fresh
+    let ready_for_trigger = !raw.subscription_quality.has_known_gap
+        && fresh
         && funding_fresh
         && open_interest_fresh
         && price_fresh
@@ -277,7 +283,9 @@ fn evaluate(
         && price_15m.is_some()
         && metrics.cvd_divergence.is_some()
         && metrics.ofi_best_level_1m.is_some();
-    let state = if !fresh {
+    let state = if raw.subscription_quality.has_known_gap {
+        "incomplete_data"
+    } else if !fresh {
         "stale_data"
     } else if !ready_for_trigger {
         "warming_up"
@@ -300,6 +308,7 @@ fn evaluate(
         score,
         max_score: 10,
         data_quality: SqueezeDataQuality {
+            subscription_quality: raw.subscription_quality.clone(),
             observed_at_ms: raw.observed_at_ms,
             age_ms,
             fresh,
@@ -360,6 +369,7 @@ mod tests {
 
     fn state(now: u64) -> StrategySymbolState {
         StrategySymbolState {
+            subscription_quality: Default::default(),
             exchange: "test".into(),
             symbol: "ABCUSDT".into(),
             generated_at_ms: now,
@@ -447,5 +457,30 @@ mod tests {
         let context = report.candidates[0].supply_context.as_ref().unwrap();
         assert_eq!(context.oi_to_circulating_mcap, Some(0.25));
         assert!(context.fresh);
+    }
+
+    #[test]
+    fn known_subscriber_gap_blocks_an_otherwise_fresh_full_score_candidate() {
+        let now = 10_000_000;
+        let mut input = state(now);
+        input.subscription_quality.record_gap(7, now - 1);
+        let report = scan(vec![input], now, 3_000, 0, 10);
+        let candidate = &report.candidates[0];
+        assert_eq!(candidate.score, 10);
+        assert!(candidate.data_quality.fresh);
+        assert!(!candidate.data_quality.ready_for_trigger);
+        assert_eq!(candidate.state, "incomplete_data");
+        assert!(
+            candidate
+                .missing_evidence
+                .iter()
+                .any(|text| text.contains("lost 7 events"))
+        );
+        assert_eq!(report.model_version, "squeeze-radar/v1");
+        let archived = serde_json::to_value(report).unwrap();
+        assert_eq!(
+            archived["candidates"][0]["raw"]["subscription_quality"]["has_known_gap"],
+            true
+        );
     }
 }

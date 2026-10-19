@@ -8,6 +8,7 @@ mod config;
 mod connectors;
 mod core;
 mod data_lake;
+mod data_quality;
 mod deribit_cache;
 mod domains;
 mod event_bus;
