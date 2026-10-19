@@ -114,8 +114,13 @@ pub struct EventBus {
 }
 
 pub struct EventSubscription {
-    rx: mpsc::Receiver<Result<Arc<SharedEvent>, broadcast::error::RecvError>>,
+    rx: EventReceiver,
     tasks: Vec<JoinHandle<()>>,
+}
+
+enum EventReceiver {
+    Direct(broadcast::Receiver<Arc<SharedEvent>>),
+    Merged(mpsc::Receiver<Result<Arc<SharedEvent>, broadcast::error::RecvError>>),
 }
 
 impl Drop for EventSubscription {
@@ -128,10 +133,13 @@ impl Drop for EventSubscription {
 
 impl EventSubscription {
     pub async fn recv(&mut self) -> Result<Arc<SharedEvent>, broadcast::error::RecvError> {
-        self.rx
-            .recv()
-            .await
-            .unwrap_or(Err(broadcast::error::RecvError::Closed))
+        match &mut self.rx {
+            EventReceiver::Direct(rx) => rx.recv().await,
+            EventReceiver::Merged(rx) => rx
+                .recv()
+                .await
+                .unwrap_or(Err(broadcast::error::RecvError::Closed)),
+        }
     }
 
     #[cfg(test)]
@@ -139,7 +147,19 @@ impl EventSubscription {
         &mut self,
     ) -> Result<Result<Arc<SharedEvent>, broadcast::error::RecvError>, mpsc::error::TryRecvError>
     {
-        self.rx.try_recv()
+        match &mut self.rx {
+            EventReceiver::Direct(rx) => match rx.try_recv() {
+                Ok(event) => Ok(Ok(event)),
+                Err(broadcast::error::TryRecvError::Lagged(skipped)) => {
+                    Ok(Err(broadcast::error::RecvError::Lagged(skipped)))
+                }
+                Err(broadcast::error::TryRecvError::Empty) => Err(mpsc::error::TryRecvError::Empty),
+                Err(broadcast::error::TryRecvError::Closed) => {
+                    Err(mpsc::error::TryRecvError::Disconnected)
+                }
+            },
+            EventReceiver::Merged(rx) => rx.try_recv(),
+        }
     }
 }
 
@@ -204,7 +224,6 @@ impl EventBus {
     pub fn publish_shared_event(&self, event: Arc<DataEvent>) {
         let shared = Arc::new(SharedEvent::new(event));
         let shard = shard_for_event(shared.event.as_ref(), self.event_tx.len());
-        let _ = self.event_tx[shard].send(shared.clone());
         match shared.event.as_ref() {
             DataEvent::Tick(t) => {
                 let (normalized, quote_envelope) = self.snapshots.upsert_tick(t, self.stale_ttl_ms);
@@ -218,40 +237,43 @@ impl EventBus {
                 }
             }
             DataEvent::FundingRate(t) => {
+                self.snapshots.upsert_funding(t, self.stale_ttl_ms);
                 let shard = shard_for_key(&t.symbol, self.funding_tx.len());
                 let _ = self.funding_tx[shard].send(shared.clone());
-                self.snapshots.upsert_funding(t, self.stale_ttl_ms);
             }
             DataEvent::OpenInterest(t) => {
+                self.snapshots.upsert_open_interest(t, self.stale_ttl_ms);
                 let shard = shard_for_key(&t.symbol, self.open_interest_tx.len());
                 let _ = self.open_interest_tx[shard].send(shared.clone());
-                self.snapshots.upsert_open_interest(t, self.stale_ttl_ms);
             }
             DataEvent::Trade(t) => {
+                self.snapshots.upsert_trade(t, self.stale_ttl_ms);
                 let shard = shard_for_key(&t.symbol, self.trade_tx.len());
                 let _ = self.trade_tx[shard].send(shared.clone());
-                self.snapshots.upsert_trade(t, self.stale_ttl_ms);
             }
             DataEvent::Liquidation(t) => {
+                self.snapshots.upsert_liquidation(t, self.stale_ttl_ms);
                 let shard = shard_for_key(&t.symbol, self.liquidation_tx.len());
                 let _ = self.liquidation_tx[shard].send(shared.clone());
-                self.snapshots.upsert_liquidation(t, self.stale_ttl_ms);
             }
             DataEvent::OrderBook(t) => {
+                self.snapshots.upsert_order_book(t, self.stale_ttl_ms);
                 let shard = shard_for_key(&t.symbol, self.order_book_tx.len());
                 let _ = self.order_book_tx[shard].send(shared.clone());
-                self.snapshots.upsert_order_book(t, self.stale_ttl_ms);
             }
             DataEvent::ExternalSignal(t) => {
+                self.snapshots.upsert_external_signal(t, self.stale_ttl_ms);
                 let shard = shard_for_key(
                     t.symbol.as_deref().unwrap_or(t.source),
                     self.external_signal_tx.len(),
                 );
                 let _ = self.external_signal_tx[shard].send(shared.clone());
-                self.snapshots.upsert_external_signal(t, self.stale_ttl_ms);
             }
             DataEvent::Heartbeat { .. } => {}
         }
+        // Commit snapshots before notifying subscribers. The direct receiver
+        // can run immediately on another worker and query the latest state.
+        let _ = self.event_tx[shard].send(shared);
     }
 
     pub async fn snapshot_by_symbol(&self, symbol: &str) -> Vec<NormalizedTick> {
@@ -321,6 +343,12 @@ fn sharded_senders<T: Clone>(capacity: usize, shards: usize) -> Vec<broadcast::S
 }
 
 fn subscribe_sharded(senders: &[broadcast::Sender<Arc<SharedEvent>>]) -> EventSubscription {
+    if let [sender] = senders {
+        return EventSubscription {
+            rx: EventReceiver::Direct(sender.subscribe()),
+            tasks: Vec::new(),
+        };
+    }
     let (tx, rx) = mpsc::channel(senders.len().saturating_mul(1024).max(1024));
     let mut tasks = Vec::with_capacity(senders.len());
     for sender in senders {
@@ -349,7 +377,10 @@ fn subscribe_sharded(senders: &[broadcast::Sender<Arc<SharedEvent>>]) -> EventSu
         }));
     }
     drop(tx);
-    EventSubscription { rx, tasks }
+    EventSubscription {
+        rx: EventReceiver::Merged(rx),
+        tasks,
+    }
 }
 
 fn shard_for_event(event: &DataEvent, shards: usize) -> usize {
@@ -383,6 +414,53 @@ mod tests {
         BookLevel, ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
         OpenInterestTick, OrderBookTick, TradeSide, TradeTick, now_ms,
     };
+
+    #[test]
+    fn single_shard_subscription_can_receive_without_a_runtime() {
+        let bus = EventBus::new_sharded(4, 1000, 1);
+        let mut rx = bus.subscribe_events();
+        bus.publish_from_event(&DataEvent::Heartbeat {
+            exchange: "test",
+            ts_ms: 1,
+        });
+        let event = rx.try_recv().unwrap().unwrap();
+        assert!(matches!(
+            event.event.as_ref(),
+            DataEvent::Heartbeat { ts_ms: 1, .. }
+        ));
+        drop(bus);
+        assert!(matches!(
+            rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Disconnected)
+        ));
+    }
+
+    #[tokio::test]
+    async fn single_shard_reports_lag_then_drains_retained_events_in_order() {
+        let bus = EventBus::new_sharded(2, 1000, 1);
+        let mut rx = bus.subscribe_events();
+        for ts_ms in 0..4 {
+            bus.publish_from_event(&DataEvent::Heartbeat {
+                exchange: "test",
+                ts_ms,
+            });
+        }
+        drop(bus);
+        assert!(matches!(
+            rx.recv().await,
+            Err(broadcast::error::RecvError::Lagged(2))
+        ));
+        for expected in 2..4 {
+            let event = rx.recv().await.unwrap();
+            assert!(
+                matches!(event.event.as_ref(), DataEvent::Heartbeat { ts_ms, .. } if *ts_ms == expected)
+            );
+        }
+        assert!(matches!(
+            rx.recv().await,
+            Err(broadcast::error::RecvError::Closed)
+        ));
+    }
 
     #[tokio::test]
     async fn publish_builds_normalized_tick() {
