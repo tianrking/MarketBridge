@@ -1,0 +1,15 @@
+{
+  "reason": "The first nine agent commits were unpublished and GitHub rejected their private author email. Author/committer identity was replaced with Codex; each mapped commit retains its original tree, message and timestamps. Repository history through the base commit is unchanged.",
+  "base_unchanged": "b47fd6debc5c8037175661dbb8c541e441b4a45e",
+  "mapping": {
+    "bf092373d4bf60d1badb01acb794ae5ccf28a79f": "0ca4f0e58dc335c2a202cdd418d16599a4795395",
+    "2e5f491933bfffd8a441ef4adedfc83785db4be4": "c8dd8e80b3389fdcf18c1c1a07a4c11f17d0e12c",
+    "98eb95fc05a24e6de9c78c390269f007d72964d1": "fa91772a6cc87cb6dc8a1d469d7d730a758cf579",
+    "8148c06c17a96cc569005a03cc39e8b3bce81928": "69b37cc87daa10a576507bb5031a572979dc1803",
+    "75b72192ddfa20ce576157903de79a91c7f54e28": "66bc2f213e85fc71bb1b133ba48f21f9ce0e1037",
+    "652458a363957f1c3a022bc52419a56d855953bb": "bcfa24b421a621850c4ec153e1ba163f284ba94b",
+    "3dab3413efebb025c858620cc2f93c62da4551e5": "27206a66565f3afbd3528251e35596a4401d120a",
+    "6220dfd9fad4215477ecacf6dad5f3290120b6aa": "8c47d8746e81722cec5fdecb6f9cb2f287f788e0",
+    "efb5c12df0c24e7e60db1120392ebc1cd01cca99": "2fc0cf8d1980cda7bb17b6595907da058f7cec8a"
+  }
+}
