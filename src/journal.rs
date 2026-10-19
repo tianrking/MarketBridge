@@ -24,6 +24,7 @@ static SESSION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 pub struct JournalMessage {
     pub event: Arc<DataEvent>,
     pub received_at_ms: u64,
+    pub identity: Option<crate::outbox::EventIdentity>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -126,26 +127,34 @@ pub fn start(
     root: &Path,
     metrics: Arc<AppMetrics>,
     shutdown: CancellationToken,
-) -> Result<(mpsc::Sender<JournalMessage>, tokio::task::JoinHandle<()>)> {
+) -> Result<(
+    mpsc::Sender<JournalMessage>,
+    tokio::task::JoinHandle<Result<()>>,
+)> {
     let mut journal = Journal::create(root)?;
     tracing::info!(path=%journal.partial.display(), "normalized event recording enabled (bounded, opt-in)");
     let (tx, mut rx) = mpsc::channel::<JournalMessage>(256);
     let task = tokio::task::spawn_blocking(move || {
         let result = (|| -> Result<()> {
             while let Some(message) = rx.blocking_recv() {
+                let mut payload = serde_json::to_value(message.event.as_ref())?;
+                if let Some(identity) = message.identity {
+                    payload["event_identity"] = serde_json::to_value(identity)?;
+                }
                 journal.append(
                     message.received_at_ms,
                     metrics.ticks_dropped_total.get(),
-                    serde_json::to_value(message.event.as_ref())?,
+                    payload,
                 )?;
             }
             journal.seal(metrics.ticks_dropped_total.get())?;
             Ok(())
         })();
-        if let Err(error) = result {
+        if let Err(error) = &result {
             tracing::error!(%error,"journal failed; stopping collection rather than claiming complete history");
             shutdown.cancel();
         }
+        result
     });
     Ok((tx, task))
 }

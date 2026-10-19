@@ -345,7 +345,172 @@ fn write_dead_letter_file_blocking(
     file.sync_all()
 }
 
-fn redis_stream_name(prefix: &str, event: &DataEvent) -> String {
+// One physical stream per durable origin avoids cross-writer sequence ID
+// collisions. Existing IDs must have identical content; trimmed/missing old
+// IDs fail closed rather than silently treating them as delivered.
+const IDEMPOTENT_XADD: &str = r#"
+local old = redis.call('XRANGE', KEYS[1], ARGV[1], ARGV[1])
+if #old > 0 then
+  local identity = nil
+  local payload = nil
+  local crc = nil
+  for i = 1, #old[1][2], 2 do
+    if old[1][2][i] == 'event_id' then identity = old[1][2][i+1] end
+    if old[1][2][i] == 'payload' then payload = old[1][2][i+1] end
+    if old[1][2][i] == 'event_crc32' then crc = old[1][2][i+1] end
+  end
+  if identity ~= ARGV[2] or payload ~= ARGV[3] or crc ~= ARGV[8] then
+    return redis.error_reply('EVENT_ID_COLLISION')
+  end
+  return old[1][1]
+end
+return redis.call('XADD', KEYS[1], ARGV[1], 'event_id', ARGV[2],
+  'payload', ARGV[3], 'source', ARGV[4], 'domain', ARGV[5],
+  'symbol', ARGV[6], 'ts', ARGV[7], 'event_crc32', ARGV[8], 'received_at_ms', ARGV[9])
+"#;
+
+pub fn spawn_outbox_sink(
+    outbox: crate::outbox::Outbox,
+    redis_url: String,
+    require_aof: bool,
+    metrics: Arc<AppMetrics>,
+    shutdown: CancellationToken,
+) -> JoinHandle<anyhow::Result<()>> {
+    outbox.configure_delivery(require_aof);
+    tokio::spawn(async move {
+        let client =
+            redis::Client::open(redis_url.as_str()).context("durable Redis client open failed")?;
+        let mut conn = None;
+        let mut backoff = Duration::from_millis(100);
+        loop {
+            if shutdown.is_cancelled() {
+                break;
+            }
+            let rows = outbox.pending(XADD_BATCH_MAX).await?;
+            let status = outbox.status().await?;
+            metrics
+                .redis_pending_events
+                .set(status.pending_records as i64);
+            let result = tokio::select! {
+                biased;
+                _ = shutdown.cancelled() => break,
+                result = tokio::time::timeout(Duration::from_secs(3), async {
+                    if conn.is_none() { conn = Some(client.get_multiplexed_tokio_connection().await?); }
+                    let conn = conn.as_mut().expect("durable connection initialized");
+                    if rows.is_empty() && status.delivery.verified {
+                        redis::cmd("PING").query_async::<String>(conn).await?;
+                        Ok(())
+                    } else { deliver_outbox_batch(conn,&rows,outbox.origin(),require_aof).await }
+                }) => result,
+            };
+            match result {
+                Ok(Ok(())) => {
+                    outbox
+                        .acknowledge(rows.iter().map(|r| r.identity.clone()).collect())
+                        .await?;
+                    metrics.redis_xadd_total.inc_by(rows.len() as u64);
+                    outbox.delivery_result(None);
+                    backoff = Duration::from_millis(100);
+                    if rows.is_empty() {
+                        tokio::select! { _=shutdown.cancelled()=>break, _=tokio::time::sleep(Duration::from_secs(1))=>{}, _=outbox.changed()=>{} }
+                    }
+                }
+                failure => {
+                    conn = None;
+                    let error = match failure {
+                        Ok(Err(error)) => error.to_string(),
+                        Err(_) => "durable Redis delivery/verification timed out".into(),
+                        _ => unreachable!(),
+                    };
+                    outbox.delivery_result(Some(&error));
+                    metrics.redis_delivery_failures_total.inc();
+                    warn!(%error,pending=status.pending_records,"durable Redis delivery failed; rows retained in outbox");
+                    tokio::select! { _=shutdown.cancelled()=>break, _=tokio::time::sleep(backoff)=>{} }
+                    backoff = next_backoff(backoff);
+                }
+            }
+        }
+        let status = outbox.status().await?;
+        metrics
+            .redis_pending_events
+            .set(status.pending_records as i64);
+        info!(
+            pending = status.pending_records,
+            bytes = status.pending_bytes,
+            "durable Redis sink stopped; unacknowledged events remain in SQLite"
+        );
+        Ok(())
+    })
+}
+
+async fn deliver_outbox_batch(
+    conn: &mut redis::aio::MultiplexedConnection,
+    rows: &[crate::outbox::PendingEvent],
+    origin: &str,
+    require_aof: bool,
+) -> anyhow::Result<()> {
+    let mut pipe = redis::pipe();
+    for row in rows {
+        let value: serde_json::Value = serde_json::from_str(&row.payload)?;
+        let source = value["exchange"]
+            .as_str()
+            .or_else(|| value["source"].as_str())
+            .unwrap_or("unknown");
+        let domain = match value["type"].as_str().unwrap_or("unknown") {
+            "tick" => {
+                if value["market"] == "spot" {
+                    "quote_spot"
+                } else {
+                    "quote_perp"
+                }
+            }
+            "funding_rate" => "funding",
+            kind => kind,
+        };
+        let symbol = value["symbol"].as_str().unwrap_or("*");
+        let timestamp = value["ts_ms"].as_u64().unwrap_or(0);
+        pipe.cmd("EVAL")
+            .arg(IDEMPOTENT_XADD)
+            .arg(1)
+            .arg(row.physical_stream())
+            .arg(format!("{}-0", row.identity.sequence))
+            .arg(row.identity.id())
+            .arg(&row.payload)
+            .arg(source)
+            .arg(domain)
+            .arg(symbol)
+            .arg(timestamp)
+            .arg(row.crc32)
+            .arg(row.received_at_ms)
+            .ignore();
+    }
+    if !rows.is_empty() {
+        pipe.query_async::<()>(conn).await?;
+    }
+    // Force a write on this connection even when every EVAL was a duplicate.
+    // WAITAOF then covers the global AOF offset after the original XADDs, not
+    // merely a fresh connection's empty write history after an ACK was lost.
+    redis::cmd("SET")
+        .arg(format!("marketbridge:outbox:barrier:{origin}"))
+        .arg(rows.last().map_or(0, |r| r.identity.sequence))
+        .query_async::<()>(conn)
+        .await?;
+    if require_aof {
+        let (local, _replicas): (u64, u64) = redis::cmd("WAITAOF")
+            .arg(1)
+            .arg(0)
+            .arg(1000)
+            .query_async(conn)
+            .await?;
+        anyhow::ensure!(
+            local >= 1,
+            "Redis local AOF fsync not confirmed; outbox retained"
+        );
+    }
+    Ok(())
+}
+
+pub(crate) fn redis_stream_name(prefix: &str, event: &DataEvent) -> String {
     let (source, domain, symbol, _) = redis_event_fields(event);
     match symbol {
         Some(symbol) => format!("{prefix}:{domain}:{source}:{}", symbol.to_ascii_uppercase()),
@@ -456,7 +621,7 @@ mod tests {
                 domain: "funding",
                 symbol: "btcusdt".into(),
                 ts: 1,
-                payload: serde_json::to_string(&event).expect("test event serializes"),
+                payload: shared.json().as_ref().to_owned(),
             }
         );
     }
@@ -850,5 +1015,204 @@ mod tests {
         assert_eq!(metrics.redis_accepted_total.get(), 1);
         assert!(rx.recv().await.is_some());
         assert!(rx.recv().await.is_none());
+    }
+
+    struct ActualRedis {
+        root: std::path::PathBuf,
+        child: std::process::Child,
+        executable: std::path::PathBuf,
+        port: u16,
+        aof: bool,
+    }
+    impl ActualRedis {
+        fn start(aof: bool) -> Self {
+            let executable = std::env::var_os("MARKETBRIDGE_TEST_REDIS_SERVER")
+                .map(std::path::PathBuf::from)
+                .expect("set MARKETBRIDGE_TEST_REDIS_SERVER to Redis >=7.2 redis-server");
+            let root = test_path("actual-redis");
+            std::fs::create_dir_all(&root).unwrap();
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            drop(listener);
+            let child = Self::launch(&executable, &root, port, aof);
+            Self {
+                root,
+                child,
+                executable,
+                port,
+                aof,
+            }
+        }
+        fn launch(
+            executable: &std::path::Path,
+            root: &std::path::Path,
+            port: u16,
+            aof: bool,
+        ) -> std::process::Child {
+            std::process::Command::new(executable)
+                .arg("--bind")
+                .arg("127.0.0.1")
+                .arg("--port")
+                .arg(port.to_string())
+                .arg("--protected-mode")
+                .arg("yes")
+                .arg("--dir")
+                .arg(root)
+                .arg("--save")
+                .arg("")
+                .arg("--appendonly")
+                .arg(if aof { "yes" } else { "no" })
+                .arg("--appendfsync")
+                .arg("always")
+                .arg("--logfile")
+                .arg(root.join("redis.log"))
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .unwrap()
+        }
+        async fn connect(&mut self) -> redis::aio::MultiplexedConnection {
+            let client = redis::Client::open(format!("redis://127.0.0.1:{}", self.port)).unwrap();
+            tokio::time::timeout(Duration::from_secs(5), async {
+                loop {
+                    assert!(
+                        self.child.try_wait().unwrap().is_none(),
+                        "actual Redis exited: {}",
+                        std::fs::read_to_string(self.root.join("redis.log")).unwrap_or_default()
+                    );
+                    if let Ok(conn) = client.get_multiplexed_tokio_connection().await {
+                        return conn;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .unwrap()
+        }
+        async fn restart(&mut self) -> redis::aio::MultiplexedConnection {
+            self.child.kill().unwrap();
+            self.child.wait().unwrap();
+            self.child = Self::launch(&self.executable, &self.root, self.port, self.aof);
+            self.connect().await
+        }
+    }
+    impl Drop for ActualRedis {
+        fn drop(&mut self) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires local Redis >=7.2; run with MARKETBRIDGE_TEST_REDIS_SERVER and --ignored"]
+    async fn durable_outbox_against_real_redis_survives_ack_loss_replay_and_restart() {
+        let mut server = ActualRedis::start(true);
+        let mut conn = server.connect().await;
+        let root = test_path("durable");
+        std::fs::create_dir_all(&root).unwrap();
+        let box_ = crate::outbox::Outbox::open(
+            &root.join("events.sqlite"),
+            "ticks",
+            1024 * 1024,
+            4 * 1024 * 1024,
+        )
+        .unwrap();
+        box_.append(vec![
+            (test_event(1).event.clone(), 1),
+            (test_event(2).event.clone(), 2),
+        ])
+        .await
+        .unwrap();
+        let export = root.join("pending.jsonl");
+        box_.export(&export).await.unwrap();
+        let rows = box_.pending(100).await.unwrap();
+        let key = rows[0].physical_stream();
+        // Write succeeds but local ACK deletion never happens, as after an
+        // acknowledgement lost to a socket failure or a process crash.
+        super::deliver_outbox_batch(&mut conn, &rows, box_.origin(), true)
+            .await
+            .unwrap();
+        assert_eq!(box_.status().await.unwrap().pending_records, 2);
+        drop(conn);
+        let mut conn = server.restart().await;
+        let count: u64 = redis::cmd("XLEN")
+            .arg(&key)
+            .query_async(&mut conn)
+            .await
+            .unwrap();
+        assert_eq!(count, 2);
+        for _ in 0..2 {
+            let stop = tokio_util::sync::CancellationToken::new();
+            let metrics = crate::metrics::AppMetrics::new();
+            let task = super::spawn_outbox_sink(
+                box_.clone(),
+                format!("redis://127.0.0.1:{}", server.port),
+                true,
+                metrics.clone(),
+                stop.clone(),
+            );
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while box_.status().await.unwrap().pending_records > 0 {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .unwrap();
+            stop.cancel();
+            task.await.unwrap().unwrap();
+            let count: u64 = redis::cmd("XLEN")
+                .arg(&key)
+                .query_async(&mut conn)
+                .await
+                .unwrap();
+            assert_eq!(count, 2);
+            assert_eq!(metrics.redis_xadd_total.get(), 2);
+            box_.replay(&export).await.unwrap();
+        }
+        // Trimming away an old event destroys deduplication evidence. Do not
+        // silently acknowledge it based only on the stream high watermark.
+        redis::cmd("XDEL")
+            .arg(&key)
+            .arg(format!("{}-0", rows[0].identity.sequence))
+            .query_async::<u64>(&mut conn)
+            .await
+            .unwrap();
+        assert!(
+            super::deliver_outbox_batch(&mut conn, &rows, box_.origin(), true)
+                .await
+                .is_err()
+        );
+        assert_eq!(box_.status().await.unwrap().pending_records, 2);
+        drop(conn);
+        drop(box_);
+        std::fs::remove_dir_all(&root).unwrap();
+        drop(server);
+
+        let mut no_aof = ActualRedis::start(false);
+        let mut conn = no_aof.connect().await;
+        let root = test_path("durability-required");
+        let box_ = crate::outbox::Outbox::open(
+            &root.join("events.sqlite"),
+            "ticks",
+            1024 * 1024,
+            4 * 1024 * 1024,
+        )
+        .unwrap();
+        box_.append(vec![(test_event(3).event.clone(), 3)])
+            .await
+            .unwrap();
+        let rows = box_.pending(10).await.unwrap();
+        assert!(
+            super::deliver_outbox_batch(&mut conn, &rows, box_.origin(), true)
+                .await
+                .is_err(),
+            "plain Redis ACK must not substitute for required AOF confirmation"
+        );
+        assert_eq!(box_.status().await.unwrap().pending_records, 1);
+        drop(conn);
+        drop(box_);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

@@ -22,6 +22,7 @@ mod metrics;
 mod onchain;
 mod opportunity_scan;
 mod order_flow;
+mod outbox;
 mod paper;
 mod polymarket_ws;
 mod redis_sink;
@@ -85,6 +86,43 @@ async fn main() -> anyhow::Result<()> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--outbox") {
+        let action = args
+            .get(2)
+            .context("--outbox requires status, export or replay")?;
+        let path = args.get(3).context("--outbox requires a database path")?;
+        let config = AppConfig::load()?;
+        let limits = &config.runtime.outbox;
+        if action == "status" {
+            anyhow::ensure!(args.len() == 4, "unexpected outbox arguments");
+        } else {
+            anyhow::ensure!(
+                matches!(action.as_str(), "export" | "replay") && args.len() == 5,
+                "outbox export/replay requires one file path"
+            );
+        }
+        anyhow::ensure!(
+            std::path::Path::new(path).is_file(),
+            "outbox database does not exist"
+        );
+        let box_ = outbox::Outbox::open(
+            std::path::Path::new(path),
+            &config.runtime.redis_stream_prefix,
+            limits.max_pending_bytes,
+            limits.max_database_bytes,
+        )?;
+        let result = match action.as_str() {
+            "status" => serde_json::to_value(box_.status().await?)?,
+            "export" => {
+                serde_json::json!({"exported_records":box_.export(std::path::Path::new(&args[4])).await?})
+            }
+            _ => {
+                serde_json::json!({"replayed_records":box_.replay(std::path::Path::new(&args[4])).await?})
+            }
+        };
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
     if args.get(1).map(String::as_str) == Some("--replay-journal") {
         let path = args.get(2).ok_or_else(|| {
             anyhow::anyhow!("--replay-journal requires a sealed journal and route JSON path")
@@ -158,6 +196,28 @@ async fn main() -> anyhow::Result<()> {
     let shutdown_signal = shutdown_signal()?;
     tokio::pin!(shutdown_signal);
     let metrics = AppMetrics::new();
+    let outbox = if cfg.runtime.outbox.enabled
+        || (cfg.runtime.redis_url.is_some() && !cfg.runtime.outbox.legacy_redis)
+    {
+        let path = std::env::var_os("MARKETBRIDGE_OUTBOX_DB")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| cfg.runtime.outbox.path.clone().into());
+        let prefix = cfg.runtime.redis_stream_prefix.clone();
+        let limits = cfg.runtime.outbox.clone();
+        Some(
+            tokio::task::spawn_blocking(move || {
+                outbox::Outbox::open(
+                    &path,
+                    &prefix,
+                    limits.max_pending_bytes,
+                    limits.max_database_bytes,
+                )
+            })
+            .await??,
+        )
+    } else {
+        None
+    };
     let runtime = SourceRuntime::new(
         cfg.runtime.queue_capacity,
         cfg.backpressure_mode(),
@@ -226,6 +286,7 @@ async fn main() -> anyhow::Result<()> {
         shutdown.clone(),
     );
     let api_router = build_router(ApiState {
+        outbox: outbox.clone(),
         research_store,
         research_control,
         source_catalog,
@@ -261,15 +322,26 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let redis_task = cfg.runtime.redis_url.clone().map(|url| {
-        spawn_redis_sink(
-            bus.clone(),
-            url,
-            cfg.runtime.redis_stream_prefix.clone(),
-            cfg.runtime.redis_dead_letter_path.clone(),
-            metrics.clone(),
-            shutdown.clone(),
-        )
+        if let Some(outbox) = outbox.clone() {
+            redis_sink::spawn_outbox_sink(
+                outbox,
+                url,
+                cfg.runtime.outbox.require_redis_aof,
+                metrics.clone(),
+                shutdown.clone(),
+            )
+        } else {
+            spawn_redis_sink(
+                bus.clone(),
+                url,
+                cfg.runtime.redis_stream_prefix.clone(),
+                cfg.runtime.redis_dead_letter_path.clone(),
+                metrics.clone(),
+                shutdown.clone(),
+            )
+        }
     });
+
     let clickhouse_task = cfg.runtime.clickhouse.enabled.then(|| {
         spawn_clickhouse_sink(
             bus.clone(),
@@ -391,7 +463,8 @@ async fn main() -> anyhow::Result<()> {
         metrics.clone(),
         cfg.runtime.router_publish_queue_capacity(),
     )
-    .with_journal(journal_tx);
+    .with_journal(journal_tx)
+    .with_outbox(outbox.clone());
     let router_task = tokio::spawn(router.run());
 
     let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));
@@ -416,8 +489,8 @@ async fn main() -> anyhow::Result<()> {
     background_tasks.required("snapshot_stream", snapshot_stream_task);
     background_tasks.extend("onchain_collector", onchain_tasks);
     background_tasks.extend("source", tasks);
-    background_tasks.required("router", router_task);
-    background_tasks.optional("journal", journal_task);
+    background_tasks.optional_result("router", Some(router_task));
+    background_tasks.optional_result("journal", journal_task);
 
     let mut agg_joined = false;
     let mut api_joined = false;

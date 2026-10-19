@@ -788,6 +788,7 @@ mod tests {
         let cfg = AppConfig {
             runtime: RuntimeConfig {
                 memory: Default::default(),
+                outbox: Default::default(),
                 queue_capacity: 16,
                 router_publish_queue_capacity: 16,
                 broadcast_capacity: 16,

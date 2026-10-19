@@ -1029,7 +1029,7 @@ curl -s http://127.0.0.1:8080/metrics
 - `redis_lagged_total`
 - `ticks_dropped_total`
 
-Redis 是可选项。启用后如果批量写入 Redis 多次失败，MarketBridge 会把失败事件写入 `runtime.redis_dead_letter_path`，默认：
+Redis 是可选项。显式选择 legacy 模式后，如果批量写入 Redis 多次失败，MarketBridge 会把失败事件写入 `runtime.redis_dead_letter_path`，默认：
 
 ```text
 data/redis_dead_letters.jsonl
@@ -1270,3 +1270,6 @@ carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状�
 
 
 全局保留预算可通过 `runtime.memory` 配置，用 `/v1/system/memory` 检查当前量和淘汰；策略容量损失由 `retention_quality` 表示，squeeze v2 会阻止触发。预算覆盖保留状态，不等于进程 RSS 上限，详见[验收文档](docs/institutional_readiness.zh-CN.md)。
+
+
+Redis 当前默认使用 SQLite durable outbox、按 origin 隔离的幂等流和 Redis 7.2+ 本地 AOF 确认。**物理流名发生变化**，升级消费者前请阅读[投递契约与迁移步骤](docs/durable_outbox.zh-CN.md)。运行时检查 `/v1/system/outbox`，离线 `--outbox status/export/replay` 保留身份并核对完整恢复文件。历史总线压测仅适用于记录中的构建；新增身份与耐久入口的性能以完整链路基线为准。

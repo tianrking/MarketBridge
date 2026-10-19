@@ -33,6 +33,7 @@ macro_rules! get_routes {
 }
 
 pub struct ApiState {
+    pub outbox: Option<crate::outbox::Outbox>,
     pub research_control: crate::research_control::ResearchControl,
     pub research_store: crate::research_store::ResearchStore,
     pub source_catalog: Vec<CatalogSource>,
@@ -73,6 +74,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/stream" => routes::stream::v1_stream,
         "/v1/catalog/sources" => routes::catalog::sources,
         "/v1/system/memory" => routes::system::memory,
+        "/v1/system/outbox" => routes::system::outbox,
         "/v1/catalog/search" => routes::catalog::search,
         "/v1/catalog/markets" => routes::catalog::markets,
         "/v1/catalog/perpetuals" => routes::catalog::perpetuals,

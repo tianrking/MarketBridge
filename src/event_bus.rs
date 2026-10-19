@@ -42,20 +42,45 @@ impl SharedTick {
 #[derive(Debug)]
 pub struct SharedEvent {
     pub event: Arc<DataEvent>,
+    pub identity: Option<crate::outbox::EventIdentity>,
     json: OnceLock<Arc<str>>,
 }
 
 impl SharedEvent {
+    #[cfg(test)]
     pub fn new(event: Arc<DataEvent>) -> Self {
+        Self::with_identity(event, None)
+    }
+
+    fn with_identity(
+        event: Arc<DataEvent>,
+        identity: Option<crate::outbox::EventIdentity>,
+    ) -> Self {
         Self {
             event,
+            identity: Some(identity.unwrap_or_else(crate::outbox::EventIdentity::local)),
             json: OnceLock::new(),
         }
     }
 
     pub fn json(&self) -> Arc<str> {
         self.json
-            .get_or_init(|| serialize_event_json(self.event.as_ref()))
+            .get_or_init(|| {
+                if let Some(identity) = &self.identity {
+                    #[derive(serde::Serialize)]
+                    struct Identified<'a> {
+                        #[serde(flatten)]
+                        event: &'a DataEvent,
+                        event_identity: &'a crate::outbox::EventIdentity,
+                    }
+                    serialize_json(&Identified {
+                        event: &self.event,
+                        event_identity: identity,
+                    })
+                } else {
+                    serialize_event_json(self.event.as_ref())
+                }
+            })
             .clone()
     }
 }
@@ -202,7 +227,15 @@ impl EventBus {
     }
 
     pub fn publish_shared_event(&self, event: Arc<DataEvent>) {
-        let shared = Arc::new(SharedEvent::new(event));
+        self.publish_identified_event(event, None);
+    }
+
+    pub fn publish_identified_event(
+        &self,
+        event: Arc<DataEvent>,
+        identity: Option<crate::outbox::EventIdentity>,
+    ) {
+        let shared = Arc::new(SharedEvent::with_identity(event, identity));
         let shard = shard_for_event(shared.event.as_ref(), self.event_tx.len());
         match shared.event.as_ref() {
             DataEvent::Tick(t) => {
@@ -584,5 +617,29 @@ mod tests {
         }
         received.sort();
         assert_eq!(received, ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT"]);
+    }
+
+    #[tokio::test]
+    async fn identity_is_shared_across_subscribers_and_unique_across_buses() {
+        let a = EventBus::new_sharded(16, 1000, 1);
+        let b = EventBus::new_sharded(16, 1000, 1);
+        let mut a1 = a.subscribe_events();
+        let mut a2 = a.subscribe_events();
+        let mut b1 = b.subscribe_events();
+        let event = Arc::new(DataEvent::Heartbeat {
+            exchange: "test",
+            ts_ms: 1,
+        });
+        a.publish_shared_event(event.clone());
+        b.publish_shared_event(event);
+        let first = a1.recv().await.unwrap();
+        let second = a2.recv().await.unwrap();
+        let other = b1.recv().await.unwrap();
+        assert_eq!(first.identity, second.identity);
+        assert_ne!(first.identity, other.identity);
+        let value: serde_json::Value = serde_json::from_str(&first.json()).unwrap();
+        let roundtrip: crate::outbox::EventIdentity =
+            serde_json::from_value(value["event_identity"].clone()).unwrap();
+        assert_eq!(first.identity.as_ref(), Some(&roundtrip));
     }
 }

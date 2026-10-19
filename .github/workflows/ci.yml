@@ -49,6 +49,15 @@ jobs:
       - name: Test
         run: cargo test --locked --all-features
 
+      - name: Test Redis AOF, restart and deduplicated outbox replay
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 7.4.2 https://github.com/redis/redis.git "$RUNNER_TEMP/marketbridge-redis"
+          test "$(git -C "$RUNNER_TEMP/marketbridge-redis" rev-parse HEAD)" = a0a6f23d997b024689ba157916837f493a593a34
+          make -C "$RUNNER_TEMP/marketbridge-redis" -j2 MALLOC=libc BUILD_TLS=no redis-server
+          MARKETBRIDGE_TEST_REDIS_SERVER="$RUNNER_TEMP/marketbridge-redis/src/redis-server" cargo test --locked --all-features durable_outbox_against_real_redis -- --ignored
+
       - name: Build research CLI and server
         run: cargo build --locked
 

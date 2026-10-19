@@ -11,6 +11,8 @@ pub struct AppMetrics {
     pub bus_events_published_total: IntCounterVec,
     pub ws_subscribers: IntGauge,
     pub redis_xadd_total: IntCounter,
+    pub outbox_committed_total: IntCounter,
+    pub redis_delivery_failures_total: IntCounter,
     pub redis_dead_letter_total: IntCounter,
     pub redis_dead_letter_failures_total: IntCounter,
     pub redis_accepted_total: IntCounter,
@@ -50,6 +52,16 @@ impl AppMetrics {
             .expect("ws_subscribers metric definition must be valid");
         let redis_xadd_total = IntCounter::new("redis_xadd_total", "Total redis xadd writes")
             .expect("redis_xadd_total metric definition must be valid");
+        let outbox_committed_total = IntCounter::new(
+            "outbox_committed_total",
+            "Events committed to durable outbox before publication",
+        )
+        .expect("valid outbox counter");
+        let redis_delivery_failures_total = IntCounter::new(
+            "redis_delivery_failures_total",
+            "Failed durable Redis delivery or verification attempts",
+        )
+        .expect("valid Redis failure counter");
         let redis_dead_letter_total = IntCounter::new(
             "redis_dead_letter_total",
             "Total redis sink events synced to the dead-letter file (including shutdown)",
@@ -101,6 +113,8 @@ impl AppMetrics {
             .register(Box::new(redis_dead_letter_total.clone()))
             .expect("redis_dead_letter_total registration must not conflict");
         for metric in [
+            &outbox_committed_total,
+            &redis_delivery_failures_total,
             &redis_dead_letter_failures_total,
             &redis_accepted_total,
             &redis_lagged_total,
@@ -124,6 +138,8 @@ impl AppMetrics {
             bus_events_published_total,
             ws_subscribers,
             redis_xadd_total,
+            outbox_committed_total,
+            redis_delivery_failures_total,
             redis_dead_letter_total,
             redis_dead_letter_failures_total,
             redis_accepted_total,

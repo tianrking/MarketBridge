@@ -2076,7 +2076,7 @@ Current metrics include:
 - `redis_lagged_total`
 - `ticks_dropped_total`
 
-When Redis is enabled and a batch still cannot be written after retries,
+In explicit legacy Redis mode, when a batch still cannot be written after retries,
 MarketBridge appends unacknowledged rows to `runtime.redis_dead_letter_path` and
 counts them only after file flush and `sync_all`. Each connection/pipeline
 attempt has a three-second timeout, with up to eight attempts. Shutdown stops
@@ -2267,3 +2267,12 @@ Configure cross-symbol retention budgets with `runtime.memory`; inspect current
 usage and eviction evidence at `/v1/system/memory`. Strategy capacity loss is
 exposed as `retention_quality` and blocks squeeze v2 triggers. These are retained
 state budgets, not process RSS limits; see the institutional acceptance notes.
+
+
+Redis now defaults to a SQLite durable outbox, origin-scoped idempotent streams
+and Redis 7.2+ local AOF confirmation. This changes physical stream names; read
+[the delivery and migration contract](docs/durable_outbox.zh-CN.md) before
+upgrading consumers. Inspect `/v1/system/outbox`; offline `--outbox status`,
+`export` and `replay` preserve identities and validate complete recovery files.
+Historical EventBus benchmarks describe their recorded builds; added identity
+and durable-ingestion work require the new full-pipeline baseline.

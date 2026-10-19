@@ -38,6 +38,32 @@ pub struct RuntimeConfig {
     pub ws_send_timeout_ms: u64,
     #[serde(default)]
     pub memory: MemoryLimits,
+    #[serde(default)]
+    pub outbox: OutboxConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct OutboxConfig {
+    pub enabled: bool,
+    pub path: String,
+    pub max_pending_bytes: u64,
+    pub max_database_bytes: u64,
+    pub require_redis_aof: bool,
+    pub legacy_redis: bool,
+}
+
+impl Default for OutboxConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            path: "data/events.outbox.sqlite".into(),
+            max_pending_bytes: 256 * 1024 * 1024,
+            max_database_bytes: 512 * 1024 * 1024,
+            require_redis_aof: true,
+            legacy_redis: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]

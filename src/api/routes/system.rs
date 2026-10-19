@@ -55,6 +55,25 @@ pub async fn memory(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     )
 }
 
+pub async fn outbox(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    match &state.outbox {
+        None => (
+            axum::http::StatusCode::OK,
+            Json(serde_json::json!({"enabled":false})),
+        ),
+        Some(box_) => match box_.status().await {
+            Ok(status) => (
+                axum::http::StatusCode::OK,
+                Json(serde_json::json!({"enabled":true,"status":status})),
+            ),
+            Err(error) => (
+                axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({"enabled":true,"error":error.to_string()})),
+            ),
+        },
+    }
+}
+
 pub async fn info() -> impl IntoResponse {
     Json(serde_json::json!({
         "service": "MarketBridge",

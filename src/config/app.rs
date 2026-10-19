@@ -75,6 +75,12 @@ impl AppConfig {
 
     pub fn validate(&self) -> Result<()> {
         self.runtime.memory.validate()?;
+        ensure!(
+            self.runtime.outbox.max_pending_bytes > 0
+                && self.runtime.outbox.max_pending_bytes <= i64::MAX as u64
+                && self.runtime.outbox.max_database_bytes >= 4 * 1024 * 1024,
+            "invalid runtime.outbox disk budgets"
+        );
         self.runtime
             .api_addr
             .parse::<std::net::SocketAddr>()

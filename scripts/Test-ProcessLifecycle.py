@@ -32,6 +32,7 @@ class ProcessLifecycleTests(unittest.TestCase):
         self.environment.update(
             MARKETBRIDGE_CONFIG=str(ROOT / "config.research.yaml"),
             MARKETBRIDGE_RESEARCH_DB=str(self.state / "workspace.sqlite"),
+            MARKETBRIDGE_OUTBOX_DB=str(self.state / "outbox.sqlite"),
         )
 
     def tearDown(self):
@@ -148,6 +149,39 @@ class ProcessLifecycleTests(unittest.TestCase):
         request = Request(f"http://127.0.0.1:{port}/v1/research/squeeze/scan", headers=headers)
         with urlopen(request, timeout=5) as response:
             self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v2")
+
+    def test_outbox_api_lock_and_checked_offline_cli_roundtrip(self):
+        config = (ROOT / "config.research.yaml").read_text(encoding="utf-8")
+        config = config.replace("runtime:\n", "runtime:\n  outbox:\n    enabled: true\n", 1)
+        config_path = self.state / "outbox.yaml"
+        config_path.write_text(config, encoding="utf-8")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        self.environment.update(MARKETBRIDGE_CONFIG=str(config_path), MARKETBRIDGE_API_ADDR=f"127.0.0.1:{port}")
+        child = self.launch()
+        self.ready(child, port)
+        headers = {}
+        if self.environment.get("MARKETBRIDGE_API_KEY"):
+            headers["x-api-key"] = self.environment["MARKETBRIDGE_API_KEY"]
+        with urlopen(Request(f"http://127.0.0.1:{port}/v1/system/outbox", headers=headers), timeout=5) as response:
+            status = json.load(response)
+        self.assertTrue(status["enabled"])
+        self.assertEqual(status["status"]["pending_records"], 0)
+        database = self.state / "outbox.sqlite"
+
+        def cli(action, *paths, check=True):
+            return subprocess.run([str(BINARY), "--outbox", action, str(database), *map(str, paths)],
+                                  cwd=ROOT, env=self.environment, capture_output=True, text=True, check=check, timeout=15)
+
+        self.assertNotEqual(cli("status", check=False).returncode, 0, "offline operations must not race the live owner")
+        child.terminate()
+        child.wait(timeout=15)
+        offline = json.loads(cli("status").stdout)
+        self.assertEqual(offline["origin"], status["status"]["origin"])
+        exported = self.state / "pending.jsonl"
+        self.assertEqual(json.loads(cli("export", exported).stdout)["exported_records"], 0)
+        self.assertEqual(json.loads(cli("replay", exported).stdout)["replayed_records"], 0)
 
     @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
     def test_sigterm_and_sigint_seal_recordings(self):

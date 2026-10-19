@@ -46,7 +46,13 @@ pub fn replay(path: &std::path::Path, route: LiveScanRequest) -> Result<Value> {
         previous = record.received_at_ms;
         let complete = matches!(instrument.venue.as_str(), "binance" | "okx");
         let book = BookEvidence {
-            observation_id: format!("journal:{}", record.sequence),
+            observation_id: if p["event_identity"].is_object() {
+                let identity: crate::outbox::EventIdentity =
+                    serde_json::from_value(p["event_identity"].clone())?;
+                format!("outbox:{}", identity.id())
+            } else {
+                format!("journal:{}", record.sequence)
+            },
             instrument: instrument.clone(),
             quote_kind: if complete {
                 QuoteKind::ObservedBook
