@@ -5,6 +5,10 @@ use prometheus::{Encoder, IntCounter, IntCounterVec, IntGauge, Opts, Registry, T
 #[derive(Clone)]
 pub struct AppMetrics {
     pub ingestion: crate::ingestion::IngestionState,
+    pub aggregator_retained_bytes: IntGauge,
+    pub aggregator_capacity_evictions_total: IntCounter,
+    pub pipeline_queue_events: prometheus::IntGaugeVec,
+    pub redis_batch_seconds: prometheus::Histogram,
     pub pipeline_latency_seconds: prometheus::HistogramVec,
     registry: Registry,
     pub ticks_ingested_total: IntCounter,
@@ -27,6 +31,36 @@ impl AppMetrics {
     pub fn new() -> Arc<Self> {
         let registry = Registry::new();
 
+        let aggregator_retained_bytes=IntGauge::new("aggregator_retained_bytes","Accounted owned aggregator state allocations, excluding allocator/hash control overhead").expect("valid aggregator gauge");
+        let aggregator_capacity_evictions_total=IntCounter::new("aggregator_capacity_evictions_total","Aggregator symbol histories evicted by global budgets; marks source quality incomplete").expect("valid eviction counter");
+        registry
+            .register(Box::new(aggregator_retained_bytes.clone()))
+            .expect("distinct aggregator gauge");
+        registry
+            .register(Box::new(aggregator_capacity_evictions_total.clone()))
+            .expect("distinct eviction counter");
+        let pipeline_queue_events = prometheus::IntGaugeVec::new(
+            Opts::new(
+                "pipeline_queue_events",
+                "Observed queue occupancy at router batch boundaries",
+            ),
+            &["queue"],
+        )
+        .expect("valid queue metric");
+        let redis_batch_seconds = prometheus::Histogram::with_opts(
+            prometheus::HistogramOpts::new(
+                "redis_durable_batch_seconds",
+                "Redis transaction and required local AOF verification duration",
+            )
+            .buckets(vec![0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 3.0]),
+        )
+        .expect("valid durability histogram");
+        registry
+            .register(Box::new(pipeline_queue_events.clone()))
+            .expect("distinct queue metric");
+        registry
+            .register(Box::new(redis_batch_seconds.clone()))
+            .expect("distinct Redis histogram");
         let pipeline_latency_seconds = prometheus::HistogramVec::new(
             prometheus::HistogramOpts::new("pipeline_latency_seconds","Monotonic normalized admission-to-stage completion latency; excludes connector time before emit")
                 .buckets(vec![0.00001,0.00005,0.0001,0.0005,0.001,0.005,0.01,0.05,0.1,0.5,1.0,5.0]),
@@ -142,6 +176,10 @@ impl AppMetrics {
         Arc::new(Self {
             ingestion: crate::ingestion::IngestionState::default(),
             pipeline_latency_seconds,
+            pipeline_queue_events,
+            aggregator_retained_bytes,
+            aggregator_capacity_evictions_total,
+            redis_batch_seconds,
             registry,
             ticks_ingested_total,
             bus_publish_total,

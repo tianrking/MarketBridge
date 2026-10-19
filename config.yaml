@@ -59,6 +59,8 @@ runtime:
     order_flow_raw_bytes: 67108864
     order_flow_keys: 4096
     order_flow_buckets: 50000
+    aggregator_symbols: 2048
+    aggregator_bytes: 67108864
     strategy_symbols: 2048
     strategy_bytes: 67108864
 

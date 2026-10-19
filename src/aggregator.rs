@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -20,7 +20,6 @@ use crate::types::{
 const TRADE_FLOW_WINDOW_MS: u64 = 60_000;
 const LIQUIDATION_WINDOW_MS: u64 = 60_000;
 const DEPTH_PRESSURE_LEVELS: usize = 5;
-const MAX_FLOW_WINDOW_POINTS: usize = 20_000;
 const AGGREGATOR_MIN_RETENTION_MS: u64 = 60_000;
 const AGGREGATOR_RETENTION_MULTIPLIER: u64 = 10;
 const MAX_AGGREGATOR_SYMBOL_KEYS: usize = 20_000;
@@ -60,6 +59,11 @@ fn held_signal_state(
 }
 
 pub struct SpreadAggregator {
+    memory_bytes: usize,
+    symbol_memory: HashMap<Box<str>, (usize, u64)>,
+    memory_order: BTreeSet<(u64, Box<str>)>,
+    memory_limit: usize,
+    symbol_limit: usize,
     books: HashMap<Box<str>, HashMap<&'static str, MarketTick>>,
     order_books: HashMap<Box<str>, HashMap<&'static str, OrderBookTick>>,
     funding: HashMap<Box<str>, HashMap<&'static str, FundingRateTick>>,
@@ -97,6 +101,11 @@ impl SpreadAggregator {
         }
 
         Self {
+            memory_bytes: 0,
+            symbol_memory: HashMap::new(),
+            memory_order: BTreeSet::new(),
+            memory_limit: cfg.runtime.memory.aggregator_bytes,
+            symbol_limit: cfg.runtime.memory.aggregator_symbols,
             books: HashMap::new(),
             order_books: HashMap::new(),
             funding: HashMap::new(),
@@ -121,7 +130,11 @@ impl SpreadAggregator {
         }
     }
 
-    pub async fn run(mut self, mut rx: mpsc::Receiver<Arc<DataEvent>>) {
+    pub async fn run(
+        mut self,
+        mut rx: mpsc::Receiver<crate::router::AggregatorMessage>,
+        metrics: Arc<crate::metrics::AppMetrics>,
+    ) {
         let mut report_tick = interval(self.report_interval);
 
         loop {
@@ -145,9 +158,97 @@ impl SpreadAggregator {
                         Some(DataEvent::ExternalSignal(_)) => {}
                         None => break,
                     }
+                    if let Some(message)=maybe {
+                        if let Some(key)=event_symbol_key(&message.event) {self.account_key(key,crate::ingestion::source_time(&message.event));}
+                        let evicted=self.enforce_budget();
+                        if evicted>0 {metrics.aggregator_capacity_evictions_total.inc_by(evicted as u64);metrics.ingestion.loss("aggregator_capacity_eviction",evicted as u64);}
+                        metrics.aggregator_retained_bytes.set(self.memory_bytes as i64);
+                        metrics.ingestion.processed(&message.trace,"aggregator");
+                        metrics.pipeline_latency_seconds.with_label_values(&["aggregator",crate::ingestion::domain(&message.event)]).observe(message.trace.received_at.elapsed().as_secs_f64());
+                    }
                 }
             }
         }
+    }
+
+    fn key_bytes(&self, key: &str) -> usize {
+        let mut bytes = 0;
+        macro_rules! venue_map {
+            ($map:expr,$extra:expr) => {
+                if let Some(map) = $map.get(key) {
+                    bytes += key.len()
+                        + std::mem::size_of_val(map)
+                        + map.capacity()
+                            * (std::mem::size_of_val(map.iter().next().expect("nonempty map").1)
+                                + std::mem::size_of::<&str>());
+                    bytes += map.values().map($extra).sum::<usize>();
+                }
+            };
+        }
+        venue_map!(self.books, |v: &MarketTick| v.symbol.len());
+        venue_map!(self.order_books, |v: &OrderBookTick| v.symbol.len()
+            + (v.bids.capacity() + v.asks.capacity())
+                * std::mem::size_of::<crate::types::BookLevel>());
+        venue_map!(self.funding, |v: &FundingRateTick| v.symbol.len());
+        venue_map!(self.open_interest, |v: &OpenInterestState| v
+            .current
+            .symbol
+            .len()
+            + v.previous.as_ref().map_or(0, |p| p.symbol.len()));
+        for map in [&self.trade_flow, &self.liquidation_flow] {
+            if let Some(v) = map.get(key) {
+                bytes += key.len()
+                    + std::mem::size_of_val(v)
+                    + v.rows.capacity() * std::mem::size_of::<FlowPoint>();
+            }
+        }
+        if let Some(counts) = self.tick_counts.get(key) {
+            bytes += key.len() + counts.capacity() * std::mem::size_of::<(&str, u64)>();
+        }
+        for map in [&self.signal_started_at, &self.book_signal_started_at] {
+            if map.contains_key(key) {
+                bytes += key.len() + std::mem::size_of::<SignalHold>();
+            }
+        }
+        if bytes > 0 {
+            bytes += key.len() * 2 + 256;
+        }
+        bytes
+    }
+    fn account_key(&mut self, key: Box<str>, ts: u64) {
+        let bytes = self.key_bytes(&key);
+        let mut last = ts;
+        if let Some((old, at)) = self.symbol_memory.remove(&key) {
+            self.memory_bytes -= old;
+            self.memory_order.remove(&(at, key.clone()));
+            last = last.max(at);
+        }
+        if bytes > 0 {
+            self.memory_bytes += bytes;
+            self.symbol_memory.insert(key.clone(), (bytes, last));
+            self.memory_order.insert((last, key));
+        }
+    }
+    fn enforce_budget(&mut self) -> usize {
+        let mut evicted = 0;
+        while self.memory_bytes > self.memory_limit || self.symbol_memory.len() > self.symbol_limit
+        {
+            let Some((_, key)) = self.memory_order.pop_first() else {
+                break;
+            };
+            self.memory_bytes -= self.symbol_memory.remove(&key).unwrap().0;
+            self.books.remove(&key);
+            self.order_books.remove(&key);
+            self.funding.remove(&key);
+            self.open_interest.remove(&key);
+            self.trade_flow.remove(&key);
+            self.liquidation_flow.remove(&key);
+            self.tick_counts.remove(&key);
+            self.signal_started_at.remove(&key);
+            self.book_signal_started_at.remove(&key);
+            evicted += 1;
+        }
+        evicted
     }
 
     fn on_tick(&mut self, tick: &MarketTick) {
@@ -584,6 +685,10 @@ impl SpreadAggregator {
         );
         enforce_flow_cap(&mut self.trade_flow, MAX_AGGREGATOR_SYMBOL_KEYS);
         enforce_flow_cap(&mut self.liquidation_flow, MAX_AGGREGATOR_SYMBOL_KEYS);
+        let keys = self.symbol_memory.keys().cloned().collect::<Vec<_>>();
+        for key in keys {
+            self.account_key(key, 0);
+        }
     }
 
     fn leg_fee_bps(&self, buy_ex: &str, sell_ex: &str) -> (f64, f64) {
@@ -610,6 +715,19 @@ impl SpreadAggregator {
     }
 }
 
+fn event_symbol_key(event: &DataEvent) -> Option<Box<str>> {
+    use crate::types::MarketKind;
+    Some(match event {
+        DataEvent::Tick(t) => normalize_symbol(&t.symbol, t.market),
+        DataEvent::Trade(t) => normalize_symbol(&t.symbol, t.market),
+        DataEvent::OrderBook(t) => normalize_symbol(&t.symbol, t.market),
+        DataEvent::FundingRate(t) => normalize_symbol(&t.symbol, MarketKind::Perp),
+        DataEvent::OpenInterest(t) => normalize_symbol(&t.symbol, MarketKind::Perp),
+        DataEvent::Liquidation(t) => normalize_symbol(&t.symbol, MarketKind::Perp),
+        _ => return None,
+    })
+}
+
 #[derive(Debug, Clone)]
 struct OpenInterestState {
     previous: Option<OpenInterestTick>,
@@ -627,10 +745,6 @@ impl FlowWindow {
             ts_ms,
             signed_notional,
         });
-        if self.rows.len() > MAX_FLOW_WINDOW_POINTS {
-            let excess = self.rows.len() - MAX_FLOW_WINDOW_POINTS;
-            self.rows.drain(0..excess);
-        }
     }
 
     fn prune(&mut self, now: u64, window_ms: u64) {
@@ -803,14 +917,53 @@ mod tests {
     }
 
     #[test]
-    fn flow_window_caps_retained_points() {
-        let mut window = FlowWindow::default();
-        for i in 0..(MAX_FLOW_WINDOW_POINTS + 10) {
-            window.add(i as u64, 1.0);
+    fn global_aggregator_budget_rejects_oversized_history_and_recounts_expiry() {
+        let mut cfg: AppConfig =
+            serde_yaml::from_str(include_str!("../config.research.yaml")).unwrap();
+        cfg.runtime.memory.aggregator_bytes = 4096;
+        cfg.runtime.memory.aggregator_symbols = 2;
+        let mut a = SpreadAggregator::from_config(&cfg);
+        for n in 0..200 {
+            let key: Box<str> = format!("S{}_PERP", n % 3).into();
+            a.trade_flow.entry(key.clone()).or_default().add(n, 1.0);
+            a.account_key(key, n);
+            a.enforce_budget();
+            assert!(a.memory_bytes <= 4096);
+            assert!(a.symbol_memory.len() <= 2);
+            assert_eq!(
+                a.memory_bytes,
+                a.symbol_memory
+                    .keys()
+                    .map(|k| a.key_bytes(k))
+                    .sum::<usize>()
+            );
         }
-
-        assert_eq!(window.rows.len(), MAX_FLOW_WINDOW_POINTS);
-        assert_eq!(window.rows.first().expect("first").ts_ms, 10);
+        a.prune_stale_state(1000000);
+        assert_eq!(a.memory_bytes, 0);
+        a.order_books.insert(
+            "HUGE_PERP".into(),
+            HashMap::from([(
+                "fixture",
+                OrderBookTick {
+                    exchange: "fixture",
+                    market: crate::types::MarketKind::Perp,
+                    symbol: "HUGE".into(),
+                    bids: vec![
+                        crate::types::BookLevel {
+                            price: 1.0,
+                            qty: 1.0
+                        };
+                        1000
+                    ],
+                    asks: vec![],
+                    last_update_id: None,
+                    ts_ms: 1,
+                },
+            )]),
+        );
+        a.account_key("HUGE_PERP".into(), 1);
+        assert_eq!(a.enforce_budget(), 1);
+        assert_eq!(a.memory_bytes, 0);
     }
 
     #[test]

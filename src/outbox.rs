@@ -127,6 +127,7 @@ pub struct DeliveryObservation {
 #[derive(Debug, Serialize)]
 pub struct OutboxStatus {
     pub origin: String,
+    pub oldest_pending_received_at_ms: Option<u64>,
     pub pending_records: u64,
     pub pending_bytes: u64,
     pub max_pending_bytes: u64,
@@ -357,8 +358,8 @@ impl Outbox {
 
     pub async fn pending(&self, limit: usize) -> Result<Vec<PendingEvent>> {
         ensure!(
-            (1..=1000).contains(&limit),
-            "outbox read limit must be 1..1000"
+            (1..=4096).contains(&limit),
+            "outbox read limit must be 1..4096"
         );
         let origin = self.origin.clone();
         self.blocking(move |conn| read_rows(conn, &origin, limit))
@@ -367,7 +368,7 @@ impl Outbox {
 
     pub async fn acknowledge(&self, identities: Vec<EventIdentity>) -> Result<()> {
         ensure!(
-            identities.len() <= 1000 && identities.iter().all(|id| id.origin == self.origin),
+            identities.len() <= 4096 && identities.iter().all(|id| id.origin == self.origin),
             "outbox ACK identity mismatch"
         );
         self.blocking(move |conn| {
@@ -409,6 +410,13 @@ impl Outbox {
                     [],
                     |r| r.get(0),
                 )?,
+                oldest_pending_received_at_ms: conn
+                    .query_row(
+                        "SELECT received_at_ms FROM outbox_events ORDER BY sequence LIMIT 1",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .optional()?,
                 max_pending_bytes: budget,
                 last_assigned_sequence: conn
                     .query_row(
@@ -524,11 +532,16 @@ fn decode_row(row: &rusqlite::Row<'_>, origin: &str) -> rusqlite::Result<Pending
 
 fn read_rows(conn: &Connection, origin: &str, limit: usize) -> Result<Vec<PendingEvent>> {
     let mut stmt = conn.prepare("SELECT sequence,stream,received_at_ms,payload,crc32 FROM outbox_events ORDER BY sequence LIMIT ?1")?;
-    let rows = stmt
-        .query_map([limit], |r| decode_row(r, origin))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    for row in &rows {
+    let mut rows = Vec::new();
+    let mut bytes = 0u64;
+    for row in stmt.query_map([limit], |r| decode_row(r, origin))? {
+        let row = row?;
         row.validate(origin)?;
+        if !rows.is_empty() && bytes + row.bytes() > 4 * 1024 * 1024 {
+            break;
+        }
+        bytes += row.bytes();
+        rows.push(row);
     }
     Ok(rows)
 }
@@ -568,6 +581,49 @@ mod tests {
             4 * 1024 * 1024,
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn durable_reads_bound_large_payload_batches_by_bytes() {
+        let path = root();
+        let box_ = Outbox::open(
+            &path.join("outbox.sqlite"),
+            "fixture",
+            32 * 1024 * 1024,
+            64 * 1024 * 1024,
+        )
+        .unwrap();
+        let event = Arc::new(crate::types::DataEvent::OrderBook(
+            crate::types::OrderBookTick {
+                exchange: "fixture",
+                market: crate::types::MarketKind::Perp,
+                symbol: "X".into(),
+                bids: vec![
+                    crate::types::BookLevel {
+                        price: 1234.0,
+                        qty: 10.0
+                    };
+                    2000
+                ],
+                asks: vec![],
+                last_update_id: None,
+                ts_ms: 1,
+            },
+        ));
+        for _ in 0..3 {
+            box_.append((0..64).map(|_| (event.clone(), 1)).collect())
+                .await
+                .unwrap();
+        }
+        let rows = box_.pending(4096).await.unwrap();
+        assert!(!rows.is_empty() && rows.len() < 192);
+        assert!(rows.iter().map(PendingEvent::bytes).sum::<u64>() <= 4 * 1024 * 1024);
+        assert_eq!(
+            box_.status().await.unwrap().oldest_pending_received_at_ms,
+            Some(1)
+        );
+        drop(box_);
+        std::fs::remove_dir_all(path).unwrap();
     }
 
     #[tokio::test]

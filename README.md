@@ -2278,3 +2278,5 @@ Historical EventBus benchmarks describe their recorded builds; added identity
 and durable-ingestion work require the new full-pipeline baseline.
 
 Source readiness, native continuity and minute-sampled strategy history: [operational contract](docs/source_readiness.zh-CN.md).
+
+[有限窗口恢复](docs/verified_trade_windows.zh-CN.md) · [完整链路持续验收](docs/pipeline_acceptance.zh-CN.md)

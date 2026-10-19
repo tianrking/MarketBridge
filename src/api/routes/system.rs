@@ -51,6 +51,7 @@ pub async fn memory(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
         serde_json::json!({"version":"v1","domain":"retention_memory",
         "order_flow":state.order_flow_store.retention_status(true).await,
         "strategy":state.strategy_state_store.retention_status().await,
+        "aggregator":{"accounted_bytes":state.metrics.aggregator_retained_bytes.get(),"capacity_evictions":state.metrics.aggregator_capacity_evictions_total.get()},
         "note":"Retained owned allocations; allocator, network and query temporaries are outside these budgets."}),
     )
 }
@@ -107,6 +108,12 @@ pub async fn readiness(State(state): State<Arc<ApiState>>) -> impl IntoResponse 
             Ok(status) => {
                 if status.delivery.configured && !status.delivery.verified {
                     reasons.push("durable_delivery_unverified");
+                }
+                if status.oldest_pending_received_at_ms.is_some_and(|at| {
+                    crate::types::now_ms().saturating_sub(at)
+                        > ingestion["max_age_ms"].as_u64().unwrap_or(60000)
+                }) {
+                    reasons.push("durable_backlog_too_old");
                 }
                 serde_json::json!({"enabled":true,"status":status})
             }

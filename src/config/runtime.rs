@@ -94,6 +94,8 @@ pub struct MemoryLimits {
     pub order_flow_raw_bytes: usize,
     pub order_flow_keys: usize,
     pub order_flow_buckets: usize,
+    pub aggregator_symbols: usize,
+    pub aggregator_bytes: usize,
     pub strategy_symbols: usize,
     pub strategy_bytes: usize,
 }
@@ -105,6 +107,8 @@ impl Default for MemoryLimits {
             order_flow_raw_bytes: 64 * 1024 * 1024,
             order_flow_keys: 4096,
             order_flow_buckets: 50_000,
+            aggregator_symbols: 2048,
+            aggregator_bytes: 64 * 1024 * 1024,
             strategy_symbols: 2048,
             strategy_bytes: 64 * 1024 * 1024,
         }
@@ -118,6 +122,8 @@ impl MemoryLimits {
                 && self.order_flow_raw_bytes > 0
                 && self.order_flow_keys > 0
                 && self.order_flow_buckets > 0
+                && self.aggregator_symbols > 0
+                && self.aggregator_bytes > 0
                 && self.strategy_symbols > 0
                 && self.strategy_bytes > 0,
             "runtime.memory budgets must be positive"

@@ -386,11 +386,14 @@ pub fn spawn_outbox_sink(
             if shutdown.is_cancelled() {
                 break;
             }
-            let rows = outbox.pending(XADD_BATCH_MAX).await?;
+            // AOF everysec amortizes one fsync barrier across this bounded batch.
+            // The legacy 100-row batch would cap durable throughput near 100/s.
+            let rows = outbox.pending(4096).await?;
             let status = outbox.status().await?;
             metrics
                 .redis_pending_events
                 .set(status.pending_records as i64);
+            let batch_started = std::time::Instant::now();
             let result = tokio::select! {
                 biased;
                 _ = shutdown.cancelled() => break,
@@ -403,6 +406,9 @@ pub fn spawn_outbox_sink(
                     } else { deliver_outbox_batch(conn,&rows,outbox.origin(),require_aof).await }
                 }) => result,
             };
+            metrics
+                .redis_batch_seconds
+                .observe(batch_started.elapsed().as_secs_f64());
             match result {
                 Ok(Ok(())) => {
                     outbox

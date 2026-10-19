@@ -362,7 +362,6 @@ impl IngestionState {
         }
         Admission::Accept(attempt)
     }
-    #[cfg(test)]
     pub fn native_sequence(&self, key: &str) -> Option<u64> {
         self.inner
             .lock()
@@ -377,7 +376,7 @@ impl IngestionState {
             && row.attempt == attempt
         {
             row.accepted += 1;
-            for stage in ["bus", "strategy_state"] {
+            for stage in ["bus", "strategy_state", "aggregator"] {
                 row.admitted
                     .entry(stage)
                     .and_modify(|at| *at = (*at).max(receipt))
@@ -419,7 +418,7 @@ impl IngestionState {
             let bound=*s.config.source_max_age_ms.get(id).or_else(||s.config.source_max_age_ms.get(&row.label)).unwrap_or(&s.config.max_age_ms);
             let caught_up=|stage:&str| row.admitted.get(stage).is_none_or(|expected|
                 row.stages.get(stage).is_some_and(|done|done>=expected || fresh(Some(*done),bound)));
-            let analytics=fresh(row.stages.get("strategy_state").copied(),bound) && caught_up("strategy_state") && caught_up("order_flow");
+            let analytics=fresh(row.stages.get("strategy_state").copied(),bound) && caught_up("strategy_state") && caught_up("order_flow") && caught_up("aggregator");
             let source_time_ready=row.source_time_ms.is_some_and(|ts|ts>0 && ts<=wall.saturating_add(5000) && wall.saturating_sub(ts)<=bound);
             let ready=row.phase=="observed_data" && fresh(row.received,bound) && fresh(row.published,bound) && caught_up("bus") && analytics && source_time_ready;
             serde_json::json!({"id":id,"label":row.label,"phase":if row.phase=="observed_data" && !fresh(row.received,bound) {"quiet_or_stalled"} else {row.phase},"attempt":row.attempt,"observed_events":row.events,"accepted_events":row.accepted,
@@ -504,6 +503,7 @@ mod tests {
             if trade { "trade" } else { "order_book" },
         );
         s.processed(&trace, "bus");
+        s.processed(&trace, "aggregator");
         s.processed(&trace, "strategy_state");
         if trade {
             s.processed(&trace, "order_flow");

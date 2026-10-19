@@ -61,6 +61,12 @@ jobs:
       - name: Build research CLI and server
         run: cargo build --locked
 
+      - name: Test actual pipeline, Redis outage, server restart and finite recovery
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          python -B scripts/accept_pipeline.py --binary target/debug/market-bridge --redis-server "$RUNNER_TEMP/marketbridge-redis/src/redis-server" --duration 30 --rate 1000 --symbols 16 --sample-seconds 1 --output "$RUNNER_TEMP/marketbridge-acceptance"
+
       - name: Test portable process startup and shutdown
         run: python -B scripts/Test-ProcessLifecycle.py
 

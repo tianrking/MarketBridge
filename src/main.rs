@@ -1,3 +1,4 @@
+mod acceptance;
 mod aggregator;
 mod aggregator_signal;
 mod api;
@@ -80,7 +81,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
-use types::DataEvent;
+
 use venue_status::VenueAssetStatusStore;
 
 #[tokio::main]
@@ -250,7 +251,36 @@ async fn main() -> anyhow::Result<()> {
         cfg.backpressure_mode(),
         metrics.clone(),
     );
-    let sources = build_sources(&cfg);
+    let mut sources = build_sources(&cfg);
+    if args.get(1).map(String::as_str) == Some("--acceptance-fixture") {
+        anyhow::ensure!(
+            args.len() == 3,
+            "--acceptance-fixture requires a fixture JSON path"
+        );
+        anyhow::ensure!(
+            sources.is_empty()
+                && !cfg.klines.enabled
+                && !cfg.deribit.enabled
+                && !cfg.okx_options.enabled
+                && !cfg.bybit_options.enabled
+                && !cfg.binance_options.enabled
+                && !cfg.polymarket.enabled
+                && !cfg.onchain.whale_alert.enabled
+                && !cfg.onchain.mempool_space.enabled
+                && !cfg.onchain.etherscan.enabled,
+            "acceptance fixture requires external collectors disabled"
+        );
+        let file = std::fs::File::open(&args[2])?;
+        anyhow::ensure!(
+            file.metadata()?.len() <= 4096,
+            "fixture config exceeds 4096 bytes"
+        );
+        let fixture: acceptance::FixtureConfig = serde_json::from_reader(file)?;
+        fixture.validate()?;
+        sources.push(std::sync::Arc::new(acceptance::FixtureSource(fixture)));
+    } else {
+        anyhow::ensure!(args.len() == 1, "unknown server arguments");
+    }
 
     if let Some(box_) = &outbox {
         metrics
@@ -489,7 +519,7 @@ async fn main() -> anyhow::Result<()> {
         shutdown.clone(),
     );
 
-    let (agg_tx, agg_rx) = mpsc::channel::<std::sync::Arc<DataEvent>>(cfg.runtime.queue_capacity);
+    let (agg_tx, agg_rx) = mpsc::channel::<router::AggregatorMessage>(cfg.runtime.queue_capacity);
     let router = EventRouter::new(
         handle.rx,
         agg_tx,
@@ -501,7 +531,8 @@ async fn main() -> anyhow::Result<()> {
     .with_outbox(outbox.clone());
     let router_task = tokio::spawn(router.run());
 
-    let mut agg_task = tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx));
+    let mut agg_task =
+        tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx, metrics.clone()));
 
     let mut background_tasks = TaskGroup::default();
     background_tasks.required("research_control", research_control_task);

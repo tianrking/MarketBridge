@@ -7,9 +7,20 @@ use crate::journal::JournalMessage;
 use crate::metrics::AppMetrics;
 use crate::types::DataEvent;
 
+pub struct AggregatorMessage {
+    pub event: Arc<DataEvent>,
+    pub trace: crate::ingestion::EventTrace,
+}
+impl std::ops::Deref for AggregatorMessage {
+    type Target = DataEvent;
+    fn deref(&self) -> &DataEvent {
+        self.event.as_ref()
+    }
+}
+
 pub struct EventRouter {
     source_rx: mpsc::Receiver<crate::source::SourceMessage>,
-    agg_tx: mpsc::Sender<Arc<DataEvent>>,
+    agg_tx: mpsc::Sender<AggregatorMessage>,
     bus: EventBus,
     metrics: std::sync::Arc<AppMetrics>,
     bus_queue_capacity: usize,
@@ -20,7 +31,7 @@ pub struct EventRouter {
 impl EventRouter {
     pub fn new(
         source_rx: mpsc::Receiver<crate::source::SourceMessage>,
-        agg_tx: mpsc::Sender<Arc<DataEvent>>,
+        agg_tx: mpsc::Sender<AggregatorMessage>,
         bus: EventBus,
         metrics: std::sync::Arc<AppMetrics>,
         bus_queue_capacity: usize,
@@ -72,6 +83,14 @@ impl EventRouter {
             }
         }));
         while let Some(message) = self.source_rx.recv().await {
+            self.metrics
+                .pipeline_queue_events
+                .with_label_values(&["source"])
+                .set(self.source_rx.len() as i64);
+            self.metrics
+                .pipeline_queue_events
+                .with_label_values(&["aggregator"])
+                .set((self.agg_tx.max_capacity() - self.agg_tx.capacity()) as i64);
             let frame =
                 |m: crate::source::SourceMessage| (Arc::new(m.event), m.received_at_ms, m.trace);
             let mut batch = vec![frame(message)];
@@ -126,11 +145,11 @@ impl EventRouter {
                     .map_err(|_| anyhow::anyhow!("journal stopped before router drain"))?;
                 }
                 bus_tx
-                    .send((event.clone(), identity, trace))
+                    .send((event.clone(), identity, trace.clone()))
                     .await
                     .map_err(|_| anyhow::anyhow!("bus publisher stopped"))?;
                 self.agg_tx
-                    .send(event)
+                    .send(AggregatorMessage { event, trace })
                     .await
                     .map_err(|_| anyhow::anyhow!("aggregator stopped"))?;
             }

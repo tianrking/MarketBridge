@@ -1275,3 +1275,5 @@ carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状�
 Redis 当前默认使用 SQLite durable outbox、按 origin 隔离的幂等流和 Redis 7.2+ 本地 AOF 确认。**物理流名发生变化**，升级消费者前请阅读[投递契约与迁移步骤](docs/durable_outbox.zh-CN.md)。运行时检查 `/v1/system/outbox`，离线 `--outbox status/export/replay` 保留身份并核对完整恢复文件。历史总线压测仅适用于记录中的构建；新增身份与耐久入口的性能以完整链路基线为准。
 
 源连续性、真实就绪与策略分钟采样约定见[运行契约](docs/source_readiness.zh-CN.md)。
+
+[有限窗口恢复](docs/verified_trade_windows.zh-CN.md) · [完整链路持续验收](docs/pipeline_acceptance.zh-CN.md)
