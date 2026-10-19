@@ -32,8 +32,8 @@ jobs:
         run: >
           python -c "from pathlib import Path; p=next(Path('examples').rglob('*.rs'), None); assert p is None, f'Rust strategy example found: {p}'"
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
         with:
           components: rustfmt, clippy
 
