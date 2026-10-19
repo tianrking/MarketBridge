@@ -61,6 +61,7 @@ use deribit_cache::{
     spawn_deribit_option_ws_cache, spawn_okx_option_cache, spawn_okx_option_ws_cache,
 };
 use event_bus::EventBus;
+use futures_util::{StreamExt, stream::FuturesUnordered};
 use klines::{KlineStore, spawn_kline_service};
 use metrics::AppMetrics;
 use onchain::{OnchainTransferStore, log_onchain_start, spawn_onchain_collectors};
@@ -416,20 +417,24 @@ async fn main() -> anyhow::Result<()> {
 
     let mut agg_joined = false;
     let mut api_joined = false;
-    let failure = tokio::select! {
+    let mut failure = tokio::select! {
         result = &mut shutdown_signal => {
             info!("shutdown signal received, stopping services");
             result.err().map(anyhow::Error::from)
         }
         res = &mut agg_task => {
-            log_join_result("aggregator", res);
             agg_joined = true;
-            Some(anyhow::anyhow!("aggregator exited unexpectedly"))
+            Some(unexpected_exit("aggregator", res))
         }
         res = &mut api_task => {
-            log_join_result("api", res);
             api_joined = true;
-            Some(anyhow::anyhow!("API server exited unexpectedly"))
+            Some(unexpected_exit("api", res))
+        }
+        completed = background_tasks.next_exit() => {
+            Some(match completed {
+                Some((name, result)) => unexpected_exit(name, result),
+                None => anyhow::anyhow!("all background services exited unexpectedly"),
+            })
         }
         _ = shutdown.cancelled() => {
             Some(anyhow::anyhow!("runtime requested shutdown; inspect preceding errors"))
@@ -438,12 +443,12 @@ async fn main() -> anyhow::Result<()> {
     shutdown.cancel();
 
     if !agg_joined {
-        wait_task("aggregator", agg_task).await;
+        failure = failure.or(wait_task("aggregator", agg_task).await.err());
     }
     if !api_joined {
-        wait_task("api", api_task).await;
+        failure = failure.or(wait_task("api", api_task).await.err());
     }
-    background_tasks.wait_all().await;
+    failure = failure.or(background_tasks.wait_all().await.err());
 
     if let Some(error) = failure {
         return Err(error);
@@ -475,13 +480,11 @@ fn shutdown_signal() -> std::io::Result<impl std::future::Future<Output = std::i
 
 #[derive(Default)]
 struct TaskGroup {
-    tasks: Vec<NamedTask>,
+    tasks: FuturesUnordered<NamedTask>,
 }
 
-struct NamedTask {
-    name: &'static str,
-    task: JoinHandle<()>,
-}
+type TaskCompletion = (&'static str, Result<(), tokio::task::JoinError>);
+type NamedTask = std::pin::Pin<Box<dyn std::future::Future<Output = TaskCompletion> + Send>>;
 
 impl TaskGroup {
     fn optional(&mut self, name: &'static str, task: Option<JoinHandle<()>>) {
@@ -491,29 +494,114 @@ impl TaskGroup {
     }
 
     fn required(&mut self, name: &'static str, task: JoinHandle<()>) {
-        self.tasks.push(NamedTask { name, task });
+        // Poll the actual handles concurrently without spawning extra monitor
+        // tasks. Completion order must not depend on registration order.
+        self.tasks.push(Box::pin(async move { (name, task.await) }));
     }
 
     fn extend(&mut self, name: &'static str, tasks: impl IntoIterator<Item = JoinHandle<()>>) {
-        self.tasks
-            .extend(tasks.into_iter().map(|task| NamedTask { name, task }));
+        for task in tasks {
+            self.required(name, task);
+        }
     }
 
-    async fn wait_all(self) {
-        for task in self.tasks {
-            wait_task(task.name, task.task).await;
+    async fn next_exit(&mut self) -> Option<TaskCompletion> {
+        self.tasks.next().await
+    }
+
+    async fn wait_all(mut self) -> anyhow::Result<()> {
+        let mut failure = None;
+        while let Some((name, result)) = self.next_exit().await {
+            failure = failure.or(log_join_result(name, result).err());
+        }
+        match failure {
+            Some(error) => Err(error),
+            None => Ok(()),
         }
     }
 }
 
-async fn wait_task(name: &'static str, task: JoinHandle<()>) {
-    log_join_result(name, task.await);
+async fn wait_task(name: &'static str, task: JoinHandle<()>) -> anyhow::Result<()> {
+    log_join_result(name, task.await)
 }
 
-fn log_join_result(name: &'static str, result: Result<(), tokio::task::JoinError>) {
+fn unexpected_exit(
+    name: &'static str,
+    result: Result<(), tokio::task::JoinError>,
+) -> anyhow::Error {
+    log_join_result(name, result)
+        .err()
+        .unwrap_or_else(|| anyhow::anyhow!("required task {name} exited unexpectedly"))
+}
+
+fn log_join_result(
+    name: &'static str,
+    result: Result<(), tokio::task::JoinError>,
+) -> anyhow::Result<()> {
     match result {
-        Ok(()) => info!(task = name, "task exited"),
-        Err(error) if error.is_panic() => error!(task = name, error = %error, "task panicked"),
-        Err(error) => error!(task = name, error = %error, "task failed"),
+        Ok(()) => {
+            info!(task = name, "task exited");
+            Ok(())
+        }
+        Err(error) => {
+            if error.is_panic() {
+                error!(task = name, error = %error, "task panicked");
+            } else {
+                error!(task = name, error = %error, "task failed");
+            }
+            Err(error).with_context(|| format!("{name} task failed"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio_util::sync::CancellationToken;
+
+    #[tokio::test]
+    async fn supervision_detects_exit_while_an_earlier_service_is_still_running() {
+        let mut group = TaskGroup::default();
+        let stop = CancellationToken::new();
+        let task_stop = stop.clone();
+        group.required(
+            "running",
+            tokio::spawn(async move { task_stop.cancelled().await }),
+        );
+        group.required("stopped-consumer", tokio::spawn(async {}));
+        let (name, result) = tokio::time::timeout(Duration::from_secs(1), group.next_exit())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(name, "stopped-consumer");
+        assert!(
+            unexpected_exit(name, result)
+                .to_string()
+                .contains("stopped-consumer")
+        );
+        stop.cancel();
+        group.wait_all().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn shutdown_reports_panics_and_still_waits_for_other_services() {
+        let mut group = TaskGroup::default();
+        let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let task_finished = finished.clone();
+        group.required(
+            "crashed-consumer",
+            tokio::spawn(async { panic!("fixture failure") }),
+        );
+        group.required(
+            "draining",
+            tokio::spawn(async move {
+                tokio::task::yield_now().await;
+                task_finished.store(true, std::sync::atomic::Ordering::SeqCst);
+            }),
+        );
+        let error = group.wait_all().await.unwrap_err();
+        assert!(error.to_string().contains("crashed-consumer"));
+        assert!(finished.load(std::sync::atomic::Ordering::SeqCst));
     }
 }

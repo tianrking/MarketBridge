@@ -24,7 +24,11 @@ sudo systemctl status marketbridge
 
 The server reserves its API address before starting collectors or recording.
 An occupied port fails startup with a nonzero exit status so a supervisor can
-detect the failure. Unexpected API/aggregator termination also fails the process.
+detect the failure. Unexpected API, aggregator or registered background-service
+termination also fails the process. Optional services are optional to enable;
+once configured, an unexpected exit (including initialization failure) stops the
+process instead of silently running without that component. A task that remains
+alive while retrying a connection is not considered exited by this supervision.
 On Linux and macOS, SIGTERM (including a normal systemd/container stop) and
 Ctrl-C initiate shutdown and allow normalized event recordings to drain and seal.
 Windows console shutdown supports Ctrl-C. Forced termination, SIGKILL, a power

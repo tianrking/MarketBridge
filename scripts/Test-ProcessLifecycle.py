@@ -97,6 +97,23 @@ class ProcessLifecycleTests(unittest.TestCase):
         )
         self.assertNotEqual(invalid.returncode, 0)
 
+    def test_enabled_sink_initialization_failure_is_supervised(self):
+        config = (ROOT / "config.research.yaml").read_text(encoding="utf-8")
+        config = config.replace("runtime:\n", 'runtime:\n  redis_url: "invalid://fixture"\n', 1)
+        config_path = self.state / "invalid-sink.yaml"
+        config_path.write_text(config, encoding="utf-8")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        self.environment.update(
+            MARKETBRIDGE_CONFIG=str(config_path),
+            MARKETBRIDGE_API_ADDR=f"127.0.0.1:{port}",
+        )
+        child = self.launch()
+        self.assertNotEqual(child.wait(timeout=15), 0)
+        log = (self.state / "process-0.log").read_text(encoding="utf-8")
+        self.assertIn("redis_sink", log)
+
     @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
     def test_sigterm_and_sigint_seal_recordings(self):
         for shutdown_signal in (signal.SIGTERM, signal.SIGINT):
