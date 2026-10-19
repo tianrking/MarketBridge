@@ -210,6 +210,7 @@ fn parse_bitmex_book(fallback_symbol: &str, value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "bitmex",
         market: MarketKind::Perp,
         symbol: symbol.to_string().into_boxed_str(),

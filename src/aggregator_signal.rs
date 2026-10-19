@@ -313,6 +313,7 @@ mod tests {
     #[test]
     fn best_book_cross_pair_uses_depth_and_excludes_same_exchange() {
         let buy_book = OrderBookTick {
+            book_quality: None,
             exchange: "a",
             market: MarketKind::Spot,
             symbol: "BTCUSDT".into(),
@@ -334,6 +335,7 @@ mod tests {
             ts_ms: 1,
         };
         let sell_book = OrderBookTick {
+            book_quality: None,
             exchange: "b",
             market: MarketKind::Spot,
             symbol: "BTCUSDT".into(),
@@ -370,6 +372,7 @@ mod tests {
     #[test]
     fn depth_pressure_reports_bid_ask_imbalance() {
         let book = OrderBookTick {
+            book_quality: None,
             exchange: "a",
             market: MarketKind::Perp,
             symbol: "BTCUSDT".into(),

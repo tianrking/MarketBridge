@@ -557,8 +557,17 @@ pub async fn v1_market_order_books(
                     .is_none_or(|value| market_kind_label(row.market) == value)
         })
         .await;
+    for row in &mut rows {
+        if !state.metrics.books.usable(row)
+            && let Some(q) = &mut row.book_quality
+        {
+            q.synchronized = false;
+        }
+    }
     rows.sort_by(|a, b| cmp_symbol_exchange(&a.symbol, a.exchange, &b.symbol, b.exchange));
-    Json(serde_json::json!({"version":"v1","domain":"market_order_book","books":rows}))
+    Json(
+        serde_json::json!({"version":"v1","domain":"market_order_book","books":rows,"integrity":state.metrics.books.report(),"note":"book_quality absent means unverified; synchronized is checked against the current connection lease"}),
+    )
 }
 
 fn filtered_market_rows<T, Symbol, Exchange, Market, Sort>(

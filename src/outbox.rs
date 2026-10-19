@@ -595,6 +595,7 @@ mod tests {
         .unwrap();
         let event = Arc::new(crate::types::DataEvent::OrderBook(
             crate::types::OrderBookTick {
+                book_quality: None,
                 exchange: "fixture",
                 market: crate::types::MarketKind::Perp,
                 symbol: "X".into(),

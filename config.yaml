@@ -64,6 +64,20 @@ runtime:
     strategy_symbols: 2048
     strategy_bytes: 67108864
 
+  # Reconstructed Binance/OKX/Bybit books. Native decimal evidence is retained;
+  # disconnected/stale sessions stop qualifying immediately.
+  order_books:
+    max_symbols: 256
+    max_levels_per_side: 1000
+    publish_levels: 200
+    max_state_bytes: 67108864
+    max_total_buffered_bytes: 67108864
+    max_buffered_updates: 256
+    max_buffered_bytes: 4194304
+    snapshot_timeout_ms: 10000
+    max_age_ms: 5000
+    binance_weight_per_minute: 1200
+
   # /health is process liveness; /ready checks actual receipts/consumers/storage.
   readiness:
     max_age_ms: 60000

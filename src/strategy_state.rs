@@ -59,6 +59,8 @@ pub struct StrategySymbolState {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct StrategyMetrics {
+    pub order_book_synchronized: bool,
+    pub order_book_history_complete: bool,
     pub numeric_history_sampling_ms: u64,
     pub price_reference: &'static str,
     pub latest_price: Option<f64>,
@@ -135,6 +137,9 @@ struct StrategyStateInner {
 
 #[derive(Default)]
 struct SymbolRuntimeState {
+    book_session: Option<(String, u64)>,
+    book_revision: u64,
+    book_since_ms: Option<u64>,
     accounted_bytes: usize,
     capacity_drops: usize,
     exchange: String,
@@ -274,7 +279,43 @@ impl StrategyStateStore {
             })
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now, &quality, &retention_quality, &source_quality)
+                let mut row = state.snapshot(now, &quality, &retention_quality, &source_quality);
+                let synchronized = state.book_session.as_ref().is_some_and(|(session, _)| {
+                    self.observability.as_ref().is_some_and(|m| {
+                        m.books.usable_revision(
+                            &state.exchange,
+                            MarketKind::Perp,
+                            &state.symbol,
+                            session,
+                            state.book_revision,
+                        )
+                    })
+                });
+                row.metrics.order_book_synchronized = synchronized;
+                row.metrics.order_book_history_complete = synchronized
+                    && state.book_since_ms.is_some_and(|at| {
+                        state
+                            .order_book_observed_at_ms
+                            .unwrap_or(0)
+                            .saturating_sub(at)
+                            >= FLOW_WINDOW_MS
+                    });
+                if !synchronized {
+                    row.metrics.bid_depth_notional_10 = None;
+                    row.metrics.ask_depth_notional_10 = None;
+                    row.metrics.bid_ask_depth_ratio_10 = None;
+                    row.metrics.depth_pressure_10 = None;
+                    row.metrics.ofi_best_level_1m = None;
+                }
+                if !synchronized || !row.metrics.order_book_history_complete {
+                    for leg in [&mut row.long_squeeze, &mut row.short_exhaustion] {
+                        leg.state = "incomplete_data";
+                        leg.score = 0;
+                        leg.reasons
+                            .push("order book not synchronized or OFI window not rebuilt".into());
+                    }
+                }
+                row
             })
             .collect::<Vec<_>>();
         drop(guard);
@@ -307,7 +348,43 @@ impl StrategyStateStore {
             .values_mut()
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now, &quality, &retention_quality, &source_quality)
+                let mut row = state.snapshot(now, &quality, &retention_quality, &source_quality);
+                let synchronized = state.book_session.as_ref().is_some_and(|(session, _)| {
+                    self.observability.as_ref().is_some_and(|m| {
+                        m.books.usable_revision(
+                            &state.exchange,
+                            MarketKind::Perp,
+                            &state.symbol,
+                            session,
+                            state.book_revision,
+                        )
+                    })
+                });
+                row.metrics.order_book_synchronized = synchronized;
+                row.metrics.order_book_history_complete = synchronized
+                    && state.book_since_ms.is_some_and(|at| {
+                        state
+                            .order_book_observed_at_ms
+                            .unwrap_or(0)
+                            .saturating_sub(at)
+                            >= FLOW_WINDOW_MS
+                    });
+                if !synchronized {
+                    row.metrics.bid_depth_notional_10 = None;
+                    row.metrics.ask_depth_notional_10 = None;
+                    row.metrics.bid_ask_depth_ratio_10 = None;
+                    row.metrics.depth_pressure_10 = None;
+                    row.metrics.ofi_best_level_1m = None;
+                }
+                if !synchronized || !row.metrics.order_book_history_complete {
+                    for leg in [&mut row.long_squeeze, &mut row.short_exhaustion] {
+                        leg.state = "incomplete_data";
+                        leg.score = 0;
+                        leg.reasons
+                            .push("order book not synchronized or OFI window not rebuilt".into());
+                    }
+                }
+                row
             })
             .collect::<Vec<_>>();
         drop(guard);
@@ -432,11 +509,28 @@ impl StrategyStateStore {
     }
 
     async fn update_order_book(&self, tick: &OrderBookTick) {
+        if self
+            .observability
+            .as_ref()
+            .is_some_and(|m| !m.books.usable(tick))
+        {
+            return;
+        }
         if tick.market != MarketKind::Perp {
             return;
         }
         let mut guard = self.inner.write().await;
         let state = guard.symbol_state(tick.exchange, &tick.symbol);
+        if let Some(q) = &tick.book_quality {
+            let checkpoint = (q.session.clone(), q.snapshot_generation);
+            if state.book_session.as_ref() != Some(&checkpoint) {
+                state.previous_book_top = None;
+                state.ofi_samples.clear();
+                state.book_since_ms = Some(tick.ts_ms);
+            }
+            state.book_session = Some(checkpoint);
+            state.book_revision = q.revision;
+        }
         let current_top = book_top(tick);
         if let (Some(previous), Some(current)) = (state.previous_book_top, current_top) {
             let ofi = best_level_ofi(previous, current);
@@ -532,6 +626,7 @@ impl SymbolRuntimeState {
         std::mem::size_of::<Self>()
             + self.exchange.capacity()
             + self.symbol.capacity()
+            + self.book_session.as_ref().map_or(0, |(s, _)| s.capacity())
             + (self.open_interest_history.capacity()
                 + self.price_history.capacity()
                 + self.funding_history.capacity())
@@ -633,6 +728,8 @@ impl SymbolRuntimeState {
             _ => None,
         };
         StrategyMetrics {
+            order_book_synchronized: false,
+            order_book_history_complete: false,
             numeric_history_sampling_ms: NUMERIC_SAMPLE_INTERVAL_MS,
             price_reference: self.price_reference,
             latest_price: self.latest_price,

@@ -130,6 +130,7 @@ fn serialize_json<T: serde::Serialize>(value: &T) -> Arc<str> {
 
 #[derive(Clone)]
 pub struct EventBus {
+    pub book_registry: crate::book_integrity::BookRegistry,
     tx: broadcast::Sender<Arc<SharedTick>>,
     event_tx: Vec<broadcast::Sender<Arc<SharedEvent>>>,
     quote_tx: broadcast::Sender<Arc<SharedQuote>>,
@@ -189,6 +190,7 @@ impl EventBus {
         let (tx, _) = broadcast::channel(capacity);
         let (quote_tx, _) = broadcast::channel(capacity);
         Self {
+            book_registry: Default::default(),
             tx,
             event_tx: sharded_senders(capacity, event_shards),
             quote_tx,
@@ -203,6 +205,10 @@ impl EventBus {
         }
     }
 
+    pub fn with_book_registry(mut self, registry: crate::book_integrity::BookRegistry) -> Self {
+        self.book_registry = registry;
+        self
+    }
     pub fn subscribe(&self) -> broadcast::Receiver<Arc<SharedTick>> {
         self.tx.subscribe()
     }
@@ -543,6 +549,7 @@ mod tests {
             ts_ms,
         }));
         bus.publish_from_event(&DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "binance",
             market: MarketKind::Perp,
             symbol: "BTCUSDT".into(),

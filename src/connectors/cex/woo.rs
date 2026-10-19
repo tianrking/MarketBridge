@@ -146,6 +146,7 @@ fn parse_woo_book(market: MarketKind, symbol: &str, value: &Value) -> Vec<DataEv
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "woo",
         market,
         symbol: symbol.to_ascii_uppercase().into_boxed_str(),

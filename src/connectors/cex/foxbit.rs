@@ -143,6 +143,7 @@ fn parse_foxbit_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "foxbit",
         market: MarketKind::Spot,
         symbol: symbol.to_ascii_uppercase().into_boxed_str(),

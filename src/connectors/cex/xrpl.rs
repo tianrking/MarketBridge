@@ -211,6 +211,7 @@ fn parse_xrpl_book(pair: &XrplPair, asks_raw: &[Value], bids_raw: &[Value]) -> V
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "xrpl",
         market: MarketKind::Spot,
         symbol: pair.symbol.clone().into_boxed_str(),

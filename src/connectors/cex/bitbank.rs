@@ -148,6 +148,7 @@ fn parse_bitbank_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "bitbank",
         market: MarketKind::Spot,
         symbol: symbol.to_ascii_lowercase().into_boxed_str(),

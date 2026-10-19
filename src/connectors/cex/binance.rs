@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::types::{BookLevel, OrderBookTick};
 use async_trait::async_trait;
 use std::time::Duration;
 
@@ -12,8 +14,8 @@ use crate::connectors::cex::common::{emit_tick, emit_tick_ext};
 use crate::connectors::cex::ws::message_text;
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick,
-    OrderBookTick, TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, TradeSide,
+    TradeTick, now_ms,
 };
 
 // ── Spot ──────────────────────────────────────────────────────────────
@@ -118,6 +120,7 @@ struct BinanceFundingMsg<'a> {
     event_time_ms: Option<u64>,
 }
 
+#[cfg(test)]
 #[derive(Debug, Deserialize)]
 struct BinanceDepthCombined<'a> {
     #[serde(borrow)]
@@ -126,6 +129,7 @@ struct BinanceDepthCombined<'a> {
     data: BinanceDepthMsg<'a>,
 }
 
+#[cfg(test)]
 #[derive(Debug, Deserialize)]
 struct BinanceDepthMsg<'a> {
     #[serde(borrow, default, rename = "s")]
@@ -304,56 +308,6 @@ async fn run_binance_funding(symbols: &[String], ctx: SourceContext) -> Result<(
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
                     Message::Close(_) => bail!("binance funding closed"),
-                    Message::Pong(_) | Message::Frame(_) => {}
-                }
-            }
-        }
-    }
-}
-
-async fn run_binance_depth(
-    market: MarketKind,
-    symbols: &[String],
-    ctx: SourceContext,
-) -> Result<()> {
-    let suffix = "depth20@100ms";
-    let allowed = symbols
-        .iter()
-        .map(|s| s.to_ascii_uppercase())
-        .collect::<std::collections::HashSet<_>>();
-    let streams = combined_streams(symbols, suffix)?;
-    let base = match market {
-        MarketKind::Spot => "wss://stream.binance.com:9443/stream?",
-        MarketKind::Perp => "wss://fstream.binance.com/public/stream?",
-    };
-    let ws_url = format!("{base}streams={streams}");
-    let (ws, _) = connect_async(&ws_url)
-        .await
-        .context("binance depth connect failed")?;
-    let (mut sink, mut stream) = ws.split();
-    let mut ping_tick = interval(Duration::from_secs(15));
-
-    loop {
-        tokio::select! {
-            _ = ping_tick.tick() => {
-                sink.send(Message::Ping(Vec::new())).await?;
-                ctx.emit(DataEvent::Heartbeat { exchange: "binance", ts_ms: now_ms() }).await?;
-            }
-            msg = stream.next() => {
-                let msg = msg.context("binance depth stream ended")??;
-                match msg {
-                    Message::Text(_) | Message::Binary(_) => {
-                        let Some(text) = decode_ws_text("binance depth", &msg)? else {
-                            continue;
-                        };
-                        if let Some(book) = parse_ws_json::<BinanceDepthCombined<'_>>("binance depth", &text)
-                            .and_then(|parsed| depth_book(parsed, market, now_ms()))
-                            .filter(|book| allowed.contains(book.symbol.as_ref())) {
-                            ctx.emit(DataEvent::OrderBook(book)).await?;
-                        }
-                    }
-                    Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
-                    Message::Close(_) => bail!("binance depth closed"),
                     Message::Pong(_) | Message::Frame(_) => {}
                 }
             }
@@ -559,6 +513,7 @@ fn parse_f64(value: &str) -> Option<f64> {
     value.parse::<f64>().ok()
 }
 
+#[cfg(test)]
 fn parse_levels(levels: &[[&str; 2]]) -> Option<Vec<BookLevel>> {
     if levels.is_empty() || levels.len() > 20 {
         return None;
@@ -574,6 +529,7 @@ fn parse_levels(levels: &[[&str; 2]]) -> Option<Vec<BookLevel>> {
         .collect()
 }
 
+#[cfg(test)]
 fn depth_book(
     parsed: BinanceDepthCombined<'_>,
     market: MarketKind,
@@ -601,6 +557,7 @@ fn depth_book(
         return None;
     }
     Some(OrderBookTick {
+        book_quality: None,
         exchange: "binance",
         market,
         symbol: symbol.into(),
@@ -706,7 +663,17 @@ impl ExchangeSource for BinanceDepthFeed {
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_binance_depth(self.market, &self.symbols, ctx).await
+        super::reconstructed_depth::run(
+            if self.market == MarketKind::Spot {
+                crate::book_integrity::Protocol::BinanceSpot
+            } else {
+                crate::book_integrity::Protocol::BinancePerp
+            },
+            self.market,
+            &self.symbols,
+            ctx,
+        )
+        .await
     }
 }
 

@@ -128,6 +128,7 @@ fn parse_ascendex_depth(value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "ascend_ex",
         market: MarketKind::Spot,
         symbol: symbol.into_boxed_str(),

@@ -178,6 +178,7 @@ async fn parse_bitget_events(
 
     if channel.starts_with("books") {
         return Ok(vec![DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange,
             market,
             symbol: symbol.to_string().into_boxed_str(),

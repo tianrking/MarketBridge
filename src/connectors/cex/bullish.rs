@@ -185,6 +185,7 @@ fn parse_bullish_book(fallback_symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "bullish",
         market: MarketKind::Spot,
         symbol: fallback_symbol.to_ascii_uppercase().into_boxed_str(),

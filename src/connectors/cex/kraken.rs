@@ -275,6 +275,7 @@ fn parse_kraken_book(pair: &str, value: &serde_json::Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "kraken",
         market: MarketKind::Spot,
         symbol: symbol.to_ascii_uppercase().into_boxed_str(),

@@ -339,6 +339,7 @@ fn parse_bitmart_book(market: MarketKind, row: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "bitmart",
         market,
         symbol: symbol.to_string().into_boxed_str(),

@@ -195,6 +195,7 @@ fn parse_aevo_book(data: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "aevo",
         market: MarketKind::Perp,
         symbol: symbol.to_string().into_boxed_str(),

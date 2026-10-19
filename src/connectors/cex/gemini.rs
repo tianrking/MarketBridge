@@ -158,6 +158,7 @@ fn parse_gemini_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "gemini",
         market: MarketKind::Spot,
         symbol: symbol.to_ascii_uppercase().into_boxed_str(),

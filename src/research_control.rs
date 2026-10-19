@@ -426,18 +426,64 @@ mod tests {
         e.buy.instrument.venue = "binance".into();
         e.sell.instrument.venue = "okx".into();
         let bus = EventBus::new_sharded(16, 10000, 1);
+        let mut leases = vec![];
         for (venue, book) in [("binance", &e.buy), ("okx", &e.sell)] {
-            bus.publish_from_event(&crate::types::DataEvent::OrderBook(
-                crate::types::OrderBookTick {
-                    exchange: venue,
-                    market: crate::types::MarketKind::Spot,
-                    symbol: book.instrument.symbol.clone().into(),
-                    bids: book.bids.clone(),
-                    asks: book.asks.clone(),
-                    last_update_id: Some(1),
-                    ts_ms: now_ms(),
-                },
-            ));
+            let market = crate::types::MarketKind::Spot;
+            let lease = bus
+                .book_registry
+                .begin(venue, market, &book.instrument.symbol)
+                .unwrap();
+            let protocol = if venue == "binance" {
+                crate::book_integrity::Protocol::BinanceSpot
+            } else {
+                crate::book_integrity::Protocol::Okx
+            };
+            let mut engine = crate::book_integrity::LocalBook::new(
+                protocol,
+                market,
+                book.instrument.symbol.clone(),
+                lease.session.clone(),
+                Default::default(),
+            );
+            let levels = |rows: &Vec<crate::types::BookLevel>| {
+                rows.iter()
+                    .map(|l| {
+                        crate::book_integrity::WireLevel::new(
+                            &l.price.to_string(),
+                            &l.qty.to_string(),
+                        )
+                    })
+                    .collect()
+            };
+            let u = crate::book_integrity::Update {
+                first: 1,
+                last: 1,
+                previous: None,
+                ts_ms: now_ms(),
+                snapshot: true,
+                bids: levels(&book.bids),
+                asks: levels(&book.asks),
+                checksum: None,
+            };
+            engine.apply(&u).unwrap();
+            if venue == "binance" {
+                engine
+                    .apply(&crate::book_integrity::Update {
+                        first: 2,
+                        last: 2,
+                        previous: None,
+                        ts_ms: now_ms(),
+                        snapshot: false,
+                        bids: vec![],
+                        asks: vec![],
+                        checksum: None,
+                    })
+                    .unwrap();
+            }
+            let tick = engine.tick(None).unwrap();
+            lease.synchronized(&tick, engine.owned_bytes()).unwrap();
+            bus.publish_from_event(&crate::types::DataEvent::OrderBook(tick));
+            leases.push(lease);
         }
         e.costs.buy_fee_bps = Some(0.0);
         e.costs.sell_fee_bps = Some(0.0);
@@ -461,5 +507,11 @@ mod tests {
         assert!(scan(&bus, &config).unwrap().1.contains("fixture"));
         config.routes[0].route.costs.buy_fee_bps = None;
         assert!(scan(&bus, &config).unwrap().1.is_empty());
+        config.routes[0].route.costs.buy_fee_bps = Some(0.0);
+        drop(leases);
+        assert!(
+            scan(&bus, &config).unwrap().1.is_empty(),
+            "old cache must stop qualifying immediately after disconnect"
+        );
     }
 }

@@ -180,6 +180,7 @@ fn parse_architect_book(value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "architect",
         market: MarketKind::Perp,
         symbol: symbol.to_string().into_boxed_str(),

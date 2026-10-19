@@ -142,6 +142,7 @@ fn parse_book(msg: BtcMarketsMsg) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "btc_markets",
         market: MarketKind::Spot,
         symbol: symbol.into_boxed_str(),

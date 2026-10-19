@@ -156,6 +156,7 @@ fn parse_pacifica_book(data: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "pacifica",
         market: MarketKind::Perp,
         symbol: symbol.to_string().into_boxed_str(),

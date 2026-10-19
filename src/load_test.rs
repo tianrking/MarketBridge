@@ -296,6 +296,7 @@ fn synthetic_event(cfg: LoadTestConfig, i: u64) -> DataEvent {
             ts_ms,
         }),
         LoadProfile::Books => DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "synthetic",
             market: MarketKind::Perp,
             symbol,

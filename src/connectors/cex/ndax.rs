@@ -208,6 +208,7 @@ fn parse_ndax_book(market: &NdaxMarket, value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "ndax",
         market: MarketKind::Spot,
         symbol: market.symbol.clone().into_boxed_str(),

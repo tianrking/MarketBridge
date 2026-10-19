@@ -474,6 +474,7 @@ mod tests {
     }
     fn book(update: u64, ts: u64) -> DataEvent {
         DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "binance",
             market: MarketKind::Perp,
             symbol: "BTCUSDT".into(),

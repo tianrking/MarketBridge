@@ -154,7 +154,7 @@ class ProcessLifecycleTests(unittest.TestCase):
         self.assertFalse(readiness["data_ready"], "research-only mode must not claim a live feed")
         request = Request(f"http://127.0.0.1:{port}/v1/research/squeeze/scan", headers=headers)
         with urlopen(request, timeout=5) as response:
-            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v3")
+            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v4")
 
     def test_outbox_api_lock_and_checked_offline_cli_roundtrip(self):
         config = (ROOT / "config.research.yaml").read_text(encoding="utf-8")

@@ -59,6 +59,7 @@ fn held_signal_state(
 }
 
 pub struct SpreadAggregator {
+    book_registry: Option<crate::book_integrity::BookRegistry>,
     memory_bytes: usize,
     symbol_memory: HashMap<Box<str>, (usize, u64)>,
     memory_order: BTreeSet<(u64, Box<str>)>,
@@ -101,6 +102,7 @@ impl SpreadAggregator {
         }
 
         Self {
+            book_registry: None,
             memory_bytes: 0,
             symbol_memory: HashMap::new(),
             memory_order: BTreeSet::new(),
@@ -135,6 +137,7 @@ impl SpreadAggregator {
         mut rx: mpsc::Receiver<crate::router::AggregatorMessage>,
         metrics: Arc<crate::metrics::AppMetrics>,
     ) {
+        self.book_registry = Some(metrics.books.clone());
         let mut report_tick = interval(self.report_interval);
 
         loop {
@@ -143,7 +146,7 @@ impl SpreadAggregator {
                 maybe = rx.recv() => {
                     match maybe.as_deref() {
                         Some(DataEvent::Tick(t)) => self.on_tick(t),
-                        Some(DataEvent::OrderBook(book)) => self.on_order_book(book),
+                        Some(DataEvent::OrderBook(book)) => {if metrics.books.usable(book) {self.on_order_book(book);}},
                         Some(DataEvent::FundingRate(funding)) => self.on_funding(funding),
                         Some(DataEvent::OpenInterest(open_interest)) => {
                             self.on_open_interest(open_interest)
@@ -634,7 +637,10 @@ impl SpreadAggregator {
             !by_exchange.is_empty()
         });
         self.order_books.retain(|_, by_exchange| {
-            by_exchange.retain(|_, tick| now.saturating_sub(tick.ts_ms) <= retention_ms);
+            by_exchange.retain(|_, tick| {
+                now.saturating_sub(tick.ts_ms) <= retention_ms
+                    && self.book_registry.as_ref().is_none_or(|r| r.usable(tick))
+            });
             !by_exchange.is_empty()
         });
         self.funding.retain(|_, by_exchange| {
@@ -945,6 +951,7 @@ mod tests {
             HashMap::from([(
                 "fixture",
                 OrderBookTick {
+                    book_quality: None,
                     exchange: "fixture",
                     market: crate::types::MarketKind::Perp,
                     symbol: "HUGE".into(),

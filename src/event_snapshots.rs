@@ -456,6 +456,7 @@ mod tests {
         let mut store = EventSnapshotStore::new(1_000);
         store.clock = Arc::new(|| 10_000);
         let book = OrderBookTick {
+            book_quality: None,
             exchange: "binance",
             market: MarketKind::Spot,
             symbol: "BTCUSDT".into(),

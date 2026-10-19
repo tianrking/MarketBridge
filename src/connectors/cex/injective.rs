@@ -265,6 +265,7 @@ fn parse_injective_book(market: &InjectiveMarket, value: &Value) -> Vec<DataEven
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "injective",
         market: market.market,
         symbol: market.symbol.clone().into_boxed_str(),

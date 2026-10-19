@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{Instant, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::connectors::cex::common::{emit_tick_ext, parse_array_levels, side_from_labels};
+use crate::connectors::cex::common::{emit_tick_ext, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, OrderBookTick,
-    TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, TradeSide,
+    TradeTick, now_ms,
 };
 
 // ── Shared types ──────────────────────────────────────────────────────
@@ -321,33 +321,6 @@ async fn run_okx_open_interest(inst_ids: &[String], ctx: SourceContext) -> Resul
     .await
 }
 
-async fn run_okx_depth(market: MarketKind, inst_ids: &[String], ctx: SourceContext) -> Result<()> {
-    run_okx_channel("books5", inst_ids, ctx, move |inst_id, item| {
-        Some(DataEvent::OrderBook(OrderBookTick {
-            exchange: "okx",
-            market,
-            symbol: inst_id.to_string().into_boxed_str(),
-            bids: item
-                .get("bids")
-                .and_then(|x| x.as_array())
-                .map(|x| parse_array_levels(x))
-                .unwrap_or_default(),
-            asks: item
-                .get("asks")
-                .and_then(|x| x.as_array())
-                .map(|x| parse_array_levels(x))
-                .unwrap_or_default(),
-            last_update_id: None,
-            ts_ms: item
-                .get("ts")
-                .and_then(|x| x.as_str())
-                .and_then(|x| x.parse::<u64>().ok())
-                .unwrap_or_else(now_ms),
-        }))
-    })
-    .await
-}
-
 async fn run_okx_trades(market: MarketKind, inst_ids: &[String], ctx: SourceContext) -> Result<()> {
     run_okx_channel("trades", inst_ids, ctx, move |inst_id, item| {
         Some(DataEvent::Trade(TradeTick {
@@ -478,7 +451,13 @@ impl ExchangeSource for OkxDepthFeed {
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_okx_depth(self.market, &self.inst_ids, ctx).await
+        super::reconstructed_depth::run(
+            crate::book_integrity::Protocol::Okx,
+            self.market,
+            &self.inst_ids,
+            ctx,
+        )
+        .await
     }
 }
 

@@ -271,6 +271,7 @@ fn parse_gate_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "gate",
         market: MarketKind::Spot,
         symbol: normalized.into_boxed_str(),

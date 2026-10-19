@@ -183,6 +183,7 @@ fn parse_orderbook(market: &str, contents: &Value) -> Option<DataEvent> {
         .map(|items| parse_object_levels(items, "price", "size"))
         .unwrap_or_default();
     Some(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "dydx",
         market: MarketKind::Perp,
         symbol: market.to_string().into_boxed_str(),

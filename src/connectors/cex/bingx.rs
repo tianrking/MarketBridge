@@ -240,6 +240,7 @@ async fn parse_bingx_events(value: &Value, ctx: &SourceContext) -> Result<Vec<Da
     }
     if data_type.contains("depth") {
         return Ok(vec![DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "bingx",
             market: MarketKind::Perp,
             symbol: symbol.to_string().into_boxed_str(),

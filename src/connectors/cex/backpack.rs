@@ -193,6 +193,7 @@ async fn parse_backpack_events(
     }
     if stream.contains("depth") {
         return Ok(vec![DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "backpack",
             market,
             symbol: symbol.to_string().into_boxed_str(),

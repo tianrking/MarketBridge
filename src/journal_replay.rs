@@ -44,7 +44,8 @@ pub fn replay(path: &std::path::Path, route: LiveScanRequest) -> Result<Value> {
             "journal observation clock moved backwards"
         );
         previous = record.received_at_ms;
-        let complete = matches!(instrument.venue.as_str(), "binance" | "okx");
+        let complete = p["book_quality"]["synchronized"] == true
+            && p["book_quality"]["version"] == "l2-reconstruction/v1";
         let book = BookEvidence {
             observation_id: if p["event_identity"].is_object() {
                 let identity: crate::outbox::EventIdentity =

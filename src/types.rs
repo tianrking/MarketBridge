@@ -79,6 +79,8 @@ pub struct BookLevel {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OrderBookTick {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub book_quality: Option<crate::book_integrity::BookQuality>,
     pub exchange: &'static str,
     pub market: MarketKind,
     pub symbol: Box<str>,
@@ -275,6 +277,7 @@ mod tests {
     #[test]
     fn data_event_accepts_finite_order_book() {
         let event = DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "test",
             market: MarketKind::Spot,
             symbol: "BTCUSDT".into(),
@@ -324,6 +327,7 @@ mod tests {
         });
         assert!(!trade.fits_ingestion_limits());
         let book = DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "test",
             market: MarketKind::Perp,
             symbol: "BTC".into(),

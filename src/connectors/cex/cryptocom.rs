@@ -223,6 +223,7 @@ fn parse_cryptocom_book(
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "cryptocom",
         market,
         symbol: canonical.into_boxed_str(),

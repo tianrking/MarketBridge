@@ -184,6 +184,7 @@ fn parse_bitrue_book(value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "bitrue",
         market: MarketKind::Spot,
         symbol: symbol.into_boxed_str(),

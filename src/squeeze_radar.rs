@@ -11,7 +11,7 @@ use crate::strategy_state::{RollingChange, StrategySymbolState};
 use crate::supply::SupplySnapshot;
 use crate::venue_status::VenueAssetStatusObservation;
 
-pub const MODEL_VERSION: &str = "squeeze-radar/v3";
+pub const MODEL_VERSION: &str = "squeeze-radar/v4";
 const ONE_HOUR_MS: u64 = 60 * 60_000;
 const FIFTEEN_MINUTES_MS: u64 = 15 * 60_000;
 
@@ -69,6 +69,8 @@ pub struct SqueezeDataQuality {
     pub open_interest_fresh: bool,
     pub price_fresh: bool,
     pub order_book_fresh: bool,
+    pub order_book_synchronized: bool,
+    pub order_book_history_complete: bool,
     pub oi_1h_baseline: Option<RollingChange>,
     pub price_15m_baseline: Option<RollingChange>,
     pub funding_observations_24h: usize,
@@ -244,6 +246,12 @@ fn evaluate(
     if raw.source_quality.has_known_loss {
         missing.push("source admission or native continuity has a known integrity issue; verified recovery required".into());
     }
+    if !metrics.order_book_synchronized {
+        missing.push("order book does not belong to a fresh synchronized session".into());
+    }
+    if !metrics.order_book_history_complete {
+        missing.push("order-book OFI window has not rebuilt for 60 seconds after snapshot".into());
+    }
     if raw.retention_quality.has_capacity_loss {
         missing.push("process-local retention evicted observations; state rebuild required".into());
     }
@@ -280,7 +288,9 @@ fn evaluate(
         missing
             .push("no explicit supply identity mapping; OI/Mcap is intentionally omitted".into());
     }
-    let ready_for_trigger = !raw.source_quality.has_known_loss
+    let ready_for_trigger = metrics.order_book_synchronized
+        && metrics.order_book_history_complete
+        && !raw.source_quality.has_known_loss
         && !raw.subscription_quality.has_known_gap
         && !raw.retention_quality.has_capacity_loss
         && fresh
@@ -293,7 +303,9 @@ fn evaluate(
         && price_15m.is_some()
         && metrics.cvd_divergence.is_some()
         && metrics.ofi_best_level_1m.is_some();
-    let state = if raw.source_quality.has_known_loss
+    let state = if !metrics.order_book_synchronized
+        || !metrics.order_book_history_complete
+        || raw.source_quality.has_known_loss
         || raw.subscription_quality.has_known_gap
         || raw.retention_quality.has_capacity_loss
     {
@@ -331,6 +343,8 @@ fn evaluate(
             open_interest_fresh,
             price_fresh,
             order_book_fresh,
+            order_book_synchronized: metrics.order_book_synchronized,
+            order_book_history_complete: metrics.order_book_history_complete,
             oi_1h_baseline: oi_1h,
             price_15m_baseline: price_15m,
             funding_observations_24h: metrics.funding_observations_24h,
@@ -392,6 +406,8 @@ mod tests {
             generated_at_ms: now,
             observed_at_ms: now,
             metrics: StrategyMetrics {
+                order_book_synchronized: true,
+                order_book_history_complete: true,
                 funding_rate: Some(-0.0006),
                 funding_observed_at_ms: Some(now),
                 open_interest_observed_at_ms: Some(now),
@@ -493,7 +509,7 @@ mod tests {
                 .iter()
                 .any(|text| text.contains("lost 7 events"))
         );
-        assert_eq!(report.model_version, "squeeze-radar/v3");
+        assert_eq!(report.model_version, "squeeze-radar/v4");
         let archived = serde_json::to_value(report).unwrap();
         assert_eq!(
             archived["candidates"][0]["raw"]["subscription_quality"]["has_known_gap"],

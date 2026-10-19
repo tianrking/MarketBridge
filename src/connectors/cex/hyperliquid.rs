@@ -125,6 +125,7 @@ fn parse_l2_book(data: &Value) -> Option<DataEvent> {
         .map(|items| parse_object_levels(items, "px", "sz"))
         .unwrap_or_default();
     Some(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "hyperliquid",
         market: MarketKind::Perp,
         symbol: coin.to_string().into_boxed_str(),

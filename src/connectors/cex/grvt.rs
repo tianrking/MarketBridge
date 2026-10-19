@@ -162,6 +162,7 @@ fn parse_grvt_book(feed: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "grvt",
         market: MarketKind::Perp,
         symbol: symbol.to_string().into_boxed_str(),

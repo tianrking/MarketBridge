@@ -42,6 +42,8 @@ pub struct RuntimeConfig {
     pub outbox: OutboxConfig,
     #[serde(default)]
     pub readiness: ReadinessConfig,
+    #[serde(default)]
+    pub order_books: crate::book_integrity::BookConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]

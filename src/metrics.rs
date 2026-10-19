@@ -4,6 +4,7 @@ use prometheus::{Encoder, IntCounter, IntCounterVec, IntGauge, Opts, Registry, T
 
 #[derive(Clone)]
 pub struct AppMetrics {
+    pub books: crate::book_integrity::BookRegistry,
     pub ingestion: crate::ingestion::IngestionState,
     pub aggregator_retained_bytes: IntGauge,
     pub aggregator_capacity_evictions_total: IntCounter,
@@ -174,6 +175,7 @@ impl AppMetrics {
             .expect("ticks_dropped_total registration must not conflict");
 
         Arc::new(Self {
+            books: Default::default(),
             ingestion: crate::ingestion::IngestionState::default(),
             pipeline_latency_seconds,
             pipeline_queue_events,

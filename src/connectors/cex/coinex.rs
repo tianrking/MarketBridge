@@ -218,6 +218,7 @@ fn parse_coinex_book(market: MarketKind, fallback_symbol: &str, value: &Value) -
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "coinex",
         market,
         symbol: canonical.into_boxed_str(),

@@ -55,6 +55,7 @@ pub mod okx;
 pub mod okx_perp;
 pub mod pacifica;
 pub mod phemex;
+pub mod reconstructed_depth;
 pub mod registry;
 pub mod upbit;
 pub mod vertex;

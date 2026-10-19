@@ -203,6 +203,7 @@ fn parse_phemex_book(fallback_symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "phemex",
         market: MarketKind::Perp,
         symbol: symbol.into_boxed_str(),

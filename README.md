@@ -2092,7 +2092,7 @@ mode commits before publication and checks Redis AOF; see [durable outbox](docs/
 
 Order-flow, footprint and symbol-state responses include `subscription_quality`.
 A known subscriber gap remains marked for the life of the store; passing time
-and new events do not reset it. Squeeze model `squeeze-radar/v3` rejects such
+and new events do not reset it. Squeeze model `squeeze-radar/v4` rejects such
 state as `incomplete_data`. A false `has_known_gap` reports no observed local
 subscriber gap; upstream coverage and retention completeness remain unverified.
 
@@ -2265,7 +2265,7 @@ python3 examples/crypto/microstructure/crypto_session_filter.py \
 
 Configure cross-symbol retention budgets with `runtime.memory`; inspect current
 usage and eviction evidence at `/v1/system/memory`. Strategy capacity loss is
-exposed as `retention_quality` and blocks squeeze v3 triggers. These are retained
+exposed as `retention_quality` and blocks squeeze v4 triggers. These are retained
 state budgets, not process RSS limits; see the institutional acceptance notes.
 
 
@@ -2280,3 +2280,5 @@ and durable-ingestion work require the new full-pipeline baseline.
 Source readiness, native continuity and minute-sampled strategy history: [operational contract](docs/source_readiness.zh-CN.md).
 
 [有限窗口恢复](docs/verified_trade_windows.zh-CN.md) · [完整链路持续验收](docs/pipeline_acceptance.zh-CN.md)
+
+订单簿同步、原生序号、精确档位与 OFI 重建门槛见[订单簿使用契约](docs/reconstructed_order_books.zh-CN.md)。

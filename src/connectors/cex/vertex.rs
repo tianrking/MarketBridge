@@ -277,6 +277,7 @@ fn parse_vertex_book(value: &Value, markets: &HashMap<u64, VertexMarket>) -> Vec
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "vertex",
         market: market.market,
         symbol: market.symbol.clone().into_boxed_str(),

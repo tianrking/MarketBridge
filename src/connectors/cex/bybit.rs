@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::types::OrderBookTick;
 use async_trait::async_trait;
 use std::time::Duration;
 
@@ -11,8 +13,8 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use crate::connectors::cex::common::{emit_tick_ext, side_from_labels};
 use crate::source::{ExchangeSource, SourceContext};
 use crate::types::{
-    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, OrderBookTick,
-    TradeSide, TradeTick, now_ms,
+    DataEvent, FundingRateTick, LiquidationTick, MarketKind, OpenInterestTick, TradeSide,
+    TradeTick, now_ms,
 };
 
 #[derive(Deserialize)]
@@ -200,12 +202,14 @@ async fn emit_perp_metrics(
 }
 
 #[derive(Default)]
+#[cfg(test)]
 struct BybitBook {
     bids: Vec<crate::types::BookLevel>,
     asks: Vec<crate::types::BookLevel>,
     update_id: Option<u64>,
 }
 
+#[cfg(test)]
 impl BybitBook {
     fn apply(
         &mut self,
@@ -239,6 +243,7 @@ impl BybitBook {
         }
         self.update_id = Some(id);
         Some(OrderBookTick {
+            book_quality: None,
             exchange: "bybit",
             market,
             symbol: data.get("s")?.as_str()?.into(),
@@ -250,6 +255,7 @@ impl BybitBook {
     }
 }
 
+#[cfg(test)]
 fn parse_book_changes(
     data: &serde_json::Value,
 ) -> Option<(Vec<crate::types::BookLevel>, Vec<crate::types::BookLevel>)> {
@@ -275,6 +281,7 @@ fn parse_book_changes(
     Some((side(data.get("b")?)?, side(data.get("a")?)?))
 }
 
+#[cfg(test)]
 fn apply_book_changes(
     levels: &mut Vec<crate::types::BookLevel>,
     changes: Vec<crate::types::BookLevel>,
@@ -294,30 +301,6 @@ fn apply_book_changes(
         }
     });
     levels.truncate(50);
-}
-
-async fn run_bybit_depth(market: MarketKind, symbols: &[String], ctx: SourceContext) -> Result<()> {
-    let topics = symbols
-        .iter()
-        .map(|s| format!("orderbook.50.{s}"))
-        .collect::<Vec<_>>();
-    let allowed = symbols
-        .iter()
-        .cloned()
-        .collect::<std::collections::HashSet<_>>();
-    let mut books = std::collections::HashMap::<String, BybitBook>::new();
-    run_bybit_topic_loop(bybit_url(market), topics, ctx, move |data, kind, ts| {
-        let symbol = data.get("s").and_then(|x| x.as_str())?;
-        if !allowed.contains(symbol) {
-            return None;
-        }
-        books
-            .entry(symbol.into())
-            .or_default()
-            .apply(data, kind, ts, market)
-            .map(DataEvent::OrderBook)
-    })
-    .await
 }
 
 async fn run_bybit_trades(
@@ -489,7 +472,13 @@ impl ExchangeSource for BybitDepthFeed {
     }
 
     async fn run(&self, ctx: SourceContext) -> Result<()> {
-        run_bybit_depth(self.market, &self.symbols, ctx).await
+        super::reconstructed_depth::run(
+            crate::book_integrity::Protocol::Bybit,
+            self.market,
+            &self.symbols,
+            ctx,
+        )
+        .await
     }
 }
 

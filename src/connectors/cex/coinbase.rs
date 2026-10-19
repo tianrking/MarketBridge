@@ -235,6 +235,7 @@ fn parse_coinbase_book(product_id: &str, value: &serde_json::Value) -> Vec<DataE
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "coinbase",
         market: MarketKind::Spot,
         symbol: product_id.to_ascii_uppercase().into_boxed_str(),

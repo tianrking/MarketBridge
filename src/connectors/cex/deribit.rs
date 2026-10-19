@@ -205,6 +205,7 @@ fn parse_deribit_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "deribit",
         market: MarketKind::Perp,
         symbol: symbol.into_boxed_str(),

@@ -166,6 +166,7 @@ fn parse_coinone_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "coinone",
         market: MarketKind::Spot,
         symbol: symbol.to_ascii_lowercase().into_boxed_str(),

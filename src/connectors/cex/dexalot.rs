@@ -182,6 +182,7 @@ fn parse_dexalot_book(msg: DexalotMsg, rules: &HashMap<String, DexalotPairRule>)
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "dexalot",
         market: MarketKind::Spot,
         symbol: symbol.into_boxed_str(),

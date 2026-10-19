@@ -204,6 +204,7 @@ fn parse_cube_snapshot(market: &CubeMarket, value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "cube",
         market: MarketKind::Spot,
         symbol: market.symbol.clone().into_boxed_str(),

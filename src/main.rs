@@ -3,6 +3,7 @@ mod aggregator;
 mod aggregator_signal;
 mod api;
 mod asset_registry;
+mod book_integrity;
 mod catalog;
 mod clickhouse_sink;
 mod config;
@@ -220,6 +221,7 @@ async fn main() -> anyhow::Result<()> {
     let shutdown_signal = shutdown_signal()?;
     tokio::pin!(shutdown_signal);
     let metrics = AppMetrics::new();
+    metrics.books.configure(cfg.runtime.order_books.clone());
     metrics.ingestion.configure(
         cfg.runtime.readiness.clone(),
         cfg.runtime.memory.order_flow_keys,
@@ -306,7 +308,8 @@ async fn main() -> anyhow::Result<()> {
         cfg.runtime.broadcast_capacity,
         cfg.runtime.stale_ttl_ms,
         cfg.runtime.event_bus_shards,
-    );
+    )
+    .with_book_registry(metrics.books.clone());
 
     let deribit_cache = DeribitOptionCache::new(cfg.deribit.stale_ttl_ms);
     let polymarket_cache = PolymarketBookCache::new(cfg.polymarket.stale_ttl_ms);

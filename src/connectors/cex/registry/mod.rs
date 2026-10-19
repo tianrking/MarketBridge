@@ -787,6 +787,7 @@ mod tests {
     fn build_sources_creates_enabled_spot_and_perp_adapters() {
         let cfg = AppConfig {
             runtime: RuntimeConfig {
+                order_books: Default::default(),
                 memory: Default::default(),
                 outbox: Default::default(),
                 readiness: Default::default(),

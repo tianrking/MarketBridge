@@ -41,9 +41,7 @@ pub(crate) fn cached_evidence(
                 instrument.venue, instrument.symbol
             )
         })?;
-    // These existing spot adapters subscribe to full top-N snapshots (Binance
-    // depth20 / OKX books5). Other adapters may emit deltas; never promote them.
-    let complete = matches!(observed.book.exchange, "binance" | "okx");
+    let complete = bus.book_registry.usable(&observed.book);
     Ok(BookEvidence {
         observation_id: format!(
             "cache:{}:{}:{}:{}",

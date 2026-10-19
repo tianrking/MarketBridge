@@ -149,6 +149,7 @@ fn parse_bitstamp_book(channel: &str, data: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "bitstamp",
         market: MarketKind::Spot,
         symbol: symbol.into_boxed_str(),

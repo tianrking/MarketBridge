@@ -235,6 +235,7 @@ fn parse_htx_book(symbol: &str, value: &Value) -> Vec<DataEvent> {
     }
 
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "htx",
         market: MarketKind::Spot,
         symbol: normalized.into_boxed_str(),

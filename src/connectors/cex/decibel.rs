@@ -234,6 +234,7 @@ fn parse_decibel_book(market: &DecibelMarket, value: &Value) -> Vec<DataEvent> {
         }));
     }
     events.push(DataEvent::OrderBook(OrderBookTick {
+        book_quality: None,
         exchange: "decibel",
         market: MarketKind::Perp,
         symbol: market.symbol.clone().into_boxed_str(),

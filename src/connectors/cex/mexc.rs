@@ -230,6 +230,7 @@ async fn parse_mexc_events(
     }
     if channel.contains("depth") {
         return Ok(vec![DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "mexc",
             market,
             symbol: symbol.to_string().into_boxed_str(),

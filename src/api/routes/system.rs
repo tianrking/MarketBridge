@@ -75,9 +75,17 @@ pub async fn outbox(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     }
 }
 
+pub async fn order_books(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    Json(state.metrics.books.report())
+}
+
 pub async fn readiness(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     let ingestion = state.metrics.ingestion.report();
     let mut reasons = Vec::new();
+    let book_integrity = state.metrics.books.report();
+    if book_integrity["ready"] != true {
+        reasons.push("order_books_not_synchronized_or_fresh");
+    }
     let mut quality_reasons = Vec::new();
     if ingestion["operational_ready"] != true {
         reasons.push("configured_sources_not_fresh_or_not_processed");
@@ -145,7 +153,7 @@ pub async fn readiness(State(state): State<Arc<ApiState>>) -> impl IntoResponse 
             serde_json::json!({"version":"v1","domain":"runtime_readiness","ready":ready,"operational_ready":operational_ready,
             "data_ready":data_ready,"research_only":ingestion["research_only"],"reasons":reasons,"quality_reasons":quality_reasons,
             "history_quality":{"order_flow":flow["quality"],"footprint":footprint["quality"]},
-            "ingestion":ingestion,"storage":storage,
+            "ingestion":ingestion,"storage":storage,"order_books":book_integrity,
             "scope":"configured source receipts/timestamps, processed stages and known quality issues; model warmup and upstream completeness are separate"}),
         ),
     )

@@ -61,6 +61,7 @@ fn decode(bytes: &[u8]) -> Result<DataEvent> {
             ts_ms: f.ts_ms,
         }),
         6..=7 => DataEvent::OrderBook(OrderBookTick {
+            book_quality: None,
             exchange: "acceptance_fixture",
             market: MarketKind::Perp,
             symbol,
