@@ -1037,9 +1037,9 @@ data/redis_dead_letters.jsonl
 
 计数只在文件刷新并完成 `sync_all` 后增加。连接/批次确认每次最多等待 3 秒，最多尝试 8 次；停机中断网络等待，排空已经进入 Redis 本地队列的数据，将未确认批次保存到该文件。死信写失败或订阅丢失会使已启用的 sink 及受监督进程失败退出，停机期间的写入失败也不会被当成成功。关注 pending 指标和最终核对日志。
 
-这一边界是 Redis 本地队列，不覆盖所有 source/router/广播缓冲。`XADD *` 重试和重放可能重复；Redis ACK 不证明服务端已经落盘；目前没有自动死信重放或 durable outbox。详见[机构使用门槛与恢复边界](docs/institutional_readiness.zh-CN.md)。
+这一边界是 Redis 本地队列，不覆盖所有 source/router/广播缓冲。`XADD *` 重试和重放可能重复；Redis ACK 不证明服务端已经落盘；legacy 模式没有自动死信重放。默认耐久模式已经在发布前提交 SQLite，并验证 Redis AOF，详见[耐久 outbox](docs/durable_outbox.zh-CN.md)。详见[机构使用门槛与恢复边界](docs/institutional_readiness.zh-CN.md)。
 
-Order-flow、footprint、symbol-state 响应新增 `subscription_quality`。已知订阅丢失在该 store 生命周期内持续标记，新事件和等待时间不会清除它；`squeeze-radar/v2` 将这类候选标记为 `incomplete_data` 并禁止触发。`has_known_gap=false` 仅代表没有观察到本地订阅缺口，上游覆盖和保留完整性仍未得到证明。
+Order-flow、footprint、symbol-state 响应新增 `subscription_quality`。已知订阅丢失在该 store 生命周期内持续标记，新事件和等待时间不会清除它；`squeeze-radar/v3` 将这类候选标记为 `incomplete_data` 并禁止触发。`has_known_gap=false` 仅代表没有观察到本地订阅缺口，上游覆盖和保留完整性仍未得到证明。
 
 ## 边界说明
 
@@ -1269,7 +1269,9 @@ carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状�
 </details>
 
 
-全局保留预算可通过 `runtime.memory` 配置，用 `/v1/system/memory` 检查当前量和淘汰；策略容量损失由 `retention_quality` 表示，squeeze v2 会阻止触发。预算覆盖保留状态，不等于进程 RSS 上限，详见[验收文档](docs/institutional_readiness.zh-CN.md)。
+全局保留预算可通过 `runtime.memory` 配置，用 `/v1/system/memory` 检查当前量和淘汰；策略容量损失由 `retention_quality` 表示，squeeze v3 会阻止触发。预算覆盖保留状态，不等于进程 RSS 上限，详见[验收文档](docs/institutional_readiness.zh-CN.md)。
 
 
 Redis 当前默认使用 SQLite durable outbox、按 origin 隔离的幂等流和 Redis 7.2+ 本地 AOF 确认。**物理流名发生变化**，升级消费者前请阅读[投递契约与迁移步骤](docs/durable_outbox.zh-CN.md)。运行时检查 `/v1/system/outbox`，离线 `--outbox status/export/replay` 保留身份并核对完整恢复文件。历史总线压测仅适用于记录中的构建；新增身份与耐久入口的性能以完整链路基线为准。
+
+源连续性、真实就绪与策略分钟采样约定见[运行契约](docs/source_readiness.zh-CN.md)。

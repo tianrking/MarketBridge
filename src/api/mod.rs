@@ -75,6 +75,8 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/catalog/sources" => routes::catalog::sources,
         "/v1/system/memory" => routes::system::memory,
         "/v1/system/outbox" => routes::system::outbox,
+        "/v1/system/readiness" => routes::system::readiness,
+        "/ready" => routes::system::readiness,
         "/v1/catalog/search" => routes::catalog::search,
         "/v1/catalog/markets" => routes::catalog::markets,
         "/v1/catalog/perpetuals" => routes::catalog::perpetuals,

@@ -146,9 +146,15 @@ class ProcessLifecycleTests(unittest.TestCase):
         self.assertEqual(memory["order_flow"]["raw_records"], 0)
         self.assertEqual(memory["strategy"]["accounted_bytes"], 0)
         self.assertGreater(memory["order_flow"]["limits"]["order_flow_raw_bytes"], 0)
+        request = Request(f"http://127.0.0.1:{port}/v1/system/readiness", headers=headers)
+        with urlopen(request, timeout=5) as response:
+            readiness = json.load(response)
+        self.assertTrue(readiness["ready"])
+        self.assertTrue(readiness["research_only"])
+        self.assertFalse(readiness["data_ready"], "research-only mode must not claim a live feed")
         request = Request(f"http://127.0.0.1:{port}/v1/research/squeeze/scan", headers=headers)
         with urlopen(request, timeout=5) as response:
-            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v2")
+            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v3")
 
     def test_outbox_api_lock_and_checked_offline_cli_roundtrip(self):
         config = (ROOT / "config.research.yaml").read_text(encoding="utf-8")
@@ -182,6 +188,32 @@ class ProcessLifecycleTests(unittest.TestCase):
         exported = self.state / "pending.jsonl"
         self.assertEqual(json.loads(cli("export", exported).stdout)["exported_records"], 0)
         self.assertEqual(json.loads(cli("replay", exported).stdout)["replayed_records"], 0)
+
+    def test_unavailable_durable_storage_is_unready_while_process_is_healthy(self):
+        from urllib.error import HTTPError
+        with socket.socket() as stalled:
+            stalled.bind(("127.0.0.1", 0))
+            stalled.listen()
+            config = (ROOT / "config.research.yaml").read_text(encoding="utf-8")
+            config = config.replace("runtime:\n", f'runtime:\n  redis_url: "redis://127.0.0.1:{stalled.getsockname()[1]}"\n', 1)
+            path = self.state / "unavailable-storage.yaml"
+            path.write_text(config, encoding="utf-8")
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                port = probe.getsockname()[1]
+            self.environment.update(MARKETBRIDGE_CONFIG=str(path), MARKETBRIDGE_API_ADDR=f"127.0.0.1:{port}")
+            child = self.launch()
+            self.ready(child, port)
+            headers = {}
+            if self.environment.get("MARKETBRIDGE_API_KEY"):
+                headers["x-api-key"] = self.environment["MARKETBRIDGE_API_KEY"]
+            with urlopen(Request(f"http://127.0.0.1:{port}/health", headers=headers), timeout=5) as response:
+                self.assertEqual(json.load(response), {"ok": True})
+            with self.assertRaises(HTTPError) as result:
+                urlopen(Request(f"http://127.0.0.1:{port}/ready", headers=headers), timeout=5)
+            self.assertEqual(result.exception.code, 503)
+            report = json.load(result.exception)
+            self.assertIn("durable_delivery_unverified", report["reasons"])
 
     @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
     def test_sigterm_and_sigint_seal_recordings(self):

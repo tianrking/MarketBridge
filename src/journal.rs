@@ -25,6 +25,7 @@ pub struct JournalMessage {
     pub event: Arc<DataEvent>,
     pub received_at_ms: u64,
     pub identity: Option<crate::outbox::EventIdentity>,
+    pub source_quality: Option<crate::ingestion::SourceIntegrity>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -33,6 +34,8 @@ pub(crate) struct Record {
     pub(crate) sequence: u64,
     pub(crate) received_at_ms: u64,
     dropped_total: u64,
+    #[serde(default)]
+    integrity_issues: u64,
     pub(crate) payload: serde_json::Value,
 }
 
@@ -53,6 +56,7 @@ struct Journal {
     partial: PathBuf,
     sequence: u64,
     bytes: u64,
+    integrity_issues: u64,
 }
 
 impl Journal {
@@ -73,6 +77,7 @@ impl Journal {
             partial,
             sequence: 0,
             bytes: 0,
+            integrity_issues: 0,
         })
     }
 
@@ -83,10 +88,11 @@ impl Journal {
         payload: serde_json::Value,
     ) -> Result<()> {
         let body = serde_json::to_string(&Record {
-            version: "journal/v1".into(),
+            version: "journal/v2".into(),
             sequence: self.sequence + 1,
             received_at_ms,
             dropped_total,
+            integrity_issues: self.integrity_issues,
             payload,
         })?;
         let line = serde_json::to_vec(&CheckedRecord {
@@ -137,7 +143,11 @@ pub fn start(
     let task = tokio::task::spawn_blocking(move || {
         let result = (|| -> Result<()> {
             while let Some(message) = rx.blocking_recv() {
+                journal.integrity_issues = metrics.ingestion.integrity().loss_epoch;
                 let mut payload = serde_json::to_value(message.event.as_ref())?;
+                if let Some(quality) = message.source_quality {
+                    payload["source_quality"] = serde_json::to_value(quality)?;
+                }
                 if let Some(identity) = message.identity {
                     payload["event_identity"] = serde_json::to_value(identity)?;
                 }
@@ -147,6 +157,7 @@ pub fn start(
                     payload,
                 )?;
             }
+            journal.integrity_issues = metrics.ingestion.integrity().loss_epoch;
             journal.seal(metrics.ticks_dropped_total.get())?;
             Ok(())
         })();
@@ -163,6 +174,7 @@ pub fn start(
 pub struct Verification {
     pub records: u64,
     pub source_dropped_total: u64,
+    pub source_integrity_issues: u64,
     pub sealed: bool,
     pub normalized_not_raw: bool,
 }
@@ -184,6 +196,7 @@ pub(crate) fn visit(
     let mut result = Verification {
         records: 0,
         source_dropped_total: 0,
+        source_integrity_issues: 0,
         sealed: false,
         normalized_not_raw: true,
     };
@@ -206,7 +219,7 @@ pub(crate) fn visit(
         let record: Record = serde_json::from_str(&checked.body)?;
         ensure!(
             !result.sealed
-                && record.version == "journal/v1"
+                && matches!(record.version.as_str(), "journal/v1" | "journal/v2")
                 && record.sequence == result.records + 1,
             "journal version/sequence/end marker mismatch"
         );
@@ -214,6 +227,11 @@ pub(crate) fn visit(
             record.dropped_total >= result.source_dropped_total,
             "drop counter moved backwards"
         );
+        ensure!(
+            record.integrity_issues >= result.source_integrity_issues,
+            "integrity issue counter moved backwards"
+        );
+        result.source_integrity_issues = record.integrity_issues;
         result.records += 1;
         result.source_dropped_total = record.dropped_total;
         result.sealed = record.payload.get("type").and_then(|v| v.as_str()) == Some("session_end");

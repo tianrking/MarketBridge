@@ -22,7 +22,7 @@ const TRADE_FLOW_RETENTION_MS: u64 = LIQUIDATION_WINDOW_MS;
 /// This is deliberately bounded in memory; durable multi-day research belongs
 /// in the configured data lake / replay workflow.
 const ROLLING_HISTORY_MS: u64 = 24 * 60 * 60_000;
-const MAX_FLOW_EVENTS_PER_SIDE: usize = 20_000;
+const NUMERIC_SAMPLE_INTERVAL_MS: u64 = 60_000;
 const MAX_LIQUIDATION_EVENTS: usize = 10_000;
 const MAX_ROLLING_SAMPLES: usize = 30_000;
 
@@ -35,6 +35,7 @@ pub struct SymbolStateResponse {
     pub generated_at_ms: u64,
     pub subscription_quality: SubscriptionQuality,
     pub retention_quality: RetentionQuality,
+    pub source_quality: crate::ingestion::SourceIntegrity,
     pub states: Vec<StrategySymbolState>,
 }
 
@@ -42,6 +43,7 @@ pub struct SymbolStateResponse {
 pub struct StrategySymbolState {
     pub subscription_quality: SubscriptionQuality,
     pub retention_quality: RetentionQuality,
+    pub source_quality: crate::ingestion::SourceIntegrity,
     pub exchange: String,
     pub symbol: String,
     pub generated_at_ms: u64,
@@ -57,6 +59,8 @@ pub struct StrategySymbolState {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct StrategyMetrics {
+    pub numeric_history_sampling_ms: u64,
+    pub price_reference: &'static str,
     pub latest_price: Option<f64>,
     pub price_observed_at_ms: Option<u64>,
     pub funding_rate: Option<f64>,
@@ -118,6 +122,7 @@ pub struct RiskContext {
 pub struct StrategyStateStore {
     inner: Arc<RwLock<StrategyStateInner>>,
     limits: MemoryLimits,
+    observability: Option<Arc<crate::metrics::AppMetrics>>,
 }
 
 #[derive(Default)]
@@ -134,6 +139,8 @@ struct SymbolRuntimeState {
     capacity_drops: usize,
     exchange: String,
     symbol: String,
+    price_priority: u8,
+    price_reference: &'static str,
     latest_price: Option<f64>,
     price_observed_at_ms: Option<u64>,
     funding_rate: Option<f64>,
@@ -202,6 +209,30 @@ impl StrategyStateStore {
         Self {
             inner: Arc::new(RwLock::new(StrategyStateInner::default())),
             limits,
+            observability: None,
+        }
+    }
+
+    pub fn with_observability(mut self, metrics: Arc<crate::metrics::AppMetrics>) -> Self {
+        self.observability = Some(metrics);
+        self
+    }
+    pub fn source_quality(&self) -> crate::ingestion::SourceIntegrity {
+        self.observability
+            .as_ref()
+            .map_or_else(Default::default, |m| m.ingestion.integrity())
+    }
+
+    pub async fn subscription_quality(&self) -> SubscriptionQuality {
+        self.inner.read().await.subscription_quality.clone()
+    }
+    fn processed(&self, event: &crate::event_bus::SharedEvent) {
+        if let (Some(metrics), Some(trace)) = (&self.observability, &event.trace) {
+            metrics.ingestion.processed(trace, "strategy_state");
+            metrics
+                .pipeline_latency_seconds
+                .with_label_values(&["strategy_state", crate::ingestion::domain(&event.event)])
+                .observe(trace.received_at.elapsed().as_secs_f64());
         }
     }
 
@@ -229,6 +260,7 @@ impl StrategyStateStore {
         let symbol = symbol.to_ascii_uppercase();
         let exchange_filter = exchange.map(str::to_ascii_lowercase);
         let mut guard = self.inner.write().await;
+        let source_quality = self.source_quality();
         let quality = guard.subscription_quality.clone();
         let retention_quality = guard.retention_quality.clone();
         let mut rows = guard
@@ -242,7 +274,7 @@ impl StrategyStateStore {
             })
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now, &quality, &retention_quality)
+                state.snapshot(now, &quality, &retention_quality, &source_quality)
             })
             .collect::<Vec<_>>();
         drop(guard);
@@ -256,6 +288,7 @@ impl StrategyStateStore {
             generated_at_ms: now,
             subscription_quality: quality,
             retention_quality,
+            source_quality,
             states: rows,
         }
     }
@@ -266,6 +299,7 @@ impl StrategyStateStore {
     pub async fn query_all(&self) -> Vec<StrategySymbolState> {
         let now = now_ms();
         let mut guard = self.inner.write().await;
+        let source_quality = self.source_quality();
         let quality = guard.subscription_quality.clone();
         let retention_quality = guard.retention_quality.clone();
         let mut rows = guard
@@ -273,7 +307,7 @@ impl StrategyStateStore {
             .values_mut()
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now, &quality, &retention_quality)
+                state.snapshot(now, &quality, &retention_quality, &source_quality)
             })
             .collect::<Vec<_>>();
         drop(guard);
@@ -298,14 +332,15 @@ impl StrategyStateStore {
         };
         let mut guard = self.inner.write().await;
         let state = guard.symbol_state(tick.exchange, &tick.symbol);
-        state.latest_price = Some(tick.mark.unwrap_or(mid));
-        state.price_observed_at_ms = Some(tick.ts_ms);
-        state.capacity_drops += push_numeric(
-            &mut state.price_history,
-            tick.ts_ms,
-            tick.mark.unwrap_or(mid),
-        );
-        state.updated_at_ms = tick.ts_ms;
+        let (priority, reference, value) = if tick.market == MarketKind::Spot {
+            (1, "spot_fallback", mid)
+        } else if let Some(mark) = tick.mark {
+            (3, "perpetual_mark", mark)
+        } else {
+            (4, "perpetual_midpoint", mid)
+        };
+        state.update_price(value, tick.ts_ms, priority, reference);
+        state.updated_at_ms = state.updated_at_ms.max(tick.ts_ms);
         guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
@@ -317,10 +352,9 @@ impl StrategyStateStore {
         state.capacity_drops +=
             push_numeric(&mut state.funding_history, tick.ts_ms, tick.funding_rate);
         if let Some(mark) = tick.mark_price {
-            state.latest_price = Some(mark);
-            state.price_observed_at_ms = Some(tick.ts_ms);
+            state.update_price(mark, tick.ts_ms, 3, "perpetual_mark");
         }
-        state.updated_at_ms = tick.ts_ms;
+        state.updated_at_ms = state.updated_at_ms.max(tick.ts_ms);
         guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
@@ -341,7 +375,7 @@ impl StrategyStateStore {
             tick.ts_ms,
             tick.open_interest,
         );
-        state.updated_at_ms = tick.ts_ms;
+        state.updated_at_ms = state.updated_at_ms.max(tick.ts_ms);
         guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
@@ -365,14 +399,13 @@ impl StrategyStateStore {
             signed_notional: signed,
             notional,
         });
-        while target.len() > MAX_FLOW_EVENTS_PER_SIDE {
-            target.pop_front();
-            state.capacity_drops += 1;
-        }
-        state.latest_price = Some(tick.price);
-        state.price_observed_at_ms = Some(tick.ts_ms);
-        state.capacity_drops += push_numeric(&mut state.price_history, tick.ts_ms, tick.price);
-        state.updated_at_ms = tick.ts_ms;
+        let (priority, reference) = if tick.market == MarketKind::Perp {
+            (2, "perpetual_trade")
+        } else {
+            (1, "spot_fallback")
+        };
+        state.update_price(tick.price, tick.ts_ms, priority, reference);
+        state.updated_at_ms = state.updated_at_ms.max(tick.ts_ms);
         state.prune(tick.ts_ms);
         guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
@@ -393,9 +426,7 @@ impl StrategyStateStore {
             state.liquidations.pop_front();
             state.capacity_drops += 1;
         }
-        state.latest_price = Some(tick.price);
-        state.price_observed_at_ms = Some(tick.ts_ms);
-        state.updated_at_ms = tick.ts_ms;
+        state.updated_at_ms = state.updated_at_ms.max(tick.ts_ms);
         state.prune(tick.ts_ms);
         guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
@@ -420,11 +451,14 @@ impl StrategyStateStore {
         state.previous_book_top = current_top;
         state.latest_book = Some(book_snapshot(tick));
         state.order_book_observed_at_ms = Some(tick.ts_ms);
-        if let Some(book) = &state.latest_book {
-            state.latest_price = mid_opt(book.best_bid, book.best_ask).or(state.latest_price);
-            state.price_observed_at_ms = Some(tick.ts_ms);
+        if let Some(price) = state
+            .latest_book
+            .as_ref()
+            .and_then(|book| mid_opt(book.best_bid, book.best_ask))
+        {
+            state.update_price(price, tick.ts_ms, 4, "perpetual_midpoint");
         }
-        state.updated_at_ms = tick.ts_ms;
+        state.updated_at_ms = state.updated_at_ms.max(tick.ts_ms);
         state.prune(tick.ts_ms);
         guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
@@ -468,6 +502,22 @@ impl StrategyStateInner {
 }
 
 impl SymbolRuntimeState {
+    fn update_price(&mut self, value: f64, ts: u64, priority: u8, reference: &'static str) {
+        if priority < self.price_priority || !value.is_finite() || value <= 0.0 {
+            return;
+        }
+        if priority > self.price_priority {
+            self.price_history.clear();
+            self.price_priority = priority;
+            self.price_reference = reference;
+        } else if self.price_observed_at_ms.is_some_and(|last| ts < last) {
+            return;
+        }
+        self.latest_price = Some(value);
+        self.price_observed_at_ms = Some(ts);
+        self.capacity_drops += push_numeric(&mut self.price_history, ts, value);
+    }
+
     fn sample_count(&self) -> usize {
         self.open_interest_history.len()
             + self.price_history.len()
@@ -512,11 +562,12 @@ impl SymbolRuntimeState {
         now: u64,
         quality: &SubscriptionQuality,
         retention: &RetentionQuality,
+        source: &crate::ingestion::SourceIntegrity,
     ) -> StrategySymbolState {
         let metrics = self.metrics(now);
         let mut long_squeeze = long_squeeze_state(&metrics);
         let mut short_exhaustion = short_exhaustion_state(&metrics);
-        if quality.has_known_gap || retention.has_capacity_loss {
+        if quality.has_known_gap || retention.has_capacity_loss || source.has_known_loss {
             for leg in [&mut long_squeeze, &mut short_exhaustion] {
                 leg.state = "incomplete_data";
                 leg.score = 0;
@@ -529,6 +580,7 @@ impl SymbolRuntimeState {
         StrategySymbolState {
             subscription_quality: quality.clone(),
             retention_quality: retention.clone(),
+            source_quality: source.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             generated_at_ms: now,
@@ -581,6 +633,8 @@ impl SymbolRuntimeState {
             _ => None,
         };
         StrategyMetrics {
+            numeric_history_sampling_ms: NUMERIC_SAMPLE_INTERVAL_MS,
+            price_reference: self.price_reference,
             latest_price: self.latest_price,
             price_observed_at_ms: self.price_observed_at_ms,
             funding_rate: self.funding_rate,
@@ -591,7 +645,11 @@ impl SymbolRuntimeState {
             open_interest_change_pct: self.open_interest_change_pct,
             open_interest_changes: rolling_changes(&self.open_interest_history),
             price_changes: rolling_changes(&self.price_history),
-            funding_observations_24h: self.funding_history.len(),
+            funding_observations_24h: self
+                .funding_history
+                .iter()
+                .filter(|s| now.saturating_sub(s.ts_ms) <= ROLLING_HISTORY_MS)
+                .count(),
             spot_cvd_notional_1m: spot_cvd,
             perp_cvd_notional_1m: perp_cvd,
             spot_volume_notional_15m: spot_volume,
@@ -631,10 +689,9 @@ fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) -
         // accepting them would create look-ahead errors in a replay.
         return 0;
     }
-    if samples
-        .back()
-        .is_some_and(|previous| previous.ts_ms == ts_ms)
-    {
+    if samples.back().is_some_and(|previous| {
+        previous.ts_ms / NUMERIC_SAMPLE_INTERVAL_MS == ts_ms / NUMERIC_SAMPLE_INTERVAL_MS
+    }) {
         samples.pop_back();
     }
     samples.push_back(NumericSample { ts_ms, value });
@@ -647,10 +704,9 @@ fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) -
 }
 
 fn prune_numeric(samples: &mut VecDeque<NumericSample>, now: u64) {
-    while samples
-        .front()
-        .is_some_and(|sample| now.saturating_sub(sample.ts_ms) > ROLLING_HISTORY_MS)
-    {
+    while samples.front().is_some_and(|sample| {
+        now.saturating_sub(sample.ts_ms) > ROLLING_HISTORY_MS + 2 * NUMERIC_SAMPLE_INTERVAL_MS
+    }) {
         samples.pop_front();
     }
 }
@@ -662,11 +718,16 @@ fn rolling_changes(samples: &VecDeque<NumericSample>) -> Vec<RollingChange> {
     ROLLING_WINDOWS_MS
         .into_iter()
         .filter_map(|window_ms| {
+            if samples
+                .front()
+                .is_none_or(|first| latest.ts_ms.saturating_sub(first.ts_ms) < window_ms)
+            {
+                return None;
+            }
             let target = latest.ts_ms.saturating_sub(window_ms);
-            // Sampling cadence varies by venue. A baseline is only accepted
-            // when it falls within +/- 25% of the requested window, so a
-            // field named "1h" is never silently a many-hour change.
-            let tolerance = (window_ms / 4).max(30_000);
+            // Require the full warmup, then allow only minute-grid jitter
+            // or 1% on longer windows. Actual elapsed time remains explicit.
+            let tolerance = (window_ms / 100).max(NUMERIC_SAMPLE_INTERVAL_MS);
             let baseline = samples
                 .iter()
                 .filter(|sample| sample.ts_ms <= latest.ts_ms)
@@ -701,7 +762,7 @@ pub fn spawn_strategy_state_service(
             tokio::select! {
                 _ = shutdown.cancelled() => break,
                 result = rx.recv() => match result {
-                    Ok(shared) => store.update_event(shared.event.as_ref()).await,
+                    Ok(shared) => {store.update_event(shared.event.as_ref()).await;store.processed(&shared);},
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
                         store.record_subscriber_gap(skipped).await;
                         warn!(skipped, "strategy state subscriber lagged; research triggers disabled");
@@ -1274,6 +1335,75 @@ mod tests {
                 .await
                 .retention_quality
                 .has_capacity_loss
+        );
+    }
+
+    #[tokio::test]
+    async fn perpetual_price_history_is_not_overwritten_by_spot_or_liquidation_prints() {
+        let store = StrategyStateStore::new();
+        let ts = now_ms();
+        for (market, price, time) in [
+            (MarketKind::Spot, 100.0, ts),
+            (MarketKind::Perp, 200.0, ts + 1),
+            (MarketKind::Spot, 1000.0, ts + 2),
+        ] {
+            store
+                .update_event(&DataEvent::Tick(MarketTick {
+                    exchange: "test",
+                    market,
+                    symbol: "BTC".into(),
+                    bid: price - 1.0,
+                    ask: price + 1.0,
+                    mark: None,
+                    funding_rate: None,
+                    ts_ms: time,
+                }))
+                .await;
+        }
+        store
+            .update_event(&DataEvent::Liquidation(LiquidationTick {
+                exchange: "test",
+                symbol: "BTC".into(),
+                price: 1.0,
+                qty: 1.0,
+                side: TradeSide::Buy,
+                ts_ms: ts + 3,
+            }))
+            .await;
+        let row = store.query("BTC", None).await.states.remove(0);
+        assert_eq!(row.metrics.latest_price, Some(200.0));
+        assert_eq!(row.metrics.price_reference, "perpetual_midpoint");
+        assert_eq!(row.metrics.price_observed_at_ms, Some(ts + 1));
+    }
+    #[test]
+    fn minute_history_sampling_preserves_full_warmup_and_declared_resolution() {
+        let mut state = SymbolRuntimeState::default();
+        for ts in 1000..31_000 {
+            state.update_price(100.0, ts, 4, "perpetual_midpoint");
+        }
+        assert_eq!(state.price_history.len(), 1);
+        assert_eq!(state.capacity_drops, 0);
+        for minute in 1..=44 {
+            state.update_price(110.0, minute * 60_000, 4, "perpetual_midpoint");
+        }
+        state.update_price(110.0, 45 * 60_000, 4, "perpetual_midpoint");
+        assert!(
+            rolling_changes(&state.price_history)
+                .iter()
+                .all(|c| c.window_ms != 60 * 60_000),
+            "45m must not masquerade as 1h"
+        );
+        for minute in 46..=62 {
+            state.update_price(110.0, minute * 60_000, 4, "perpetual_midpoint");
+        }
+        assert!(
+            rolling_changes(&state.price_history)
+                .iter()
+                .any(|c| c.window_ms == 60 * 60_000)
+        );
+        assert_eq!(
+            state.metrics(62 * 60_000).numeric_history_sampling_ms,
+            60_000
         );
     }
 }

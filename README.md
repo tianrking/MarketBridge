@@ -2087,12 +2087,12 @@ during shutdown. Watch the pending gauge and retain the final accounting log.
 
 This acceptance boundary is the Redis local queue, not every source event.
 `XADD *` retries and replay can duplicate records, a Redis acknowledgement does
-not certify server-side disk durability, and there is no automatic dead-letter
-replay or durable outbox. See [institutional readiness and recovery limits](docs/institutional_readiness.zh-CN.md).
+not certify server-side disk durability, and legacy mode has no automatic dead-letter replay. The default durable
+mode commits before publication and checks Redis AOF; see [durable outbox](docs/durable_outbox.zh-CN.md). See [institutional readiness and recovery limits](docs/institutional_readiness.zh-CN.md).
 
 Order-flow, footprint and symbol-state responses include `subscription_quality`.
 A known subscriber gap remains marked for the life of the store; passing time
-and new events do not reset it. Squeeze model `squeeze-radar/v2` rejects such
+and new events do not reset it. Squeeze model `squeeze-radar/v3` rejects such
 state as `incomplete_data`. A false `has_known_gap` reports no observed local
 subscriber gap; upstream coverage and retention completeness remain unverified.
 
@@ -2265,7 +2265,7 @@ python3 examples/crypto/microstructure/crypto_session_filter.py \
 
 Configure cross-symbol retention budgets with `runtime.memory`; inspect current
 usage and eviction evidence at `/v1/system/memory`. Strategy capacity loss is
-exposed as `retention_quality` and blocks squeeze v2 triggers. These are retained
+exposed as `retention_quality` and blocks squeeze v3 triggers. These are retained
 state budgets, not process RSS limits; see the institutional acceptance notes.
 
 
@@ -2276,3 +2276,5 @@ upgrading consumers. Inspect `/v1/system/outbox`; offline `--outbox status`,
 `export` and `replay` preserve identities and validate complete recovery files.
 Historical EventBus benchmarks describe their recorded builds; added identity
 and durable-ingestion work require the new full-pipeline baseline.
+
+Source readiness, native continuity and minute-sampled strategy history: [operational contract](docs/source_readiness.zh-CN.md).

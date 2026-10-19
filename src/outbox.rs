@@ -21,20 +21,21 @@ pub struct EventIdentity {
 }
 
 impl EventIdentity {
-    pub fn local() -> Self {
+    pub fn process_origin() -> &'static str {
         static ORIGIN: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        // Reuse the bundled SQLite RNG once per process, without a file or
-        // per-event database work. Borrow the shared origin on the hot path.
-        let origin = ORIGIN.get_or_init(|| {
+        ORIGIN.get_or_init(|| {
             Connection::open_in_memory()
                 .and_then(|conn| {
                     conn.query_row("SELECT lower(hex(randomblob(16)))", [], |row| row.get(0))
                 })
                 .expect("initialize process event identity")
-        });
+        })
+    }
+
+    pub fn local() -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         Self {
-            origin: std::borrow::Cow::Borrowed(origin),
+            origin: std::borrow::Cow::Borrowed(Self::process_origin()),
             sequence: NEXT
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                 .checked_add(1)
@@ -170,6 +171,7 @@ impl Outbox {
         );
         conn.execute_batch("CREATE TABLE IF NOT EXISTS outbox_state (id INTEGER PRIMARY KEY CHECK(id=1), origin TEXT NOT NULL, prefix TEXT NOT NULL, pending_bytes INTEGER NOT NULL, pending_records INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS outbox_events (sequence INTEGER PRIMARY KEY AUTOINCREMENT, stream TEXT NOT NULL, received_at_ms INTEGER NOT NULL, payload TEXT NOT NULL, crc32 INTEGER NOT NULL);")?;
+        conn.execute_batch("CREATE TABLE IF NOT EXISTS source_checkpoints (stream TEXT PRIMARY KEY, checkpoint TEXT NOT NULL, crc32 INTEGER NOT NULL);")?;
         conn.execute(
             "INSERT OR IGNORE INTO outbox_state VALUES(1,lower(hex(randomblob(16))),?1,0,0)",
             [prefix],
@@ -252,7 +254,56 @@ impl Outbox {
         .await?
     }
 
+    pub async fn native_checkpoints(&self) -> Result<Vec<crate::ingestion::NativeCheckpoint>> {
+        self.blocking(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT stream,checkpoint,crc32 FROM source_checkpoints ORDER BY stream",
+            )?;
+            let texts = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, u32>(2)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            texts
+                .into_iter()
+                .map(|(key, text, crc)| {
+                    ensure!(
+                        checkpoint_crc(&text) == crc,
+                        "native checkpoint CRC mismatch"
+                    );
+                    let point: crate::ingestion::NativeCheckpoint = serde_json::from_str(&text)?;
+                    ensure!(key == point.key, "native checkpoint key mismatch");
+                    point.validate()?;
+                    Ok(point)
+                })
+                .collect()
+        })
+        .await
+    }
+
+    #[cfg(test)]
     pub async fn append(&self, events: Vec<(Arc<DataEvent>, u64)>) -> Result<Vec<EventIdentity>> {
+        self.append_traced(
+            events
+                .into_iter()
+                .map(|(event, wall)| (event, wall, None))
+                .collect(),
+        )
+        .await
+    }
+
+    pub async fn append_traced(
+        &self,
+        events: Vec<(
+            Arc<DataEvent>,
+            u64,
+            Option<crate::ingestion::SourceIntegrity>,
+        )>,
+    ) -> Result<Vec<EventIdentity>> {
         ensure!(
             !events.is_empty() && events.len() <= 64,
             "outbox transaction requires 1..64 events"
@@ -264,9 +315,25 @@ impl Outbox {
             let tx = conn.transaction()?;
             let mut bytes: u64 = tx.query_row("SELECT pending_bytes FROM outbox_state WHERE id=1", [], |r| r.get(0))?;
             let mut identities = Vec::with_capacity(events.len());
-            for (event, received) in events {
+            for (event, received, source_quality) in events {
                 ensure!(received <= i64::MAX as u64, "outbox observation time out of range");
-                let payload = serde_json::to_string(event.as_ref())?;
+                #[derive(Serialize)]
+                struct Payload<'a> { #[serde(flatten)] event:&'a DataEvent, #[serde(skip_serializing_if="Option::is_none")] source_quality:Option<crate::ingestion::SourceIntegrity> }
+                let payload = serde_json::to_string(&Payload {event:&event,source_quality})?;
+                if let Some(point)=crate::ingestion::native_checkpoint(&event) {
+                    let previous:Option<(String,u32)>=tx.query_row("SELECT checkpoint,crc32 FROM source_checkpoints WHERE stream=?1",[&point.key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+                    if let Some((previous,crc))=previous {
+                        ensure!(checkpoint_crc(&previous)==crc,"native checkpoint CRC mismatch");
+                        let old:crate::ingestion::NativeCheckpoint=serde_json::from_str(&previous)?;
+                        ensure!(point.sequence>old.sequence,"native checkpoint regressed; admission must quarantine this event");
+                    } else {
+                        let count:usize=tx.query_row("SELECT COUNT(*) FROM source_checkpoints",[],|r|r.get(0))?;
+                        ensure!(count<65536,"persisted native checkpoint budget exhausted");
+                    }
+                    let checkpoint=serde_json::to_string(&point)?;
+                    tx.execute("INSERT INTO source_checkpoints(stream,checkpoint,crc32) VALUES(?1,?2,?3) ON CONFLICT(stream) DO UPDATE SET checkpoint=excluded.checkpoint,crc32=excluded.crc32",
+                        params![point.key,checkpoint,checkpoint_crc(&checkpoint)])?;
+                }
                 let stream = crate::redis_sink::redis_stream_name(&prefix, &event);
                 ensure!(payload.len() <= MAX_RECORD_BYTES && stream.len() <= 512, "outbox event exceeds record budget");
                 let cost = (payload.len() + stream.len() + 128) as u64;
@@ -422,6 +489,12 @@ impl Outbox {
         }
         outcome
     }
+}
+
+fn checkpoint_crc(text: &str) -> u32 {
+    let mut crc = flate2::Crc::new();
+    crc.update(text.as_bytes());
+    crc.sum()
 }
 
 fn bounded_line(reader: &mut BufReader<File>) -> Result<Vec<u8>> {
@@ -619,6 +692,37 @@ mod tests {
         assert!(box_.append(rows).await.is_err());
         assert_eq!(box_.status().await.unwrap().pending_records, 1);
         assert_eq!(box_.status().await.unwrap().pending_bytes, before);
+        drop(box_);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn native_checkpoint_survives_ack_deletion_and_detects_corruption() {
+        let root = root();
+        let box_ = open(&root, 1024 * 1024);
+        let event = Arc::new(DataEvent::Trade(crate::types::TradeTick {
+            exchange: "binance",
+            market: crate::types::MarketKind::Perp,
+            symbol: "BTCUSDT".into(),
+            price: 100.0,
+            qty: 1.0,
+            side: crate::types::TradeSide::Buy,
+            trade_id: Some("42".into()),
+            ts_ms: now_ms(),
+        }));
+        let identities = box_.append(vec![(event, now_ms())]).await.unwrap();
+        box_.acknowledge(identities).await.unwrap();
+        drop(box_);
+        let box_ = open(&root, 1024 * 1024);
+        let points = box_.native_checkpoints().await.unwrap();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].sequence, 42);
+        box_.connection
+            .lock()
+            .unwrap()
+            .execute("UPDATE source_checkpoints SET crc32=0", [])
+            .unwrap();
+        assert!(box_.native_checkpoints().await.is_err());
         drop(box_);
         std::fs::remove_dir_all(root).unwrap();
     }

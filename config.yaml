@@ -62,6 +62,13 @@ runtime:
     strategy_symbols: 2048
     strategy_bytes: 67108864
 
+  # /health is process liveness; /ready checks actual receipts/consumers/storage.
+  readiness:
+    max_age_ms: 60000
+    require_complete_analytics: true
+    source_max_age_ms: {}  # source label or label#instance -> receipt age limit
+    required_streams: {}  # e.g. binance:perp:BTCUSDT:trade: 5000
+
   # Large trade threshold used by /v1/market/order-flow.
   order_flow_large_trade_notional_usdt: 100000.0
 

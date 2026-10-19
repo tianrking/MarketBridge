@@ -4,6 +4,8 @@ use prometheus::{Encoder, IntCounter, IntCounterVec, IntGauge, Opts, Registry, T
 
 #[derive(Clone)]
 pub struct AppMetrics {
+    pub ingestion: crate::ingestion::IngestionState,
+    pub pipeline_latency_seconds: prometheus::HistogramVec,
     registry: Registry,
     pub ticks_ingested_total: IntCounter,
     pub bus_publish_total: IntCounter,
@@ -25,6 +27,13 @@ impl AppMetrics {
     pub fn new() -> Arc<Self> {
         let registry = Registry::new();
 
+        let pipeline_latency_seconds = prometheus::HistogramVec::new(
+            prometheus::HistogramOpts::new("pipeline_latency_seconds","Monotonic normalized admission-to-stage completion latency; excludes connector time before emit")
+                .buckets(vec![0.00001,0.00005,0.0001,0.0005,0.001,0.005,0.01,0.05,0.1,0.5,1.0,5.0]),
+            &["stage","domain"]).expect("valid bounded pipeline histogram");
+        registry
+            .register(Box::new(pipeline_latency_seconds.clone()))
+            .expect("distinct pipeline histogram");
         let ticks_ingested_total = IntCounter::new("ticks_ingested_total", "Total ingested ticks")
             .expect("ticks_ingested_total metric definition must be valid");
         let bus_publish_total = IntCounter::new(
@@ -131,6 +140,8 @@ impl AppMetrics {
             .expect("ticks_dropped_total registration must not conflict");
 
         Arc::new(Self {
+            ingestion: crate::ingestion::IngestionState::default(),
+            pipeline_latency_seconds,
             registry,
             ticks_ingested_total,
             bus_publish_total,

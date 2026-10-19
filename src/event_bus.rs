@@ -43,6 +43,7 @@ impl SharedTick {
 pub struct SharedEvent {
     pub event: Arc<DataEvent>,
     pub identity: Option<crate::outbox::EventIdentity>,
+    pub trace: Option<crate::ingestion::EventTrace>,
     json: OnceLock<Arc<str>>,
 }
 
@@ -59,6 +60,7 @@ impl SharedEvent {
         Self {
             event,
             identity: Some(identity.unwrap_or_else(crate::outbox::EventIdentity::local)),
+            trace: None,
             json: OnceLock::new(),
         }
     }
@@ -72,10 +74,13 @@ impl SharedEvent {
                         #[serde(flatten)]
                         event: &'a DataEvent,
                         event_identity: &'a crate::outbox::EventIdentity,
+                        #[serde(skip_serializing_if = "Option::is_none")]
+                        source_quality: Option<&'a crate::ingestion::SourceIntegrity>,
                     }
                     serialize_json(&Identified {
                         event: &self.event,
                         event_identity: identity,
+                        source_quality: self.trace.as_ref().map(|t| &t.source_quality),
                     })
                 } else {
                     serialize_event_json(self.event.as_ref())
@@ -235,7 +240,18 @@ impl EventBus {
         event: Arc<DataEvent>,
         identity: Option<crate::outbox::EventIdentity>,
     ) {
-        let shared = Arc::new(SharedEvent::with_identity(event, identity));
+        self.publish_traced_event(event, identity, None);
+    }
+
+    pub fn publish_traced_event(
+        &self,
+        event: Arc<DataEvent>,
+        identity: Option<crate::outbox::EventIdentity>,
+        trace: Option<crate::ingestion::EventTrace>,
+    ) {
+        let mut shared = SharedEvent::with_identity(event, identity);
+        shared.trace = trace;
+        let shared = Arc::new(shared);
         let shard = shard_for_event(shared.event.as_ref(), self.event_tx.len());
         match shared.event.as_ref() {
             DataEvent::Tick(t) => {

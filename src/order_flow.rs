@@ -131,6 +131,7 @@ pub struct OrderFlowStore {
     inner: Arc<RwLock<OrderFlowState>>,
     large_trade_notional_usdt: f64,
     limits: MemoryLimits,
+    observability: Option<Arc<crate::metrics::AppMetrics>>,
 }
 
 #[derive(Default)]
@@ -173,6 +174,26 @@ impl OrderFlowStore {
             inner: Arc::new(RwLock::new(OrderFlowState::default())),
             large_trade_notional_usdt,
             limits,
+            observability: None,
+        }
+    }
+
+    pub fn with_observability(mut self, metrics: Arc<crate::metrics::AppMetrics>) -> Self {
+        self.observability = Some(metrics);
+        self
+    }
+    pub fn source_quality(&self) -> crate::ingestion::SourceIntegrity {
+        self.observability
+            .as_ref()
+            .map_or_else(Default::default, |m| m.ingestion.integrity())
+    }
+    fn processed(&self, event: &crate::event_bus::SharedEvent) {
+        if let (Some(metrics), Some(trace)) = (&self.observability, &event.trace) {
+            metrics.ingestion.processed(trace, "order_flow");
+            metrics
+                .pipeline_latency_seconds
+                .with_label_values(&["order_flow", crate::ingestion::domain(&event.event)])
+                .observe(trace.received_at.elapsed().as_secs_f64());
         }
     }
 
@@ -680,6 +701,7 @@ pub fn spawn_order_flow_service(
                         Ok(event) => {
                             if let DataEvent::Trade(trade) = event.event.as_ref() {
                                 store.update_trade(trade).await;
+                                store.processed(&event);
                             }
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {

@@ -11,7 +11,7 @@ use crate::strategy_state::{RollingChange, StrategySymbolState};
 use crate::supply::SupplySnapshot;
 use crate::venue_status::VenueAssetStatusObservation;
 
-pub const MODEL_VERSION: &str = "squeeze-radar/v2";
+pub const MODEL_VERSION: &str = "squeeze-radar/v3";
 const ONE_HOUR_MS: u64 = 60 * 60_000;
 const FIFTEEN_MINUTES_MS: u64 = 15 * 60_000;
 
@@ -61,6 +61,7 @@ pub struct SupplyContext {
 pub struct SqueezeDataQuality {
     pub subscription_quality: crate::data_quality::SubscriptionQuality,
     pub retention_quality: crate::data_quality::RetentionQuality,
+    pub source_quality: crate::ingestion::SourceIntegrity,
     pub observed_at_ms: u64,
     pub age_ms: Option<u64>,
     pub fresh: bool,
@@ -240,6 +241,9 @@ fn evaluate(
             .push("aligned 15m price baseline unavailable; no right-side confirmation".into()),
     }
 
+    if raw.source_quality.has_known_loss {
+        missing.push("source admission or native continuity has a known integrity issue; verified recovery required".into());
+    }
     if raw.retention_quality.has_capacity_loss {
         missing.push("process-local retention evicted observations; state rebuild required".into());
     }
@@ -276,7 +280,8 @@ fn evaluate(
         missing
             .push("no explicit supply identity mapping; OI/Mcap is intentionally omitted".into());
     }
-    let ready_for_trigger = !raw.subscription_quality.has_known_gap
+    let ready_for_trigger = !raw.source_quality.has_known_loss
+        && !raw.subscription_quality.has_known_gap
         && !raw.retention_quality.has_capacity_loss
         && fresh
         && funding_fresh
@@ -288,7 +293,9 @@ fn evaluate(
         && price_15m.is_some()
         && metrics.cvd_divergence.is_some()
         && metrics.ofi_best_level_1m.is_some();
-    let state = if raw.subscription_quality.has_known_gap || raw.retention_quality.has_capacity_loss
+    let state = if raw.source_quality.has_known_loss
+        || raw.subscription_quality.has_known_gap
+        || raw.retention_quality.has_capacity_loss
     {
         "incomplete_data"
     } else if !fresh {
@@ -316,6 +323,7 @@ fn evaluate(
         data_quality: SqueezeDataQuality {
             subscription_quality: raw.subscription_quality.clone(),
             retention_quality: raw.retention_quality.clone(),
+            source_quality: raw.source_quality.clone(),
             observed_at_ms: raw.observed_at_ms,
             age_ms,
             fresh,
@@ -378,6 +386,7 @@ mod tests {
         StrategySymbolState {
             subscription_quality: Default::default(),
             retention_quality: Default::default(),
+            source_quality: Default::default(),
             exchange: "test".into(),
             symbol: "ABCUSDT".into(),
             generated_at_ms: now,
@@ -484,7 +493,7 @@ mod tests {
                 .iter()
                 .any(|text| text.contains("lost 7 events"))
         );
-        assert_eq!(report.model_version, "squeeze-radar/v2");
+        assert_eq!(report.model_version, "squeeze-radar/v3");
         let archived = serde_json::to_value(report).unwrap();
         assert_eq!(
             archived["candidates"][0]["raw"]["subscription_quality"]["has_known_gap"],
@@ -503,5 +512,23 @@ mod tests {
         assert_eq!(row.state, "incomplete_data");
         assert!(!row.data_quality.ready_for_trigger);
         assert!(row.data_quality.retention_quality.has_capacity_loss);
+    }
+
+    #[test]
+    fn known_admission_loss_blocks_a_fresh_full_score_candidate() {
+        let now = 10_000_000;
+        let mut input = state(now);
+        input.source_quality.has_known_loss = true;
+        input.source_quality.loss_epoch = 1;
+        let report = scan(vec![input], now, 3000, 0, 10);
+        assert_eq!(report.candidates[0].score, 10);
+        assert_eq!(report.candidates[0].state, "incomplete_data");
+        assert!(!report.candidates[0].data_quality.ready_for_trigger);
+        assert!(
+            report.candidates[0]
+                .data_quality
+                .source_quality
+                .has_known_loss
+        );
     }
 }

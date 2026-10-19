@@ -74,6 +74,76 @@ pub async fn outbox(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     }
 }
 
+pub async fn readiness(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    let ingestion = state.metrics.ingestion.report();
+    let mut reasons = Vec::new();
+    let mut quality_reasons = Vec::new();
+    if ingestion["operational_ready"] != true {
+        reasons.push("configured_sources_not_fresh_or_not_processed");
+    }
+    if ingestion["integrity"]["has_known_loss"] == true {
+        quality_reasons.push("source_admission_or_continuity_issue");
+    }
+    let order_quality = state.order_flow_store.subscription_quality().await;
+    if order_quality.has_known_gap {
+        quality_reasons.push("order_flow_subscriber_gap");
+    }
+    let strategy = state.strategy_state_store.retention_status().await;
+    let flow = state.order_flow_store.retention_status(false).await;
+    let footprint = state.order_flow_store.retention_status(true).await;
+    if strategy["quality"]["has_capacity_loss"] == true {
+        quality_reasons.push("strategy_retention_loss");
+    }
+    if state
+        .strategy_state_store
+        .subscription_quality()
+        .await
+        .has_known_gap
+    {
+        quality_reasons.push("strategy_subscriber_gap");
+    }
+    let storage = if let Some(box_) = &state.outbox {
+        match box_.status().await {
+            Ok(status) => {
+                if status.delivery.configured && !status.delivery.verified {
+                    reasons.push("durable_delivery_unverified");
+                }
+                serde_json::json!({"enabled":true,"status":status})
+            }
+            Err(_) => {
+                reasons.push("outbox_unavailable");
+                serde_json::json!({"enabled":true,"ready":false})
+            }
+        }
+    } else {
+        serde_json::json!({"enabled":false})
+    };
+    let operational_ready = reasons.is_empty();
+    let data_ready =
+        operational_ready && ingestion["data_ready"] == true && quality_reasons.is_empty();
+    if ingestion["research_only"] != true
+        && ingestion["require_complete_analytics"] == true
+        && !quality_reasons.is_empty()
+    {
+        reasons.extend(quality_reasons.iter().copied());
+    }
+    let ready = reasons.is_empty();
+    (
+        if ready {
+            axum::http::StatusCode::OK
+        } else {
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(
+            serde_json::json!({"version":"v1","domain":"runtime_readiness","ready":ready,"operational_ready":operational_ready,
+            "data_ready":data_ready,"research_only":ingestion["research_only"],"reasons":reasons,"quality_reasons":quality_reasons,
+            "history_quality":{"order_flow":flow["quality"],"footprint":footprint["quality"]},
+            "ingestion":ingestion,"storage":storage,
+            "scope":"configured source receipts/timestamps, processed stages and known quality issues; model warmup and upstream completeness are separate"}),
+        ),
+    )
+}
+
 pub async fn info() -> impl IntoResponse {
     Json(serde_json::json!({
         "service": "MarketBridge",

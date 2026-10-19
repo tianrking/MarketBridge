@@ -40,6 +40,27 @@ pub struct RuntimeConfig {
     pub memory: MemoryLimits,
     #[serde(default)]
     pub outbox: OutboxConfig,
+    #[serde(default)]
+    pub readiness: ReadinessConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct ReadinessConfig {
+    pub max_age_ms: u64,
+    pub require_complete_analytics: bool,
+    pub source_max_age_ms: std::collections::BTreeMap<String, u64>,
+    pub required_streams: std::collections::BTreeMap<String, u64>,
+}
+impl Default for ReadinessConfig {
+    fn default() -> Self {
+        Self {
+            max_age_ms: 60_000,
+            require_complete_analytics: true,
+            source_max_age_ms: Default::default(),
+            required_streams: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

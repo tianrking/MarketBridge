@@ -118,6 +118,26 @@ pub enum DataEvent {
 }
 
 impl DataEvent {
+    pub fn has_valid_market_values(&self) -> bool {
+        match self {
+            Self::Tick(t) => t.bid > 0.0 && t.ask > 0.0,
+            Self::Trade(t) => t.price > 0.0 && t.qty > 0.0 && (t.price * t.qty).is_finite(),
+            Self::Liquidation(t) => t.price > 0.0 && t.qty > 0.0 && (t.price * t.qty).is_finite(),
+            Self::OrderBook(t) => t
+                .bids
+                .iter()
+                .chain(&t.asks)
+                .all(|level| level.price > 0.0 && level.qty >= 0.0),
+            Self::FundingRate(t) => {
+                t.mark_price.is_none_or(|v| v > 0.0) && t.index_price.is_none_or(|v| v > 0.0)
+            }
+            Self::OpenInterest(t) => {
+                t.open_interest >= 0.0 && t.open_interest_value.is_none_or(|v| v >= 0.0)
+            }
+            _ => true,
+        }
+    }
+
     /// Bound variable payloads before they enter retained caches and queues.
     pub fn fits_ingestion_limits(&self) -> bool {
         let symbol_ok = |symbol: &str| symbol.len() <= 128;

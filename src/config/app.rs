@@ -76,6 +76,20 @@ impl AppConfig {
     pub fn validate(&self) -> Result<()> {
         self.runtime.memory.validate()?;
         ensure!(
+            self.runtime.readiness.max_age_ms > 0
+                && self.runtime.readiness.source_max_age_ms.len() <= 1024
+                && self.runtime.readiness.required_streams.len()
+                    <= self.runtime.memory.order_flow_keys
+                && self
+                    .runtime
+                    .readiness
+                    .source_max_age_ms
+                    .values()
+                    .chain(self.runtime.readiness.required_streams.values())
+                    .all(|age| *age > 0),
+            "invalid runtime.readiness age or stream budgets"
+        );
+        ensure!(
             self.runtime.outbox.max_pending_bytes > 0
                 && self.runtime.outbox.max_pending_bytes <= i64::MAX as u64
                 && self.runtime.outbox.max_database_bytes >= 4 * 1024 * 1024,

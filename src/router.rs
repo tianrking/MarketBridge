@@ -8,7 +8,7 @@ use crate::metrics::AppMetrics;
 use crate::types::DataEvent;
 
 pub struct EventRouter {
-    source_rx: mpsc::Receiver<DataEvent>,
+    source_rx: mpsc::Receiver<crate::source::SourceMessage>,
     agg_tx: mpsc::Sender<Arc<DataEvent>>,
     bus: EventBus,
     metrics: std::sync::Arc<AppMetrics>,
@@ -19,7 +19,7 @@ pub struct EventRouter {
 
 impl EventRouter {
     pub fn new(
-        source_rx: mpsc::Receiver<DataEvent>,
+        source_rx: mpsc::Receiver<crate::source::SourceMessage>,
         agg_tx: mpsc::Sender<Arc<DataEvent>>,
         bus: EventBus,
         metrics: std::sync::Arc<AppMetrics>,
@@ -50,12 +50,18 @@ impl EventRouter {
         let (bus_tx, mut bus_rx) = mpsc::channel::<(
             Arc<DataEvent>,
             Option<crate::outbox::EventIdentity>,
+            crate::ingestion::EventTrace,
         )>(self.bus_queue_capacity);
         let bus = self.bus.clone();
         let metrics = self.metrics.clone();
         let bus_task = tokio_util::task::AbortOnDropHandle::new(tokio::spawn(async move {
-            while let Some((event, identity)) = bus_rx.recv().await {
-                bus.publish_identified_event(event.clone(), identity);
+            while let Some((event, identity, trace)) = bus_rx.recv().await {
+                bus.publish_traced_event(event.clone(), identity, Some(trace.clone()));
+                metrics.ingestion.processed(&trace, "bus");
+                metrics
+                    .pipeline_latency_seconds
+                    .with_label_values(&["bus", crate::ingestion::domain(&event)])
+                    .observe(trace.received_at.elapsed().as_secs_f64());
                 metrics
                     .bus_events_published_total
                     .with_label_values(&[event_type(event.as_ref())])
@@ -65,15 +71,21 @@ impl EventRouter {
                 }
             }
         }));
-        while let Some(event) = self.source_rx.recv().await {
-            let mut batch = vec![(Arc::new(event), crate::types::now_ms())];
+        while let Some(message) = self.source_rx.recv().await {
+            let frame =
+                |m: crate::source::SourceMessage| (Arc::new(m.event), m.received_at_ms, m.trace);
+            let mut batch = vec![frame(message)];
             while batch.len() < 64 {
                 match self.source_rx.try_recv() {
-                    Ok(event) => batch.push((Arc::new(event), crate::types::now_ms())),
+                    Ok(message) => batch.push(frame(message)),
                     Err(_) => break,
                 }
             }
-            for (event, _) in &batch {
+            for (event, _, trace) in &batch {
+                self.metrics
+                    .pipeline_latency_seconds
+                    .with_label_values(&["router", crate::ingestion::domain(event)])
+                    .observe(trace.received_at.elapsed().as_secs_f64());
                 self.metrics
                     .events_ingested_total
                     .with_label_values(&[event_type(event)])
@@ -85,7 +97,16 @@ impl EventRouter {
             // Durable acceptance is the transaction commit, before journal/bus
             // publication. A crash after commit is recovered by the sink.
             let identities = if let Some(outbox) = &self.outbox {
-                let ids = outbox.append(batch.clone()).await?;
+                let ids = outbox
+                    .append_traced(
+                        batch
+                            .iter()
+                            .map(|(event, wall, trace)| {
+                                (event.clone(), *wall, Some(trace.source_quality.clone()))
+                            })
+                            .collect(),
+                    )
+                    .await?;
                 self.metrics.outbox_committed_total.inc_by(ids.len() as u64);
                 ids.into_iter().map(Some).collect::<Vec<_>>()
             } else {
@@ -93,18 +114,19 @@ impl EventRouter {
                     .map(|_| Some(crate::outbox::EventIdentity::local()))
                     .collect()
             };
-            for ((event, received_at_ms), identity) in batch.into_iter().zip(identities) {
+            for ((event, received_at_ms, trace), identity) in batch.into_iter().zip(identities) {
                 if let Some(tx) = &self.journal_tx {
                     tx.send(JournalMessage {
                         event: event.clone(),
                         received_at_ms,
                         identity: identity.clone(),
+                        source_quality: Some(trace.source_quality.clone()),
                     })
                     .await
                     .map_err(|_| anyhow::anyhow!("journal stopped before router drain"))?;
                 }
                 bus_tx
-                    .send((event.clone(), identity))
+                    .send((event.clone(), identity, trace))
                     .await
                     .map_err(|_| anyhow::anyhow!("bus publisher stopped"))?;
                 self.agg_tx
@@ -149,16 +171,19 @@ mod tests {
         let router_task = tokio::spawn(router.run());
 
         source_tx
-            .send(DataEvent::Tick(MarketTick {
-                exchange: "okx",
-                market: MarketKind::Spot,
-                symbol: "BTCUSDT".into(),
-                bid: 1.0,
-                ask: 2.0,
-                mark: None,
-                funding_rate: None,
-                ts_ms: now_ms(),
-            }))
+            .send(
+                (DataEvent::Tick(MarketTick {
+                    exchange: "okx",
+                    market: MarketKind::Spot,
+                    symbol: "BTCUSDT".into(),
+                    bid: 1.0,
+                    ask: 2.0,
+                    mark: None,
+                    funding_rate: None,
+                    ts_ms: now_ms(),
+                }))
+                .into(),
+            )
             .await
             .expect("source channel should accept test tick");
         drop(source_tx);
@@ -184,15 +209,18 @@ mod tests {
         let router_task = tokio::spawn(router.run());
 
         source_tx
-            .send(DataEvent::FundingRate(FundingRateTick {
-                exchange: "binance",
-                symbol: "BTCUSDT".into(),
-                funding_rate: 0.01,
-                next_funding_time_ms: None,
-                mark_price: None,
-                index_price: None,
-                ts_ms: now_ms(),
-            }))
+            .send(
+                (DataEvent::FundingRate(FundingRateTick {
+                    exchange: "binance",
+                    symbol: "BTCUSDT".into(),
+                    funding_rate: 0.01,
+                    next_funding_time_ms: None,
+                    mark_price: None,
+                    index_price: None,
+                    ts_ms: now_ms(),
+                }))
+                .into(),
+            )
             .await
             .expect("source channel should accept funding tick");
         drop(source_tx);
@@ -240,10 +268,13 @@ mod tests {
                 .with_outbox(Some(box_.clone()))
                 .run(),
         );
-        tx.send(DataEvent::Heartbeat {
-            exchange: "test",
-            ts_ms: 1,
-        })
+        tx.send(
+            (DataEvent::Heartbeat {
+                exchange: "test",
+                ts_ms: 1,
+            })
+            .into(),
+        )
         .await
         .unwrap();
         drop(tx);
@@ -281,10 +312,13 @@ mod tests {
                 .with_outbox(Some(box_.clone()))
                 .run(),
         );
-        tx.send(DataEvent::Heartbeat {
-            exchange: "test",
-            ts_ms: 1,
-        })
+        tx.send(
+            (DataEvent::Heartbeat {
+                exchange: "test",
+                ts_ms: 1,
+            })
+            .into(),
+        )
         .await
         .unwrap();
         drop(tx);

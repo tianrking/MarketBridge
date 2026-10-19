@@ -789,6 +789,7 @@ mod tests {
             runtime: RuntimeConfig {
                 memory: Default::default(),
                 outbox: Default::default(),
+                readiness: Default::default(),
                 queue_capacity: 16,
                 router_publish_queue_capacity: 16,
                 broadcast_capacity: 16,

@@ -13,6 +13,7 @@ mod deribit_cache;
 mod domains;
 mod event_bus;
 mod event_snapshots;
+mod ingestion;
 mod journal;
 mod journal_replay;
 mod klines;
@@ -196,6 +197,10 @@ async fn main() -> anyhow::Result<()> {
     let shutdown_signal = shutdown_signal()?;
     tokio::pin!(shutdown_signal);
     let metrics = AppMetrics::new();
+    metrics.ingestion.configure(
+        cfg.runtime.readiness.clone(),
+        cfg.runtime.memory.order_flow_keys,
+    );
     let outbox = if cfg.runtime.outbox.enabled
         || (cfg.runtime.redis_url.is_some() && !cfg.runtime.outbox.legacy_redis)
     {
@@ -225,7 +230,12 @@ async fn main() -> anyhow::Result<()> {
     );
     let sources = build_sources(&cfg);
 
-    let handle = runtime.spawn_sources(sources);
+    if let Some(box_) = &outbox {
+        metrics
+            .ingestion
+            .install_checkpoints(box_.native_checkpoints().await?)?;
+    }
+    let handle = runtime.spawn_sources(sources)?;
     let shutdown = handle.shutdown.clone();
     let tasks = handle.tasks;
     let (journal_tx, journal_task) = if let Some(path) = std::env::var_os("MARKETBRIDGE_RECORD_DIR")
@@ -260,9 +270,11 @@ async fn main() -> anyhow::Result<()> {
     let order_flow_store = OrderFlowStore::with_limits(
         cfg.runtime.order_flow_large_trade_notional_usdt,
         cfg.runtime.memory.clone(),
-    );
+    )
+    .with_observability(metrics.clone());
     let onchain_store = OnchainTransferStore::default();
-    let strategy_state_store = StrategyStateStore::with_limits(cfg.runtime.memory.clone());
+    let strategy_state_store = StrategyStateStore::with_limits(cfg.runtime.memory.clone())
+        .with_observability(metrics.clone());
     let supply_store = SupplySnapshotStore::default();
     let venue_status_store = VenueAssetStatusStore::default();
     let source_catalog = catalog::source_catalog_for_config(&cfg);
@@ -517,6 +529,7 @@ async fn main() -> anyhow::Result<()> {
             Some(anyhow::anyhow!("runtime requested shutdown; inspect preceding errors"))
         }
     };
+    metrics.ingestion.stopping();
     shutdown.cancel();
 
     if !agg_joined {

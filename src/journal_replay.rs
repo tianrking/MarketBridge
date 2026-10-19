@@ -115,7 +115,7 @@ pub fn replay(path: &std::path::Path, route: LiveScanRequest) -> Result<Value> {
         "full replay requires a sealed journal, not a crash prefix"
     );
     ensure!(
-        verification.source_dropped_total == 0,
+        verification.source_dropped_total == 0 && verification.source_integrity_issues == 0,
         "recorded drop counter is nonzero; incomplete history cannot pass strict full replay"
     );
     ensure!(decisions > 0, "no matching two-sided books for route");

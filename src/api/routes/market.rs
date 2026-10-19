@@ -394,10 +394,11 @@ pub async fn v1_market_order_flow(
             limit: q.limit.unwrap_or(500),
         })
         .await;
+    let source_quality = state.order_flow_store.source_quality();
     let subscription_quality = state.order_flow_store.subscription_quality().await;
     let retention = state.order_flow_store.retention_status(false).await;
     Json(
-        serde_json::json!({"version":"v1","domain":"market_order_flow","subscription_quality":subscription_quality,"retention":retention,"order_flow":rows}),
+        serde_json::json!({"version":"v1","domain":"market_order_flow","subscription_quality":subscription_quality,"source_quality":source_quality,"retention":retention,"order_flow":rows}),
     )
 }
 
@@ -429,10 +430,11 @@ pub async fn v1_market_order_flow_windows(
             .then(a.window_ms.cmp(&b.window_ms))
             .then(b.bucket_start_ms.cmp(&a.bucket_start_ms))
     });
+    let source_quality = state.order_flow_store.source_quality();
     let subscription_quality = state.order_flow_store.subscription_quality().await;
     let retention = state.order_flow_store.retention_status(false).await;
     Json(
-        serde_json::json!({"version":"v1","domain":"market_order_flow_windows","subscription_quality":subscription_quality,"retention":retention,"order_flow":rows}),
+        serde_json::json!({"version":"v1","domain":"market_order_flow_windows","subscription_quality":subscription_quality,"source_quality":source_quality,"retention":retention,"order_flow":rows}),
     )
 }
 
@@ -457,10 +459,11 @@ pub async fn v1_market_footprint(
             limit: q.limit.unwrap_or(100),
         })
         .await;
+    let source_quality = state.order_flow_store.source_quality();
     let subscription_quality = state.order_flow_store.subscription_quality().await;
     let retention = state.order_flow_store.retention_status(true).await;
     Json(
-        serde_json::json!({"version":"v1","domain":"market_footprint","subscription_quality":subscription_quality,"retention":retention,"footprints":rows}),
+        serde_json::json!({"version":"v1","domain":"market_footprint","subscription_quality":subscription_quality,"source_quality":source_quality,"retention":retention,"footprints":rows}),
     )
 }
 

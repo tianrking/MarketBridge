@@ -8,11 +8,11 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::metrics::AppMetrics;
-use crate::source::{ExchangeSource, SourceContext};
-use crate::types::{BackpressureMode, DataEvent};
+use crate::source::{ExchangeSource, SourceContext, SourceMessage};
+use crate::types::BackpressureMode;
 
 pub struct RuntimeHandle {
-    pub rx: mpsc::Receiver<DataEvent>,
+    pub rx: mpsc::Receiver<SourceMessage>,
     pub shutdown: CancellationToken,
     pub tasks: Vec<JoinHandle<()>>,
 }
@@ -38,13 +38,23 @@ impl SourceRuntime {
         }
     }
 
-    pub fn spawn_sources(&self, sources: Vec<Arc<dyn ExchangeSource>>) -> RuntimeHandle {
+    pub fn spawn_sources(
+        &self,
+        sources: Vec<Arc<dyn ExchangeSource>>,
+    ) -> anyhow::Result<RuntimeHandle> {
+        anyhow::ensure!(
+            sources.len() <= 1024,
+            "configured collectors exceed readiness source budget"
+        );
         let (tx, rx) = mpsc::channel(self.queue_capacity);
         let shutdown = CancellationToken::new();
         let mut tasks = Vec::with_capacity(sources.len());
 
-        for source in sources {
+        for (index, source) in sources.into_iter().enumerate() {
+            let id: Arc<str> = format!("{}#{index}", source.label()).into();
+            self.metrics.ingestion.register(&id, &source.label())?;
             let ctx = SourceContext {
+                source_id: id.clone(),
                 tx: tx.clone(),
                 backpressure: self.backpressure,
                 metrics: self.metrics.clone(),
@@ -61,6 +71,7 @@ impl SourceRuntime {
                         break;
                     }
 
+                    ctx.metrics.ingestion.starting(&id);
                     info!(exchange = source_name, source = %source_label, "source start");
                     let run_ctx = ctx.clone();
                     let source_run = source.clone();
@@ -75,14 +86,17 @@ impl SourceRuntime {
                         join = &mut run_task => {
                             match join {
                                 Ok(Ok(())) => {
+                                    ctx.metrics.ingestion.retrying(&id,"source returned; reconnecting");
                                     warn!(exchange = source_name, source = %source_label, "source exited normally, reconnecting");
                                     true
                                 }
                                 Ok(Err(e)) => {
+                                    ctx.metrics.ingestion.retrying(&id,"source_error; see protected logs");
                                     error!(exchange = source_name, source = %source_label, error = %e, "source error");
                                     false
                                 }
                                 Err(e) => {
+                                    ctx.metrics.ingestion.retrying(&id,"source_task_panic; see protected logs");
                                     error!(exchange = source_name, source = %source_label, error = %e, "source task panicked");
                                     false
                                 }
@@ -114,11 +128,11 @@ impl SourceRuntime {
             drop(tx);
         }));
 
-        RuntimeHandle {
+        Ok(RuntimeHandle {
             rx,
             shutdown,
             tasks,
-        }
+        })
     }
 }
 
@@ -129,7 +143,7 @@ mod tests {
     #[tokio::test]
     async fn research_only_runtime_stays_open_until_shutdown() {
         let runtime = SourceRuntime::new(4, BackpressureMode::Block, AppMetrics::new());
-        let mut handle = runtime.spawn_sources(vec![]);
+        let mut handle = runtime.spawn_sources(vec![]).unwrap();
         assert!(matches!(
             handle.rx.try_recv(),
             Err(mpsc::error::TryRecvError::Empty)
