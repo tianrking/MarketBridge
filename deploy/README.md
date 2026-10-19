@@ -22,6 +22,24 @@ sudo systemctl enable --now marketbridge
 sudo systemctl status marketbridge
 ```
 
+The server reserves its API address before starting collectors or recording.
+An occupied port fails startup with a nonzero exit status so a supervisor can
+detect the failure. Unexpected API/aggregator termination also fails the process.
+On Linux and macOS, SIGTERM (including a normal systemd/container stop) and
+Ctrl-C initiate shutdown and allow normalized event recordings to drain and seal.
+Windows console shutdown supports Ctrl-C. Forced termination, SIGKILL, a power
+failure, or a supervisor exhausting its stop timeout can still leave `.partial`
+recordings; these must not be presented as complete history.
+
+After building, run the portable process checks from the repository root:
+
+```bash
+python3 -B scripts/Test-ProcessLifecycle.py
+```
+
+CI runs startup checks on Linux, Windows and macOS; Unix signal checks are
+explicitly skipped on Windows.
+
 Check the API:
 
 ```bash

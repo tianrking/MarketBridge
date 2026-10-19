@@ -47,6 +47,7 @@ pub const BUILD_REVISION: &str = match option_env!("MARKETBRIDGE_BUILD_REVISION"
 };
 
 use aggregator::SpreadAggregator;
+use anyhow::Context;
 use api::snapshot_stream::SnapshotStreamHub;
 use api::streaming::set_ws_send_timeout_ms;
 use api::{ApiState, build_router};
@@ -147,6 +148,13 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cfg = AppConfig::load()?;
+    // Fail before starting collectors or opening a recording if the API cannot
+    // be served. Supervisors must see an unsuccessful startup, not exit code 0.
+    let api_listener = tokio::net::TcpListener::bind(&cfg.runtime.api_addr)
+        .await
+        .with_context(|| format!("failed to bind API listener: {}", cfg.runtime.api_addr))?;
+    let shutdown_signal = shutdown_signal()?;
+    tokio::pin!(shutdown_signal);
     let metrics = AppMetrics::new();
     let runtime = SourceRuntime::new(
         cfg.runtime.queue_capacity,
@@ -235,17 +243,9 @@ async fn main() -> anyhow::Result<()> {
     });
     let api_addr = cfg.runtime.api_addr.clone();
     let api_shutdown = shutdown.clone();
-    let api_task = tokio::spawn(async move {
-        let listener = match tokio::net::TcpListener::bind(&api_addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                error!(addr = %api_addr, error = %e, "api bind failed");
-                api_shutdown.cancel();
-                return;
-            }
-        };
+    let mut api_task = tokio::spawn(async move {
         info!(addr=%api_addr, "api server started");
-        if let Err(e) = axum::serve(listener, api_router)
+        if let Err(e) = axum::serve(api_listener, api_router)
             .with_graceful_shutdown(async move {
                 api_shutdown.cancelled().await;
             })
@@ -413,27 +413,64 @@ async fn main() -> anyhow::Result<()> {
     background_tasks.extend("source", tasks);
     background_tasks.required("router", router_task);
     background_tasks.optional("journal", journal_task);
-    background_tasks.required("api", api_task);
 
     let mut agg_joined = false;
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            info!("ctrl-c received, shutting down");
-            shutdown.cancel();
+    let mut api_joined = false;
+    let failure = tokio::select! {
+        result = &mut shutdown_signal => {
+            info!("shutdown signal received, stopping services");
+            result.err().map(anyhow::Error::from)
         }
         res = &mut agg_task => {
             log_join_result("aggregator", res);
             agg_joined = true;
-            shutdown.cancel();
+            Some(anyhow::anyhow!("aggregator exited unexpectedly"))
         }
-    }
+        res = &mut api_task => {
+            log_join_result("api", res);
+            api_joined = true;
+            Some(anyhow::anyhow!("API server exited unexpectedly"))
+        }
+        _ = shutdown.cancelled() => {
+            Some(anyhow::anyhow!("runtime requested shutdown; inspect preceding errors"))
+        }
+    };
+    shutdown.cancel();
 
     if !agg_joined {
         wait_task("aggregator", agg_task).await;
     }
+    if !api_joined {
+        wait_task("api", api_task).await;
+    }
     background_tasks.wait_all().await;
 
+    if let Some(error) = failure {
+        return Err(error);
+    }
     Ok(())
+}
+
+fn shutdown_signal() -> std::io::Result<impl std::future::Future<Output = std::io::Result<()>>> {
+    // Register SIGTERM before announcing API readiness. systemd, Docker and
+    // Kubernetes normally stop Unix services with SIGTERM rather than SIGINT.
+    #[cfg(unix)]
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    #[cfg(unix)]
+    let mut interrupt = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
+    Ok(async move {
+        #[cfg(unix)]
+        {
+            tokio::select! {
+                _ = interrupt.recv() => Ok(()),
+                _ = terminate.recv() => Ok(()),
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            tokio::signal::ctrl_c().await
+        }
+    })
 }
 
 #[derive(Default)]

@@ -1,0 +1,119 @@
+"""Portable process checks; Unix also verifies SIGTERM recording recovery.
+
+Run after cargo build --locked. Only child processes started here are stopped.
+"""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import signal
+import socket
+import subprocess
+import tempfile
+import time
+import unittest
+from urllib.request import Request, urlopen
+
+
+ROOT = Path(__file__).resolve().parents[1]
+BINARY = ROOT / "target" / "debug" / ("market-bridge.exe" if os.name == "nt" else "market-bridge")
+
+
+class ProcessLifecycleTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory(prefix="marketbridge-process-")
+        self.state = Path(self.directory.name)
+        self.children = []
+        self.logs = []
+        self.environment = dict(os.environ)
+        for name in ("MARKETBRIDGE_RECORD_DIR", "MARKETBRIDGE_CONTROL_FILE"):
+            self.environment.pop(name, None)
+        self.environment.update(
+            MARKETBRIDGE_CONFIG=str(ROOT / "config.research.yaml"),
+            MARKETBRIDGE_RESEARCH_DB=str(self.state / "workspace.sqlite"),
+        )
+
+    def tearDown(self):
+        for child in self.children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=10)
+        for log in self.logs:
+            log.close()
+        self.directory.cleanup()
+
+    def launch(self):
+        log = (self.state / f"process-{len(self.children)}.log").open("w")
+        self.logs.append(log)
+        child = subprocess.Popen(
+            [str(BINARY)], cwd=ROOT, env=self.environment, stdout=log, stderr=log
+        )
+        self.children.append(child)
+        return child
+
+    def ready(self, child, port):
+        headers = {}
+        if self.environment.get("MARKETBRIDGE_API_KEY"):
+            headers["x-api-key"] = self.environment["MARKETBRIDGE_API_KEY"]
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            self.assertIsNone(child.poll(), "server exited before becoming ready")
+            try:
+                request = Request(f"http://127.0.0.1:{port}/v1/system/info", headers=headers)
+                with urlopen(request, timeout=1) as response:
+                    self.assertEqual(json.load(response)["service"], "MarketBridge")
+                return
+            except OSError:
+                time.sleep(0.05)
+        self.fail("server did not become ready within 15 seconds")
+
+    def test_occupied_api_port_fails_before_recording_starts(self):
+        with socket.socket() as occupied:
+            occupied.bind(("127.0.0.1", 0))
+            occupied.listen()
+            self.environment.update(
+                MARKETBRIDGE_API_ADDR=f"127.0.0.1:{occupied.getsockname()[1]}",
+                MARKETBRIDGE_RECORD_DIR=str(self.state / "recordings"),
+            )
+            child = self.launch()
+            self.assertNotEqual(child.wait(timeout=15), 0, "an unavailable API must fail startup")
+        self.assertFalse((self.state / "recordings").exists())
+
+    @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
+    def test_sigterm_and_sigint_seal_recordings(self):
+        for shutdown_signal in (signal.SIGTERM, signal.SIGINT):
+            with self.subTest(signal=shutdown_signal):
+                with socket.socket() as probe:
+                    probe.bind(("127.0.0.1", 0))
+                    port = probe.getsockname()[1]
+                recordings = self.state / f"recordings-{shutdown_signal}"
+                self.environment.update(
+                    MARKETBRIDGE_API_ADDR=f"127.0.0.1:{port}",
+                    MARKETBRIDGE_RECORD_DIR=str(recordings),
+                )
+                child = self.launch()
+                self.ready(child, port)
+                child.send_signal(shutdown_signal)
+                self.assertEqual(child.wait(timeout=15), 0)
+                self.assertEqual(list(recordings.glob("*.partial")), [])
+                sealed = list(recordings.glob("*.jsonl"))
+                self.assertEqual(len(sealed), 1)
+                result = subprocess.run(
+                    [str(BINARY), "--verify-journal", str(sealed[0])],
+                    cwd=ROOT, env=self.environment, check=True, capture_output=True, text=True,
+                )
+                verification = json.loads(result.stdout)
+                self.assertTrue(verification["sealed"])
+                self.assertEqual(verification["source_dropped_total"], 0)
+                self.assertGreaterEqual(verification["records"], 1)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binary", type=Path, default=BINARY)
+    args = parser.parse_args()
+    BINARY = args.binary.resolve()
+    if not BINARY.is_file():
+        parser.error(f"build the binary first: {BINARY}")
+    unittest.main(argv=[__file__], verbosity=2)

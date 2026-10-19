@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -51,6 +51,9 @@ jobs:
 
       - name: Build research CLI and server
         run: cargo build --locked
+
+      - name: Test portable process startup and shutdown
+        run: python -B scripts/Test-ProcessLifecycle.py
 
       - name: Python research client contract tests
         run: python -m pip install -r sdk/python/requirements.txt
