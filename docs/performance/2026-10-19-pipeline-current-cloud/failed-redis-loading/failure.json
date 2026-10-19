@@ -1,0 +1,10 @@
+{
+  "passed": false,
+  "error": "Redis error: LOADING Redis is loading the dataset in memory",
+  "faults": [
+    {
+      "kind": "Redis graceful outage",
+      "elapsed_seconds": 30.060545319000084
+    }
+  ]
+}

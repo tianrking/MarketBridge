@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "scope": "actual server pipeline with explicit synthetic JSON codec; no exchange networking",
+  "requested_duration_seconds": 30,
+  "elapsed_ingestion_and_drain_seconds": 30.115224102000866,
+  "events_before_restart": 150000,
+  "events_verified_after_restart": 150320,
+  "domains": {
+    "funding_rate": 15024,
+    "open_interest": 15024,
+    "order_book": 30048,
+    "trade": 90224
+  },
+  "global_identity_missing": 0,
+  "global_identity_duplicates": 0,
+  "native_trade_gaps": 0,
+  "peak_pending_records": 31744,
+  "peak_server_rss_bytes": 118751232,
+  "state_http_p95_ms": 1.0521280000830302,
+  "faults": [
+    {
+      "kind": "Redis graceful outage",
+      "elapsed_seconds": 10.078315662000023
+    },
+    {
+      "kind": "Redis AOF restart",
+      "elapsed_seconds": 15.283198946999619
+    },
+    {
+      "kind": "server graceful restart with persisted native checkpoints",
+      "additional_events": 320
+    }
+  ],
+  "steady_ready_samples_before_fault": 7,
+  "first_source_ts_ms": 1792394554478,
+  "last_source_ts_ms": 1792394584765,
+  "binary_sha256": "848bac099a2d0b84354bcd2793f9e392b770ab1a7df2a776b1701b26fff4bba9",
+  "disk_bytes": 45018074,
+  "limits": [
+    "synthetic fixture codec; no exchange network",
+    "Linux resource sampling when available",
+    "finite run; no production SLA",
+    "graceful process restarts; ACK-loss replay is separately tested against real Redis"
+  ]
+}

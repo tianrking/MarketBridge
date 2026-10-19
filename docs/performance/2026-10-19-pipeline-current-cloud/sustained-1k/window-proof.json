@@ -1,0 +1,56 @@
+{
+  "global_quality_cleared": false,
+  "model_version": "native-trade-window/v1",
+  "retention_quality": {
+    "evicted_records_total": 0,
+    "eviction_epoch": 0,
+    "has_capacity_loss": false,
+    "last_eviction_at_ms": null
+  },
+  "source_quality": {
+    "has_known_loss": false,
+    "loss_epoch": 0,
+    "observation_origin": "4e23ace0dafcffdc4d9d938c1bc88266",
+    "reasons": {},
+    "scope": "process_ingestion_observation",
+    "upstream_completeness": "not_verified"
+  },
+  "subscription_quality": {
+    "gap_epoch": 0,
+    "has_known_gap": false,
+    "last_gap_detected_at_ms": null,
+    "recovery_policy": "rebuild_state_required_no_automatic_reset",
+    "scope": "process_local_subscription",
+    "skipped_events_total": 0,
+    "upstream_completeness": "not_verified"
+  },
+  "window": {
+    "quality": {
+      "after_sequence": 22511,
+      "before_sequence": 22502,
+      "canonicalized_duplicates": 0,
+      "evidence_crc32": 1853485106,
+      "lifetime_cvd_repaired": false,
+      "scope": {
+        "end_ms": 1792394526534,
+        "exchange": "acceptance_fixture",
+        "market": "perp",
+        "start_ms": 1792394526310,
+        "symbol": "FIX0000USDT"
+      },
+      "status": "verified_native_window",
+      "upstream_assumption": "ordered immutable native aggregate-trade IDs and source timestamps; normalized evidence is not exchange attestation",
+      "verified": true
+    },
+    "recovered": {
+      "buy_notional": 400.0,
+      "buy_qty": 4.0,
+      "cvd_anchor": "window_start_only",
+      "delta_notional": 0.0,
+      "delta_qty": 0.0,
+      "sell_notional": 400.0,
+      "sell_qty": 4.0,
+      "trade_count": 8
+    }
+  }
+}

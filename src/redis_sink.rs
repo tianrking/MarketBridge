@@ -386,8 +386,8 @@ pub fn spawn_outbox_sink(
             if shutdown.is_cancelled() {
                 break;
             }
-            // AOF everysec amortizes one fsync barrier across this bounded batch.
-            // The legacy 100-row batch would cap durable throughput near 100/s.
+            // Amortize confirmation overhead across a bounded backlog batch.
+            // Actual fsync timing varies; batch size is not a throughput claim.
             let rows = outbox.pending(4096).await?;
             let status = outbox.status().await?;
             metrics

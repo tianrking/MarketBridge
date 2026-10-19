@@ -1,0 +1,329 @@
+# HELP aggregator_capacity_evictions_total Aggregator symbol histories evicted by global budgets; marks source quality incomplete
+# TYPE aggregator_capacity_evictions_total counter
+aggregator_capacity_evictions_total 0
+# HELP aggregator_retained_bytes Accounted owned aggregator state allocations, excluding allocator/hash control overhead
+# TYPE aggregator_retained_bytes gauge
+aggregator_retained_bytes 1081152
+# HELP bus_events_published_total Total bus-published events by normalized event type
+# TYPE bus_events_published_total counter
+bus_events_published_total{event_type="funding_rate"} 60000
+bus_events_published_total{event_type="open_interest"} 60000
+bus_events_published_total{event_type="order_book"} 120000
+bus_events_published_total{event_type="trade"} 360000
+# HELP bus_publish_total Total normalized events published to bus
+# TYPE bus_publish_total counter
+bus_publish_total 0
+# HELP events_ingested_total Total ingested events by normalized event type
+# TYPE events_ingested_total counter
+events_ingested_total{event_type="funding_rate"} 60000
+events_ingested_total{event_type="open_interest"} 60000
+events_ingested_total{event_type="order_book"} 120000
+events_ingested_total{event_type="trade"} 360000
+# HELP outbox_committed_total Events committed to durable outbox before publication
+# TYPE outbox_committed_total counter
+outbox_committed_total 600000
+# HELP pipeline_latency_seconds Monotonic normalized admission-to-stage completion latency; excludes connector time before emit
+# TYPE pipeline_latency_seconds histogram
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.001"} 56
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.005"} 59402
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.01"} 59792
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.05"} 59904
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.1"} 59936
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="aggregator",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="funding",stage="aggregator"} 112.5003833779989
+pipeline_latency_seconds_count{domain="funding",stage="aggregator"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.001"} 46
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.005"} 59414
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.01"} 59792
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.05"} 59904
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.1"} 59936
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="bus",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="funding",stage="bus"} 114.48320104000089
+pipeline_latency_seconds_count{domain="funding",stage="bus"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.00005"} 83
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.0001"} 36324
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.0005"} 59502
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.001"} 59732
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.005"} 59846
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.01"} 59872
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.05"} 59936
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.1"} 59968
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="router",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="funding",stage="router"} 14.904117262000018
+pipeline_latency_seconds_count{domain="funding",stage="router"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.005"} 59396
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.01"} 59792
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.05"} 59904
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.1"} 59936
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="funding",stage="strategy_state",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="funding",stage="strategy_state"} 118.83230604600145
+pipeline_latency_seconds_count{domain="funding",stage="strategy_state"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.001"} 48
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.005"} 59408
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.01"} 59792
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.05"} 59904
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.1"} 59936
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="aggregator",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="open_interest",stage="aggregator"} 112.26300256400071
+pipeline_latency_seconds_count{domain="open_interest",stage="aggregator"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.001"} 59
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.005"} 59424
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.01"} 59792
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.05"} 59904
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.1"} 59936
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="bus",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="open_interest",stage="bus"} 113.44569411299977
+pipeline_latency_seconds_count{domain="open_interest",stage="bus"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.00005"} 21162
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.0001"} 53629
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.0005"} 59709
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.001"} 59798
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.005"} 59856
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.01"} 59872
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.05"} 59936
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.1"} 59968
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="router",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="open_interest",stage="router"} 12.266745136000027
+pipeline_latency_seconds_count{domain="open_interest",stage="router"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.005"} 59408
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.01"} 59792
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.05"} 59904
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.1"} 59936
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="0.5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="1"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="5"} 60000
+pipeline_latency_seconds_bucket{domain="open_interest",stage="strategy_state",le="+Inf"} 60000
+pipeline_latency_seconds_sum{domain="open_interest",stage="strategy_state"} 117.97522585899914
+pipeline_latency_seconds_count{domain="open_interest",stage="strategy_state"} 60000
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.005"} 118813
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.01"} 119648
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.05"} 119776
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.1"} 119872
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="0.5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="1"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="aggregator",le="+Inf"} 120000
+pipeline_latency_seconds_sum{domain="order_book",stage="aggregator"} 241.72450220599808
+pipeline_latency_seconds_count{domain="order_book",stage="aggregator"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.005"} 118685
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.01"} 119648
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.05"} 119776
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.1"} 119872
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="0.5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="1"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="bus",le="+Inf"} 120000
+pipeline_latency_seconds_sum{domain="order_book",stage="bus"} 245.43408609799766
+pipeline_latency_seconds_count{domain="order_book",stage="bus"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.00005"} 28985
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.0001"} 90814
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.0005"} 119355
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.001"} 119723
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.005"} 119872
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.01"} 119872
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.05"} 119904
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.1"} 119936
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="0.5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="1"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="router",le="+Inf"} 120000
+pipeline_latency_seconds_sum{domain="order_book",stage="router"} 20.965194403000076
+pipeline_latency_seconds_count{domain="order_book",stage="router"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.005"} 118546
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.01"} 119648
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.05"} 119776
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.1"} 119872
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="0.5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="1"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="5"} 120000
+pipeline_latency_seconds_bucket{domain="order_book",stage="strategy_state",le="+Inf"} 120000
+pipeline_latency_seconds_sum{domain="order_book",stage="strategy_state"} 254.8953131950021
+pipeline_latency_seconds_count{domain="order_book",stage="strategy_state"} 120000
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.005"} 355195
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.01"} 358976
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.05"} 359584
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.1"} 359680
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="0.5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="1"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="aggregator",le="+Inf"} 360000
+pipeline_latency_seconds_sum{domain="trade",stage="aggregator"} 779.7312878739788
+pipeline_latency_seconds_count{domain="trade",stage="aggregator"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.005"} 355244
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.01"} 358976
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.05"} 359584
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.1"} 359680
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="0.5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="1"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="bus",le="+Inf"} 360000
+pipeline_latency_seconds_sum{domain="trade",stage="bus"} 793.2761777980083
+pipeline_latency_seconds_count{domain="trade",stage="bus"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.005"} 342096
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.01"} 357764
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.05"} 359584
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.1"} 359680
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="0.5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="1"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="order_flow",le="+Inf"} 360000
+pipeline_latency_seconds_sum{domain="trade",stage="order_flow"} 925.4379681460131
+pipeline_latency_seconds_count{domain="trade",stage="order_flow"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.00005"} 75523
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.0001"} 256631
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.0005"} 357921
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.001"} 358837
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.005"} 359356
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.01"} 359453
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.05"} 359648
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.1"} 359840
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="0.5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="1"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="router",le="+Inf"} 360000
+pipeline_latency_seconds_sum{domain="trade",stage="router"} 76.04093046599768
+pipeline_latency_seconds_count{domain="trade",stage="router"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.00001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.00005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.0001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.0005"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.001"} 0
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.005"} 354040
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.01"} 358944
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.05"} 359584
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.1"} 359680
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="0.5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="1"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="5"} 360000
+pipeline_latency_seconds_bucket{domain="trade",stage="strategy_state",le="+Inf"} 360000
+pipeline_latency_seconds_sum{domain="trade",stage="strategy_state"} 824.1900998579949
+pipeline_latency_seconds_count{domain="trade",stage="strategy_state"} 360000
+# HELP pipeline_queue_events Observed queue occupancy at router batch boundaries
+# TYPE pipeline_queue_events gauge
+pipeline_queue_events{queue="aggregator"} 0
+pipeline_queue_events{queue="source"} 31
+# HELP redis_accepted_total Events accepted into the Redis local queue
+# TYPE redis_accepted_total counter
+redis_accepted_total 0
+# HELP redis_dead_letter_failures_total Failed Redis dead-letter batch writes
+# TYPE redis_dead_letter_failures_total counter
+redis_dead_letter_failures_total 0
+# HELP redis_dead_letter_total Total redis sink events synced to the dead-letter file (including shutdown)
+# TYPE redis_dead_letter_total counter
+redis_dead_letter_total 0
+# HELP redis_delivery_failures_total Failed durable Redis delivery or verification attempts
+# TYPE redis_delivery_failures_total counter
+redis_delivery_failures_total 6
+# HELP redis_durable_batch_seconds Redis transaction and required local AOF verification duration
+# TYPE redis_durable_batch_seconds histogram
+redis_durable_batch_seconds_bucket{le="0.001"} 18605
+redis_durable_batch_seconds_bucket{le="0.005"} 36627
+redis_durable_batch_seconds_bucket{le="0.01"} 36752
+redis_durable_batch_seconds_bucket{le="0.05"} 36780
+redis_durable_batch_seconds_bucket{le="0.1"} 36785
+redis_durable_batch_seconds_bucket{le="0.5"} 36835
+redis_durable_batch_seconds_bucket{le="1"} 36835
+redis_durable_batch_seconds_bucket{le="2"} 36835
+redis_durable_batch_seconds_bucket{le="3"} 36835
+redis_durable_batch_seconds_bucket{le="+Inf"} 36835
+redis_durable_batch_seconds_sum 35.764752088999785
+redis_durable_batch_seconds_count 36835
+# HELP redis_lagged_total Bus events skipped by the Redis subscriber; any skip fails the sink
+# TYPE redis_lagged_total counter
+redis_lagged_total 0
+# HELP redis_pending_events Accepted Redis events awaiting Redis acknowledgement or dead-letter sync
+# TYPE redis_pending_events gauge
+redis_pending_events 0
+# HELP redis_xadd_total Total redis xadd writes
+# TYPE redis_xadd_total counter
+redis_xadd_total 600000
+# HELP ticks_dropped_total Total ticks dropped by backpressure
+# TYPE ticks_dropped_total counter
+ticks_dropped_total 0
+# HELP ticks_ingested_total Total ingested ticks
+# TYPE ticks_ingested_total counter
+ticks_ingested_total 0
+# HELP ws_subscribers Current websocket subscribers
+# TYPE ws_subscribers gauge
+ws_subscribers 0

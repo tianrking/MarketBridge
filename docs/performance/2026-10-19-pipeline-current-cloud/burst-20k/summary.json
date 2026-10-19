@@ -1,0 +1,117 @@
+{
+  "passed": true,
+  "events_before_restart": 600000,
+  "requested_rate": 20000,
+  "delivered_events_per_second_including_drain": 19273.658863685363,
+  "server": {
+    "available": true,
+    "peak_rss_bytes": 198762496,
+    "last_rss_bytes": 198762496,
+    "mean_cpu_cores_sampled": 0.9970035817874121,
+    "last_120s_rss_min_bytes": 21630976,
+    "last_120s_rss_max_bytes": 198762496
+  },
+  "redis": {
+    "available": true,
+    "peak_rss_bytes": 427773952,
+    "last_rss_bytes": 427773952,
+    "mean_cpu_cores_sampled": 0.3116640265336093,
+    "last_120s_rss_min_bytes": 5906432,
+    "last_120s_rss_max_bytes": 427773952
+  },
+  "stages": {
+    "aggregator": {
+      "count": 600000,
+      "mean_ms": 132.29965964954624,
+      "p95_bucket_upper_ms": 500.0,
+      "p99_bucket_upper_ms": 500.0
+    },
+    "bus": {
+      "count": 600000,
+      "mean_ms": 132.26429579950752,
+      "p95_bucket_upper_ms": 500.0,
+      "p99_bucket_upper_ms": 500.0
+    },
+    "router": {
+      "count": 600000,
+      "mean_ms": 129.52487426532466,
+      "p95_bucket_upper_ms": 500.0,
+      "p99_bucket_upper_ms": 500.0
+    },
+    "strategy_state": {
+      "count": 600000,
+      "mean_ms": 132.48192352954936,
+      "p95_bucket_upper_ms": 500.0,
+      "p99_bucket_upper_ms": 500.0
+    },
+    "order_flow": {
+      "count": 360000,
+      "mean_ms": 132.58125781393034,
+      "p95_bucket_upper_ms": 500.0,
+      "p99_bucket_upper_ms": 500.0
+    }
+  },
+  "ready_200_samples": 28,
+  "ready_503_samples": 7,
+  "raw_history_capacity_loss_observed": true,
+  "last_memory": {
+    "aggregator": {
+      "accounted_bytes": 8421184,
+      "capacity_evictions": 0
+    },
+    "domain": "retention_memory",
+    "note": "Retained owned allocations; allocator, network and query temporaries are outside these budgets.",
+    "order_flow": {
+      "accounting": "owned raw deque capacity and row strings; not process RSS",
+      "bucket_rows": 48,
+      "limits": {
+        "aggregator_bytes": 67108864,
+        "aggregator_symbols": 2048,
+        "order_flow_buckets": 50000,
+        "order_flow_keys": 4096,
+        "order_flow_raw_bytes": 67108864,
+        "order_flow_raw_records": 250000,
+        "strategy_bytes": 67108864,
+        "strategy_symbols": 2048
+      },
+      "quality": {
+        "evicted_records_total": 110000,
+        "eviction_epoch": 110000,
+        "has_capacity_loss": true,
+        "last_eviction_at_ms": 1792394620106
+      },
+      "raw_accounted_bytes": 45901584,
+      "raw_keys": 16,
+      "raw_records": 250000
+    },
+    "strategy": {
+      "accounted_bytes": 15741840,
+      "accounting": "owned symbol state and history capacities; not process RSS",
+      "limits": {
+        "aggregator_bytes": 67108864,
+        "aggregator_symbols": 2048,
+        "order_flow_buckets": 50000,
+        "order_flow_keys": 4096,
+        "order_flow_raw_bytes": 67108864,
+        "order_flow_raw_records": 250000,
+        "strategy_bytes": 67108864,
+        "strategy_symbols": 2048
+      },
+      "quality": {
+        "evicted_records_total": 0,
+        "eviction_epoch": 0,
+        "has_capacity_loss": false,
+        "last_eviction_at_ms": null
+      },
+      "symbols": 16
+    },
+    "version": "v1"
+  },
+  "http_states_p95_ms": 4.022266999527346,
+  "notes": [
+    "histogram percentiles are bucket upper bounds, not exact quantiles",
+    "CPU is sampled process CPU, not host utilization",
+    "Redis operation histogram includes empty-queue connection probes in this build",
+    "No isolated maximum throughput or production SLA inferred"
+  ]
+}

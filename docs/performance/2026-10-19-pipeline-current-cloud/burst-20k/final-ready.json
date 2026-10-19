@@ -1,0 +1,89 @@
+{
+  "data_ready": true,
+  "domain": "runtime_readiness",
+  "history_quality": {
+    "footprint": {
+      "evicted_records_total": 110000,
+      "eviction_epoch": 110000,
+      "has_capacity_loss": true,
+      "last_eviction_at_ms": 1792394620106
+    },
+    "order_flow": {
+      "evicted_records_total": 0,
+      "eviction_epoch": 0,
+      "has_capacity_loss": false,
+      "last_eviction_at_ms": null
+    }
+  },
+  "ingestion": {
+    "coverage_note": "Source-level freshness does not certify every market; declare required_streams for critical symbols. Native continuity is checked only for supported trade protocols; depth snapshot update IDs are not assumed contiguous.",
+    "data_ready": true,
+    "generated_at_ms": 1792394620320,
+    "integrity": {
+      "has_known_loss": false,
+      "loss_epoch": 0,
+      "observation_origin": "5021dcd4b0f58e3b38b27e9354f3b4dd",
+      "reasons": {},
+      "scope": "process_ingestion_observation",
+      "upstream_completeness": "not_verified"
+    },
+    "max_age_ms": 60000,
+    "native_checkpoints": 16,
+    "operational_ready": true,
+    "ready": true,
+    "require_complete_analytics": true,
+    "required_streams": [],
+    "research_only": false,
+    "scope": "configured source observations and explicit required streams",
+    "sources": [
+      {
+        "accepted_events": 600000,
+        "analytics_ready": true,
+        "attempt": 1,
+        "duplicates_suppressed": 0,
+        "fresh_transport_evidence": false,
+        "id": "acceptance_fixture#0",
+        "label": "acceptance_fixture",
+        "last_error": null,
+        "last_received_at_ms": 1792394619937,
+        "last_source_time_ms": 1792394619937,
+        "max_age_ms": 60000,
+        "observed_events": 600000,
+        "phase": "observed_data",
+        "published_receipt_age_ms": 382,
+        "ready": true,
+        "receipt_age_ms": 382,
+        "source_time_ready": true,
+        "source_time_semantics": "adapter_reported_not_independently_verified",
+        "transport_heartbeat_age_ms": null
+      }
+    ],
+    "stopping": false,
+    "tracked_streams": 64
+  },
+  "operational_ready": true,
+  "quality_reasons": [],
+  "ready": true,
+  "reasons": [],
+  "research_only": false,
+  "scope": "configured source receipts/timestamps, processed stages and known quality issues; model warmup and upstream completeness are separate",
+  "storage": {
+    "enabled": true,
+    "status": {
+      "delivery": {
+        "configured": true,
+        "last_error": null,
+        "last_verified_at_ms": 1792394620232,
+        "require_local_aof": true,
+        "verified": true
+      },
+      "last_assigned_sequence": 600000,
+      "max_pending_bytes": 268435456,
+      "oldest_pending_received_at_ms": null,
+      "origin": "cca8c168bcbdccfc4392b3845483b662",
+      "pending_bytes": 0,
+      "pending_records": 0
+    }
+  },
+  "version": "v1"
+}

@@ -26,3 +26,5 @@ python3 scripts/accept_pipeline.py \
 耐久读取批次最多 4096 条且通常不超过 4 MiB；单条大记录可以独占一批。旧模式仍采用原来的小批次。预算覆盖 store、聚合器保留的自有分配，不是进程 RSS 上限，查询临时对象、allocator 和网络缓冲需用实测 RSS 单独验收。聚合器容量淘汰会明确记录 `aggregator_capacity_evictions_total` 并使源质量不完整，禁止扫描器继续触发。
 
 推荐部署使用进程监督、持久卷、明确 `required_streams` 与各流新鲜度；依照 `/ready` 调度数据消费者，依照策略模型自身的完整预热和质量字段决定是否可用。此工具是可重复验收证据，不是交易所真数据覆盖、所有适配器性能、硬实时或机构生产 SLA 证明。
+
+实际三档负载、失败记录、资源与时延证据见[当前云环境验收记录](performance/2026-10-19-pipeline-current-cloud/README.md)。`passed=true` 表示正确性和有界排空检查通过，不等于达到输入目标速率或延迟 SLA。Redis 操作直方图在此测量构建中包含空队列 PING，详细样本含义以记录为准。

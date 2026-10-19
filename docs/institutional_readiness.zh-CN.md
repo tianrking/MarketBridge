@@ -73,7 +73,7 @@ SQLite 写请求队列改为 64 个有界槽位，异步反压，不在 Tokio wo
 
 ## 完整链路验收（第四阶段）
 
-可运行的[完整链路工具](pipeline_acceptance.zh-CN.md)启动真实 server、SQLite、Redis AOF 和 HTTP，并中断 Redis、重启 server，逐条核对 CRC、全局身份和成交原生 ID。聚合器也有独立的跨标的 64 MiB / 2048 symbols 默认预算；淘汰会阻止完整性门槛。outbox 批次受 4096 条和 4 MiB 双重限制，避免沿用 legacy 的 100 条批次限制 AOF 确认吞吐。最终实测证据链接随验收完成加入。
+可运行的[完整链路工具](pipeline_acceptance.zh-CN.md)启动真实 server、SQLite、Redis AOF 和 HTTP，并中断 Redis、重启 server，逐条核对 CRC、全局身份和成交原生 ID。聚合器也有独立的跨标的 64 MiB / 2048 symbols 默认预算；淘汰会阻止完整性门槛。outbox 批次受 4096 条和 4 MiB 双重限制，避免沿用 legacy 的 100 条批次限制 AOF 确认吞吐。当前云环境已完成 600 秒持续负载与两档短测，见[原始证据与边界](performance/2026-10-19-pipeline-current-cloud/README.md)。
 
 ## 机构生产前仍需按场景验收
 
