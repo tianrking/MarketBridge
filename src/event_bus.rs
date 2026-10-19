@@ -114,13 +114,8 @@ pub struct EventBus {
 }
 
 pub struct EventSubscription {
-    rx: EventReceiver,
+    rx: mpsc::Receiver<Result<Arc<SharedEvent>, broadcast::error::RecvError>>,
     tasks: Vec<JoinHandle<()>>,
-}
-
-enum EventReceiver {
-    Direct(broadcast::Receiver<Arc<SharedEvent>>),
-    Merged(mpsc::Receiver<Result<Arc<SharedEvent>, broadcast::error::RecvError>>),
 }
 
 impl Drop for EventSubscription {
@@ -133,13 +128,10 @@ impl Drop for EventSubscription {
 
 impl EventSubscription {
     pub async fn recv(&mut self) -> Result<Arc<SharedEvent>, broadcast::error::RecvError> {
-        match &mut self.rx {
-            EventReceiver::Direct(rx) => rx.recv().await,
-            EventReceiver::Merged(rx) => rx
-                .recv()
-                .await
-                .unwrap_or(Err(broadcast::error::RecvError::Closed)),
-        }
+        self.rx
+            .recv()
+            .await
+            .unwrap_or(Err(broadcast::error::RecvError::Closed))
     }
 
     #[cfg(test)]
@@ -147,19 +139,7 @@ impl EventSubscription {
         &mut self,
     ) -> Result<Result<Arc<SharedEvent>, broadcast::error::RecvError>, mpsc::error::TryRecvError>
     {
-        match &mut self.rx {
-            EventReceiver::Direct(rx) => match rx.try_recv() {
-                Ok(event) => Ok(Ok(event)),
-                Err(broadcast::error::TryRecvError::Lagged(skipped)) => {
-                    Ok(Err(broadcast::error::RecvError::Lagged(skipped)))
-                }
-                Err(broadcast::error::TryRecvError::Empty) => Err(mpsc::error::TryRecvError::Empty),
-                Err(broadcast::error::TryRecvError::Closed) => {
-                    Err(mpsc::error::TryRecvError::Disconnected)
-                }
-            },
-            EventReceiver::Merged(rx) => rx.try_recv(),
-        }
+        self.rx.try_recv()
     }
 }
 
@@ -271,8 +251,8 @@ impl EventBus {
             }
             DataEvent::Heartbeat { .. } => {}
         }
-        // Commit snapshots before notifying subscribers. The direct receiver
-        // can run immediately on another worker and query the latest state.
+        // Commit snapshots before notifying subscribers. A receiver can resume
+        // on another worker immediately and query the latest state.
         let _ = self.event_tx[shard].send(shared);
     }
 
@@ -343,12 +323,6 @@ fn sharded_senders<T: Clone>(capacity: usize, shards: usize) -> Vec<broadcast::S
 }
 
 fn subscribe_sharded(senders: &[broadcast::Sender<Arc<SharedEvent>>]) -> EventSubscription {
-    if let [sender] = senders {
-        return EventSubscription {
-            rx: EventReceiver::Direct(sender.subscribe()),
-            tasks: Vec::new(),
-        };
-    }
     let (tx, rx) = mpsc::channel(senders.len().saturating_mul(1024).max(1024));
     let mut tasks = Vec::with_capacity(senders.len());
     for sender in senders {
@@ -377,10 +351,7 @@ fn subscribe_sharded(senders: &[broadcast::Sender<Arc<SharedEvent>>]) -> EventSu
         }));
     }
     drop(tx);
-    EventSubscription {
-        rx: EventReceiver::Merged(rx),
-        tasks,
-    }
+    EventSubscription { rx, tasks }
 }
 
 fn shard_for_event(event: &DataEvent, shards: usize) -> usize {
@@ -414,26 +385,6 @@ mod tests {
         BookLevel, ExternalSignalTick, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
         OpenInterestTick, OrderBookTick, TradeSide, TradeTick, now_ms,
     };
-
-    #[test]
-    fn single_shard_subscription_can_receive_without_a_runtime() {
-        let bus = EventBus::new_sharded(4, 1000, 1);
-        let mut rx = bus.subscribe_events();
-        bus.publish_from_event(&DataEvent::Heartbeat {
-            exchange: "test",
-            ts_ms: 1,
-        });
-        let event = rx.try_recv().unwrap().unwrap();
-        assert!(matches!(
-            event.event.as_ref(),
-            DataEvent::Heartbeat { ts_ms: 1, .. }
-        ));
-        drop(bus);
-        assert!(matches!(
-            rx.try_recv(),
-            Err(mpsc::error::TryRecvError::Disconnected)
-        ));
-    }
 
     #[tokio::test]
     async fn single_shard_reports_lag_then_drains_retained_events_in_order() {
