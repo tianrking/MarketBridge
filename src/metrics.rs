@@ -12,6 +12,10 @@ pub struct AppMetrics {
     pub ws_subscribers: IntGauge,
     pub redis_xadd_total: IntCounter,
     pub redis_dead_letter_total: IntCounter,
+    pub redis_dead_letter_failures_total: IntCounter,
+    pub redis_accepted_total: IntCounter,
+    pub redis_pending_events: IntGauge,
+    pub redis_lagged_total: IntCounter,
     pub ticks_dropped_total: IntCounter,
 }
 
@@ -48,9 +52,29 @@ impl AppMetrics {
             .expect("redis_xadd_total metric definition must be valid");
         let redis_dead_letter_total = IntCounter::new(
             "redis_dead_letter_total",
-            "Total redis sink events moved to dead letter after retries",
+            "Total redis sink events synced to the dead-letter file (including shutdown)",
         )
         .expect("redis_dead_letter_total metric definition must be valid");
+        let redis_dead_letter_failures_total = IntCounter::new(
+            "redis_dead_letter_failures_total",
+            "Failed Redis dead-letter batch writes",
+        )
+        .expect("valid Redis dead-letter failure counter");
+        let redis_accepted_total = IntCounter::new(
+            "redis_accepted_total",
+            "Events accepted into the Redis local queue",
+        )
+        .expect("valid Redis acceptance counter");
+        let redis_pending_events = IntGauge::new(
+            "redis_pending_events",
+            "Accepted Redis events awaiting Redis acknowledgement or dead-letter sync",
+        )
+        .expect("valid Redis pending gauge");
+        let redis_lagged_total = IntCounter::new(
+            "redis_lagged_total",
+            "Bus events skipped by the Redis subscriber; any skip fails the sink",
+        )
+        .expect("valid Redis lag counter");
         let ticks_dropped_total =
             IntCounter::new("ticks_dropped_total", "Total ticks dropped by backpressure")
                 .expect("ticks_dropped_total metric definition must be valid");
@@ -76,6 +100,18 @@ impl AppMetrics {
         registry
             .register(Box::new(redis_dead_letter_total.clone()))
             .expect("redis_dead_letter_total registration must not conflict");
+        for metric in [
+            &redis_dead_letter_failures_total,
+            &redis_accepted_total,
+            &redis_lagged_total,
+        ] {
+            registry
+                .register(Box::new(metric.clone()))
+                .expect("distinct Redis counter");
+        }
+        registry
+            .register(Box::new(redis_pending_events.clone()))
+            .expect("distinct Redis gauge");
         registry
             .register(Box::new(ticks_dropped_total.clone()))
             .expect("ticks_dropped_total registration must not conflict");
@@ -89,6 +125,10 @@ impl AppMetrics {
             ws_subscribers,
             redis_xadd_total,
             redis_dead_letter_total,
+            redis_dead_letter_failures_total,
+            redis_accepted_total,
+            redis_pending_events,
+            redis_lagged_total,
             ticks_dropped_total,
         })
     }

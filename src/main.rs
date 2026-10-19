@@ -395,7 +395,7 @@ async fn main() -> anyhow::Result<()> {
     let mut background_tasks = TaskGroup::default();
     background_tasks.required("research_control", research_control_task);
     background_tasks.required("research_announcements", announcement_task);
-    background_tasks.optional("redis_sink", redis_task);
+    background_tasks.optional_result("redis_sink", redis_task);
     background_tasks.optional("clickhouse_sink", clickhouse_task);
     background_tasks.optional("deribit_options", deribit_task);
     background_tasks.optional("deribit_options_ws", deribit_ws_task);
@@ -424,11 +424,11 @@ async fn main() -> anyhow::Result<()> {
         }
         res = &mut agg_task => {
             agg_joined = true;
-            Some(unexpected_exit("aggregator", res))
+            Some(unexpected_exit("aggregator", res.map_err(anyhow::Error::from)))
         }
         res = &mut api_task => {
             api_joined = true;
-            Some(unexpected_exit("api", res))
+            Some(unexpected_exit("api", res.map_err(anyhow::Error::from)))
         }
         completed = background_tasks.next_exit() => {
             Some(match completed {
@@ -483,7 +483,7 @@ struct TaskGroup {
     tasks: FuturesUnordered<NamedTask>,
 }
 
-type TaskCompletion = (&'static str, Result<(), tokio::task::JoinError>);
+type TaskCompletion = (&'static str, anyhow::Result<()>);
 type NamedTask = std::pin::Pin<Box<dyn std::future::Future<Output = TaskCompletion> + Send>>;
 
 impl TaskGroup {
@@ -496,7 +496,26 @@ impl TaskGroup {
     fn required(&mut self, name: &'static str, task: JoinHandle<()>) {
         // Poll the actual handles concurrently without spawning extra monitor
         // tasks. Completion order must not depend on registration order.
-        self.tasks.push(Box::pin(async move { (name, task.await) }));
+        self.tasks.push(Box::pin(async move {
+            (name, task.await.map_err(anyhow::Error::from))
+        }));
+    }
+
+    fn optional_result(
+        &mut self,
+        name: &'static str,
+        task: Option<JoinHandle<anyhow::Result<()>>>,
+    ) {
+        if let Some(task) = task {
+            self.tasks.push(Box::pin(async move {
+                (
+                    name,
+                    task.await
+                        .map_err(anyhow::Error::from)
+                        .and_then(|result| result),
+                )
+            }));
+        }
     }
 
     fn extend(&mut self, name: &'static str, tasks: impl IntoIterator<Item = JoinHandle<()>>) {
@@ -522,29 +541,26 @@ impl TaskGroup {
 }
 
 async fn wait_task(name: &'static str, task: JoinHandle<()>) -> anyhow::Result<()> {
-    log_join_result(name, task.await)
+    log_join_result(name, task.await.map_err(anyhow::Error::from))
 }
 
-fn unexpected_exit(
-    name: &'static str,
-    result: Result<(), tokio::task::JoinError>,
-) -> anyhow::Error {
+fn unexpected_exit(name: &'static str, result: anyhow::Result<()>) -> anyhow::Error {
     log_join_result(name, result)
         .err()
         .unwrap_or_else(|| anyhow::anyhow!("required task {name} exited unexpectedly"))
 }
 
-fn log_join_result(
-    name: &'static str,
-    result: Result<(), tokio::task::JoinError>,
-) -> anyhow::Result<()> {
+fn log_join_result(name: &'static str, result: anyhow::Result<()>) -> anyhow::Result<()> {
     match result {
         Ok(()) => {
             info!(task = name, "task exited");
             Ok(())
         }
         Err(error) => {
-            if error.is_panic() {
+            if error
+                .downcast_ref::<tokio::task::JoinError>()
+                .is_some_and(|join| join.is_panic())
+            {
                 error!(task = name, error = %error, "task panicked");
             } else {
                 error!(task = name, error = %error, "task failed");
@@ -603,5 +619,19 @@ mod lifecycle_tests {
         let error = group.wait_all().await.unwrap_err();
         assert!(error.to_string().contains("crashed-consumer"));
         assert!(finished.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn shutdown_reports_service_errors_without_a_panic() {
+        let mut group = TaskGroup::default();
+        group.optional_result(
+            "redis_sink",
+            Some(tokio::spawn(async {
+                anyhow::bail!("dead-letter disk unavailable")
+            })),
+        );
+        let error = group.wait_all().await.unwrap_err();
+        assert!(format!("{error:#}").contains("dead-letter disk unavailable"));
+        assert!(error.to_string().contains("redis_sink"));
     }
 }

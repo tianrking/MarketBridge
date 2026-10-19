@@ -1,13 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tokio_util::task::AbortOnDropHandle;
+use tracing::{info, warn};
 
-use crate::event_bus::{EventBus, SharedEvent};
+use crate::event_bus::{EventBus, EventSubscription, SharedEvent};
 use crate::metrics::AppMetrics;
 use crate::types::{DataEvent, MarketKind};
 
@@ -17,6 +19,23 @@ const XADD_MAX_BACKOFF_MS: u64 = 5_000;
 const XADD_BATCH_MAX: usize = 100;
 const XADD_BATCH_FLUSH_MS: u64 = 50;
 const REDIS_LOCAL_BUFFER: usize = 100_000;
+
+#[derive(Clone, Copy)]
+struct RetryPolicy {
+    attempts: usize,
+    operation_timeout: Duration,
+    initial_backoff: Duration,
+}
+
+impl Default for RetryPolicy {
+    fn default() -> Self {
+        Self {
+            attempts: XADD_MAX_ATTEMPTS,
+            operation_timeout: Duration::from_secs(3),
+            initial_backoff: Duration::from_millis(XADD_INITIAL_BACKOFF_MS),
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct RedisEventRow {
     stream: String,
@@ -38,107 +57,150 @@ pub fn spawn_redis_sink(
     dead_letter_path: String,
     metrics: Arc<AppMetrics>,
     shutdown: CancellationToken,
-) -> JoinHandle<()> {
+) -> JoinHandle<anyhow::Result<()>> {
+    // Subscribe before returning so events published immediately after startup
+    // are subject to the same explicit loss policy as later events.
+    let rx = bus.subscribe_events();
     tokio::spawn(async move {
-        let mut rx = bus.subscribe_events();
-        let (local_tx, mut local_rx) = mpsc::channel::<Arc<SharedEvent>>(REDIS_LOCAL_BUFFER);
-        let drain_shutdown = shutdown.clone();
-        let drain_handle = tokio::spawn(async move {
-            loop {
-                let received = tokio::select! {
-                    _ = drain_shutdown.cancelled() => break,
-                    received = rx.recv() => received,
-                };
-                match received {
-                    Ok(event) => {
-                        if local_tx.send(event).await.is_err() {
-                            break;
-                        }
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        warn!(skipped = n, "redis sink broadcast drain lagged");
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                }
-            }
-        });
+        let client = redis::Client::open(redis_url.as_str()).context("redis client open failed")?;
+        let (local_tx, mut local_rx) = mpsc::channel(REDIS_LOCAL_BUFFER);
+        let intake_stop = shutdown.child_token();
+        let drain = AbortOnDropHandle::new(tokio::spawn(drain_events(
+            rx,
+            local_tx,
+            metrics.clone(),
+            intake_stop.clone(),
+        )));
+        let result = write_events(
+            &client,
+            &mut local_rx,
+            &stream_prefix,
+            &dead_letter_path,
+            &metrics,
+            &shutdown,
+            RetryPolicy::default(),
+        )
+        .await;
+        // All exits, including initialization/write failures and task abortion,
+        // own the intake task. Never detach a hidden consumer after sink failure.
+        intake_stop.cancel();
+        local_rx.close();
+        let drain_result = drain
+            .await
+            .context("redis intake task failed")
+            .and_then(|result| result);
+        let outcome = result.and(drain_result);
+        info!(
+            accepted = metrics.redis_accepted_total.get(),
+            acknowledged = metrics.redis_xadd_total.get(),
+            dead_letter_synced = metrics.redis_dead_letter_total.get(),
+            pending = metrics.redis_pending_events.get(),
+            lagged = metrics.redis_lagged_total.get(),
+            success = outcome.is_ok(),
+            "redis sink stopped; local acceptance accounting"
+        );
+        outcome
+    })
+}
 
-        let client = match redis::Client::open(redis_url.as_str()) {
-            Ok(c) => c,
-            Err(e) => {
-                error!(error = %e, "redis client open failed");
-                return;
-            }
+async fn drain_events(
+    mut rx: EventSubscription,
+    local_tx: mpsc::Sender<Arc<SharedEvent>>,
+    metrics: Arc<AppMetrics>,
+    stop: CancellationToken,
+) -> anyhow::Result<()> {
+    loop {
+        // Reserve first: cancellation never drops an event already removed
+        // from the subscription while waiting for room in the local queue.
+        let permit = tokio::select! {
+            biased;
+            _ = stop.cancelled() => return Ok(()),
+            permit = local_tx.reserve() => match permit {
+                Ok(permit) => permit,
+                Err(_) => return Ok(()),
+            },
         };
-
-        let mut conn = loop {
-            if shutdown.is_cancelled() {
-                return;
-            }
-            match client.get_multiplexed_tokio_connection().await {
-                Ok(c) => {
-                    info!("redis sink connected");
-                    break c;
-                }
-                Err(e) => {
-                    warn!(error = %e, "redis connect failed, retrying");
-                    tokio::select! {
-                        _ = shutdown.cancelled() => return,
-                        _ = tokio::time::sleep(Duration::from_secs(2)) => {}
-                    }
-                }
-            }
+        let received = tokio::select! {
+            biased;
+            _ = stop.cancelled() => return Ok(()),
+            received = rx.recv() => received,
         };
+        match received {
+            Ok(event) => {
+                metrics.redis_pending_events.inc();
+                metrics.redis_accepted_total.inc();
+                permit.send(event);
+            }
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                metrics.redis_lagged_total.inc_by(skipped);
+                anyhow::bail!("redis subscriber lost {skipped} bus events; archive is incomplete");
+            }
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => return Ok(()),
+        }
+    }
+}
 
-        let mut batch = Vec::with_capacity(XADD_BATCH_MAX);
-        let mut flush_interval = tokio::time::interval(Duration::from_millis(XADD_BATCH_FLUSH_MS));
-        flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-
-        loop {
-            let received = tokio::select! {
-                _ = shutdown.cancelled() => break,
-                _ = flush_interval.tick(), if !batch.is_empty() => {
-                    if !flush_redis_batch(
-                        &client,
+async fn write_events(
+    client: &redis::Client,
+    local_rx: &mut mpsc::Receiver<Arc<SharedEvent>>,
+    stream_prefix: &str,
+    dead_letter_path: &str,
+    metrics: &AppMetrics,
+    shutdown: &CancellationToken,
+    policy: RetryPolicy,
+) -> anyhow::Result<()> {
+    let mut conn = None;
+    let mut batch = Vec::with_capacity(XADD_BATCH_MAX);
+    let mut flush_interval = tokio::time::interval(Duration::from_millis(XADD_BATCH_FLUSH_MS));
+    flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut draining = false;
+    loop {
+        let received = tokio::select! {
+            biased;
+            _ = shutdown.cancelled(), if !draining => {
+                // Freeze the local acceptance boundary and drain every event
+                // already accepted. Intake releases its outstanding permit on
+                // the same cancellation token, allowing recv() to reach None.
+                local_rx.close();
+                draining = true;
+                continue;
+            }
+            _ = flush_interval.tick(), if !batch.is_empty() && !draining => {
+                flush_redis_batch(client, &mut conn, &mut batch, dead_letter_path,
+                    metrics, shutdown, policy).await?;
+                continue;
+            }
+            received = local_rx.recv() => received,
+        };
+        match received {
+            Some(event) => {
+                batch.push(redis_event_row(stream_prefix, event.as_ref()));
+                if batch.len() >= XADD_BATCH_MAX {
+                    flush_redis_batch(
+                        client,
                         &mut conn,
                         &mut batch,
-                        &dead_letter_path,
-                        &metrics,
+                        dead_letter_path,
+                        metrics,
+                        shutdown,
+                        policy,
                     )
-                    .await
-                    {
-                        return;
-                    }
-                    continue;
+                    .await?;
                 }
-                received = local_rx.recv() => received,
-            };
-            match received {
-                Some(event) => {
-                    batch.push(redis_event_row(&stream_prefix, event.as_ref()));
-                    if batch.len() >= XADD_BATCH_MAX
-                        && !flush_redis_batch(
-                            &client,
-                            &mut conn,
-                            &mut batch,
-                            &dead_letter_path,
-                            &metrics,
-                        )
-                        .await
-                    {
-                        return;
-                    }
-                }
-                None => break,
             }
+            None => break,
         }
-
-        if !batch.is_empty() {
-            let _ = flush_redis_batch(&client, &mut conn, &mut batch, &dead_letter_path, &metrics)
-                .await;
-        }
-        drain_handle.abort();
-    })
+    }
+    flush_redis_batch(
+        client,
+        &mut conn,
+        &mut batch,
+        dead_letter_path,
+        metrics,
+        shutdown,
+        policy,
+    )
+    .await
 }
 
 fn redis_event_row(prefix: &str, shared: &SharedEvent) -> RedisEventRow {
@@ -156,78 +218,89 @@ fn redis_event_row(prefix: &str, shared: &SharedEvent) -> RedisEventRow {
 
 async fn flush_redis_batch(
     client: &redis::Client,
-    conn: &mut redis::aio::MultiplexedConnection,
+    conn: &mut Option<redis::aio::MultiplexedConnection>,
     batch: &mut Vec<RedisEventRow>,
     dead_letter_path: &str,
     metrics: &AppMetrics,
-) -> bool {
+    shutdown: &CancellationToken,
+    policy: RetryPolicy,
+) -> anyhow::Result<()> {
     if batch.is_empty() {
-        return true;
+        return Ok(());
     }
-
-    let mut backoff = Duration::from_millis(XADD_INITIAL_BACKOFF_MS);
-    let mut last_error = None;
-    for attempt in 1..=XADD_MAX_ATTEMPTS {
-        let mut pipe = redis::pipe();
-        for row in batch.iter() {
-            pipe.cmd("XADD")
-                .arg(&row.stream)
-                .arg("*")
-                .arg("source")
-                .arg(row.source)
-                .arg("domain")
-                .arg(row.domain)
-                .arg("symbol")
-                .arg(&row.symbol)
-                .arg("ts")
-                .arg(row.ts as i64)
-                .arg("payload")
-                .arg(&row.payload)
-                .ignore();
-        }
-
-        let res: redis::RedisResult<()> = pipe.query_async(conn).await;
-        match res {
-            Ok(()) => {
-                metrics.redis_xadd_total.inc_by(batch.len() as u64);
-                batch.clear();
-                return true;
-            }
-            Err(e) => {
-                last_error = Some(e.to_string());
-                warn!(
-                    error=%e,
-                    batch_len=batch.len(),
-                    attempt,
-                    "redis xadd pipeline failed, reconnecting"
-                );
-                match client.get_multiplexed_tokio_connection().await {
-                    Ok(c) => *conn = c,
-                    Err(e2) => warn!(error=%e2, "redis reconnect failed"),
+    let mut backoff = policy.initial_backoff;
+    let mut last_error = "shutdown before Redis acknowledgement".to_string();
+    for attempt in 1..=policy.attempts {
+        // A cancelled or timed-out pipeline may already have applied some
+        // XADDs. Preserve the whole unacknowledged batch, allowing duplicates.
+        let result = tokio::select! {
+            biased;
+            _ = shutdown.cancelled() => break,
+            result = tokio::time::timeout(policy.operation_timeout, async {
+                if conn.is_none() {
+                    *conn = Some(client.get_multiplexed_tokio_connection().await?);
+                    info!("redis sink connected");
                 }
-                tokio::time::sleep(backoff).await;
-                backoff = next_backoff(backoff);
+                let mut pipe = redis::pipe();
+                for row in batch.iter() {
+                    pipe.cmd("XADD").arg(&row.stream).arg("*")
+                        .arg("source").arg(row.source)
+                        .arg("domain").arg(row.domain)
+                        .arg("symbol").arg(&row.symbol)
+                        .arg("ts").arg(row.ts)
+                        .arg("payload").arg(&row.payload).ignore();
+                }
+                let connection = conn.as_mut().expect("connection established above");
+                pipe.query_async::<()>(connection).await
+            }) => result,
+        };
+        match result {
+            Ok(Ok(())) => {
+                metrics.redis_xadd_total.inc_by(batch.len() as u64);
+                metrics.redis_pending_events.sub(batch.len() as i64);
+                batch.clear();
+                return Ok(());
             }
+            Ok(Err(error)) => last_error = error.to_string(),
+            Err(_) => last_error = "Redis connection or pipeline acknowledgement timed out".into(),
+        }
+        // Never reuse a connection with an ambiguous/unfinished response.
+        *conn = None;
+        warn!(error = %last_error, batch_len = batch.len(), attempt, "redis batch attempt failed");
+        if attempt < policy.attempts {
+            tokio::select! {
+                biased;
+                _ = shutdown.cancelled() => break,
+                _ = tokio::time::sleep(backoff) => {}
+            }
+            backoff = next_backoff(backoff);
         }
     }
+    // Shutdown bypasses network retries; queued events go to the same durable
+    // recovery file. Success is counted only after write + flush + sync_all.
+    persist_dead_letter(batch, &last_error, dead_letter_path, metrics).await
+}
 
-    metrics.redis_dead_letter_total.inc_by(batch.len() as u64);
-    let last_error = last_error.unwrap_or_else(|| "unknown".to_string());
-    if let Err(error) = write_dead_letter_file(batch, &last_error, dead_letter_path).await {
-        error!(
-            error = %error,
-            path = dead_letter_path,
-            "redis dead-letter file write failed"
-        );
+async fn persist_dead_letter(
+    batch: &mut Vec<RedisEventRow>,
+    error: &str,
+    path: &str,
+    metrics: &AppMetrics,
+) -> anyhow::Result<()> {
+    if let Err(failure) = write_dead_letter_file(batch, error, path).await {
+        metrics.redis_dead_letter_failures_total.inc();
+        return Err(failure).with_context(|| format!(
+            "redis dead-letter persistence failed for {} events at {path}; batch unacknowledged", batch.len()
+        ));
     }
-    error!(
+    metrics.redis_dead_letter_total.inc_by(batch.len() as u64);
+    metrics.redis_pending_events.sub(batch.len() as i64);
+    warn!(
         batch_len = batch.len(),
-        attempts = XADD_MAX_ATTEMPTS,
-        last_error = last_error,
-        "redis xadd moved batch to dead letter after retries"
+        path, "redis batch synced to dead letter; recovery required"
     );
     batch.clear();
-    true
+    Ok(())
 }
 
 async fn write_dead_letter_file(
@@ -268,7 +341,8 @@ fn write_dead_letter_file_blocking(
         file.write_all(record.to_string().as_bytes())?;
         file.write_all(b"\n")?;
     }
-    file.flush()
+    file.flush()?;
+    file.sync_all()
 }
 
 fn redis_stream_name(prefix: &str, event: &DataEvent) -> String {
@@ -412,5 +486,369 @@ mod tests {
         assert!(content.contains("\"reason\":\"redis_xadd_failed\""));
         assert!(content.contains("\"error\":\"boom\""));
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    // A local RESP peer exercises the actual Redis client, pipelines and
+    // reconnects without requiring an external Redis service in platform CI.
+    #[derive(Clone, Copy)]
+    enum ResponseMode {
+        Ack,
+        Reject,
+        Stall,
+        LoseFirstAck,
+    }
+
+    struct RedisPeer {
+        url: String,
+        xadds: Arc<std::sync::atomic::AtomicUsize>,
+        _task: tokio_util::task::AbortOnDropHandle<()>,
+    }
+
+    impl RedisPeer {
+        async fn start(mode: ResponseMode) -> Self {
+            use std::sync::atomic::{AtomicUsize, Ordering};
+            use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = format!("redis://{}", listener.local_addr().unwrap());
+            let xadds = Arc::new(AtomicUsize::new(0));
+            let seen = xadds.clone();
+            let task = tokio::spawn(async move {
+                let mut clients = tokio::task::JoinSet::new();
+                loop {
+                    tokio::select! {
+                        accepted = listener.accept() => {
+                            let (socket, _) = accepted.unwrap();
+                            let seen = seen.clone();
+                            clients.spawn(async move {
+                                let (read, mut write) = socket.into_split();
+                                let mut read = BufReader::new(read);
+                                loop {
+                                    let mut line = String::new();
+                                    if read.read_line(&mut line).await.unwrap_or(0) == 0 { break; }
+                                    let count: usize = line.trim().strip_prefix('*').unwrap().parse().unwrap();
+                                    let mut args = Vec::new();
+                                    for _ in 0..count {
+                                        line.clear();
+                                        read.read_line(&mut line).await.unwrap();
+                                        let size: usize = line.trim().strip_prefix('$').unwrap().parse().unwrap();
+                                        let mut value = vec![0; size + 2];
+                                        read.read_exact(&mut value).await.unwrap();
+                                        value.truncate(size);
+                                        args.push(value);
+                                    }
+                                    let response: &[u8] = if args[0].eq_ignore_ascii_case(b"XADD") {
+                                        let index = seen.fetch_add(1, Ordering::SeqCst);
+                                        match mode {
+                                            ResponseMode::Stall => std::future::pending().await,
+                                            ResponseMode::LoseFirstAck if index == 0 => break,
+                                            ResponseMode::Reject => b"-ERR injected write failure\r\n",
+                                            _ => b"$3\r\n1-0\r\n",
+                                        }
+                                    } else { b"+OK\r\n" };
+                                    if write.write_all(response).await.is_err() { break; }
+                                }
+                            });
+                        }
+                        result = clients.join_next(), if !clients.is_empty() => {
+                            result.unwrap().unwrap();
+                        }
+                    }
+                }
+            });
+            Self {
+                url,
+                xadds,
+                _task: tokio_util::task::AbortOnDropHandle::new(task),
+            }
+        }
+    }
+
+    fn test_event(ts_ms: u64) -> Arc<SharedEvent> {
+        Arc::new(SharedEvent::new(Arc::new(DataEvent::FundingRate(
+            FundingRateTick {
+                exchange: "binance",
+                symbol: "BTCUSDT".into(),
+                funding_rate: 0.01,
+                next_funding_time_ms: None,
+                mark_price: None,
+                index_price: None,
+                ts_ms,
+            },
+        ))))
+    }
+
+    fn test_path(label: &str) -> std::path::PathBuf {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        std::env::temp_dir().join(format!(
+            "marketbridge-redis-{label}-{}-{}-{}",
+            std::process::id(),
+            crate::types::now_ms(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ))
+    }
+
+    async fn until(mut condition: impl FnMut() -> bool) {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while !condition() {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("fixture condition reached");
+    }
+
+    #[tokio::test]
+    async fn dead_letter_failure_preserves_batch_and_does_not_claim_success() {
+        let root = test_path("blocked");
+        std::fs::create_dir_all(&root).unwrap();
+        // Opening a directory as an append-only file fails on every platform,
+        // including root in Linux CI, unlike a permission-bit-only fixture.
+        let mut batch = vec![super::redis_event_row("ticks", &test_event(1))];
+        let before = batch.clone();
+        let metrics = crate::metrics::AppMetrics::new();
+        metrics.redis_pending_events.inc();
+        let error =
+            super::persist_dead_letter(&mut batch, "fixture", root.to_str().unwrap(), &metrics)
+                .await
+                .unwrap_err();
+        assert!(error.to_string().contains("unacknowledged"));
+        assert_eq!(batch, before);
+        assert_eq!(metrics.redis_dead_letter_total.get(), 0);
+        assert_eq!(metrics.redis_dead_letter_failures_total.get(), 1);
+        assert_eq!(metrics.redis_pending_events.get(), 1);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn shutdown_drains_all_accepted_events_when_redis_stalls() {
+        let peer = RedisPeer::start(ResponseMode::Stall).await;
+        let bus = crate::event_bus::EventBus::new_sharded(512, 10_000, 1);
+        let metrics = crate::metrics::AppMetrics::new();
+        let stop = tokio_util::sync::CancellationToken::new();
+        let path = test_path("shutdown").join("dead.jsonl");
+        let task = super::spawn_redis_sink(
+            bus.clone(),
+            peer.url.clone(),
+            "ticks".into(),
+            path.to_str().unwrap().into(),
+            metrics.clone(),
+            stop.clone(),
+        );
+        // More than two full batches, with a Redis acknowledgement stuck.
+        for ts in 0..237 {
+            bus.publish_shared_event(test_event(ts).event.clone());
+        }
+        until(|| metrics.redis_accepted_total.get() == 237).await;
+        until(|| peer.xadds.load(std::sync::atomic::Ordering::SeqCst) > 0).await;
+        stop.cancel();
+        tokio::time::timeout(Duration::from_secs(3), task)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let records: Vec<serde_json::Value> = std::fs::read_to_string(&path)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let timestamps: std::collections::HashSet<_> = records
+            .iter()
+            .map(|row| row["row"]["ts"].as_u64().unwrap())
+            .collect();
+        assert_eq!(records.len(), 237);
+        assert_eq!(timestamps.len(), 237);
+        assert_eq!(metrics.redis_dead_letter_total.get(), 237);
+        assert_eq!(metrics.redis_pending_events.get(), 0);
+        assert_eq!(metrics.redis_xadd_total.get(), 0);
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn failed_shutdown_persistence_returns_service_error() {
+        let peer = RedisPeer::start(ResponseMode::Stall).await;
+        let bus = crate::event_bus::EventBus::new_sharded(16, 10_000, 1);
+        let metrics = crate::metrics::AppMetrics::new();
+        let stop = tokio_util::sync::CancellationToken::new();
+        let path = test_path("shutdown-failure");
+        std::fs::create_dir_all(&path).unwrap();
+        let task = super::spawn_redis_sink(
+            bus.clone(),
+            peer.url.clone(),
+            "ticks".into(),
+            path.to_str().unwrap().into(),
+            metrics.clone(),
+            stop.clone(),
+        );
+        bus.publish_shared_event(test_event(1).event.clone());
+        until(|| metrics.redis_accepted_total.get() == 1).await;
+        stop.cancel();
+        let result = tokio::time::timeout(Duration::from_secs(3), task)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("dead-letter persistence failed")
+        );
+        assert_eq!(metrics.redis_dead_letter_total.get(), 0);
+        assert_eq!(metrics.redis_pending_events.get(), 1);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn redis_timeout_and_rejection_both_preserve_rows_in_dead_letter() {
+        for mode in [ResponseMode::Stall, ResponseMode::Reject] {
+            let peer = RedisPeer::start(mode).await;
+            let client = redis::Client::open(peer.url.as_str()).unwrap();
+            let path = test_path("retry").join("dead.jsonl");
+            let metrics = crate::metrics::AppMetrics::new();
+            metrics.redis_pending_events.inc();
+            let mut batch = vec![super::redis_event_row("ticks", &test_event(1))];
+            let policy = super::RetryPolicy {
+                attempts: 2,
+                operation_timeout: Duration::from_millis(100),
+                initial_backoff: Duration::from_millis(1),
+            };
+            tokio::time::timeout(
+                Duration::from_secs(3),
+                super::flush_redis_batch(
+                    &client,
+                    &mut None,
+                    &mut batch,
+                    path.to_str().unwrap(),
+                    &metrics,
+                    &tokio_util::sync::CancellationToken::new(),
+                    policy,
+                ),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+            assert!(batch.is_empty());
+            assert_eq!(metrics.redis_dead_letter_total.get(), 1);
+            assert_eq!(metrics.redis_pending_events.get(), 0);
+            assert_eq!(metrics.redis_xadd_total.get(), 0);
+            let record: serde_json::Value =
+                serde_json::from_str(std::fs::read_to_string(&path).unwrap().trim()).unwrap();
+            assert_eq!(record["row"]["ts"], 1);
+            std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn lost_ack_retries_without_claiming_exactly_once() {
+        let peer = RedisPeer::start(ResponseMode::LoseFirstAck).await;
+        let client = redis::Client::open(peer.url.as_str()).unwrap();
+        let metrics = crate::metrics::AppMetrics::new();
+        metrics.redis_pending_events.inc();
+        let mut batch = vec![super::redis_event_row("ticks", &test_event(1))];
+        let path = test_path("lost-ack");
+        super::flush_redis_batch(
+            &client,
+            &mut None,
+            &mut batch,
+            path.to_str().unwrap(),
+            &metrics,
+            &tokio_util::sync::CancellationToken::new(),
+            super::RetryPolicy {
+                attempts: 2,
+                operation_timeout: Duration::from_secs(1),
+                initial_backoff: Duration::from_millis(1),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(peer.xadds.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(metrics.redis_xadd_total.get(), 1);
+        assert_eq!(metrics.redis_dead_letter_total.get(), 0);
+        assert_eq!(metrics.redis_pending_events.get(), 0);
+        assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn acknowledged_pipeline_needs_no_dead_letter() {
+        let peer = RedisPeer::start(ResponseMode::Ack).await;
+        let client = redis::Client::open(peer.url.as_str()).unwrap();
+        let metrics = crate::metrics::AppMetrics::new();
+        metrics.redis_pending_events.set(2);
+        let mut batch = vec![
+            super::redis_event_row("ticks", &test_event(1)),
+            super::redis_event_row("ticks", &test_event(2)),
+        ];
+        let path = test_path("ack");
+        super::flush_redis_batch(
+            &client,
+            &mut None,
+            &mut batch,
+            path.to_str().unwrap(),
+            &metrics,
+            &tokio_util::sync::CancellationToken::new(),
+            super::RetryPolicy::default(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(peer.xadds.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(metrics.redis_xadd_total.get(), 2);
+        assert_eq!(metrics.redis_dead_letter_total.get(), 0);
+        assert_eq!(metrics.redis_pending_events.get(), 0);
+        assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn subscriber_loss_is_counted_and_returns_an_error() {
+        let bus = crate::event_bus::EventBus::new_sharded(2, 10_000, 1);
+        let subscription = bus.subscribe_events();
+        // This test runs on a current-thread runtime. No forwarder can run
+        // before the ring has deterministically overflowed.
+        for ts in 0..16 {
+            bus.publish_shared_event(test_event(ts).event.clone());
+        }
+        let metrics = crate::metrics::AppMetrics::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let result = super::drain_events(
+            subscription,
+            tx,
+            metrics.clone(),
+            tokio_util::sync::CancellationToken::new(),
+        )
+        .await;
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("archive is incomplete")
+        );
+        assert_eq!(metrics.redis_lagged_total.get(), 14);
+        assert_eq!(metrics.redis_accepted_total.get(), 0);
+    }
+
+    #[tokio::test]
+    async fn full_local_queue_does_not_prevent_intake_shutdown() {
+        let bus = crate::event_bus::EventBus::new_sharded(16, 10_000, 1);
+        let subscription = bus.subscribe_events();
+        let metrics = crate::metrics::AppMetrics::new();
+        let stop = tokio_util::sync::CancellationToken::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let task = tokio::spawn(super::drain_events(
+            subscription,
+            tx,
+            metrics.clone(),
+            stop.clone(),
+        ));
+        for ts in 0..4 {
+            bus.publish_shared_event(test_event(ts).event.clone());
+        }
+        until(|| metrics.redis_accepted_total.get() == 1).await;
+        stop.cancel();
+        tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(metrics.redis_accepted_total.get(), 1);
+        assert!(rx.recv().await.is_some());
+        assert!(rx.recv().await.is_none());
     }
 }
