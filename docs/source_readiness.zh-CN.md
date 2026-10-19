@@ -2,7 +2,7 @@
 
 `/health` 只证明 HTTP 进程存活。`/ready` 与 `/v1/system/readiness` 检查已配置 source 的实际数据接收、适配器报告的源时间、router/bus/策略与成交消费者进度，以及耐久投递验证；未就绪返回 503。空采集配置是 `research_only=true`，可就绪但 `data_ready=false`。模型预热仍需单独检查。
 
-`runtime.readiness.max_age_ms` 默认 60 秒；`source_max_age_ms` 可按 source label 或 `label#instance` 覆盖；`required_streams` 用 `exchange:market:symbol:domain` 指定必须新鲜的流。没有声明的标的覆盖不作保证。消费者进度比较实际进入该消费者的工作；没有成交而持续收到报价，不会误报成交消费者卡死。心跳、任务重试和收到行情分别统计。
+`runtime.readiness.max_age_ms` 默认 60 秒；`source_max_age_ms` 可按 source label 或 `label#instance` 覆盖；`required_streams` 用 `exchange:domain:market:symbol（资金费率/OI 等无 market 段）` 指定必须新鲜的流。没有声明的标的覆盖不作保证。消费者进度比较实际进入该消费者的工作；没有成交而持续收到报价，不会误报成交消费者卡死。心跳、任务重试和收到行情分别统计。
 
 默认 `require_complete_analytics=true`：源丢失、订阅缺口或策略容量损失会阻止数据就绪。关闭该选项只放宽运维 readiness，不能清除质量证据或解除策略门槛。历史原始成交和桶淘汰单独报告，不把有界历史误称完整历史。
 

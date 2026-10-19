@@ -273,6 +273,38 @@ mod tests {
     }
 
     #[test]
+    fn native_window_streams_sealed_evidence_and_preserves_global_issues() {
+        let dir = std::env::temp_dir().join(format!(
+            "mb-window-{}-{}",
+            std::process::id(),
+            SESSION_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        let mut j = Journal::create(&dir).unwrap();
+        j.integrity_issues = 2;
+        for (id, ts) in [(1, 1), (10, 90), (11, 100), (12, 200)] {
+            j.append(ts,3,serde_json::json!({"type":"trade","exchange":"binance","market":"perp","symbol":"BTCUSDT","trade_id":id.to_string(),"ts_ms":ts,"price":10.0,"qty":1.0,"side":"buy"})).unwrap();
+        }
+        let request = crate::window_recovery::WindowRequest {
+            exchange: "binance".into(),
+            market: "perp".into(),
+            symbol: "BTCUSDT".into(),
+            start_ms: 100,
+            end_ms: 200,
+        };
+        assert!(crate::window_recovery::recover_journal(&j.partial, request.clone()).is_err());
+        let path = j.seal(3).unwrap();
+        let r = crate::window_recovery::recover_journal(&path, request.clone()).unwrap();
+        assert_eq!(r["window"]["quality"]["verified"], true);
+        assert_eq!(r["journal"]["source_integrity_issues"], 2);
+        let text = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("BTCUSDT", "BADUSDT");
+        std::fs::write(&path, text).unwrap();
+        assert!(crate::window_recovery::recover_journal(&path, request).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn entire_journal_replay_uses_record_order_and_rejects_drops() {
         let dir = std::env::temp_dir().join(format!(
             "mb-replay-{}-{}",
@@ -291,14 +323,15 @@ mod tests {
             max_age_ms: 1000,
             max_skew_ms: 100,
         };
-        for drops in [0, 1] {
+        for (drops, issues) in [(0, 0), (1, 0), (0, 1)] {
             let mut journal = Journal::create(&dir).unwrap();
+            journal.integrity_issues = issues;
             for book in [&e.buy, &e.sell] {
                 journal.append(10020,drops,serde_json::json!({"type":"order_book","market":"spot","exchange":book.instrument.venue,"symbol":book.instrument.symbol,"ts_ms":10000,"bids":book.bids,"asks":book.asks})).unwrap();
             }
             let path = journal.seal(drops).unwrap();
             let result = crate::journal_replay::replay(&path, route.clone());
-            if drops == 0 {
+            if drops == 0 && issues == 0 {
                 assert_eq!(result.unwrap()["decision_count"], 1);
             } else {
                 assert!(result.is_err());

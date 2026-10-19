@@ -655,6 +655,26 @@ fn parse_windows_ms(raw: Option<&str>) -> Vec<u64> {
         .collect()
 }
 
+pub async fn v1_market_verified_window(
+    State(state): State<Arc<ApiState>>,
+    Query(scope): Query<crate::window_recovery::WindowRequest>,
+) -> impl IntoResponse {
+    match state.order_flow_store.recover_window(scope).await {
+        Ok(report) => (
+            if report["window"]["quality"]["verified"] == true {
+                axum::http::StatusCode::OK
+            } else {
+                axum::http::StatusCode::UNPROCESSABLE_ENTITY
+            },
+            Json(report),
+        ),
+        Err(error) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error":error.to_string()})),
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::normalize_binance_adl_risk;

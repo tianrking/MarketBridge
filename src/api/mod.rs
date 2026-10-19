@@ -93,6 +93,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/v1/market/adl-risk" => routes::market::v1_market_adl_risk,
         "/v1/market/trades" => routes::market::v1_market_trades,
         "/v1/market/order-flow" => routes::market::v1_market_order_flow,
+        "/v1/market/order-flow/verified-window" => routes::market::v1_market_verified_window,
         "/v1/market/order-flow/windows" => routes::market::v1_market_order_flow_windows,
         "/v1/market/footprint" => routes::market::v1_market_footprint,
         "/v1/market/klines" => routes::market::v1_market_klines,

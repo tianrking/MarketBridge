@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -15,7 +15,6 @@ use crate::types::{DataEvent, TradeSide, TradeTick};
 
 const DEFAULT_WINDOWS_MS: &[u64] = &[60_000, 300_000, 900_000];
 const MAX_BUCKETS_PER_KEY: usize = 500;
-const MAX_RAW_TRADES_PER_KEY: usize = 20_000;
 const RAW_TRADE_RETENTION_MS: u64 = 30 * 60_000;
 const BUCKET_RETENTION_MS: u64 = 24 * 60 * 60_000;
 const GLOBAL_PRUNE_INTERVAL_MS: u64 = 1_000;
@@ -139,6 +138,7 @@ struct OrderFlowState {
     subscription_quality: SubscriptionQuality,
     raw_retention_quality: RetentionQuality,
     bucket_retention_quality: RetentionQuality,
+    raw_heads: BTreeSet<(u64, String)>,
     raw_records: usize,
     raw_bytes: usize,
     watermark_ms: u64,
@@ -208,6 +208,39 @@ impl OrderFlowStore {
         })
     }
 
+    pub async fn recover_window(
+        &self,
+        scope: crate::window_recovery::WindowRequest,
+    ) -> anyhow::Result<serde_json::Value> {
+        let mut accumulator = crate::window_recovery::WindowAccumulator::new(scope.clone())?;
+        let guard = self.inner.read().await;
+        let key = format!(
+            "{}:{}:{}",
+            scope.exchange,
+            scope.market,
+            scope.symbol.to_ascii_uppercase()
+        );
+        if let Some(rows) = guard.raw_trades.get(&key) {
+            for row in rows {
+                if let Some(sequence) = row.trade_id.as_ref().and_then(|s| s.parse().ok()) {
+                    accumulator.push(crate::window_recovery::WindowTrade {
+                        sequence,
+                        ts_ms: row.ts_ms,
+                        price: row.price,
+                        qty: row.qty,
+                        side: row.side,
+                    });
+                } else {
+                    accumulator.reject("invalid_native_trade_evidence");
+                }
+            }
+        }
+        Ok(
+            serde_json::json!({"model_version":"native-trade-window/v1","window":accumulator.finish(),
+            "source_quality":self.source_quality(),"subscription_quality":guard.subscription_quality,"retention_quality":guard.raw_retention_quality,"global_quality_cleared":false}),
+        )
+    }
+
     pub async fn subscription_quality(&self) -> SubscriptionQuality {
         self.inner.read().await.subscription_quality.clone()
     }
@@ -244,20 +277,21 @@ impl OrderFlowStore {
                 notional,
             };
             let dynamic_bytes = stored.dynamic_bytes();
-            let raw = guard.raw_trades.entry(raw_key).or_default();
+            let raw = guard.raw_trades.entry(raw_key.clone()).or_default();
             let old_capacity = raw.capacity();
             raw.push_back(stored);
-            let mut removed_bytes = 0;
-            let mut removed_rows = 0;
-            while raw.len() > MAX_RAW_TRADES_PER_KEY {
-                removed_bytes += raw.pop_front().unwrap().dynamic_bytes();
-                removed_rows += 1;
-            }
             let capacity_delta =
                 (raw.capacity() - old_capacity) * std::mem::size_of::<StoredTrade>();
-            guard.raw_records = guard.raw_records + 1 - removed_rows;
-            guard.raw_bytes = guard.raw_bytes + capacity_delta + dynamic_bytes - removed_bytes;
-            guard.raw_retention_quality.record_eviction(removed_rows);
+            let first = if raw.len() == 1 {
+                Some(raw[0].ts_ms)
+            } else {
+                None
+            };
+            if let Some(ts) = first {
+                guard.raw_heads.insert((ts, raw_key));
+            }
+            guard.raw_records += 1;
+            guard.raw_bytes += capacity_delta + dynamic_bytes;
         }
 
         for window_ms in DEFAULT_WINDOWS_MS {
@@ -792,6 +826,11 @@ fn history_bytes(rows: &VecDeque<StoredTrade>) -> usize {
 }
 
 fn recount_raw_memory(state: &mut OrderFlowState) {
+    state.raw_heads = state
+        .raw_trades
+        .iter()
+        .filter_map(|(key, rows)| rows.front().map(|t| (t.ts_ms, key.clone())))
+        .collect();
     state.raw_records = state.raw_trades.values().map(VecDeque::len).sum();
     state.raw_bytes = state.raw_trades.values().map(history_bytes).sum();
 }
@@ -814,19 +853,44 @@ fn enforce_memory_budget(state: &mut OrderFlowState, limits: &MemoryLimits) {
         || state.raw_bytes > limits.order_flow_raw_bytes
         || state.raw_trades.len() > limits.order_flow_keys
     {
-        let Some(key) = state
-            .raw_trades
-            .iter()
-            .min_by_key(|(key, trades)| (trades.back().map_or(0, |t| t.ts_ms), *key))
-            .map(|(key, _)| key.clone())
-        else {
+        let Some((ts, key)) = state.raw_heads.pop_first() else {
             break;
         };
-        let removed = state.raw_trades.remove(&key).unwrap();
-        state.raw_records -= removed.len();
-        state.raw_bytes -= history_bytes(&removed);
-        state.raw_retention_quality.record_eviction(removed.len());
+        if state.raw_trades.len() > limits.order_flow_keys {
+            let removed = state.raw_trades.remove(&key).unwrap();
+            state.raw_records -= removed.len();
+            state.raw_bytes -= history_bytes(&removed);
+            state.raw_retention_quality.record_eviction(removed.len());
+            continue;
+        }
+        let rows = state.raw_trades.get_mut(&key).unwrap();
+        debug_assert_eq!(rows.front().map(|t| t.ts_ms), Some(ts));
+        let byte_pressure = state.raw_bytes > limits.order_flow_raw_bytes;
+        // Allocate headroom only on byte pressure; record pressure slides one row
+        // without repeatedly growing/shrinking a full deque on every tick.
+        let remove_count = if byte_pressure {
+            (rows.len() / 4).max(1)
+        } else {
+            1
+        };
+        let capacity_before = rows.capacity();
+        for _ in 0..remove_count {
+            state.raw_bytes -= rows.pop_front().unwrap().dynamic_bytes();
+        }
+        if byte_pressure {
+            rows.shrink_to(rows.len() + rows.len() / 8);
+        }
+        state.raw_bytes -= (capacity_before - rows.capacity()) * std::mem::size_of::<StoredTrade>();
+        state.raw_records -= remove_count;
+        state.raw_retention_quality.record_eviction(remove_count);
+        if let Some(front) = rows.front() {
+            state.raw_heads.insert((front.ts_ms, key));
+        } else {
+            let removed = state.raw_trades.remove(&key).unwrap();
+            state.raw_bytes -= history_bytes(&removed);
+        }
     }
+
     if state.buckets.len() > limits.order_flow_buckets {
         let mut rows = state
             .buckets
@@ -1131,6 +1195,44 @@ mod tests {
         );
         stop.cancel();
         task.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn hot_symbol_slides_under_budget_and_recovers_later_window() {
+        let store = OrderFlowStore::with_limits(
+            1000.0,
+            crate::config::runtime::MemoryLimits {
+                order_flow_raw_records: 5,
+                ..Default::default()
+            },
+        );
+        for n in 1..=20u64 {
+            store
+                .update_trade(&TradeTick {
+                    exchange: "binance",
+                    market: MarketKind::Perp,
+                    symbol: "BTCUSDT".into(),
+                    price: 10.0,
+                    qty: 1.0,
+                    side: TradeSide::Buy,
+                    trade_id: Some(n.to_string().into()),
+                    ts_ms: n * 10,
+                })
+                .await;
+        }
+        let scope = crate::window_recovery::WindowRequest {
+            exchange: "binance".into(),
+            market: "perp".into(),
+            symbol: "BTCUSDT".into(),
+            start_ms: 170,
+            end_ms: 200,
+        };
+        let r = store.recover_window(scope).await.unwrap();
+        assert_eq!(r["window"]["recovered"]["trade_count"], 3);
+        assert_eq!(r["window"]["quality"]["verified"], true);
+        assert_eq!(r["retention_quality"]["has_capacity_loss"], true);
+        assert_eq!(r["global_quality_cleared"], false);
+        assert_eq!(store.inner.read().await.raw_records, 5);
     }
 
     #[tokio::test]

@@ -43,6 +43,7 @@ mod strategy_state;
 mod supply;
 mod types;
 mod venue_status;
+mod window_recovery;
 
 pub const BUILD_REVISION: &str = match option_env!("MARKETBRIDGE_BUILD_REVISION") {
     Some(revision) => revision,
@@ -122,6 +123,27 @@ async fn main() -> anyhow::Result<()> {
             }
         };
         println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+    if args.get(1).map(String::as_str) == Some("--recover-trade-window") {
+        anyhow::ensure!(
+            args.len() == 4,
+            "--recover-trade-window requires sealed journal and request JSON paths"
+        );
+        let file = std::fs::File::open(&args[3])?;
+        anyhow::ensure!(
+            file.metadata()?.len() <= 4096,
+            "window request exceeds 4096 bytes"
+        );
+        let report = window_recovery::recover_journal(
+            std::path::Path::new(&args[2]),
+            serde_json::from_reader(file)?,
+        )?;
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        anyhow::ensure!(
+            report["window"]["quality"]["verified"] == true,
+            "native window could not be verified"
+        );
         return Ok(());
     }
     if args.get(1).map(String::as_str) == Some("--replay-journal") {
