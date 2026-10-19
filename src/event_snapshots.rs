@@ -16,6 +16,7 @@ const SNAPSHOT_MIN_RETENTION_MS: u64 = 300_000;
 const SNAPSHOT_MAX_RETENTION_MS: u64 = 3_600_000;
 const SNAPSHOT_RETENTION_MULTIPLIER: u64 = 120;
 const MAX_SNAPSHOT_KEYS_PER_DOMAIN: usize = 100_000;
+const SNAPSHOT_PRUNE_INTERVAL_MS: u64 = 1_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedTick {
@@ -284,12 +285,14 @@ pub struct OrderBookObservation {
 
 struct SnapshotMap<T> {
     inner: Arc<DashMap<String, T>>,
+    last_prune_ms: Arc<AtomicU64>,
 }
 
 impl<T> Clone for SnapshotMap<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+            last_prune_ms: self.last_prune_ms.clone(),
         }
     }
 }
@@ -298,6 +301,7 @@ impl<T: Clone> SnapshotMap<T> {
     fn new() -> Self {
         Self {
             inner: Arc::new(DashMap::new()),
+            last_prune_ms: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -312,8 +316,19 @@ impl<T: Clone> SnapshotMap<T> {
         ts_of: impl Fn(&T) -> u64 + Copy,
         max_entries: usize,
     ) {
-        self.inner
-            .retain(|_, value| now.saturating_sub(ts_of(value)) <= retention_ms);
+        // A full retain on every event makes ingest O(symbols) per update.
+        // Rate-limit retention sweeps across clones; freshness is still checked
+        // at read time, and the entry cap is enforced on every update below.
+        let last = self.last_prune_ms.load(Ordering::Relaxed);
+        if (now < last || now.saturating_sub(last) >= SNAPSHOT_PRUNE_INTERVAL_MS)
+            && self
+                .last_prune_ms
+                .compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+        {
+            self.inner
+                .retain(|_, value| now.saturating_sub(ts_of(value)) <= retention_ms);
+        }
         self.enforce_max_entries(max_entries, ts_of);
     }
 
@@ -503,6 +518,46 @@ mod tests {
         let values = map.values();
 
         assert_eq!(values, vec![1_100]);
+    }
+
+    #[test]
+    fn retention_sweeps_are_shared_across_clones_and_not_per_update() {
+        let map = SnapshotMap::new();
+        map.upsert("old".into(), 1_000_u64);
+        let visited = std::cell::Cell::new(0);
+        let timestamp = |value: &u64| {
+            visited.set(visited.get() + 1);
+            *value
+        };
+        map.prune_by_ts(1_000, 500, timestamp, 100);
+        assert_eq!(visited.get(), 1);
+        map.clone().prune_by_ts(1_100, 500, timestamp, 100);
+        assert_eq!(visited.get(), 1, "hot updates must not scan the cache");
+        map.upsert("new".into(), 2_100);
+        map.prune_by_ts(2_100, 500, timestamp, 100);
+        assert_eq!(visited.get(), 3);
+        assert_eq!(map.values(), vec![2_100]);
+    }
+
+    #[test]
+    fn entry_cap_is_enforced_between_retention_sweeps() {
+        let map = SnapshotMap::new();
+        map.prune_by_ts(10_000, 5_000, |value| *value, 1);
+        for timestamp in [10_000_u64, 10_001, 10_002] {
+            map.upsert(timestamp.to_string(), timestamp);
+        }
+        map.prune_by_ts(10_001, 5_000, |value| *value, 1);
+        assert_eq!(map.values(), vec![10_002]);
+    }
+
+    #[test]
+    fn retention_sweep_recovers_after_clock_moves_backwards() {
+        let map = SnapshotMap::new();
+        map.prune_by_ts(10_000, 100, |value| *value, 100);
+        map.upsert("expired".into(), 1_u64);
+        map.upsert("recent".into(), 490);
+        map.prune_by_ts(500, 100, |value| *value, 100);
+        assert_eq!(map.values(), vec![490]);
     }
 
     #[tokio::test]
