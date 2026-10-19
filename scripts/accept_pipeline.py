@@ -210,11 +210,17 @@ def main():
             check(child.poll() is None, "Redis exited at startup")
             try:
                 conn = Redis(("127.0.0.1", rport))
-                conn.command("PING")
-                conn.close()
-                return child
+                try:
+                    conn.command("PING")
+                    return child
+                except RuntimeError as error:
+                    if not str(error).startswith("Redis error: LOADING "):
+                        raise
+                finally:
+                    conn.close()
             except OSError:
-                time.sleep(.05)
+                pass
+            time.sleep(.05)
         raise RuntimeError("Redis startup timed out")
 
     def start_server():
