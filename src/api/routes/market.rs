@@ -395,8 +395,9 @@ pub async fn v1_market_order_flow(
         })
         .await;
     let subscription_quality = state.order_flow_store.subscription_quality().await;
+    let retention = state.order_flow_store.retention_status(false).await;
     Json(
-        serde_json::json!({"version":"v1","domain":"market_order_flow","subscription_quality":subscription_quality,"order_flow":rows}),
+        serde_json::json!({"version":"v1","domain":"market_order_flow","subscription_quality":subscription_quality,"retention":retention,"order_flow":rows}),
     )
 }
 
@@ -429,8 +430,9 @@ pub async fn v1_market_order_flow_windows(
             .then(b.bucket_start_ms.cmp(&a.bucket_start_ms))
     });
     let subscription_quality = state.order_flow_store.subscription_quality().await;
+    let retention = state.order_flow_store.retention_status(false).await;
     Json(
-        serde_json::json!({"version":"v1","domain":"market_order_flow_windows","subscription_quality":subscription_quality,"order_flow":rows}),
+        serde_json::json!({"version":"v1","domain":"market_order_flow_windows","subscription_quality":subscription_quality,"retention":retention,"order_flow":rows}),
     )
 }
 
@@ -456,8 +458,9 @@ pub async fn v1_market_footprint(
         })
         .await;
     let subscription_quality = state.order_flow_store.subscription_quality().await;
+    let retention = state.order_flow_store.retention_status(true).await;
     Json(
-        serde_json::json!({"version":"v1","domain":"market_footprint","subscription_quality":subscription_quality,"footprints":rows}),
+        serde_json::json!({"version":"v1","domain":"market_footprint","subscription_quality":subscription_quality,"retention":retention,"footprints":rows}),
     )
 }
 

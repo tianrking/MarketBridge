@@ -11,7 +11,7 @@ use crate::strategy_state::{RollingChange, StrategySymbolState};
 use crate::supply::SupplySnapshot;
 use crate::venue_status::VenueAssetStatusObservation;
 
-pub const MODEL_VERSION: &str = "squeeze-radar/v1";
+pub const MODEL_VERSION: &str = "squeeze-radar/v2";
 const ONE_HOUR_MS: u64 = 60 * 60_000;
 const FIFTEEN_MINUTES_MS: u64 = 15 * 60_000;
 
@@ -60,6 +60,7 @@ pub struct SupplyContext {
 #[derive(Debug, Clone, Serialize)]
 pub struct SqueezeDataQuality {
     pub subscription_quality: crate::data_quality::SubscriptionQuality,
+    pub retention_quality: crate::data_quality::RetentionQuality,
     pub observed_at_ms: u64,
     pub age_ms: Option<u64>,
     pub fresh: bool,
@@ -239,6 +240,9 @@ fn evaluate(
             .push("aligned 15m price baseline unavailable; no right-side confirmation".into()),
     }
 
+    if raw.retention_quality.has_capacity_loss {
+        missing.push("process-local retention evicted observations; state rebuild required".into());
+    }
     if raw.subscription_quality.has_known_gap {
         missing.push(format!("process-local subscription lost {} events (gap epoch {}); rebuild state before research triggers",
             raw.subscription_quality.skipped_events_total, raw.subscription_quality.gap_epoch));
@@ -273,6 +277,7 @@ fn evaluate(
             .push("no explicit supply identity mapping; OI/Mcap is intentionally omitted".into());
     }
     let ready_for_trigger = !raw.subscription_quality.has_known_gap
+        && !raw.retention_quality.has_capacity_loss
         && fresh
         && funding_fresh
         && open_interest_fresh
@@ -283,7 +288,8 @@ fn evaluate(
         && price_15m.is_some()
         && metrics.cvd_divergence.is_some()
         && metrics.ofi_best_level_1m.is_some();
-    let state = if raw.subscription_quality.has_known_gap {
+    let state = if raw.subscription_quality.has_known_gap || raw.retention_quality.has_capacity_loss
+    {
         "incomplete_data"
     } else if !fresh {
         "stale_data"
@@ -309,6 +315,7 @@ fn evaluate(
         max_score: 10,
         data_quality: SqueezeDataQuality {
             subscription_quality: raw.subscription_quality.clone(),
+            retention_quality: raw.retention_quality.clone(),
             observed_at_ms: raw.observed_at_ms,
             age_ms,
             fresh,
@@ -370,6 +377,7 @@ mod tests {
     fn state(now: u64) -> StrategySymbolState {
         StrategySymbolState {
             subscription_quality: Default::default(),
+            retention_quality: Default::default(),
             exchange: "test".into(),
             symbol: "ABCUSDT".into(),
             generated_at_ms: now,
@@ -476,11 +484,24 @@ mod tests {
                 .iter()
                 .any(|text| text.contains("lost 7 events"))
         );
-        assert_eq!(report.model_version, "squeeze-radar/v1");
+        assert_eq!(report.model_version, "squeeze-radar/v2");
         let archived = serde_json::to_value(report).unwrap();
         assert_eq!(
             archived["candidates"][0]["raw"]["subscription_quality"]["has_known_gap"],
             true
         );
+    }
+
+    #[test]
+    fn known_retention_loss_blocks_a_fresh_full_score_candidate() {
+        let now = 10_000_000;
+        let mut input = state(now);
+        input.retention_quality.record_eviction(1);
+        let report = scan(vec![input], now, 3000, 0, 10);
+        let row = &report.candidates[0];
+        assert_eq!(row.score, 10);
+        assert_eq!(row.state, "incomplete_data");
+        assert!(!row.data_quality.ready_for_trigger);
+        assert!(row.data_quality.retention_quality.has_capacity_loss);
     }
 }

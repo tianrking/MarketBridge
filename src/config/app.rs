@@ -74,6 +74,7 @@ impl AppConfig {
     }
 
     pub fn validate(&self) -> Result<()> {
+        self.runtime.memory.validate()?;
         self.runtime
             .api_addr
             .parse::<std::net::SocketAddr>()

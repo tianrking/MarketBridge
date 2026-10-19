@@ -72,6 +72,7 @@ pub fn build_router(state: ApiState) -> Router {
         "/ws/ticks" => routes::stream::ws_ticks,
         "/v1/stream" => routes::stream::v1_stream,
         "/v1/catalog/sources" => routes::catalog::sources,
+        "/v1/system/memory" => routes::system::memory,
         "/v1/catalog/search" => routes::catalog::search,
         "/v1/catalog/markets" => routes::catalog::markets,
         "/v1/catalog/perpetuals" => routes::catalog::perpetuals,

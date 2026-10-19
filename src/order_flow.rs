@@ -8,7 +8,8 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::data_quality::SubscriptionQuality;
+use crate::config::runtime::MemoryLimits;
+use crate::data_quality::{RetentionQuality, SubscriptionQuality};
 use crate::event_bus::{EventBus, EventDomain};
 use crate::types::{DataEvent, TradeSide, TradeTick};
 
@@ -17,8 +18,7 @@ const MAX_BUCKETS_PER_KEY: usize = 500;
 const MAX_RAW_TRADES_PER_KEY: usize = 20_000;
 const RAW_TRADE_RETENTION_MS: u64 = 30 * 60_000;
 const BUCKET_RETENTION_MS: u64 = 24 * 60 * 60_000;
-const MAX_RAW_TRADE_KEYS: usize = 100_000;
-const MAX_BUCKET_ROWS_TOTAL: usize = 250_000;
+const GLOBAL_PRUNE_INTERVAL_MS: u64 = 1_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OrderFlowBucket {
@@ -130,12 +130,20 @@ pub struct FootprintTrade {
 pub struct OrderFlowStore {
     inner: Arc<RwLock<OrderFlowState>>,
     large_trade_notional_usdt: f64,
+    limits: MemoryLimits,
 }
 
 #[derive(Default)]
 struct OrderFlowState {
     subscription_quality: SubscriptionQuality,
+    raw_retention_quality: RetentionQuality,
+    bucket_retention_quality: RetentionQuality,
+    raw_records: usize,
+    raw_bytes: usize,
+    watermark_ms: u64,
+    last_prune_ms: Option<u64>,
     buckets: HashMap<String, OrderFlowBucket>,
+    bucket_counts: HashMap<String, usize>,
     cumulative_qty: HashMap<String, f64>,
     cumulative_notional: HashMap<String, f64>,
     raw_trades: HashMap<String, VecDeque<StoredTrade>>,
@@ -155,11 +163,28 @@ struct StoredTrade {
 }
 
 impl OrderFlowStore {
+    #[cfg(test)]
     pub fn new(large_trade_notional_usdt: f64) -> Self {
+        Self::with_limits(large_trade_notional_usdt, MemoryLimits::default())
+    }
+
+    pub fn with_limits(large_trade_notional_usdt: f64, limits: MemoryLimits) -> Self {
         Self {
             inner: Arc::new(RwLock::new(OrderFlowState::default())),
             large_trade_notional_usdt,
+            limits,
         }
+    }
+
+    pub async fn retention_status(&self, footprint: bool) -> serde_json::Value {
+        let guard = self.inner.read().await;
+        serde_json::json!({
+            "quality": if footprint { &guard.raw_retention_quality } else { &guard.bucket_retention_quality },
+            "raw_records": guard.raw_records, "raw_accounted_bytes": guard.raw_bytes,
+            "raw_keys": guard.raw_trades.len(), "bucket_rows": guard.buckets.len(),
+            "accounting": "owned raw deque capacity and row strings; not process RSS",
+            "limits": self.limits,
+        })
     }
 
     pub async fn subscription_quality(&self) -> SubscriptionQuality {
@@ -183,25 +208,43 @@ impl OrderFlowStore {
         }
         let mut guard = self.inner.write().await;
         let raw_key = format!("{}:{}:{}", trade.exchange, market, symbol);
-        let raw = guard.raw_trades.entry(raw_key).or_default();
-        raw.push_back(StoredTrade {
-            exchange: trade.exchange.to_string(),
-            market: market.clone(),
-            symbol: symbol.clone(),
-            ts_ms: trade.ts_ms,
-            price: trade.price,
-            qty: trade.qty,
-            side: trade.side,
-            trade_id: trade.trade_id.as_ref().map(|id| id.to_string()),
-            notional,
-        });
-        while raw.len() > MAX_RAW_TRADES_PER_KEY {
-            raw.pop_front();
+        guard.watermark_ms = guard.watermark_ms.max(trade.ts_ms);
+        let watermark = guard.watermark_ms;
+        if watermark.saturating_sub(trade.ts_ms) <= RAW_TRADE_RETENTION_MS {
+            let stored = StoredTrade {
+                exchange: trade.exchange.to_string(),
+                market: market.clone(),
+                symbol: symbol.clone(),
+                ts_ms: trade.ts_ms,
+                price: trade.price,
+                qty: trade.qty,
+                side: trade.side,
+                trade_id: trade.trade_id.as_ref().map(|id| id.to_string()),
+                notional,
+            };
+            let dynamic_bytes = stored.dynamic_bytes();
+            let raw = guard.raw_trades.entry(raw_key).or_default();
+            let old_capacity = raw.capacity();
+            raw.push_back(stored);
+            let mut removed_bytes = 0;
+            let mut removed_rows = 0;
+            while raw.len() > MAX_RAW_TRADES_PER_KEY {
+                removed_bytes += raw.pop_front().unwrap().dynamic_bytes();
+                removed_rows += 1;
+            }
+            let capacity_delta =
+                (raw.capacity() - old_capacity) * std::mem::size_of::<StoredTrade>();
+            guard.raw_records = guard.raw_records + 1 - removed_rows;
+            guard.raw_bytes = guard.raw_bytes + capacity_delta + dynamic_bytes - removed_bytes;
+            guard.raw_retention_quality.record_eviction(removed_rows);
         }
 
         for window_ms in DEFAULT_WINDOWS_MS {
             let bucket_start_ms = trade.ts_ms / window_ms * window_ms;
-            let bucket_end_ms = bucket_start_ms + window_ms - 1;
+            let bucket_end_ms = bucket_start_ms.saturating_add(*window_ms - 1);
+            if watermark.saturating_sub(bucket_end_ms) > BUCKET_RETENTION_MS {
+                continue;
+            }
             let cvd_key = format!("{}:{}:{}:{}", trade.exchange, market, symbol, window_ms);
             let key = format!("{cvd_key}:{bucket_start_ms}");
             let delta_sign = match trade.side {
@@ -212,10 +255,14 @@ impl OrderFlowStore {
             let cumulative_qty = guard.cumulative_qty.entry(cvd_key.clone()).or_default();
             *cumulative_qty += delta_sign * trade.qty;
             let cumulative_delta_qty = *cumulative_qty;
-            let cumulative_notional = guard.cumulative_notional.entry(cvd_key).or_default();
+            let cumulative_notional = guard
+                .cumulative_notional
+                .entry(cvd_key.clone())
+                .or_default();
             *cumulative_notional += delta_sign * notional;
             let cumulative_delta_notional = *cumulative_notional;
 
+            let was_new = !guard.buckets.contains_key(&key);
             let bucket = guard.buckets.entry(key).or_insert_with(|| OrderFlowBucket {
                 exchange: trade.exchange.to_string(),
                 market: market.clone(),
@@ -268,8 +315,31 @@ impl OrderFlowStore {
                     Some(bucket.sell_trade_count as f64 / total_known_trades as f64);
             }
             bucket.updated_at_ms = crate::types::now_ms();
+            if was_new {
+                *guard.bucket_counts.entry(cvd_key.clone()).or_default() += 1;
+                if guard.bucket_counts[&cvd_key] > MAX_BUCKETS_PER_KEY {
+                    let prefix = format!("{cvd_key}:");
+                    let oldest = guard
+                        .buckets
+                        .iter()
+                        .filter(|(key, _)| key.starts_with(&prefix))
+                        .min_by_key(|(key, row)| (row.bucket_start_ms, *key))
+                        .map(|(key, _)| key.clone())
+                        .unwrap();
+                    guard.buckets.remove(&oldest);
+                    *guard.bucket_counts.get_mut(&cvd_key).unwrap() -= 1;
+                    guard.bucket_retention_quality.record_eviction(1);
+                }
+            }
         }
-        prune_order_flow_state(&mut guard, trade.ts_ms);
+        if guard
+            .last_prune_ms
+            .is_none_or(|last| watermark.saturating_sub(last) >= GLOBAL_PRUNE_INTERVAL_MS)
+        {
+            prune_order_flow_state(&mut guard, watermark);
+            guard.last_prune_ms = Some(watermark);
+        }
+        enforce_memory_budget(&mut guard, &self.limits);
     }
 
     pub async fn query(&self, q: OrderFlowQuery) -> Vec<OrderFlowBucket> {
@@ -655,14 +725,18 @@ fn prune_order_flow_state(state: &mut OrderFlowState, now: u64) {
         trades.retain(|trade| now.saturating_sub(trade.ts_ms) <= RAW_TRADE_RETENTION_MS);
         !trades.is_empty()
     });
-    enforce_raw_trade_key_cap(&mut state.raw_trades);
+    recount_raw_memory(state);
 
     state
         .buckets
         .retain(|_, row| now.saturating_sub(row.bucket_end_ms) <= BUCKET_RETENTION_MS);
+    let before = state.buckets.len();
     prune_buckets(&mut state.buckets);
-    enforce_bucket_row_cap(&mut state.buckets);
+    state
+        .bucket_retention_quality
+        .record_eviction(before - state.buckets.len());
 
+    recount_bucket_keys(state);
     let active_cvd_keys = state
         .buckets
         .values()
@@ -681,40 +755,79 @@ fn prune_order_flow_state(state: &mut OrderFlowState, now: u64) {
         .retain(|key, _| active_cvd_keys.contains(key));
 }
 
-fn enforce_raw_trade_key_cap(raw_trades: &mut HashMap<String, VecDeque<StoredTrade>>) {
-    if raw_trades.len() <= MAX_RAW_TRADE_KEYS {
-        return;
-    }
-    let mut rows = raw_trades
-        .iter()
-        .map(|(key, trades)| {
-            let latest_ts = trades.iter().map(|trade| trade.ts_ms).max().unwrap_or(0);
-            (key.clone(), latest_ts)
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by_key(|(_, ts)| *ts);
-    for (key, _) in rows
-        .into_iter()
-        .take(raw_trades.len().saturating_sub(MAX_RAW_TRADE_KEYS))
-    {
-        raw_trades.remove(&key);
+impl StoredTrade {
+    fn dynamic_bytes(&self) -> usize {
+        self.exchange.capacity()
+            + self.market.capacity()
+            + self.symbol.capacity()
+            + self.trade_id.as_ref().map_or(0, String::capacity)
     }
 }
 
-fn enforce_bucket_row_cap(buckets: &mut HashMap<String, OrderFlowBucket>) {
-    if buckets.len() <= MAX_BUCKET_ROWS_TOTAL {
-        return;
+fn history_bytes(rows: &VecDeque<StoredTrade>) -> usize {
+    rows.capacity() * std::mem::size_of::<StoredTrade>()
+        + rows.iter().map(StoredTrade::dynamic_bytes).sum::<usize>()
+}
+
+fn recount_raw_memory(state: &mut OrderFlowState) {
+    state.raw_records = state.raw_trades.values().map(VecDeque::len).sum();
+    state.raw_bytes = state.raw_trades.values().map(history_bytes).sum();
+}
+
+fn recount_bucket_keys(state: &mut OrderFlowState) {
+    state.bucket_counts.clear();
+    for row in state.buckets.values() {
+        *state
+            .bucket_counts
+            .entry(format!(
+                "{}:{}:{}:{}",
+                row.exchange, row.market, row.symbol, row.window_ms
+            ))
+            .or_default() += 1;
     }
-    let mut rows = buckets
-        .iter()
-        .map(|(key, row)| (key.clone(), row.updated_at_ms, row.bucket_start_ms))
-        .collect::<Vec<_>>();
-    rows.sort_by_key(|(_, updated_at_ms, bucket_start_ms)| (*updated_at_ms, *bucket_start_ms));
-    for (key, _, _) in rows
-        .into_iter()
-        .take(buckets.len().saturating_sub(MAX_BUCKET_ROWS_TOTAL))
+}
+
+fn enforce_memory_budget(state: &mut OrderFlowState, limits: &MemoryLimits) {
+    while state.raw_records > limits.order_flow_raw_records
+        || state.raw_bytes > limits.order_flow_raw_bytes
+        || state.raw_trades.len() > limits.order_flow_keys
     {
-        buckets.remove(&key);
+        let Some(key) = state
+            .raw_trades
+            .iter()
+            .min_by_key(|(key, trades)| (trades.back().map_or(0, |t| t.ts_ms), *key))
+            .map(|(key, _)| key.clone())
+        else {
+            break;
+        };
+        let removed = state.raw_trades.remove(&key).unwrap();
+        state.raw_records -= removed.len();
+        state.raw_bytes -= history_bytes(&removed);
+        state.raw_retention_quality.record_eviction(removed.len());
+    }
+    if state.buckets.len() > limits.order_flow_buckets {
+        let mut rows = state
+            .buckets
+            .iter()
+            .map(|(key, row)| (row.bucket_start_ms, key.clone()))
+            .collect::<Vec<_>>();
+        rows.sort();
+        let excess = rows.len() - limits.order_flow_buckets;
+        for (_, key) in rows.into_iter().take(excess) {
+            state.buckets.remove(&key);
+        }
+        state.bucket_retention_quality.record_eviction(excess);
+        recount_bucket_keys(state);
+        // CVD maps must not grow independently after key/bucket eviction.
+        let active = state
+            .buckets
+            .values()
+            .map(|r| format!("{}:{}:{}:{}", r.exchange, r.market, r.symbol, r.window_ms))
+            .collect::<HashSet<_>>();
+        state.cumulative_qty.retain(|key, _| active.contains(key));
+        state
+            .cumulative_notional
+            .retain(|key, _| active.contains(key));
     }
 }
 
@@ -996,5 +1109,92 @@ mod tests {
         );
         stop.cancel();
         task.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn global_memory_limits_cover_all_symbols_and_variable_trade_ids() {
+        let limits = crate::config::runtime::MemoryLimits {
+            order_flow_raw_records: 3,
+            order_flow_raw_bytes: 4096,
+            order_flow_keys: 2,
+            order_flow_buckets: 9,
+            ..Default::default()
+        };
+        let store = OrderFlowStore::with_limits(1000.0, limits.clone());
+        for n in 0..20 {
+            store
+                .update_trade(&TradeTick {
+                    exchange: "test",
+                    market: MarketKind::Perp,
+                    symbol: format!("S{n}").into(),
+                    price: 10.0,
+                    qty: 1.0,
+                    side: TradeSide::Buy,
+                    trade_id: Some(if n == 19 {
+                        "x".repeat(8192).into()
+                    } else {
+                        "small".into()
+                    }),
+                    ts_ms: 1000 + n,
+                })
+                .await;
+            let state = store.inner.read().await;
+            assert!(state.raw_records <= limits.order_flow_raw_records);
+            assert!(state.raw_bytes <= limits.order_flow_raw_bytes);
+            assert!(state.raw_trades.len() <= limits.order_flow_keys);
+            assert!(state.buckets.len() <= limits.order_flow_buckets);
+            assert_eq!(
+                state.raw_records,
+                state
+                    .raw_trades
+                    .values()
+                    .map(std::collections::VecDeque::len)
+                    .sum::<usize>()
+            );
+            assert_eq!(
+                state.raw_bytes,
+                state
+                    .raw_trades
+                    .values()
+                    .map(super::history_bytes)
+                    .sum::<usize>()
+            );
+        }
+        let state = store.inner.read().await;
+        assert!(state.raw_retention_quality.has_capacity_loss);
+        assert!(state.bucket_retention_quality.has_capacity_loss);
+    }
+
+    #[tokio::test]
+    async fn global_retention_scan_is_amortized_and_accounting_survives_expiry() {
+        let store = OrderFlowStore::new(1000.0);
+        let mut trade = TradeTick {
+            exchange: "test",
+            market: MarketKind::Perp,
+            symbol: "BTC".into(),
+            price: 10.0,
+            qty: 1.0,
+            side: TradeSide::Buy,
+            trade_id: None,
+            ts_ms: 1000,
+        };
+        for ts in 1000..1100 {
+            trade.ts_ms = ts;
+            store.update_trade(&trade).await;
+        }
+        assert_eq!(store.inner.read().await.last_prune_ms, Some(1000));
+        trade.ts_ms += RAW_TRADE_RETENTION_MS + 1000;
+        store.update_trade(&trade).await;
+        let state = store.inner.read().await;
+        assert_eq!(state.raw_records, 1);
+        assert_eq!(
+            state.raw_bytes,
+            state
+                .raw_trades
+                .values()
+                .map(super::history_bytes)
+                .sum::<usize>()
+        );
+        assert!(!state.raw_retention_quality.has_capacity_loss);
     }
 }

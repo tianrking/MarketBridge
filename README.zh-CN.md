@@ -1039,7 +1039,7 @@ data/redis_dead_letters.jsonl
 
 这一边界是 Redis 本地队列，不覆盖所有 source/router/广播缓冲。`XADD *` 重试和重放可能重复；Redis ACK 不证明服务端已经落盘；目前没有自动死信重放或 durable outbox。详见[机构使用门槛与恢复边界](docs/institutional_readiness.zh-CN.md)。
 
-Order-flow、footprint、symbol-state 响应新增 `subscription_quality`。已知订阅丢失在该 store 生命周期内持续标记，新事件和等待时间不会清除它；`squeeze-radar/v1` 将这类候选标记为 `incomplete_data` 并禁止触发。`has_known_gap=false` 仅代表没有观察到本地订阅缺口，上游覆盖和保留完整性仍未得到证明。
+Order-flow、footprint、symbol-state 响应新增 `subscription_quality`。已知订阅丢失在该 store 生命周期内持续标记，新事件和等待时间不会清除它；`squeeze-radar/v2` 将这类候选标记为 `incomplete_data` 并禁止触发。`has_known_gap=false` 仅代表没有观察到本地订阅缺口，上游覆盖和保留完整性仍未得到证明。
 
 ## 边界说明
 
@@ -1267,3 +1267,6 @@ carry 系列还新增逐点时间的价格/OI/资金费率状态回放，按状�
 不要把 MarketBridge 当成交易执行器。它现在不签名、不下单、不撤单。
 
 </details>
+
+
+全局保留预算可通过 `runtime.memory` 配置，用 `/v1/system/memory` 检查当前量和淘汰；策略容量损失由 `retention_quality` 表示，squeeze v2 会阻止触发。预算覆盖保留状态，不等于进程 RSS 上限，详见[验收文档](docs/institutional_readiness.zh-CN.md)。

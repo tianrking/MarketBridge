@@ -197,9 +197,12 @@ async fn main() -> anyhow::Result<()> {
     }
     set_ws_send_timeout_ms(cfg.runtime.ws_send_timeout_ms);
 
-    let order_flow_store = OrderFlowStore::new(cfg.runtime.order_flow_large_trade_notional_usdt);
+    let order_flow_store = OrderFlowStore::with_limits(
+        cfg.runtime.order_flow_large_trade_notional_usdt,
+        cfg.runtime.memory.clone(),
+    );
     let onchain_store = OnchainTransferStore::default();
-    let strategy_state_store = StrategyStateStore::new();
+    let strategy_state_store = StrategyStateStore::with_limits(cfg.runtime.memory.clone());
     let supply_store = SupplySnapshotStore::default();
     let venue_status_store = VenueAssetStatusStore::default();
     let source_catalog = catalog::source_catalog_for_config(&cfg);

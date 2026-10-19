@@ -5,6 +5,26 @@
 
 use serde::Serialize;
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct RetentionQuality {
+    pub has_capacity_loss: bool,
+    pub eviction_epoch: u64,
+    pub evicted_records_total: u64,
+    pub last_eviction_at_ms: Option<u64>,
+}
+
+impl RetentionQuality {
+    pub fn record_eviction(&mut self, records: usize) {
+        if records == 0 {
+            return;
+        }
+        self.has_capacity_loss = true;
+        self.eviction_epoch = self.eviction_epoch.saturating_add(1);
+        self.evicted_records_total = self.evicted_records_total.saturating_add(records as u64);
+        self.last_eviction_at_ms = Some(crate::types::now_ms());
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SubscriptionQuality {
     pub scope: &'static str,

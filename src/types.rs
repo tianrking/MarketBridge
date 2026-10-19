@@ -118,6 +118,35 @@ pub enum DataEvent {
 }
 
 impl DataEvent {
+    /// Bound variable payloads before they enter retained caches and queues.
+    pub fn fits_ingestion_limits(&self) -> bool {
+        let symbol_ok = |symbol: &str| symbol.len() <= 128;
+        match self {
+            Self::Tick(t) => symbol_ok(&t.symbol),
+            Self::FundingRate(t) => symbol_ok(&t.symbol),
+            Self::OpenInterest(t) => symbol_ok(&t.symbol),
+            Self::Trade(t) => {
+                symbol_ok(&t.symbol) && t.trade_id.as_ref().is_none_or(|id| id.len() <= 256)
+            }
+            Self::Liquidation(t) => symbol_ok(&t.symbol),
+            Self::OrderBook(t) => {
+                symbol_ok(&t.symbol) && t.bids.len().saturating_add(t.asks.len()) <= 4096
+            }
+            Self::ExternalSignal(t) => {
+                t.symbol.as_deref().is_none_or(symbol_ok)
+                    && t.category.len() <= 256
+                    && t.metric.len() <= 256
+                    && t.title.as_ref().is_none_or(|s| s.len() <= 8192)
+                    && t.url.as_ref().is_none_or(|s| s.len() <= 4096)
+                    && t.source_instance.as_ref().is_none_or(|s| s.len() <= 256)
+                    && t.raw
+                        .as_ref()
+                        .is_none_or(|value| json_owned_bytes(value, 0) <= 256 * 1024)
+            }
+            Self::Heartbeat { .. } => true,
+        }
+    }
+
     pub fn has_finite_numbers(&self) -> bool {
         match self {
             DataEvent::Tick(t) => {
@@ -146,6 +175,28 @@ impl DataEvent {
             DataEvent::Heartbeat { .. } => true,
         }
     }
+}
+
+fn json_owned_bytes(value: &serde_json::Value, depth: usize) -> usize {
+    if depth > 64 {
+        return usize::MAX;
+    }
+    let extra = match value {
+        serde_json::Value::String(s) => s.capacity(),
+        serde_json::Value::Array(rows) => rows.iter().fold(
+            rows.capacity()
+                .saturating_mul(std::mem::size_of::<serde_json::Value>()),
+            |bytes, row| bytes.saturating_add(json_owned_bytes(row, depth + 1)),
+        ),
+        serde_json::Value::Object(rows) => rows.iter().fold(0usize, |bytes, (key, row)| {
+            bytes
+                .saturating_add(key.capacity())
+                .saturating_add(64)
+                .saturating_add(json_owned_bytes(row, depth + 1))
+        }),
+        _ => 0,
+    };
+    std::mem::size_of::<serde_json::Value>().saturating_add(extra)
 }
 
 impl BookLevel {
@@ -237,5 +288,36 @@ mod tests {
         assert!(!timestamp_is_fresh(8_999, 10_000, 1_000));
         assert!(timestamp_is_fresh(9_000, 10_000, 1_000));
         assert!(timestamp_is_fresh(10_001, 10_000, 1_000));
+    }
+
+    #[test]
+    fn oversized_payloads_cannot_enter_retained_queues() {
+        let trade = DataEvent::Trade(TradeTick {
+            exchange: "test",
+            market: MarketKind::Perp,
+            symbol: "BTC".into(),
+            price: 1.0,
+            qty: 1.0,
+            side: TradeSide::Buy,
+            trade_id: Some("x".repeat(257).into()),
+            ts_ms: 1,
+        });
+        assert!(!trade.fits_ingestion_limits());
+        let book = DataEvent::OrderBook(OrderBookTick {
+            exchange: "test",
+            market: MarketKind::Perp,
+            symbol: "BTC".into(),
+            bids: vec![
+                BookLevel {
+                    price: 1.0,
+                    qty: 1.0
+                };
+                4097
+            ],
+            asks: vec![],
+            last_update_id: None,
+            ts_ms: 1,
+        });
+        assert!(!book.fits_ingestion_limits());
     }
 }

@@ -7,7 +7,8 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::data_quality::SubscriptionQuality;
+use crate::config::runtime::MemoryLimits;
+use crate::data_quality::{RetentionQuality, SubscriptionQuality};
 use crate::event_bus::EventBus;
 use crate::types::{
     BookLevel, DataEvent, FundingRateTick, LiquidationTick, MarketKind, MarketTick,
@@ -33,12 +34,14 @@ pub struct SymbolStateResponse {
     pub exchange: Option<String>,
     pub generated_at_ms: u64,
     pub subscription_quality: SubscriptionQuality,
+    pub retention_quality: RetentionQuality,
     pub states: Vec<StrategySymbolState>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StrategySymbolState {
     pub subscription_quality: SubscriptionQuality,
+    pub retention_quality: RetentionQuality,
     pub exchange: String,
     pub symbol: String,
     pub generated_at_ms: u64,
@@ -114,16 +117,21 @@ pub struct RiskContext {
 #[derive(Clone)]
 pub struct StrategyStateStore {
     inner: Arc<RwLock<StrategyStateInner>>,
+    limits: MemoryLimits,
 }
 
 #[derive(Default)]
 struct StrategyStateInner {
     subscription_quality: SubscriptionQuality,
+    retention_quality: RetentionQuality,
+    accounted_bytes: usize,
     symbols: HashMap<String, SymbolRuntimeState>,
 }
 
 #[derive(Default)]
 struct SymbolRuntimeState {
+    accounted_bytes: usize,
+    capacity_drops: usize,
     exchange: String,
     symbol: String,
     latest_price: Option<f64>,
@@ -185,10 +193,23 @@ struct BookTop {
 }
 
 impl StrategyStateStore {
+    #[cfg(test)]
     pub fn new() -> Self {
+        Self::with_limits(MemoryLimits::default())
+    }
+
+    pub fn with_limits(limits: MemoryLimits) -> Self {
         Self {
             inner: Arc::new(RwLock::new(StrategyStateInner::default())),
+            limits,
         }
+    }
+
+    pub async fn retention_status(&self) -> serde_json::Value {
+        let state = self.inner.read().await;
+        serde_json::json!({"quality":state.retention_quality,"symbols":state.symbols.len(),
+            "accounted_bytes":state.accounted_bytes,"limits":self.limits,
+            "accounting":"owned symbol state and history capacities; not process RSS"})
     }
 
     pub async fn update_event(&self, event: &DataEvent) {
@@ -209,6 +230,7 @@ impl StrategyStateStore {
         let exchange_filter = exchange.map(str::to_ascii_lowercase);
         let mut guard = self.inner.write().await;
         let quality = guard.subscription_quality.clone();
+        let retention_quality = guard.retention_quality.clone();
         let mut rows = guard
             .symbols
             .values_mut()
@@ -220,7 +242,7 @@ impl StrategyStateStore {
             })
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now, &quality)
+                state.snapshot(now, &quality, &retention_quality)
             })
             .collect::<Vec<_>>();
         drop(guard);
@@ -233,6 +255,7 @@ impl StrategyStateStore {
             exchange: exchange_filter,
             generated_at_ms: now,
             subscription_quality: quality,
+            retention_quality,
             states: rows,
         }
     }
@@ -244,12 +267,13 @@ impl StrategyStateStore {
         let now = now_ms();
         let mut guard = self.inner.write().await;
         let quality = guard.subscription_quality.clone();
+        let retention_quality = guard.retention_quality.clone();
         let mut rows = guard
             .symbols
             .values_mut()
             .map(|state| {
                 state.prune(now);
-                state.snapshot(now, &quality)
+                state.snapshot(now, &quality, &retention_quality)
             })
             .collect::<Vec<_>>();
         drop(guard);
@@ -276,12 +300,13 @@ impl StrategyStateStore {
         let state = guard.symbol_state(tick.exchange, &tick.symbol);
         state.latest_price = Some(tick.mark.unwrap_or(mid));
         state.price_observed_at_ms = Some(tick.ts_ms);
-        push_numeric(
+        state.capacity_drops += push_numeric(
             &mut state.price_history,
             tick.ts_ms,
             tick.mark.unwrap_or(mid),
         );
         state.updated_at_ms = tick.ts_ms;
+        guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
     async fn update_funding(&self, tick: &FundingRateTick) {
@@ -289,12 +314,14 @@ impl StrategyStateStore {
         let state = guard.symbol_state(tick.exchange, &tick.symbol);
         state.funding_rate = Some(tick.funding_rate);
         state.funding_observed_at_ms = Some(tick.ts_ms);
-        push_numeric(&mut state.funding_history, tick.ts_ms, tick.funding_rate);
+        state.capacity_drops +=
+            push_numeric(&mut state.funding_history, tick.ts_ms, tick.funding_rate);
         if let Some(mark) = tick.mark_price {
             state.latest_price = Some(mark);
             state.price_observed_at_ms = Some(tick.ts_ms);
         }
         state.updated_at_ms = tick.ts_ms;
+        guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
     async fn update_open_interest(&self, tick: &OpenInterestTick) {
@@ -309,12 +336,13 @@ impl StrategyStateStore {
         state.open_interest = Some(tick.open_interest);
         state.open_interest_value = tick.open_interest_value;
         state.open_interest_observed_at_ms = Some(tick.ts_ms);
-        push_numeric(
+        state.capacity_drops += push_numeric(
             &mut state.open_interest_history,
             tick.ts_ms,
             tick.open_interest,
         );
         state.updated_at_ms = tick.ts_ms;
+        guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
     async fn update_trade(&self, tick: &TradeTick) {
@@ -339,12 +367,14 @@ impl StrategyStateStore {
         });
         while target.len() > MAX_FLOW_EVENTS_PER_SIDE {
             target.pop_front();
+            state.capacity_drops += 1;
         }
         state.latest_price = Some(tick.price);
         state.price_observed_at_ms = Some(tick.ts_ms);
-        push_numeric(&mut state.price_history, tick.ts_ms, tick.price);
+        state.capacity_drops += push_numeric(&mut state.price_history, tick.ts_ms, tick.price);
         state.updated_at_ms = tick.ts_ms;
         state.prune(tick.ts_ms);
+        guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
     async fn update_liquidation(&self, tick: &LiquidationTick) {
@@ -361,11 +391,13 @@ impl StrategyStateStore {
         });
         while state.liquidations.len() > MAX_LIQUIDATION_EVENTS {
             state.liquidations.pop_front();
+            state.capacity_drops += 1;
         }
         state.latest_price = Some(tick.price);
         state.price_observed_at_ms = Some(tick.ts_ms);
         state.updated_at_ms = tick.ts_ms;
         state.prune(tick.ts_ms);
+        guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 
     async fn update_order_book(&self, tick: &OrderBookTick) {
@@ -394,10 +426,35 @@ impl StrategyStateStore {
         }
         state.updated_at_ms = tick.ts_ms;
         state.prune(tick.ts_ms);
+        guard.finish_update(tick.exchange, &tick.symbol, &self.limits);
     }
 }
 
 impl StrategyStateInner {
+    fn finish_update(&mut self, exchange: &str, symbol: &str, limits: &MemoryLimits) {
+        let key = state_key(exchange, symbol);
+        let state = self.symbols.get_mut(&key).unwrap();
+        self.accounted_bytes -= state.accounted_bytes;
+        state.accounted_bytes = state.owned_bytes() + key.capacity();
+        self.accounted_bytes += state.accounted_bytes;
+        self.retention_quality
+            .record_eviction(std::mem::take(&mut state.capacity_drops));
+        while self.symbols.len() > limits.strategy_symbols
+            || self.accounted_bytes > limits.strategy_bytes
+        {
+            let key = self
+                .symbols
+                .iter()
+                .min_by_key(|(key, state)| (state.updated_at_ms, *key))
+                .map(|(key, _)| key.clone())
+                .unwrap();
+            let removed = self.symbols.remove(&key).unwrap();
+            self.accounted_bytes -= removed.accounted_bytes;
+            self.retention_quality
+                .record_eviction(removed.sample_count().max(1));
+        }
+    }
+
     fn symbol_state(&mut self, exchange: &str, symbol: &str) -> &mut SymbolRuntimeState {
         let key = state_key(exchange, symbol);
         self.symbols
@@ -411,6 +468,29 @@ impl StrategyStateInner {
 }
 
 impl SymbolRuntimeState {
+    fn sample_count(&self) -> usize {
+        self.open_interest_history.len()
+            + self.price_history.len()
+            + self.funding_history.len()
+            + self.spot_flow.len()
+            + self.perp_flow.len()
+            + self.ofi_samples.len()
+            + self.liquidations.len()
+    }
+
+    fn owned_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.exchange.capacity()
+            + self.symbol.capacity()
+            + (self.open_interest_history.capacity()
+                + self.price_history.capacity()
+                + self.funding_history.capacity())
+                * std::mem::size_of::<NumericSample>()
+            + (self.spot_flow.capacity() + self.perp_flow.capacity() + self.ofi_samples.capacity())
+                * std::mem::size_of::<FlowSample>()
+            + self.liquidations.capacity() * std::mem::size_of::<LiquidationSample>()
+    }
+
     fn prune(&mut self, now: u64) {
         prune_flow(&mut self.spot_flow, now, TRADE_FLOW_RETENTION_MS);
         prune_flow(&mut self.perp_flow, now, TRADE_FLOW_RETENTION_MS);
@@ -427,22 +507,28 @@ impl SymbolRuntimeState {
         prune_numeric(&mut self.funding_history, now);
     }
 
-    fn snapshot(&self, now: u64, quality: &SubscriptionQuality) -> StrategySymbolState {
+    fn snapshot(
+        &self,
+        now: u64,
+        quality: &SubscriptionQuality,
+        retention: &RetentionQuality,
+    ) -> StrategySymbolState {
         let metrics = self.metrics(now);
         let mut long_squeeze = long_squeeze_state(&metrics);
         let mut short_exhaustion = short_exhaustion_state(&metrics);
-        if quality.has_known_gap {
+        if quality.has_known_gap || retention.has_capacity_loss {
             for leg in [&mut long_squeeze, &mut short_exhaustion] {
                 leg.state = "incomplete_data";
                 leg.score = 0;
                 leg.progress.clear();
                 leg.invalidation
-                    .push("process-local subscription lost events; state rebuild required".into());
+                    .push("process-local subscription or retention lost observations; state rebuild required".into());
             }
         }
         let risk_context = risk_context(self.latest_price, &long_squeeze, &short_exhaustion);
         StrategySymbolState {
             subscription_quality: quality.clone(),
+            retention_quality: retention.clone(),
             exchange: self.exchange.clone(),
             symbol: self.symbol.clone(),
             generated_at_ms: now,
@@ -533,9 +619,9 @@ const ROLLING_WINDOWS_MS: [u64; 5] = [
     24 * 60 * 60_000,
 ];
 
-fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) {
+fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) -> usize {
     if ts_ms == 0 || !value.is_finite() {
-        return;
+        return 0;
     }
     if samples
         .back()
@@ -543,7 +629,7 @@ fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) {
     {
         // Out-of-order samples are not used for historical window baselines;
         // accepting them would create look-ahead errors in a replay.
-        return;
+        return 0;
     }
     if samples
         .back()
@@ -552,9 +638,12 @@ fn push_numeric(samples: &mut VecDeque<NumericSample>, ts_ms: u64, value: f64) {
         samples.pop_back();
     }
     samples.push_back(NumericSample { ts_ms, value });
+    let mut removed = 0;
     while samples.len() > MAX_ROLLING_SAMPLES {
         samples.pop_front();
+        removed += 1;
     }
+    removed
 }
 
 fn prune_numeric(samples: &mut VecDeque<NumericSample>, now: u64) {
@@ -1123,5 +1212,68 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn global_symbol_and_allocated_history_budgets_mark_loss_and_disable_legs() {
+        let limits = MemoryLimits {
+            strategy_symbols: 1,
+            strategy_bytes: 4096,
+            ..Default::default()
+        };
+        let store = StrategyStateStore::with_limits(limits);
+        for symbol in ["BTC", "ETH", "SOL"] {
+            store
+                .update_event(&DataEvent::Trade(TradeTick {
+                    exchange: "test",
+                    market: MarketKind::Perp,
+                    symbol: symbol.into(),
+                    price: 10.0,
+                    qty: 1.0,
+                    side: TradeSide::Buy,
+                    trade_id: None,
+                    ts_ms: now_ms(),
+                }))
+                .await;
+        }
+        let state = store.inner.read().await;
+        assert!(state.symbols.len() <= 1);
+        assert!(state.accounted_bytes <= 4096);
+        assert_eq!(
+            state.accounted_bytes,
+            state
+                .symbols
+                .values()
+                .map(|s| s.accounted_bytes)
+                .sum::<usize>()
+        );
+        assert!(state.retention_quality.has_capacity_loss);
+        drop(state);
+        for row in store.query_all().await {
+            assert!(row.retention_quality.has_capacity_loss);
+            assert_eq!(row.long_squeeze.state, "incomplete_data");
+        }
+        let tiny = StrategyStateStore::with_limits(MemoryLimits {
+            strategy_bytes: 1,
+            ..Default::default()
+        });
+        tiny.update_event(&DataEvent::FundingRate(FundingRateTick {
+            exchange: "test",
+            symbol: "BTC".into(),
+            funding_rate: 0.01,
+            next_funding_time_ms: None,
+            mark_price: None,
+            index_price: None,
+            ts_ms: now_ms(),
+        }))
+        .await;
+        assert!(tiny.query_all().await.is_empty());
+        assert_eq!(tiny.inner.read().await.accounted_bytes, 0);
+        assert!(
+            tiny.query("BTC", None)
+                .await
+                .retention_quality
+                .has_capacity_loss
+        );
     }
 }

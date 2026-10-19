@@ -46,6 +46,15 @@ pub async fn health() -> impl IntoResponse {
     Json(serde_json::json!({"ok": true}))
 }
 
+pub async fn memory(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    Json(
+        serde_json::json!({"version":"v1","domain":"retention_memory",
+        "order_flow":state.order_flow_store.retention_status(true).await,
+        "strategy":state.strategy_state_store.retention_status().await,
+        "note":"Retained owned allocations; allocator, network and query temporaries are outside these budgets."}),
+    )
+}
+
 pub async fn info() -> impl IntoResponse {
     Json(serde_json::json!({
         "service": "MarketBridge",

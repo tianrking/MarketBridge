@@ -2092,7 +2092,7 @@ replay or durable outbox. See [institutional readiness and recovery limits](docs
 
 Order-flow, footprint and symbol-state responses include `subscription_quality`.
 A known subscriber gap remains marked for the life of the store; passing time
-and new events do not reset it. Squeeze model `squeeze-radar/v1` rejects such
+and new events do not reset it. Squeeze model `squeeze-radar/v2` rejects such
 state as `incomplete_data`. A false `has_known_gap` reports no observed local
 subscriber gap; upstream coverage and retention completeness remain unverified.
 
@@ -2261,3 +2261,9 @@ python3 examples/crypto/microstructure/crypto_session_filter.py \
 - [`examples/crypto/README.md`](examples/crypto/README.md): crypto research families
 - [`docs/user-guide/12-strategy-intake.md`](docs/user-guide/12-strategy-intake.md): strategy intake rules
 - [`docs/data_interfaces.md`](docs/data_interfaces.md): API contracts and field semantics
+
+
+Configure cross-symbol retention budgets with `runtime.memory`; inspect current
+usage and eviction evidence at `/v1/system/memory`. Strategy capacity loss is
+exposed as `retention_quality` and blocks squeeze v2 triggers. These are retained
+state budgets, not process RSS limits; see the institutional acceptance notes.

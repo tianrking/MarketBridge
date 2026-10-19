@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex, mpsc as std_mpsc};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -51,7 +51,7 @@ pub struct KlineQuery {
 #[derive(Clone)]
 pub struct KlineStore {
     path: String,
-    writer: Arc<Mutex<Option<std_mpsc::Sender<KlineWriteRequest>>>>,
+    writer: Arc<Mutex<Option<mpsc::Sender<KlineWriteRequest>>>>,
 }
 
 struct KlineWriteRequest {
@@ -76,7 +76,7 @@ impl KlineStore {
             return Ok(());
         }
         let path = self.path.clone();
-        let (tx, rx) = std_mpsc::channel::<KlineWriteRequest>();
+        let (tx, rx) = mpsc::channel::<KlineWriteRequest>(64);
         tokio::task::spawn_blocking(move || run_sqlite_writer(path, rx));
         *writer = Some(tx);
         Ok(())
@@ -86,6 +86,10 @@ impl KlineStore {
         if rows.is_empty() {
             return Ok(());
         }
+        anyhow::ensure!(
+            rows.len() <= 20_000,
+            "kline write request exceeds 20000 rows; split into bounded batches"
+        );
         let tx = self
             .writer
             .lock()
@@ -94,6 +98,7 @@ impl KlineStore {
             .context("kline store not initialized")?;
         let (respond_to, response) = oneshot::channel();
         tx.send(KlineWriteRequest { rows, respond_to })
+            .await
             .context("kline sqlite writer stopped")?;
         response
             .await
@@ -553,12 +558,12 @@ fn init_db_connection(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn run_sqlite_writer(path: String, rx: std_mpsc::Receiver<KlineWriteRequest>) {
+fn run_sqlite_writer(path: String, mut rx: mpsc::Receiver<KlineWriteRequest>) {
     let mut conn = match Connection::open(&path) {
         Ok(conn) => conn,
         Err(error) => {
             let error = error.to_string();
-            while let Ok(request) = rx.recv() {
+            while let Some(request) = rx.blocking_recv() {
                 let _ = request.respond_to.send(Err(anyhow::anyhow!(
                     "kline sqlite writer init failed: {error}"
                 )));
@@ -568,14 +573,14 @@ fn run_sqlite_writer(path: String, rx: std_mpsc::Receiver<KlineWriteRequest>) {
     };
     if let Err(error) = init_db_connection(&conn) {
         let error = error.to_string();
-        while let Ok(request) = rx.recv() {
+        while let Some(request) = rx.blocking_recv() {
             let _ = request.respond_to.send(Err(anyhow::anyhow!(
                 "kline sqlite writer init failed: {error}"
             )));
         }
         return;
     }
-    while let Ok(request) = rx.recv() {
+    while let Some(request) = rx.blocking_recv() {
         let result = upsert_many_with_conn(&mut conn, &request.rows);
         let _ = request.respond_to.send(result);
     }

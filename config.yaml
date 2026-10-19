@@ -52,6 +52,16 @@ runtime:
     allow_private_network: true
     max_age_secs: 600
 
+  # Retained analytics budgets across every symbol. These are owned-allocation
+  # budgets, not a process RSS limit. Capacity eviction is exposed in API quality.
+  memory:
+    order_flow_raw_records: 250000
+    order_flow_raw_bytes: 67108864
+    order_flow_keys: 4096
+    order_flow_buckets: 50000
+    strategy_symbols: 2048
+    strategy_bytes: 67108864
+
   # Large trade threshold used by /v1/market/order-flow.
   order_flow_large_trade_notional_usdt: 100000.0
 

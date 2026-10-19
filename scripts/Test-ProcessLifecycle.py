@@ -139,9 +139,15 @@ class ProcessLifecycleTests(unittest.TestCase):
                 self.assertFalse(quality["has_known_gap"])
                 self.assertEqual(quality["gap_epoch"], 0)
                 self.assertEqual(quality["upstream_completeness"], "not_verified")
+        request = Request(f"http://127.0.0.1:{port}/v1/system/memory", headers=headers)
+        with urlopen(request, timeout=5) as response:
+            memory = json.load(response)
+        self.assertEqual(memory["order_flow"]["raw_records"], 0)
+        self.assertEqual(memory["strategy"]["accounted_bytes"], 0)
+        self.assertGreater(memory["order_flow"]["limits"]["order_flow_raw_bytes"], 0)
         request = Request(f"http://127.0.0.1:{port}/v1/research/squeeze/scan", headers=headers)
         with urlopen(request, timeout=5) as response:
-            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v1")
+            self.assertEqual(json.load(response)["model_version"], "squeeze-radar/v2")
 
     @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
     def test_sigterm_and_sigint_seal_recordings(self):

@@ -15,8 +15,8 @@ pub struct SourceContext {
 
 impl SourceContext {
     pub async fn emit(&self, ev: DataEvent) -> Result<()> {
-        if !ev.has_finite_numbers() {
-            warn!("dropping data event with non-finite numeric field");
+        if !ev.has_finite_numbers() || !ev.fits_ingestion_limits() {
+            warn!("dropping data event with invalid numeric field or oversized variable payload");
             self.metrics.ticks_dropped_total.inc();
             return Ok(());
         }

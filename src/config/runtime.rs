@@ -36,6 +36,47 @@ pub struct RuntimeConfig {
     pub order_flow_large_trade_notional_usdt: f64,
     #[serde(default = "default_ws_send_timeout_ms")]
     pub ws_send_timeout_ms: u64,
+    #[serde(default)]
+    pub memory: MemoryLimits,
+}
+
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct MemoryLimits {
+    pub order_flow_raw_records: usize,
+    pub order_flow_raw_bytes: usize,
+    pub order_flow_keys: usize,
+    pub order_flow_buckets: usize,
+    pub strategy_symbols: usize,
+    pub strategy_bytes: usize,
+}
+
+impl Default for MemoryLimits {
+    fn default() -> Self {
+        Self {
+            order_flow_raw_records: 250_000,
+            order_flow_raw_bytes: 64 * 1024 * 1024,
+            order_flow_keys: 4096,
+            order_flow_buckets: 50_000,
+            strategy_symbols: 2048,
+            strategy_bytes: 64 * 1024 * 1024,
+        }
+    }
+}
+
+impl MemoryLimits {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.order_flow_raw_records > 0
+                && self.order_flow_raw_bytes > 0
+                && self.order_flow_keys > 0
+                && self.order_flow_buckets > 0
+                && self.strategy_symbols > 0
+                && self.strategy_bytes > 0,
+            "runtime.memory budgets must be positive"
+        );
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
