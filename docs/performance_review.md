@@ -213,6 +213,42 @@ Example:
 market-bridge load-test --events 100000 --subscribers 8 --broadcast-capacity 65536 --event-bus-shards 1
 ```
 
+The harness supports `--profile quotes|trades|books|mixed`, `--symbols N` and
+`--book-levels N` (levels per side). Mixed traffic contains quotes, trades,
+full synthetic books and funding updates. Each domain cycles through the full
+requested symbol universe. Report the symbol count with every result: two hot
+symbols do not represent a broad-market workload.
+
+The measured scope is EventBus publication, latest-state snapshots and
+in-process subscriber delivery. `bus_publish_call_latency_us` samples the
+synchronous publication call, with the sample count/stride included. These
+percentiles are not connector-to-API latency, scheduling deadlines or network
+latency. Synthetic event generation is included in throughput but excluded from
+the publication-call latency samples.
+
+The producer closes its senders and waits for bounded subscriber draining.
+Delivered, lagged and unaccounted messages, timeout and worker-failure status are
+reported separately. Invalid options, incomplete runs and subscriber loss fail
+with a nonzero exit status. `--allow-loss` permits measured lag for explicit
+overload experiments; it does not hide loss or permit incomplete accounting.
+
+For repeatable comparisons, build an optimized binary and run the portable
+matrix runner (Python 3.10+). Use a new output filename for every run:
+
+```bash
+cargo build --release --locked
+python3 scripts/benchmark_event_bus.py --label baseline \
+  --output examples/out/event-bus-baseline.jsonl
+```
+
+The runner records a binary SHA-256, checkout state, host/toolchain metadata,
+fixed Tokio worker count, warmups and raw repeated results. It covers two and
+1,024 symbols, the four traffic profiles, and a four-shard comparison. It
+provisions broadcast capacity for the whole short burst so loss does not
+masquerade as higher throughput. Warmups run in separate processes; caches
+start empty each time. This is a burst benchmark, not a long-running live
+market soak or a kernel scheduling benchmark.
+
 Measure:
 
 - events/sec in

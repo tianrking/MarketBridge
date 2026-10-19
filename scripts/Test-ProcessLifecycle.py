@@ -80,6 +80,23 @@ class ProcessLifecycleTests(unittest.TestCase):
             self.assertNotEqual(child.wait(timeout=15), 0, "an unavailable API must fail startup")
         self.assertFalse((self.state / "recordings").exists())
 
+    def test_load_test_cli_reports_delivery_and_rejects_invalid_options(self):
+        result = subprocess.run(
+            [str(BINARY), "load-test", "--events", "16", "--subscribers", "2",
+             "--broadcast-capacity", "32", "--profile", "mixed", "--symbols", "8"],
+            cwd=ROOT, env=self.environment, check=True, capture_output=True, text=True, timeout=15,
+        )
+        report = json.loads(result.stdout)
+        self.assertEqual(report["profile"], "mixed")
+        self.assertEqual(report["subscriber_deliveries_observed"], 32)
+        self.assertTrue(report["lossless"])
+        self.assertTrue(report["passed"])
+        invalid = subprocess.run(
+            [str(BINARY), "load-test", "--events", "invalid"],
+            cwd=ROOT, env=self.environment, capture_output=True, text=True, timeout=15,
+        )
+        self.assertNotEqual(invalid.returncode, 0)
+
     @unittest.skipUnless(os.name == "posix", "Unix signal delivery check")
     def test_sigterm_and_sigint_seal_recordings(self):
         for shutdown_signal in (signal.SIGTERM, signal.SIGINT):

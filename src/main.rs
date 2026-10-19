@@ -138,8 +138,8 @@ async fn main() -> anyhow::Result<()> {
         );
         return Ok(());
     }
-    if let Some(load_test_cfg) = load_test::load_test_config_from_args(&args) {
-        load_test::run_load_test(load_test_cfg).await;
+    if let Some(load_test_cfg) = load_test::load_test_config_from_args(&args)? {
+        load_test::run_load_test(load_test_cfg).await?;
         return Ok(());
     }
 
