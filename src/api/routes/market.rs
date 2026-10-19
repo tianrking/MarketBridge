@@ -684,6 +684,51 @@ pub async fn v1_market_verified_window(
     }
 }
 
+pub async fn v1_market_recovered_window(
+    State(state): State<Arc<ApiState>>,
+    Query(scope): Query<crate::window_recovery::WindowRequest>,
+) -> impl IntoResponse {
+    if let Err(error) = scope.validate() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error":error.to_string(),"recovered":null})),
+        );
+    }
+    let Some(store) = state.metrics.recovery_store() else {
+        return (
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+            Json(serde_json::json!({"error":"no_durable_recovery_store","recovered":null})),
+        );
+    };
+    match store.recover_window(scope).await {
+        Ok(Some(mut report)) => {
+            let verified = report["window"]["quality"]["verified"] == true;
+            report["source_quality"] =
+                serde_json::to_value(state.order_flow_store.source_quality()).unwrap_or_default();
+            (
+                if verified {
+                    axum::http::StatusCode::OK
+                } else {
+                    axum::http::StatusCode::UNPROCESSABLE_ENTITY
+                },
+                Json(report),
+            )
+        }
+        Ok(None) => (
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+            Json(
+                serde_json::json!({"error":"no_verified_recovery_evidence_for_scope","recovered":null}),
+            ),
+        ),
+        Err(_) => (
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            Json(
+                serde_json::json!({"error":"invalid_request_or_corrupt_recovery_evidence","recovered":null}),
+            ),
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::normalize_binance_adl_risk;

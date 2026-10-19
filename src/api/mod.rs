@@ -73,6 +73,8 @@ pub fn build_router(state: ApiState) -> Router {
         "/ws/ticks" => routes::stream::ws_ticks,
         "/v1/stream" => routes::stream::v1_stream,
         "/v1/catalog/sources" => routes::catalog::sources,
+        "/v1/system/recovery" => routes::system::recovery,
+        "/v1/market/order-flow/recovered-window" => routes::market::v1_market_recovered_window,
         "/v1/system/order-books" => routes::system::order_books,
         "/v1/system/memory" => routes::system::memory,
         "/v1/system/outbox" => routes::system::outbox,

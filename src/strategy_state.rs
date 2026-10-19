@@ -139,6 +139,7 @@ struct StrategyStateInner {
 struct SymbolRuntimeState {
     book_session: Option<(String, u64)>,
     book_revision: u64,
+    book_reconstructed_at: Option<std::time::Instant>,
     book_since_ms: Option<u64>,
     accounted_bytes: usize,
     capacity_drops: usize,
@@ -282,7 +283,9 @@ impl StrategyStateStore {
                 let mut row = state.snapshot(now, &quality, &retention_quality, &source_quality);
                 let synchronized = state.book_session.as_ref().is_some_and(|(session, _)| {
                     self.observability.as_ref().is_some_and(|m| {
-                        m.books.usable_revision(
+                        state.book_reconstructed_at.is_some_and(|at| {
+                            at.elapsed().as_millis() <= m.books.config().max_age_ms as u128
+                        }) && m.books.usable_revision(
                             &state.exchange,
                             MarketKind::Perp,
                             &state.symbol,
@@ -351,7 +354,9 @@ impl StrategyStateStore {
                 let mut row = state.snapshot(now, &quality, &retention_quality, &source_quality);
                 let synchronized = state.book_session.as_ref().is_some_and(|(session, _)| {
                     self.observability.as_ref().is_some_and(|m| {
-                        m.books.usable_revision(
+                        state.book_reconstructed_at.is_some_and(|at| {
+                            at.elapsed().as_millis() <= m.books.config().max_age_ms as u128
+                        }) && m.books.usable_revision(
                             &state.exchange,
                             MarketKind::Perp,
                             &state.symbol,
@@ -530,6 +535,7 @@ impl StrategyStateStore {
             }
             state.book_session = Some(checkpoint);
             state.book_revision = q.revision;
+            state.book_reconstructed_at = Some(q.reconstructed_at);
         }
         let current_top = book_top(tick);
         if let (Some(previous), Some(current)) = (state.previous_book_top, current_top) {

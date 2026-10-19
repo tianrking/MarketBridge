@@ -26,6 +26,7 @@ pub struct EventRouter {
     bus_queue_capacity: usize,
     journal_tx: Option<mpsc::Sender<JournalMessage>>,
     outbox: Option<crate::outbox::Outbox>,
+    recovery: Option<crate::trade_recovery::RecoveryStore>,
 }
 
 impl EventRouter {
@@ -44,6 +45,7 @@ impl EventRouter {
             bus_queue_capacity,
             journal_tx: None,
             outbox: None,
+            recovery: None,
         }
     }
 
@@ -57,6 +59,10 @@ impl EventRouter {
         self
     }
 
+    pub fn with_recovery(mut self, recovery: Option<crate::trade_recovery::RecoveryStore>) -> Self {
+        self.recovery = recovery;
+        self
+    }
     pub async fn run(mut self) -> anyhow::Result<()> {
         let (bus_tx, mut bus_rx) = mpsc::channel::<(
             Arc<DataEvent>,
@@ -112,6 +118,19 @@ impl EventRouter {
                 if matches!(event.as_ref(), DataEvent::Tick(_)) {
                     self.metrics.ticks_ingested_total.inc();
                 }
+            }
+            if self.outbox.is_none()
+                && let Some(recovery) = &self.recovery
+            {
+                recovery
+                    .backend
+                    .record_checkpoints(
+                        batch
+                            .iter()
+                            .filter_map(|(e, _, _)| crate::ingestion::native_checkpoint(e))
+                            .collect(),
+                    )
+                    .await?;
             }
             // Durable acceptance is the transaction commit, before journal/bus
             // publication. A crash after commit is recovered by the sink.

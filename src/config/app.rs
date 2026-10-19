@@ -76,6 +76,7 @@ impl AppConfig {
     pub fn validate(&self) -> Result<()> {
         self.runtime.memory.validate()?;
         self.runtime.order_books.validate()?;
+        self.runtime.recovery.validate()?;
         ensure!(
             self.runtime.readiness.max_age_ms > 0
                 && self.runtime.readiness.source_max_age_ms.len() <= 1024

@@ -28,6 +28,7 @@ mod order_flow;
 mod outbox;
 mod paper;
 mod polymarket_ws;
+mod protocol_fixture;
 mod redis_sink;
 mod relative_value;
 mod research_control;
@@ -43,6 +44,7 @@ mod source_roadmap;
 mod squeeze_radar;
 mod strategy_state;
 mod supply;
+mod trade_recovery;
 mod types;
 mod venue_status;
 mod window_recovery;
@@ -90,6 +92,60 @@ async fn main() -> anyhow::Result<()> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--recovery") {
+        anyhow::ensure!(
+            args.len() >= 4,
+            "--recovery requires status DB or retry DB JOB_ID"
+        );
+        let action = &args[2];
+        anyhow::ensure!(
+            (action == "status" && args.len() == 4) || (action == "retry" && args.len() == 5),
+            "invalid recovery CLI arguments"
+        );
+        let path = std::path::PathBuf::from(&args[3]);
+        anyhow::ensure!(path.is_file(), "recovery database does not exist");
+        let connection = rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?;
+        let cfg = AppConfig::load()?;
+        let limits = cfg.runtime.recovery.clone();
+        if action == "status" {
+            let tx = connection.unchecked_transaction()?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&trade_recovery::RecoveryStore::inspect_status(
+                    &tx, &limits
+                )?)?
+            );
+            return Ok(());
+        }
+        let prefix: String =
+            connection.query_row("SELECT prefix FROM outbox_state WHERE id=1", [], |r| {
+                r.get(0)
+            })?;
+        drop(connection);
+        let backend = outbox::Outbox::open(
+            &path,
+            &prefix,
+            cfg.runtime.outbox.max_pending_bytes,
+            cfg.runtime
+                .outbox
+                .max_database_bytes
+                .max(limits.max_database_bytes),
+        )?;
+        let store = trade_recovery::RecoveryStore {
+            backend,
+            config: limits,
+        };
+        let id = args[4].parse::<u64>()?;
+        store.retry_job(id).await?;
+        println!(
+            "{}",
+            serde_json::json!({"rescheduled_job_id":id,"global_quality_cleared":false})
+        );
+        return Ok(());
+    }
     if args.get(1).map(String::as_str) == Some("--outbox") {
         let action = args
             .get(2)
@@ -254,11 +310,12 @@ async fn main() -> anyhow::Result<()> {
         metrics.clone(),
     );
     let mut sources = build_sources(&cfg);
-    if args.get(1).map(String::as_str) == Some("--acceptance-fixture") {
-        anyhow::ensure!(
-            args.len() == 3,
-            "--acceptance-fixture requires a fixture JSON path"
-        );
+    let mut recovery_endpoint = None;
+    if matches!(
+        args.get(1).map(String::as_str),
+        Some("--acceptance-fixture" | "--protocol-fixture")
+    ) {
+        anyhow::ensure!(args.len() == 3, "fixture mode requires a fixture JSON path");
         anyhow::ensure!(
             sources.is_empty()
                 && !cfg.klines.enabled
@@ -277,14 +334,55 @@ async fn main() -> anyhow::Result<()> {
             file.metadata()?.len() <= 4096,
             "fixture config exceeds 4096 bytes"
         );
-        let fixture: acceptance::FixtureConfig = serde_json::from_reader(file)?;
-        fixture.validate()?;
-        sources.push(std::sync::Arc::new(acceptance::FixtureSource(fixture)));
+        if args[1] == "--protocol-fixture" {
+            let fixture: protocol_fixture::Config = serde_json::from_reader(file)?;
+            fixture.validate(api_listener.local_addr()?)?;
+            tracing::warn!("LOCAL SYNTHETIC PROTOCOL FIXTURE; not public exchange evidence");
+            recovery_endpoint = Some(fixture.agg_rest.clone());
+            for depth in [true, false] {
+                sources.push(std::sync::Arc::new(protocol_fixture::Source {
+                    config: fixture.clone(),
+                    depth,
+                }));
+            }
+        } else {
+            let fixture: acceptance::FixtureConfig = serde_json::from_reader(file)?;
+            fixture.validate()?;
+            sources.push(std::sync::Arc::new(acceptance::FixtureSource(fixture)));
+        }
     } else {
         anyhow::ensure!(args.len() == 1, "unknown server arguments");
     }
 
-    if let Some(box_) = &outbox {
+    let recovery_store = if cfg.runtime.recovery.enabled
+        && sources
+            .iter()
+            .any(|s| s.name() == "binance" && s.source_type() == "trade")
+    {
+        let backend = if let Some(box_) = &outbox {
+            box_.clone()
+        } else {
+            let path = std::env::var_os("MARKETBRIDGE_RECOVERY_DB")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| cfg.runtime.recovery.path.clone().into());
+            let limit = cfg.runtime.recovery.max_database_bytes;
+            tokio::task::spawn_blocking(move || {
+                outbox::Outbox::open(&path, "recovery", 4 * 1024 * 1024, limit)
+            })
+            .await??
+        };
+        Some(
+            trade_recovery::RecoveryStore::initialize(backend, cfg.runtime.recovery.clone())
+                .await?,
+        )
+    } else {
+        None
+    };
+    *metrics.recovery.lock().unwrap() = recovery_store.clone();
+    if let Some(box_) = outbox
+        .as_ref()
+        .or_else(|| recovery_store.as_ref().map(|r| &r.backend))
+    {
         metrics
             .ingestion
             .install_checkpoints(box_.native_checkpoints().await?)?;
@@ -531,13 +629,27 @@ async fn main() -> anyhow::Result<()> {
         cfg.runtime.router_publish_queue_capacity(),
     )
     .with_journal(journal_tx)
-    .with_outbox(outbox.clone());
+    .with_outbox(outbox.clone())
+    .with_recovery(recovery_store.clone());
     let router_task = tokio::spawn(router.run());
 
     let mut agg_task =
         tokio::spawn(SpreadAggregator::from_config(&cfg).run(agg_rx, metrics.clone()));
 
+    let recovery_task = recovery_store.map(|store| {
+        if recovery_endpoint.is_some() {
+            trade_recovery::spawn_worker_endpoint(
+                store,
+                metrics.clone(),
+                shutdown.clone(),
+                recovery_endpoint,
+            )
+        } else {
+            trade_recovery::spawn_worker(store, metrics.clone(), shutdown.clone())
+        }
+    });
     let mut background_tasks = TaskGroup::default();
+    background_tasks.optional_result("trade_recovery", recovery_task);
     background_tasks.required("research_control", research_control_task);
     background_tasks.required("research_announcements", announcement_task);
     background_tasks.optional_result("redis_sink", redis_task);

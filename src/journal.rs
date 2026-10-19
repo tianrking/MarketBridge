@@ -337,6 +337,19 @@ mod tests {
                 assert!(result.is_err());
             }
         }
+        let mut journal = Journal::create(&dir).unwrap();
+        let payload = |book: &crate::research_engine::BookEvidence| serde_json::json!({"type":"order_book","market":"spot","exchange":book.instrument.venue,"symbol":book.instrument.symbol,"ts_ms":10000,"bids":book.bids,"asks":book.asks,"book_quality":{"version":"l2-reconstruction/v1","synchronized":true}});
+        journal.append(10020, 0, payload(&e.buy)).unwrap();
+        journal.append(10020, 0, payload(&e.sell)).unwrap();
+        journal.append(10021,0,serde_json::json!({"type":"external_signal","source":e.buy.instrument.venue,"symbol":e.buy.instrument.symbol,"category":"order_book_integrity","metric":"resynchronization_required","raw":{"market":"spot"}})).unwrap();
+        journal.append(10022, 0, payload(&e.sell)).unwrap();
+        journal.append(10023, 0, payload(&e.buy)).unwrap();
+        let path = journal.seal(0).unwrap();
+        let result = crate::journal_replay::replay(&path, route).unwrap();
+        assert_eq!(
+            result["decision_count"], 2,
+            "invalidated historical book must not survive until its venue resynchronizes"
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

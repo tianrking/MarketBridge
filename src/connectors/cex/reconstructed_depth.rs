@@ -43,6 +43,41 @@ pub async fn run(
     Ok(())
 }
 
+/// Explicit local protocol acceptance only; callers validate loopback endpoints.
+pub(crate) async fn run_fixture_once(
+    symbol: &str,
+    ctx: SourceContext,
+    ws: String,
+    rest: String,
+) -> Result<()> {
+    let protocol = Protocol::BinanceSpot;
+    let lease = ctx
+        .metrics
+        .books
+        .begin("binance", MarketKind::Spot, symbol)?;
+    let result = run_one(
+        protocol,
+        MarketKind::Spot,
+        symbol,
+        &ctx,
+        &lease,
+        Some((ws, Some(rest))),
+    )
+    .await;
+    lease.invalidate("protocol_or_transport_failure");
+    audit(
+        &ctx,
+        protocol,
+        MarketKind::Spot,
+        symbol,
+        &lease,
+        "resynchronization_required",
+        None,
+    )
+    .await?;
+    result
+}
+
 fn endpoint(protocol: Protocol, market: MarketKind, symbol: &str) -> (String, Option<String>) {
     match protocol {
         Protocol::BinanceSpot => (
@@ -188,7 +223,7 @@ async fn run_one(
         }
         Protocol::Bybit => {
             sink.send(Message::Text(
-                serde_json::json!({"op":"subscribe","args":[format!("orderbook.50.{symbol}")]})
+                serde_json::json!({"op":"subscribe","args":[format!("orderbook.{}.{symbol}",config.bybit_depth)]})
                     .to_string(),
             ))
             .await?
@@ -215,7 +250,7 @@ async fn run_one(
         }
     });
     let mut buffered = VecDeque::<(serde_json::Value, usize)>::new();
-    let mut buffered_bytes = 0;
+    let mut buffered_bytes: usize = 0;
     let mut last_receive = tokio::time::Instant::now();
     let mut ping = tokio::time::interval(Duration::from_secs(20));
     loop {
@@ -249,7 +284,7 @@ async fn run_one(
                     for value in rows {apply_publish(protocol,value,snapshot,&mut book,ctx,lease).await?;}
                 }else if protocol==Protocol::Bybit {
                     if envelope.get("op").is_some(){ensure!(envelope["success"]!=false,"Bybit depth subscription rejected");continue;}
-                    ensure!(envelope["topic"]==format!("orderbook.50.{symbol}"),"unexpected Bybit book topic");
+                    ensure!(envelope["topic"]==format!("orderbook.{}.{symbol}",config.bybit_depth),"unexpected Bybit book topic");
                     let mut value=envelope["data"].clone();ensure!(value["s"]==symbol,"unexpected Bybit book instrument");
                     value["ts"]=envelope["ts"].clone();
                     let snapshot=match envelope["type"].as_str(){Some("snapshot")=>true,Some("delta")=>false,_=>bail!("unknown Bybit book action")};
@@ -258,8 +293,9 @@ async fn run_one(
                     ensure!(envelope["e"]=="depthUpdate" && envelope["s"]==symbol,"unexpected Binance depth instrument");
                     if snapshot_done {apply_publish(protocol,&envelope,false,&mut book,ctx,lease).await?;}
                     else {
-                        buffered_bytes+=text.len();ensure!(buffered.len()<config.max_buffered_updates && buffered_bytes<=config.max_buffered_bytes,"depth bootstrap buffer exhausted");
-                        lease.buffered(buffered_bytes)?;buffered.push_back((envelope,text.len()));
+                        let allocated=crate::types::json_owned_bytes(&envelope,0).saturating_add(128);
+                        buffered_bytes=buffered_bytes.checked_add(allocated).context("depth bootstrap allocation overflow")?;ensure!(buffered.len()<config.max_buffered_updates && buffered_bytes<=config.max_buffered_bytes,"depth bootstrap buffer exhausted");
+                        lease.buffered(buffered_bytes)?;buffered.push_back((envelope,allocated));
                     }
                 }
             }
@@ -348,6 +384,10 @@ mod tests {
             None
         };
         let metrics = AppMetrics::new();
+        metrics.books.configure(crate::book_integrity::BookConfig {
+            bybit_depth: 50,
+            ..Default::default()
+        });
         let (tx, mut rx) = tokio::sync::mpsc::channel(32);
         metrics.ingestion.register("fixture#0", "fixture").unwrap();
         metrics.ingestion.starting("fixture#0");

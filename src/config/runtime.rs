@@ -44,6 +44,8 @@ pub struct RuntimeConfig {
     pub readiness: ReadinessConfig,
     #[serde(default)]
     pub order_books: crate::book_integrity::BookConfig,
+    #[serde(default)]
+    pub recovery: crate::trade_recovery::RecoveryConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]

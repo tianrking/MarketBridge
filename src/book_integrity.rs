@@ -17,6 +17,7 @@ pub struct BookConfig {
     pub max_total_buffered_bytes: usize,
     pub max_levels_per_side: usize,
     pub publish_levels: usize,
+    pub bybit_depth: usize,
     pub max_buffered_updates: usize,
     pub max_buffered_bytes: usize,
     pub snapshot_timeout_ms: u64,
@@ -31,6 +32,7 @@ impl Default for BookConfig {
             max_total_buffered_bytes: 64 * 1024 * 1024,
             max_levels_per_side: 1000,
             publish_levels: 200,
+            bybit_depth: 1000,
             max_buffered_updates: 256,
             max_buffered_bytes: 4 * 1024 * 1024,
             snapshot_timeout_ms: 10000,
@@ -47,6 +49,7 @@ impl BookConfig {
                 && self.publish_levels > 0
                 && self.publish_levels <= self.max_levels_per_side
                 && self.publish_levels <= 1000
+                && matches!(self.bybit_depth, 50 | 200 | 1000)
                 && self.max_state_bytes >= 65536
                 && self.max_total_buffered_bytes >= 65536,
             "invalid order book symbol/depth budgets"
@@ -82,6 +85,8 @@ impl Protocol {
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct BookQuality {
+    #[serde(skip)]
+    pub reconstructed_at: Instant,
     pub version: &'static str,
     pub synchronized: bool,
     pub session: String,
@@ -98,10 +103,23 @@ pub struct BookQuality {
     pub native_quantity_unit: &'static str,
     pub base_quantity_multiplier: f64,
     pub coverage: &'static str,
+    pub subscription_depth: usize,
     pub retained_bids: usize,
     pub retained_asks: usize,
     pub exact_bids: Vec<[String; 2]>,
     pub exact_asks: Vec<[String; 2]>,
+}
+impl BookQuality {
+    pub fn allocated_bytes(&self) -> usize {
+        self.session.capacity()
+            + [&self.exact_bids, &self.exact_asks]
+                .iter()
+                .map(|rows| {
+                    rows.capacity() * std::mem::size_of::<[String; 2]>()
+                        + rows.iter().flatten().map(String::capacity).sum::<usize>()
+                })
+                .sum::<usize>()
+    }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WireLevel {
@@ -315,7 +333,7 @@ impl LocalBook {
         apply_side(&mut bids, &u.bids, u.snapshot)?;
         apply_side(&mut asks, &u.asks, u.snapshot)?;
         let retained_limit = match self.protocol {
-            Protocol::Bybit => 50,
+            Protocol::Bybit => self.config.bybit_depth,
             Protocol::Okx => 400,
             _ => self.config.max_levels_per_side,
         };
@@ -458,6 +476,10 @@ impl LocalBook {
         };
         let bids = project(&exact_bids, true)?;
         let asks = project(&exact_asks, false)?;
+        ensure!(
+            bids[0].price < asks[0].price,
+            "f64 output aliases opposite book sides"
+        );
         let bytes = serde_json::to_vec(&(
             &self.session,
             self.revision,
@@ -477,6 +499,7 @@ impl LocalBook {
             last_update_id: self.sequence,
             ts_ms: self.last_ts,
             book_quality: Some(BookQuality {
+                reconstructed_at: Instant::now(),
                 version: "l2-reconstruction/v1",
                 synchronized: true,
                 session: self.session.clone(),
@@ -512,6 +535,11 @@ impl LocalBook {
                     "bounded_initial_snapshot_price_range"
                 } else {
                     "subscribed_depth_only"
+                },
+                subscription_depth: match self.protocol {
+                    Protocol::Bybit => self.config.bybit_depth,
+                    Protocol::Okx => 400,
+                    _ => 1000,
                 },
                 retained_bids: self.bids.len(),
                 retained_asks: self.asks.len(),
@@ -687,7 +715,8 @@ impl BookRegistry {
         s.rows
             .get(&book_key(book.exchange, book.market, &book.symbol))
             .is_some_and(|r| {
-                r.session == q.session
+                q.reconstructed_at.elapsed().as_millis() <= s.config.max_age_ms as u128
+                    && r.session == q.session
                     && r.revision >= q.revision
                     && r.phase == "synchronized"
                     && r.seen
@@ -1085,6 +1114,14 @@ mod tests {
         ];
         b.apply(&u).unwrap();
         assert!(b.tick(None).is_err());
+        let mut b = book(Protocol::Okx);
+        u.bids = vec![WireLevel::new("99.000000000000000001", "1")];
+        u.asks = vec![WireLevel::new("99.000000000000000002", "1")];
+        b.apply(&u).unwrap();
+        assert!(
+            b.tick(None).is_err(),
+            "opposite sides must remain distinct in public f64 output"
+        );
     }
     #[test]
     fn bybit_snapshot_required_duplicate_conflict_and_restart() {
@@ -1117,6 +1154,17 @@ mod tests {
         let t = b.tick(None).unwrap();
         lease.synchronized(&t, b.owned_bytes()).unwrap();
         assert!(r.usable(&t));
+        let mut stalled_cache = t.clone();
+        stalled_cache
+            .book_quality
+            .as_mut()
+            .unwrap()
+            .reconstructed_at = Instant::now() - std::time::Duration::from_secs(6);
+        lease.synchronized(&t, b.owned_bytes()).unwrap();
+        assert!(
+            !r.usable(&stalled_cache),
+            "new arrivals cannot renew a stalled consumer's old cached view"
+        );
         let newer = r.begin("okx", MarketKind::Spot, "BTCUSDT").unwrap();
         drop(lease);
         assert!(!r.usable(&t));

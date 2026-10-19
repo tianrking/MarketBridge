@@ -326,38 +326,79 @@ async fn run_binance_trades(
         MarketKind::Perp => "wss://fstream.binance.com/market/stream?",
     };
     let ws_url = format!("{base}streams={streams}");
-    let (ws, _) = connect_async(&ws_url)
-        .await
-        .context("binance trades connect failed")?;
+    run_binance_trades_endpoint(market, symbols, ctx, &ws_url).await
+}
+
+fn decode_native_trade(text: &str, market: MarketKind, symbols: &[String]) -> Result<DataEvent> {
+    let parsed: BinanceAggTradeCombined<'_> = serde_json::from_str(text)?;
+    let data = parsed.data;
+    anyhow::ensure!(
+        symbols.iter().any(|s| s == data.symbol),
+        "unsubscribed trade instrument"
+    );
+    let event = DataEvent::Trade(TradeTick {
+        exchange: "binance",
+        market,
+        symbol: data.symbol.into(),
+        price: data.price.parse()?,
+        qty: data.qty.parse()?,
+        side: trade_side_from_buyer_maker(Some(data.buyer_is_maker.context("missing maker side")?)),
+        trade_id: Some(
+            data.trade_id
+                .context("missing native trade id")?
+                .to_string()
+                .into(),
+        ),
+        ts_ms: data.trade_time_ms.context("missing native trade time")?,
+    });
+    anyhow::ensure!(
+        event.has_valid_market_values() && event.has_finite_numbers(),
+        "invalid native trade economics"
+    );
+    Ok(event)
+}
+
+pub(crate) async fn run_binance_trades_endpoint(
+    market: MarketKind,
+    symbols: &[String],
+    ctx: SourceContext,
+    ws_url: &str,
+) -> Result<()> {
+    let config = tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
+        max_message_size: Some(4 * 1024 * 1024),
+        max_frame_size: Some(4 * 1024 * 1024),
+        ..Default::default()
+    };
+    let (ws, _) = tokio::time::timeout(
+        Duration::from_secs(15),
+        tokio_tungstenite::connect_async_with_config(ws_url, Some(config), false),
+    )
+    .await
+    .context("binance trades connection timed out")??;
     let (mut sink, mut stream) = ws.split();
     let mut ping_tick = interval(Duration::from_secs(15));
-
+    let mut last_frame = Instant::now();
     loop {
         tokio::select! {
             _ = ping_tick.tick() => {
+                anyhow::ensure!(last_frame.elapsed() < Duration::from_secs(60), "binance trades transport timeout");
                 sink.send(Message::Ping(Vec::new())).await?;
                 ctx.emit(DataEvent::Heartbeat { exchange: "binance", ts_ms: now_ms() }).await?;
             }
             msg = stream.next() => {
                 let msg = msg.context("binance trade stream ended")??;
+                last_frame = Instant::now();
                 match msg {
                     Message::Text(_) | Message::Binary(_) => {
-                        let Some(text) = decode_ws_text("binance aggTrade", &msg)? else {
-                            continue;
-                        };
-                        if let Some(parsed) = parse_ws_json::<BinanceAggTradeCombined<'_>>("binance aggTrade", &text)
-                            && let (Ok(price), Ok(qty)) = (parsed.data.price.parse::<f64>(), parsed.data.qty.parse::<f64>())
-                        {
-                            ctx.emit(DataEvent::Trade(TradeTick {
-                                exchange: "binance",
-                                market,
-                                symbol: parsed.data.symbol.to_string().into_boxed_str(),
-                                price,
-                                qty,
-                                side: trade_side_from_buyer_maker(parsed.data.buyer_is_maker),
-                                trade_id: parsed.data.trade_id.map(|id| id.to_string().into_boxed_str()),
-                                ts_ms: parsed.data.trade_time_ms.unwrap_or_else(now_ms),
-                            })).await?;
+                        let decoded = message_text(&msg).and_then(|text| {
+                            decode_native_trade(&text.context("empty native trade frame")?, market, symbols)
+                        });
+                        match decoded {
+                            Ok(event) => ctx.emit(event).await?,
+                            Err(error) => {
+                                ctx.metrics.ingestion.loss("native_trade_protocol_error", 1);
+                                return Err(error.context("native trade frame rejected"));
+                            }
                         }
                     }
                     Message::Ping(payload) => sink.send(Message::Pong(payload)).await?,
@@ -694,10 +735,28 @@ impl ExchangeSource for BinanceTradeFeed {
 #[cfg(test)]
 mod tests {
     use super::{
-        BinanceDepthCombined, BinanceOpenInterestResponse, binance_open_interest_event, depth_book,
-        side_from_str, trade_side_from_buyer_maker,
+        BinanceDepthCombined, BinanceOpenInterestResponse, binance_open_interest_event,
+        decode_native_trade, depth_book, side_from_str, trade_side_from_buyer_maker,
     };
     use crate::types::{DataEvent, MarketKind, TradeSide};
+
+    #[test]
+    fn native_trade_requires_identity_time_side_and_subscribed_symbol() {
+        let raw =
+            serde_json::json!({"data":{"s":"BTCUSDT","a":0,"p":"10","q":"1","m":false,"T":1000}});
+        let symbols = vec!["BTCUSDT".to_string()];
+        assert!(decode_native_trade(&raw.to_string(), MarketKind::Spot, &symbols).is_ok());
+        for field in ["a", "m", "T"] {
+            let mut bad = raw.clone();
+            bad["data"].as_object_mut().unwrap().remove(field);
+            assert!(decode_native_trade(&bad.to_string(), MarketKind::Spot, &symbols).is_err());
+        }
+        for (field, value) in [("s", "ETHUSDT"), ("p", "NaN"), ("q", "-1")] {
+            let mut bad = raw.clone();
+            bad["data"][field] = serde_json::Value::String(value.into());
+            assert!(decode_native_trade(&bad.to_string(), MarketKind::Spot, &symbols).is_err());
+        }
+    }
 
     #[test]
     fn binance_side_helpers_map_exchange_semantics() {

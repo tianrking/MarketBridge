@@ -482,7 +482,7 @@ abused.
 | Data family | Default behavior |
 |---|---|
 | Core CEX websocket quotes/trades/books | Event-driven, source-push speed |
-| Binance depth | `depth20@100ms` stream |
+| Binance depth | `depth@100ms` increments + REST 1000-level seed; native continuity and rebootstrap |
 | Binance mark/funding | `markPrice@1s` stream |
 | REST-only CEX adapters | Usually 5 second polling |
 | Options chains | `refresh_secs`, default 10 seconds |
@@ -2282,3 +2282,5 @@ Source readiness, native continuity and minute-sampled strategy history: [operat
 [有限窗口恢复](docs/verified_trade_windows.zh-CN.md) · [完整链路持续验收](docs/pipeline_acceptance.zh-CN.md)
 
 订单簿同步、原生序号、精确档位与 OFI 重建门槛见[订单簿使用契约](docs/reconstructed_order_books.zh-CN.md)。
+
+成交缺口自动补采、持久化证据及核验后窗口接口见[自动恢复使用说明](docs/automatic_trade_recovery.zh-CN.md)。

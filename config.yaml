@@ -70,6 +70,7 @@ runtime:
     max_symbols: 256
     max_levels_per_side: 1000
     publish_levels: 200
+    bybit_depth: 1000
     max_state_bytes: 67108864
     max_total_buffered_bytes: 67108864
     max_buffered_updates: 256
@@ -77,6 +78,22 @@ runtime:
     snapshot_timeout_ms: 10000
     max_age_ms: 5000
     binance_weight_per_minute: 1200
+
+  # Binance aggTrade native gaps are queued atomically with the checkpoint.
+  # With event outbox enabled the same DB is used; otherwise a compact DB here.
+  recovery:
+    enabled: true
+    path: "data/trade-recovery.sqlite"
+    max_jobs: 256
+    max_deferred_streams: 4096
+    max_rows_per_job: 100000
+    max_evidence_bytes: 134217728
+    max_database_bytes: 268435456
+    window_ms: 60000
+    max_window_ms: 900000
+    max_requests_per_attempt: 256
+    request_timeout_ms: 10000
+    max_attempts: 1000
 
   # /health is process liveness; /ready checks actual receipts/consumers/storage.
   readiness:

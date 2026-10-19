@@ -67,6 +67,16 @@ jobs:
         run: |
           python -B scripts/accept_pipeline.py --binary target/debug/market-bridge --redis-server "$RUNNER_TEMP/marketbridge-redis/src/redis-server" --duration 30 --rate 1000 --symbols 16 --sample-seconds 1 --output "$RUNNER_TEMP/marketbridge-acceptance"
 
+      - name: Test native wire protocols, automatic recovery, L2 resync and restart
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          python -B scripts/accept_native_protocols.py --binary target/debug/market-bridge --redis-server "$RUNNER_TEMP/marketbridge-redis/src/redis-server" --output "$RUNNER_TEMP/marketbridge-native-protocols"
+
+      - name: Test compact recovery and native protocols on Windows and macOS
+        if: runner.os != 'Linux'
+        run: python -B scripts/accept_native_protocols.py --output "${{ runner.temp }}/marketbridge-native-compact"
+
       - name: Test portable process startup and shutdown
         run: python -B scripts/Test-ProcessLifecycle.py
 

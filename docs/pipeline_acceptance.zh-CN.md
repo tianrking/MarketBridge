@@ -19,6 +19,8 @@ python3 scripts/accept_pipeline.py \
 
 原始 `samples.jsonl` 包含就绪状态、预算、固定桶延迟直方图、HTTP 时延、磁盘与 Linux `/proc` CPU/RSS；`metadata.json` 记录源码和 binary SHA256、CPU quota、内存限制及参数。`report.json` 只有全部检查通过才产生 `passed=true`，失败保留 `failure.json` 和进程日志。直方图只能给桶上界，不能当作精确百分位。
 
+当前合成 JSON 负载的盘口没有交易所重建 lease，新增 L2 门槛会将其标为未验证；它仍用于通道、成交、持久化和排空验收，不能用来证明原生 L2 重建或 OFI 性能。新增真实进程协议故障验收使用 `scripts/accept_native_protocols.py`，见[自动恢复说明](automatic_trade_recovery.zh-CN.md)。既有 600 秒容量记录对应其清单标注的旧构建，不能当作新增订单簿逻辑的性能结果。
+
 ## 持续运行与容量边界
 
 `--duration` 可设为 259200 做 72 小时验收，但必须为实际速率配置足够的 Redis 内存和磁盘。默认 Redis 2 GiB `noeviction` 与输出目录 8 GiB 磁盘守卫会在资源不足时失败；不会悄悄裁剪账本以掩盖缺失。合成验收保留全部 Redis 证据，磁盘随总事件数增长，与 bounded outbox 不是同一层。可通过 `--redis-maxmemory-mb` 和 `--max-disk-mb` 显式预算；工具自身最终去重位图每事件约 1 字节，超大运行需计入验收机内存。请同时监控宿主机 Redis/AOF、日志、数据库备份与导出空间。

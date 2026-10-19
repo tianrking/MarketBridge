@@ -191,7 +191,8 @@ impl SpreadAggregator {
         venue_map!(self.books, |v: &MarketTick| v.symbol.len());
         venue_map!(self.order_books, |v: &OrderBookTick| v.symbol.len()
             + (v.bids.capacity() + v.asks.capacity())
-                * std::mem::size_of::<crate::types::BookLevel>());
+                * std::mem::size_of::<crate::types::BookLevel>()
+            + v.book_quality.as_ref().map_or(0, |q| q.allocated_bytes()));
         venue_map!(self.funding, |v: &FundingRateTick| v.symbol.len());
         venue_map!(self.open_interest, |v: &OpenInterestState| v
             .current

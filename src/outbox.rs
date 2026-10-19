@@ -105,6 +105,7 @@ impl PendingEvent {
 
 #[derive(Clone)]
 pub struct Outbox {
+    recovery_config: Arc<Mutex<Option<crate::trade_recovery::RecoveryConfig>>>,
     connection: Arc<Mutex<Connection>>,
     gate: Arc<Semaphore>,
     origin: String,
@@ -208,6 +209,7 @@ impl Outbox {
         );
         Ok(Self {
             connection: Arc::new(Mutex::new(conn)),
+            recovery_config: Arc::new(Mutex::new(None)),
             gate: Arc::new(Semaphore::new(1)),
             origin,
             prefix: prefix.into(),
@@ -218,6 +220,42 @@ impl Outbox {
         })
     }
 
+    pub(crate) fn enable_recovery(
+        &self,
+        config: crate::trade_recovery::RecoveryConfig,
+    ) -> Result<()> {
+        let mut guard = self.recovery_config.lock().unwrap();
+        ensure!(
+            guard.is_none(),
+            "recovery worker already configured for outbox"
+        );
+        *guard = Some(config);
+        Ok(())
+    }
+    pub async fn record_checkpoints(
+        &self,
+        points: Vec<crate::ingestion::NativeCheckpoint>,
+    ) -> Result<()> {
+        if points.is_empty() {
+            return Ok(());
+        }
+        ensure!(points.len() <= 64, "native checkpoint batch exceeds limit");
+        let recovery = self.recovery_config.lock().unwrap().clone();
+        self.blocking(move |conn| {
+            let tx = conn.transaction()?;
+            for point in points {
+                record_native(&tx, &point, recovery.as_ref())?;
+            }
+            tx.commit()?;
+            Ok(())
+        })
+        .await?;
+        self.changed.notify_one();
+        Ok(())
+    }
+    pub(crate) fn notify_changed(&self) {
+        self.changed.notify_waiters();
+    }
     pub async fn changed(&self) {
         self.changed.notified().await;
     }
@@ -239,14 +277,16 @@ impl Outbox {
         }
     }
 
-    async fn blocking<T: Send + 'static>(
+    pub(crate) async fn blocking<T: Send + 'static>(
         &self,
         action: impl FnOnce(&mut Connection) -> Result<T> + Send + 'static,
     ) -> Result<T> {
         let permit = self.gate.clone().acquire_owned().await?;
         let conn = self.connection.clone();
+        let lease = self._lease.clone();
         tokio::task::spawn_blocking(move || {
             let _permit = permit;
+            let _lease = lease;
             let mut guard = conn
                 .lock()
                 .map_err(|_| anyhow::anyhow!("outbox mutex poisoned"))?;
@@ -312,6 +352,7 @@ impl Outbox {
         let origin = self.origin.clone();
         let prefix = self.prefix.clone();
         let budget = self.max_pending_bytes;
+        let recovery = self.recovery_config.lock().unwrap().clone();
         let outcome = self.blocking(move |conn| {
             let tx = conn.transaction()?;
             let mut bytes: u64 = tx.query_row("SELECT pending_bytes FROM outbox_state WHERE id=1", [], |r| r.get(0))?;
@@ -321,20 +362,7 @@ impl Outbox {
                 #[derive(Serialize)]
                 struct Payload<'a> { #[serde(flatten)] event:&'a DataEvent, #[serde(skip_serializing_if="Option::is_none")] source_quality:Option<crate::ingestion::SourceIntegrity> }
                 let payload = serde_json::to_string(&Payload {event:&event,source_quality})?;
-                if let Some(point)=crate::ingestion::native_checkpoint(&event) {
-                    let previous:Option<(String,u32)>=tx.query_row("SELECT checkpoint,crc32 FROM source_checkpoints WHERE stream=?1",[&point.key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-                    if let Some((previous,crc))=previous {
-                        ensure!(checkpoint_crc(&previous)==crc,"native checkpoint CRC mismatch");
-                        let old:crate::ingestion::NativeCheckpoint=serde_json::from_str(&previous)?;
-                        ensure!(point.sequence>old.sequence,"native checkpoint regressed; admission must quarantine this event");
-                    } else {
-                        let count:usize=tx.query_row("SELECT COUNT(*) FROM source_checkpoints",[],|r|r.get(0))?;
-                        ensure!(count<65536,"persisted native checkpoint budget exhausted");
-                    }
-                    let checkpoint=serde_json::to_string(&point)?;
-                    tx.execute("INSERT INTO source_checkpoints(stream,checkpoint,crc32) VALUES(?1,?2,?3) ON CONFLICT(stream) DO UPDATE SET checkpoint=excluded.checkpoint,crc32=excluded.crc32",
-                        params![point.key,checkpoint,checkpoint_crc(&checkpoint)])?;
-                }
+                if let Some(point)=crate::ingestion::native_checkpoint(&event) {record_native(&tx,&point,recovery.as_ref())?;}
                 let stream = crate::redis_sink::redis_stream_name(&prefix, &event);
                 ensure!(payload.len() <= MAX_RECORD_BYTES && stream.len() <= 512, "outbox event exceeds record budget");
                 let cost = (payload.len() + stream.len() + 128) as u64;
@@ -530,6 +558,46 @@ fn decode_row(row: &rusqlite::Row<'_>, origin: &str) -> rusqlite::Result<Pending
     })
 }
 
+fn record_native(
+    tx: &rusqlite::Transaction<'_>,
+    point: &crate::ingestion::NativeCheckpoint,
+    recovery: Option<&crate::trade_recovery::RecoveryConfig>,
+) -> Result<()> {
+    point.validate()?;
+    let previous: Option<(String, u32)> = tx
+        .query_row(
+            "SELECT checkpoint,crc32 FROM source_checkpoints WHERE stream=?1",
+            [&point.key],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    if let Some((previous, crc)) = previous {
+        ensure!(
+            checkpoint_crc(&previous) == crc,
+            "native checkpoint CRC mismatch"
+        );
+        let old: crate::ingestion::NativeCheckpoint = serde_json::from_str(&previous)?;
+        old.validate()?;
+        ensure!(
+            point.sequence > old.sequence && point.signature[2] >= old.signature[2],
+            "native checkpoint regressed; admission must quarantine this event"
+        );
+        if let Some(config) = recovery {
+            crate::trade_recovery::schedule(tx, &old, point, config)?;
+        }
+    } else {
+        let count: usize =
+            tx.query_row("SELECT COUNT(*) FROM source_checkpoints", [], |r| r.get(0))?;
+        ensure!(
+            count < 65536,
+            "persisted native checkpoint budget exhausted"
+        );
+    }
+    let checkpoint = serde_json::to_string(point)?;
+    tx.execute("INSERT INTO source_checkpoints(stream,checkpoint,crc32) VALUES(?1,?2,?3) ON CONFLICT(stream) DO UPDATE SET checkpoint=excluded.checkpoint,crc32=excluded.crc32",params![point.key,checkpoint,checkpoint_crc(&checkpoint)])?;
+    Ok(())
+}
+
 fn read_rows(conn: &Connection, origin: &str, limit: usize) -> Result<Vec<PendingEvent>> {
     let mut stmt = conn.prepare("SELECT sequence,stream,received_at_ms,payload,crc32 FROM outbox_events ORDER BY sequence LIMIT ?1")?;
     let mut rows = Vec::new();
@@ -581,6 +649,57 @@ mod tests {
             4 * 1024 * 1024,
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn cancelled_async_operation_keeps_database_lease_until_sql_finishes() {
+        let root = root();
+        let backend = open(&root, 1024 * 1024);
+        let worker = backend.clone();
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (release, wait) = std::sync::mpsc::channel();
+        let task = tokio::spawn(async move {
+            worker
+                .blocking(move |_| {
+                    let _ = started.send(());
+                    wait.recv()?;
+                    Ok(())
+                })
+                .await
+        });
+        ready.await.unwrap();
+        task.abort();
+        let _ = task.await;
+        drop(backend);
+        assert!(
+            Outbox::open(
+                &root.join("events.sqlite"),
+                "ticks",
+                1024 * 1024,
+                4 * 1024 * 1024
+            )
+            .is_err()
+        );
+        release.send(()).unwrap();
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match Outbox::open(
+                &root.join("events.sqlite"),
+                "ticks",
+                1024 * 1024,
+                4 * 1024 * 1024,
+            ) {
+                Ok(reopened) => {
+                    drop(reopened);
+                    break;
+                }
+                Err(_) if tokio::time::Instant::now() < deadline => {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await
+                }
+                Err(error) => panic!("SQL operation failed to release lease: {error}"),
+            }
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

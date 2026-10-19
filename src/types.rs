@@ -199,7 +199,7 @@ impl DataEvent {
     }
 }
 
-fn json_owned_bytes(value: &serde_json::Value, depth: usize) -> usize {
+pub(crate) fn json_owned_bytes(value: &serde_json::Value, depth: usize) -> usize {
     if depth > 64 {
         return usize::MAX;
     }

@@ -4,6 +4,7 @@ use prometheus::{Encoder, IntCounter, IntCounterVec, IntGauge, Opts, Registry, T
 
 #[derive(Clone)]
 pub struct AppMetrics {
+    pub recovery: Arc<std::sync::Mutex<Option<crate::trade_recovery::RecoveryStore>>>,
     pub books: crate::book_integrity::BookRegistry,
     pub ingestion: crate::ingestion::IngestionState,
     pub aggregator_retained_bytes: IntGauge,
@@ -176,6 +177,7 @@ impl AppMetrics {
 
         Arc::new(Self {
             books: Default::default(),
+            recovery: Arc::new(std::sync::Mutex::new(None)),
             ingestion: crate::ingestion::IngestionState::default(),
             pipeline_latency_seconds,
             pipeline_queue_events,
@@ -200,6 +202,9 @@ impl AppMetrics {
         })
     }
 
+    pub fn recovery_store(&self) -> Option<crate::trade_recovery::RecoveryStore> {
+        self.recovery.lock().unwrap().clone()
+    }
     pub fn render(&self) -> String {
         let metric_families = self.registry.gather();
         let mut buffer = Vec::new();

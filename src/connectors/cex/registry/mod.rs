@@ -788,6 +788,7 @@ mod tests {
         let cfg = AppConfig {
             runtime: RuntimeConfig {
                 order_books: Default::default(),
+                recovery: Default::default(),
                 memory: Default::default(),
                 outbox: Default::default(),
                 readiness: Default::default(),

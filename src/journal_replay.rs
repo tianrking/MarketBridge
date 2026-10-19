@@ -25,6 +25,19 @@ pub fn replay(path: &std::path::Path, route: LiveScanRequest) -> Result<Value> {
     let mut last_time = None;
     let mut last_result = None;
     let verification = crate::journal::visit(path, |record| {
+        let event = &record.payload;
+        if event["type"] == "external_signal"
+            && event["category"] == "order_book_integrity"
+            && event["metric"] == "resynchronization_required"
+            && event["raw"]["market"] == "spot"
+        {
+            if event["source"] == route.buy.venue && event["symbol"] == route.buy.symbol {
+                buy = None;
+            }
+            if event["source"] == route.sell.venue && event["symbol"] == route.sell.symbol {
+                sell = None;
+            }
+        }
         if record.payload["type"] != "order_book" {
             return Ok(());
         }

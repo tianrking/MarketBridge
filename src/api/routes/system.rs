@@ -75,6 +75,25 @@ pub async fn outbox(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     }
 }
 
+pub async fn recovery(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    if let Some(store) = state.metrics.recovery_store() {
+        match store.status().await {
+            Ok(report) => (axum::http::StatusCode::OK, Json(report)),
+            Err(_) => (
+                axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                Json(
+                    serde_json::json!({"enabled":true,"error":"recovery_evidence_unavailable_or_corrupt"}),
+                ),
+            ),
+        }
+    } else {
+        (
+            axum::http::StatusCode::OK,
+            Json(serde_json::json!({"enabled":false})),
+        )
+    }
+}
+
 pub async fn order_books(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     Json(state.metrics.books.report())
 }
