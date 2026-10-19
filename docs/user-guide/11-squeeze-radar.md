@@ -212,8 +212,9 @@ $scan.candidates |
 
 | 字段 | 应怎样使用 |
 | --- | --- |
-| `state` | 先看是否 `warming_up` 或 `stale_data`；这两类不进入实验。 |
+| `state` | 先看是否 `incomplete_data`、`warming_up` 或 `stale_data`；这三类不进入实验。 |
 | `score` | 研究排序分数，不是仓位大小，也不是收益概率。 |
+| `data_quality.subscription_quality` | 检查 `has_known_gap`、丢失总数及 epoch；已知缺口不会随等待自动恢复。无已知缺口也不证明上游完整。 |
 | `data_quality.fresh` | 当前服务是否收到足够新的整体市场事件。 |
 | `data_quality.ready_for_trigger` | funding、OI、价格、盘口及窗口基线是否同时满足最小条件。 |
 | `oi_1h_baseline` | 查看 `change_pct` 与 `actual_elapsed_ms`，确认不是误标一小时。 |
@@ -226,6 +227,7 @@ $scan.candidates |
 最低条件不是“分数高”，而是：
 
 ```text
+data_quality.subscription_quality.has_known_gap = false
 data_quality.fresh = true
 data_quality.ready_for_trigger = true
 state = triggered_research_candidate 或 armed_research_candidate

@@ -1,6 +1,6 @@
-# Squeeze Radar v0
+# Squeeze Radar v1
 
-`Squeeze Radar v0` is a read-only research application built on top of
+`Squeeze Radar v1` is a read-only research application built on top of
 MarketBridge's normalized live market data. It ranks observed perpetual
 markets by a short-squeeze hypothesis; it does not send orders, authenticate
 to an exchange account, sign a wallet, borrow assets, or assert profitability.
@@ -12,15 +12,24 @@ in-memory observations of funding, OI, price, matched spot/perp CVD, perpetual
 best-level OFI and liquidations. It emits one of these states:
 
 ```text
+incomplete_data -> a known process-local subscriber gap requires state rebuild
 stale_data -> data older than the requested bound
 warming_up -> a fixed-window or flow baseline is unavailable
 watch -> fresh but weak confluence
-armed_research_candidate -> fresh, complete data and medium confluence
-triggered_research_candidate -> fresh, complete evidence, strong confluence and positive 15m price confirmation
+armed_research_candidate -> fresh required fields, no known subscriber gap and medium confluence
+triggered_research_candidate -> fresh required fields, no known subscriber gap, strong confluence and positive 15m price confirmation
 ```
 
 `triggered_research_candidate` means “archive and evaluate this observable
 setup,” never “buy now.”
+
+`subscription_quality` is serialized both in raw symbol state and scan data
+quality. Known loss taints the whole subscription because broadcast lag does
+not identify missing symbols/domains/source timestamps. The gap remains sticky;
+new events, elapsed windows and fresh prices do not repair it. Rebuild state
+from a verified dataset, or restart and warm up a new observation period without
+claiming coverage of the previous one. There is currently no automatic repair.
+`has_known_gap=false` does not certify upstream or retention completeness.
 
 | Condition | Points |
 | --- | ---: |
@@ -33,8 +42,8 @@ setup,” never “buy now.”
 | Recent buy liquidation | 1 |
 | Positive 15m price change | 1 |
 
-The score maximum is 10. These are v0 research defaults, not universal market
-constants. Funding must be compared inside a venue and funding interval; v0
+The score maximum is 10. These are v1 research defaults, not universal market
+constants. Funding must be compared inside a venue and funding interval; v1
 does not normalize venue caps or schedules.
 
 ## Run a bounded live study
@@ -49,7 +58,7 @@ cargo run
 ```
 
 At startup rolling fields are intentionally null. Wait a full hour before an
-OI-1h metric can exist. A restart clears v0's in-memory history; retain data in
+OI-1h metric can exist. A restart clears v1's in-memory history; retain data in
 the data lake and use replay for durable studies.
 
 ## Discover, scan, and archive
@@ -88,7 +97,7 @@ Before asserting an edge, collect a pre-declared universe including failures,
 archive every decision, replay without future data, include post-cost outcomes,
 and reserve a later time period for holdout validation.
 
-## Explicit v0 gaps
+## Explicit v1 gaps
 
 There is no verified circulating-market-cap registry, OI/market-cap factor,
 deposit/withdrawal status, borrow availability, exchange reserve measurement,

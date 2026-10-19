@@ -2070,11 +2070,31 @@ Current metrics include:
 - `ws_subscribers`
 - `redis_xadd_total`
 - `redis_dead_letter_total`
+- `redis_dead_letter_failures_total`
+- `redis_accepted_total`
+- `redis_pending_events`
+- `redis_lagged_total`
 - `ticks_dropped_total`
 
 When Redis is enabled and a batch still cannot be written after retries,
-MarketBridge appends the failed rows to `runtime.redis_dead_letter_path` for
-operator inspection.
+MarketBridge appends unacknowledged rows to `runtime.redis_dead_letter_path` and
+counts them only after file flush and `sync_all`. Each connection/pipeline
+attempt has a three-second timeout, with up to eight attempts. Shutdown stops
+local intake and saves all events already accepted into the Redis queue to
+Redis or the recovery file; it interrupts network waits. Dead-letter failure or
+subscriber lag fails the enabled sink and the supervised process, including
+during shutdown. Watch the pending gauge and retain the final accounting log.
+
+This acceptance boundary is the Redis local queue, not every source event.
+`XADD *` retries and replay can duplicate records, a Redis acknowledgement does
+not certify server-side disk durability, and there is no automatic dead-letter
+replay or durable outbox. See [institutional readiness and recovery limits](docs/institutional_readiness.zh-CN.md).
+
+Order-flow, footprint and symbol-state responses include `subscription_quality`.
+A known subscriber gap remains marked for the life of the store; passing time
+and new events do not reset it. Squeeze model `squeeze-radar/v1` rejects such
+state as `incomplete_data`. A false `has_known_gap` reports no observed local
+subscriber gap; upstream coverage and retention completeness remain unverified.
 
 ### `GET /v1/onchain/transfers`
 

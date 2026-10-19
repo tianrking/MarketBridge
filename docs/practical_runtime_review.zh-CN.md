@@ -102,15 +102,17 @@ Windows 对应可执行文件为 `target\release\market-bridge.exe`。默认出�
 
 | 优先级 | 现状与实战影响 | 建议实施和验收 |
 |---|---|---|
-| P1：派生数据完整性 | [order_flow.rs](../src/order_flow.rs)、[strategy_state.rs](../src/strategy_state.rs) 对广播丢失主要记录日志。累计成交/CVD 和窗口特征可能已经缺数据，查询者却难以判断受影响范围。 | 增加 source/domain/window 的 gap 与 epoch；丢失后标记窗口不完整，重新积累足够数据才能恢复可信状态。注入确定性丢失，核对 API 的质量状态，而不只检查日志。 |
+| P1：派生数据完整性（部分落实） | Order-flow/footprint 和 symbol-state 已暴露订阅级 `subscription_quality`、gap epoch、丢失总数；已知缺口持续标记，squeeze v1 及 legacy legs 禁止触发。广播丢失无法精确归属标的或源时间，因此保守影响整个对应订阅。 | 已做确定性丢失、序列化和满分候选拒绝测试。仍需源序号缺口、容量淘汰标记及每窗口经回放验证的恢复；未发生本地 lag 不能证明上游完整。 |
 | P1：成交聚合热路径 | `OrderFlowStore::update_trade` 每次都运行 `prune_order_flow_state`，扫描保留的原始成交和 buckets，重建分组及 CVD key 集合，并持有写锁。当前总线压测不包含它。 | 单独测成交到聚合结果的延迟与 RSS；先局部清理当前 key，再按时间/预算做全局维护，保持乱序成交及窗口语义。不能把总线的吞吐直接当作完整服务能力。 |
 | P1：全局资源预算 | 原始成交有每 key 20,000 笔、最多 100,000 keys 的上限，但其乘积可达 20 亿笔，不是普通 VPS 的内存预算。桶数上限不能替代原始成交的全局预算。 | 明确全局条数/字节预算及淘汰质量标记；压测宽标的与高成交率，验收 RSS 上界和受影响窗口的可解释性。不要直接增大所有队列。 |
 | P1：拥塞隔离 | [router.rs](../src/router.rs) 按 journal、bus、aggregator 顺序等待；慢磁盘/聚合会反压统一入口。[source.rs](../src/source.rs) 的 DropNewest 没有区分 domain。 | 记录各阶段排队时间、队列深度及按 domain/reason 的丢失；再决定队列隔离。资金费率、成交、盘口的保留语义不同，不能统一假定可丢弃。 |
-| P1：Redis 持久化语义 | [redis_sink.rs](../src/redis_sink.rs) 使用 `XADD *` 重试，部分成功后重试可能重复；正常停机仅冲刷当前 batch，没有完整排空本地接收队列。死信写失败后仍清 batch，计数也在写文件前增加。 | 明确去重键/重放协议，使用有界排空及可靠 outbox 或录制文件恢复；死信成功后才计成功。测试断线、部分确认、磁盘写失败和停机积压。当前不能承诺 exactly-once 或无损归档。 |
+| P1：Redis 持久化语义（部分落实） | 已修复死信失败清批次/虚增计数、停机遗漏本地已接收队列、无界网络确认等待和隐藏 intake 任务生命周期；订阅丢失及磁盘失败会报错退出。`XADD *` 的部分成功重试仍可能重复。 | 本地 RESP 故障端点覆盖 ACK 丢失、拒绝、卡住、237 条停机积压；尚需持久 outbox、稳定去重身份、受检重放、真实 Redis 耐久配置和完整入口的两阶段停机。当前不能承诺 exactly-once 或无损归档。 |
 | P2：端到端延迟和数据源就绪 | `/health` 只回答进程健康；现有计数器不能分解收包、排队、快照、序列化和客户端发送时间。部分 legacy timestamp 也可能是本地接收时间。 | 用进程内单调时钟测阶段耗时，将交易所源时间与本机观测时间分开；为实际启用的数据源提供新鲜度/就绪状态。不要用公开行情源时间戳推导精确的本机调度延迟。 |
 | P2：发行包兼容边界 | 固定了 Rust，但托管 runner、链接器、glibc 仍可能变化；有 Linux x86_64 包，不代表支持所有旧发行版。 | 声明最低发行版/系统库基线并在对应环境验证；按实际需求增加 musl 包。通用发行包不要默认使用 `target-cpu=native`。 |
 
 建议先处理数据缺口标记、成交聚合和资源预算，再做存储故障/恢复与端到端观测。它们比更换实时内核更贴近当前用户体验和数据可信度。
+
+新增的机构使用验收、恢复操作和明确的未完成项见[机构使用门槛](institutional_readiness.zh-CN.md)。本次没有重新执行总线压测，也没有将上述局部修复外推为机构生产容量证明。
 
 ## 普通 Linux/VPS 与 PREEMPT_RT 的取舍
 
@@ -166,7 +168,7 @@ python3 -B -m unittest discover -s sdk/python -p 'test_*.py'
 python3 -B scripts/run_python_example_tests.py
 ```
 
-本机最终结果：400 项 Rust 测试、13 项 Python SDK 测试、529 项 Python 示例测试、4 项进程测试均通过，Rust 格式检查及 Clippy 通过。另外完成 9 个归档研究模型、同步/异步真实 HTTP 调用、CLI/API 一致性、工作台/CSP、SQLite 完整性和进程重启恢复验证。
+上一轮本机结果：400 项 Rust 测试、13 项 Python SDK 测试、529 项 Python 示例测试、4 项进程测试均通过，Rust 格式检查及 Clippy 通过。另外完成 9 个归档研究模型、同步/异步真实 HTTP 调用、CLI/API 一致性、工作台/CSP、SQLite 完整性和进程重启恢复验证。
 
 ## 参考资料
 

@@ -88,14 +88,17 @@ one shard at the same per-shard capacity; default sharding remains one.
 
 ## Remaining work before stronger operational guarantees
 
-1. Expose gap/epoch quality on order-flow and strategy windows after subscriber
-   loss; warnings alone do not establish complete research evidence.
+1. Subscription gap/epoch metadata now marks order-flow, footprint and strategy
+   responses; squeeze v1 rejects known gaps. Source sequence gaps, retention
+   eviction markers and validated per-window recovery remain unfinished.
 2. Profile the actual trade aggregation path and bound global retained trade
    memory. Its per-event global pruning is outside the EventBus benchmark.
 3. Measure journal/router/aggregator queue waits and isolate congestion only
    after defining each domain's retention semantics.
-4. Define Redis retry/deduplication, dead-letter failures, bounded shutdown drain
-   and recovery. Current code does not provide exactly-once or lossless archival.
+4. Redis now drains locally accepted events on cancellation, bounds network
+   waits and propagates dead-letter/lag errors. Durable outbox, deduplication,
+   checked replay and full-ingestion shutdown remain unfinished; there is no
+   exactly-once or lossless archival guarantee.
 5. Add end-to-end monotonic timing and source readiness, then validate a sustained
    workload on the intended VPS and supported OS/runtime-library baselines.
 

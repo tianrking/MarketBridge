@@ -439,7 +439,12 @@ event fanout in `src/event_bus.rs`.
 - `redis_sink.rs`: optional Redis Stream persistence with batched `XADD`
   pipelines and local JSONL dead-letter fallback at
   `runtime.redis_dead_letter_path`; the service remains a live data bridge when
-  Redis is disabled.
+  Redis is disabled. Network attempts are time-bounded; cancellation drains
+  locally accepted events to acknowledged Redis writes or synced dead letters.
+  Subscriber loss and fallback persistence errors propagate through supervision.
+  The sink is not an exactly-once archive or an automatic replay system.
+- `data_quality.rs`: sticky subscription gap evidence shared by order-flow and
+  strategy responses. It does not assert source or retention completeness.
 - `klines.rs`: SQLite-backed OHLCV storage, historical Binance/OKX REST
   backfill, and realtime tick-to-candle aggregation.
 

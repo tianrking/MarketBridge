@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "collected_at_utc": "2026-10-19T05:16:38.488521+00:00",
+  "source_revision": "6a3eb96f18d391165f706d4d8ab300e6b6eda517",
+  "binary_sha256": "8ade86430ab540a1d5fca2e4b42230486007de737635eda7b643916b9e417e5b",
+  "build_profile": "debug",
+  "binary_embedded_revision": "unattested-build",
+  "source_note": "Binary and checks used source content committed at source_revision; only documentation was uncommitted at capture.",
+  "platform": "Linux",
+  "machine": "x86_64",
+  "kernel": "6.18.55",
+  "toolchain": "1.97.1",
+  "checks": [
+    {
+      "name": "rust",
+      "command": "cargo test --locked --all-features -q",
+      "exit_code": 0,
+      "log_sha256": "4b9ff32ce39802e62f8970807d96ec6622e5a4245275b5aacb058eeefed4fd8d"
+    },
+    {
+      "name": "clippy",
+      "command": "cargo clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "log_sha256": "91fa4e86deb7eab851ae3865000c5f9bc203a36e5ebd3874ccf6d8ad03ccad24"
+    },
+    {
+      "name": "build",
+      "command": "cargo build --locked",
+      "exit_code": 0,
+      "log_sha256": "a7ed31db0670a0f32e7451e6b8cba28c24d9a489e3e0b4982a1f6a45b1716b68"
+    },
+    {
+      "name": "process",
+      "command": "python -B scripts/Test-ProcessLifecycle.py",
+      "exit_code": 0,
+      "log_sha256": "509264c7bd73b2f3bfeb253ac57895b5d19863ecbbc5cb0eee1d9b0f16395dbc"
+    },
+    {
+      "name": "sdk",
+      "command": "python -B -m unittest discover -s sdk/python -p 'test_*.py'",
+      "exit_code": 0,
+      "log_sha256": "f86c4fcae75d58b7f713fa21d81dec27423f4dcccb1e718b8b4bd06441252c1f"
+    },
+    {
+      "name": "examples",
+      "command": "python -B scripts/run_python_example_tests.py",
+      "exit_code": 0,
+      "log_sha256": "9cb5d27e244b9fc9300fd1de40ae58d9b912d17419956e6c1120523b7e5a5e80"
+    },
+    {
+      "name": "http_restart",
+      "command": "python -B /workspace/.marketbridge/smoke.py",
+      "exit_code": 0,
+      "log_sha256": "a28e61c05c7e5a346f92fe9bccb25ff772e9ba1497772dc5c7f8363587bbb074"
+    }
+  ],
+  "additional_checks": [
+    "cargo fmt --all -- --check",
+    "git diff --check"
+  ],
+  "fault_evidence": {
+    "redis_stalled_shutdown_accepted": 237,
+    "redis_stalled_shutdown_dead_letter_rows": 237,
+    "deterministic_subscription_skipped": 14,
+    "full_score_gap_candidate_trigger_allowed": false
+  },
+  "limits": [
+    "Local Linux execution only; Windows/macOS CI results not observed.",
+    "RESP peer is a protocol fixture, not a Redis cluster durability test.",
+    "No public-exchange sustained load, full-pipeline capacity or PREEMPT_RT comparison.",
+    "Log hashes reference local workspace logs, not published CI artifacts."
+  ]
+}

@@ -1023,6 +1023,10 @@ curl -s http://127.0.0.1:8080/metrics
 - `ws_subscribers`
 - `redis_xadd_total`
 - `redis_dead_letter_total`
+- `redis_dead_letter_failures_total`
+- `redis_accepted_total`
+- `redis_pending_events`
+- `redis_lagged_total`
 - `ticks_dropped_total`
 
 Redis 是可选项。启用后如果批量写入 Redis 多次失败，MarketBridge 会把失败事件写入 `runtime.redis_dead_letter_path`，默认：
@@ -1030,6 +1034,12 @@ Redis 是可选项。启用后如果批量写入 Redis 多次失败，MarketBrid
 ```text
 data/redis_dead_letters.jsonl
 ```
+
+计数只在文件刷新并完成 `sync_all` 后增加。连接/批次确认每次最多等待 3 秒，最多尝试 8 次；停机中断网络等待，排空已经进入 Redis 本地队列的数据，将未确认批次保存到该文件。死信写失败或订阅丢失会使已启用的 sink 及受监督进程失败退出，停机期间的写入失败也不会被当成成功。关注 pending 指标和最终核对日志。
+
+这一边界是 Redis 本地队列，不覆盖所有 source/router/广播缓冲。`XADD *` 重试和重放可能重复；Redis ACK 不证明服务端已经落盘；目前没有自动死信重放或 durable outbox。详见[机构使用门槛与恢复边界](docs/institutional_readiness.zh-CN.md)。
+
+Order-flow、footprint、symbol-state 响应新增 `subscription_quality`。已知订阅丢失在该 store 生命周期内持续标记，新事件和等待时间不会清除它；`squeeze-radar/v1` 将这类候选标记为 `incomplete_data` 并禁止触发。`has_known_gap=false` 仅代表没有观察到本地订阅缺口，上游覆盖和保留完整性仍未得到证明。
 
 ## 边界说明
 
