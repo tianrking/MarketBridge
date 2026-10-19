@@ -35,7 +35,8 @@ def main():
     parser.add_argument("--events", type=int, default=20_000)
     parser.add_argument("--symbols", type=int, default=1024)
     parser.add_argument("--subscribers", type=int, default=8)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=4,
+                        help="Tokio workers; the load producer also uses the main thread outside this pool")
     parser.add_argument("--timeout", type=float, default=120)
     args = parser.parse_args()
     if not (1 <= args.runs <= 100 and 0 <= args.warmups <= 10 and 1 <= args.events <= 1_048_576
@@ -69,6 +70,7 @@ def main():
             "platform": platform.platform(), "machine": platform.machine(),
             "rustc": command_output(["rustc", "--version"]),
             "tokio_worker_threads": args.workers,
+            "producer_thread": "main block_on thread, outside the Tokio worker pool",
             "events": args.events, "subscribers": args.subscribers,
             "broadcast_capacity_per_shard": capacity, "book_levels_per_side": 20,
             "runs_per_case": args.runs, "warmups_per_case": args.warmups,
