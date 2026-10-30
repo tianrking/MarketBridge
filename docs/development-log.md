@@ -1,3 +1,9 @@
+## 2026-10-30 — Corrected Hyperliquid liquidation/OI case to v3 evidence
+
+Rechecked the public [Forced or Frantic? replication package](https://github.com/edwinyeeshunwan/forced-or-frantic) and its [correction notice](https://github.com/edwinyeeshunwan/forced-or-frantic/blob/main/CORRECTIONS.md). The former v1 headline was withdrawn after event-clock, stale-OI and inference errors. Corrected v3 finds descriptive differences between OI-contraction and limited-contraction liquidation-triggered events, but does not support the prior size-adjusted effect and cannot identify forced versus voluntary closing from net OI.
+
+Updated `crypto_liquidation_oi_contraction_replay.py` and both microstructure READMEs to use the corrected v3 fields and class labels, drop its unclustered permutation p-values, and report only descriptive summaries. The case remains **needs a new data source** for MarketBridge because it does not reconstruct the source archive's Hyperliquid event table. No new strategy claim or execution behavior was added. X search did not surface a relevant, method-backed claim this run.
+
 # Development log
 
 ## 2026-09-14 — Added ATR volatility-regime response replay
@@ -2280,14 +2286,16 @@ leads/context, not performance evidence.
 
 ## 2026-09-17 — forced versus voluntary liquidation event replay
 
-Added `crypto_forced_vs_voluntary_liquidation_replay.py` as a narrow consumer
-for Edwin Wan's public ["Forced or Frantic?" replication package](https://github.com/edwinyeeshunwan/forced-or-frantic).
-The package provides a pre-registered Hyperliquid event design and reproducible
-public-data pipeline that separates `deleverage` from `churn` using liquidation
-events and event-window OI change. MarketBridge reports the derived class
-medians and deterministic permutation controls, but deliberately marks the
-case **needs a new data source**: the current historical-liquidations API does
-not reconstruct Hyperliquid's complete on-chain liquidation record. No trading,
+Added the earlier `crypto_forced_vs_voluntary_liquidation_replay.py` as a
+narrow consumer for Edwin Wan's public ["Forced or Frantic?" replication
+package](https://github.com/edwinyeeshunwan/forced-or-frantic). At that time the
+source package described a Hyperliquid event design and the example summarized
+its derived classes. This entry described the then-published v1 claim; the
+author later withdrew v1 after discovering event-clock, stale-OI and inference
+errors. The corrected v3 analysis is documented above and the maintained
+consumer is now `crypto_liquidation_oi_contraction_replay.py`. Its data gap
+remains **needs a new data source** because MarketBridge does not reconstruct
+the source archive's complete Hyperliquid liquidation/OI record. No trading,
 wallet, signing or execution path was added.
 
 ## 2026-09-19 — 24-hour display roll-out response replay

@@ -21,31 +21,37 @@
 | Event/technical replay | `crypto_cvd_divergence_replay.py`, `crypto_obv_divergence_response_replay.py`, `crypto_keltner_channel_response_replay.py`, `crypto_donchian_channel_response_replay.py`, `crypto_trade_imbalance_bar_replay.py`, `crypto_vpin_response_replay.py`, `crypto_*vwap*`, `crypto_*breakout*`, `crypto_*fair_value_gap*`, `crypto_session_*`, `crypto_weekly_rsi_cross_response_replay.py`, `crypto_weekday_hour_effect_replay.py` |
 | Derivatives crowding | `crypto_taker_oi_response_replay.py`, `crypto_oi_price_divergence_response_replay.py`, `crypto_account_ratio_oi_response_replay.py`, `crypto_derivatives_*`, `crypto_adl_risk_*` |
 
-`crypto_forced_vs_voluntary_liquidation_replay.py` is a deliberately bounded
-consumer for the public ["Forced or Frantic?" replication package](https://github.com/edwinyeeshunwan/forced-or-frantic).
-That study pre-registers a Hyperliquid event design and separates complete
-liquidation-triggered events into `deleverage` and `churn` using the event-window
-change in aggregate OI. This replay consumes its derived CSV/JSON/JSONL event
-table and reports class medians for peak absolute dislocation, transitory share
-and time-to-recovery, with deterministic permutation controls.
+`crypto_liquidation_oi_contraction_replay.py` consumes the corrected v3
+results in the public [Hyperliquid liquidation-event replication package](https://github.com/edwinyeeshunwan/forced-or-frantic) and its [correction notice](https://github.com/edwinyeeshunwan/forced-or-frantic/blob/main/CORRECTIONS.md). This working paper is not peer-reviewed.
+The authors withdrew v1 after finding event-clock, stale-OI and inference errors.
+Corrected v3 reports 134 events from September–December 2025. The median peak
+displacement difference for contraction versus limited-contraction events is
+−1.04 percentage points, and the six-hour response difference is −1.17 points;
+53% versus 22% remained unrecovered after 22 hours. Contraction events had about
+four times the liquidation notional, and the size-adjusted effect is not
+supported, so this is not evidence for an independent OI signal. The authors
+also state that net OI change cannot distinguish forced from voluntary closes,
+so the earlier “forced deleveraging vs voluntary churn” framing is not
+identified.
 
-The classification is not currently reconstructed by MarketBridge: its
-historical liquidation endpoint covers bounded OKX/CoinEx data, not Hyperliquid's
-complete on-chain liquidation record. Treat this case as **needs a new data
-source** until a Hyperliquid connector preserves liquidation fills, ADL events,
-OI, price and coverage metadata. It is an event-study report, not a liquidation
-signal, trade rule or P&L backtest.
+This replay groups the corrected CSV/JSON/JSONL event table by `contraction`,
+`limited` and `intermediate`, and summarizes OI change, event-window liquidation
+notional, displacement and 6/24-hour price responses. It reports
+descriptive statistics only and does not reproduce the paper's episode-clustered
+confidence intervals. MarketBridge does not reconstruct the complete Hyperliquid
+liquidation/OI archive required for this research, so the strategy conclusion
+**needs a new data source**; existing Binance/OKX feeds are not substitutes for
+the source event table.
 
 ```bash
-python3 examples/crypto/microstructure/crypto_forced_vs_voluntary_liquidation_replay.py \
-  --input work/hyperliquid-event-table.jsonl \
-  --min-observations 5 --permutations 2000 --seed 0
+python3 examples/crypto/microstructure/crypto_liquidation_oi_contraction_replay.py \
+  --input work/hyperliquid-v3-events.csv --min-observations 5
 ```
 
-The source package's `event_table_liq` schema can be exported to CSV/JSON after
-its documented Hyperliquid pull/build steps. Keep the original source archive,
-classification parameters and coverage beside the converted file; do not call
-the derived class a venue-independent label.
+Use only the source repository's corrected v3 outputs such as
+`reanalysis/outputs/corrected/events_primary.csv`; do not use `legacy/` or v1/v2
+results. This is an event-study summary, not mechanism identification, a short
+signal, a trading rule or a P&L backtest.
 
 `crypto_24h_rollout_response_replay.py` is a small, single-symbol MarketBridge
 replay of the public [24-Hour Roll-Out Effect](https://github.com/OctopusTakopi/24h-rollout-effect).

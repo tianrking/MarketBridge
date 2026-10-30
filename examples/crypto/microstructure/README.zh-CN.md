@@ -21,23 +21,16 @@
 | 事件/技术回放 | `crypto_cvd_divergence_replay.py`、`crypto_obv_divergence_response_replay.py`、`crypto_keltner_channel_response_replay.py`、`crypto_donchian_channel_response_replay.py`、`crypto_trade_imbalance_bar_replay.py`、`crypto_vpin_response_replay.py`、`crypto_*vwap*`、`crypto_*breakout*`、`crypto_*fair_value_gap*`、`crypto_session_*`、`crypto_weekly_rsi_cross_response_replay.py`、`crypto_weekday_hour_effect_replay.py` |
 | 衍生品拥挤 | `crypto_taker_oi_response_replay.py`、`crypto_oi_price_divergence_response_replay.py`、`crypto_account_ratio_oi_response_replay.py`、`crypto_derivatives_*`、`crypto_adl_risk_*` |
 
-`crypto_forced_vs_voluntary_liquidation_replay.py` 是对公开 [“Forced or Frantic?” 复现实验包](https://github.com/edwinyeeshunwan/forced-or-frantic)
-的有界消费器。该研究预先定义 Hyperliquid 事件设计，并用事件窗口内聚合 OI 的变化把完整清算触发事件分成
-`deleverage` 与 `churn`。本 replay 读取它导出的 CSV/JSON/JSONL 事件表，报告峰值绝对位移、暂态占比和恢复时间的组内中位数，
-并使用确定种子的置换对照。
+`crypto_liquidation_oi_contraction_replay.py` 消费公开 [Hyperliquid 清算事件复现实验](https://github.com/edwinyeeshunwan/forced-or-frantic) 的 [**v3 修订结果**](https://github.com/edwinyeeshunwan/forced-or-frantic/blob/main/CORRECTIONS.md)。该工作论文尚未经同行评审。v1 曾因事件时间标签、OI 陈旧值和推断方法错误而被作者撤回；v3 修正后报告 2025 年 9–12 月 134 个事件。OI 收缩组相对有限收缩组的峰值位移中位数差为 −1.04 个百分点，6 小时价格响应差为 −1.17 个百分点；22 小时后未恢复比例为 53% 对 22%。但收缩组清算额约为对照组 4 倍，按清算额控制后的效应不显著，因此不能把结果解释成独立的 OI 信号。作者也明确指出，净 OI 变化不能识别平仓是强平还是自愿行为，因此旧称“强制去杠杆 vs 自愿换手”不成立。
 
-这里不会假装 MarketBridge 已经重建这个分类：当前历史清算接口覆盖的是有界 OKX/CoinEx 数据，不包含 Hyperliquid 完整链上清算记录。
-因此本案例明确标为**需要新数据源**；未来接入 Hyperliquid 时必须同时保留清算成交、ADL 事件、OI、价格和覆盖元数据。
-它是事件研究报告，不是清算信号、交易规则或 PnL 回测。
+本 replay 读取 v3 的 CSV/JSON/JSONL 派生事件表，按 `contraction`、`limited`、`intermediate` 分组，汇总 OI 变化、事件窗口清算名义额、位移、6/24 小时响应和恢复时间。它只报告描述性统计，不复现论文的 episode-clustered 置信区间。MarketBridge 尚未重建该归档所需的完整 Hyperliquid 清算/OI 事件数据，因此**策略结论需要新数据源**；现有 Binance、OKX 等接口数据不可替代来源事件表。
 
 ```bash
-python3 examples/crypto/microstructure/crypto_forced_vs_voluntary_liquidation_replay.py \
-  --input work/hyperliquid-event-table.jsonl \
-  --min-observations 5 --permutations 2000 --seed 0
+python3 examples/crypto/microstructure/crypto_liquidation_oi_contraction_replay.py \
+  --input work/hyperliquid-v3-events.csv --min-observations 5
 ```
 
-源复现实验的 `event_table_liq` 可按其文档的 Hyperliquid 拉取/构建步骤导出成 CSV/JSON 后使用。
-请把原始归档、分类参数和覆盖信息与转换后的文件一起保存；不能把该派生类别当成跨交易所通用标签。
+仅使用来源仓库 `reanalysis/outputs/corrected/events_primary.csv` 等 v3 校正输出；不要使用 `legacy/` 或 v1/v2 结果。该案例是事件研究摘要，不是清算机制识别、做空信号、交易规则或 PnL 回测。
 
 `crypto_24h_rollout_response_replay.py` 是对公开 [24-Hour Roll-Out Effect](https://github.com/OctopusTakopi/24h-rollout-effect)
 的单品种、MarketBridge 版本回放。对每根已经完成的 1 小时 K 线，它检查恰好 24 小时前的 K 线是否为此前 24 根中的最大正收益或最小负收益，
