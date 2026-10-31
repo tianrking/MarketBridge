@@ -9,6 +9,7 @@
 |---|---|---|
 | Basis 与资金费率 | `basis_carry_monitor.py`、`funding_convergence_monitor.py`、`crypto_funding_band_monitor.py` | 新鲜 spot/perp basis、资金费率、周期、提供方上下限和缺失字段 |
 | 历史回放 | `crypto_basis_replay.py`、`crypto_historical_basis_replay.py`、`crypto_funding_*_replay.py` | 固定窗口收敛、回归或状态分布 |
+| 横截面资金费率 | `crypto_funding_cross_section_replay.py` | 比较原始费率排名和基于单合约历史的 z-score 排名，与未来固定窗口收益的关系 |
 | 跨交易所 | `crypto_cross_venue_orderbook_*`、`crypto_cross_venue_price_gap_replay.py` | 带延迟和覆盖元数据的逐时点报价/盘口差 |
 | Coinbase premium | `crypto_coinbase_premium_monitor.py`、`crypto_coinbase_premium_response_recorder.py`、`crypto_coinbase_premium_response_replay.py` | Coinbase USD 相对参考 venue 的现货价差和 BTC 后续响应 |
 | 三角价差 | `crypto_triangular_arbitrage_*` | 纸面价格循环一致性；不路由、不成交 |
@@ -27,6 +28,22 @@ Coinbase premium pair 是独立的公开 X 研究线索：当 Coinbase USD 报�
 
 历史 OI 现在支持 Binance、Bybit 和 OKX。OKX 公共合约历史接口返回按基础币种聚合、以提供方 USD 单位计量的序列；
 API 会保留单位和时间戳。这样 `crypto_funding_oi_replay.py` 可以扩大交易所比较范围，但不会把聚合 OI 解释成多空归属或对冲结果。
+
+`crypto_funding_cross_section_replay.py` 可用 `--rank-by raw`（默认）或 `--rank-by zscore` 比较跨品种资金费率排序。z-score 将当前时点的费率与同一合约此前 `--zscore-lookback` 次结算值比较，不纳入当前或未来费率；历史不足或费率没有变化的品种会被排除。该参数按结算条数计，默认 270 条只在约 8 小时结算时近似 90 天，不能替代精确的日历时间窗口。原始费率横截面价差仍用于筛选有效窗口。该回放只覆盖用户指定的品种和 API 可返回的历史，不复现跨数百合约、含退市合约的完整研究。
+
+2026 年公开的 [funding-rate-alpha 研究仓库](https://github.com/OctopusTakopi/funding-rate-alpha)公开了对一条 X 资金费率因子主张的检验脚本、方法和来源清单。仓库报告资金费率的方向性关系随时期和持有窗口改变；OI 与价格的交叉筛选、跨交易所 OI 加权费率指数未显示稳定的额外方向优势，仓库作者把剩余收益主要解释为承担永续价格风险的 carry。它是可复核的研究笔记，并非同行评审结论；仓库不包含完整原始数据文件，其整体结果需下载 Binance、OKX、Bybit 归档和退市合约清单才能重现。
+
+映射状态：**可直接验证**——MarketBridge 可对指定品种比较原始费率与严格使用此前结算记录计算的 z-score 排名及未来价格响应；**需要新数据源/数据集**——复现来源研究的 791 个合约、退市样本、跨 venue funding/OI 与完整对照需要更广的冻结归档；**X 原帖仅为假设**——仓库的英文转述记录在 [source_tweet.md](https://github.com/OctopusTakopi/funding-rate-alpha/blob/main/docs/source_tweet.md)，X 原帖本轮无法独立读取。该证据没有支持一条稳健的普遍做空规则。
+
+```bash
+python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
+  --price-exchange binance --market perp --interval 4h --days 90 \
+  --horizon-bars 2 --rank-by zscore --zscore-lookback 270 \
+  --min-observations 5
+```
+
+`cross_sectional_funding_candidate` 只表示超过命令行里用户设定的边际门槛，不代表通过样本外、成本或多重检验。请先检查 JSON 中每个品种的覆盖时间，再扩大品种池和历史样本；当前 replay 不含 OI/价格分层、逐笔成交成本、杠杆与强平模型。
 
 `crypto_funding_carry_accrual_replay.py` 是状态回放之外的纸面账本：每个固定 funding 事件窗口分别计算每单位名义本金的资金费率转移、
 观察到的现货/永续基差变化，以及 `short_perp` 或 `long_perp` 方向下的带符号纸面合计。它不是可执行 carry 回测：公共收盘价不是成交价，

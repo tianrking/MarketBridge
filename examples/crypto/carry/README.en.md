@@ -9,6 +9,7 @@
 |---|---|---|
 | Basis and funding | `basis_carry_monitor.py`, `funding_convergence_monitor.py`, `crypto_funding_band_monitor.py` | Fresh spot/perp basis, funding, interval, provider cap/floor and missing-field context |
 | Historical replay | `crypto_basis_replay.py`, `crypto_historical_basis_replay.py`, `crypto_funding_*_replay.py` | Fixed-window contraction, convergence or regime distributions |
+| Cross-sectional funding | `crypto_funding_cross_section_replay.py` | Compare raw funding ranks and per-contract historical z-score ranks against fixed-window forward returns |
 | Cross-venue | `crypto_cross_venue_orderbook_*`, `crypto_cross_venue_price_gap_replay.py` | Point-in-time quote/book gaps with latency and coverage metadata |
 | Coinbase premium | `crypto_coinbase_premium_monitor.py`, `crypto_coinbase_premium_response_recorder.py`, `crypto_coinbase_premium_response_replay.py` | Coinbase USD versus reference-venue spot spread and later BTC response |
 | Triangular | `crypto_triangular_arbitrage_*` | Paper price-cycle consistency only; no route or fill |
@@ -33,6 +34,49 @@ history is an aggregate base-currency series returned in provider USD units;
 the API keeps that unit and its timestamp explicit. This widens the
 `crypto_funding_oi_replay.py` venue comparison without turning aggregate OI
 into long/short ownership or a hedge result.
+
+`crypto_funding_cross_section_replay.py` compares `--rank-by raw` (the default)
+with `--rank-by zscore`. The z-score compares the current rate with the prior
+`--zscore-lookback` settlements for the same contract; it does not use
+the current or future rates to construct its baseline. The default of 270 events
+approximates 90 calendar days only for an 8-hour settlement schedule; the option
+is event-count based, not a precise time window. Contracts without enough
+history or with a constant lookback are omitted. Raw funding dispersion still
+filters eligible timestamps. This replay uses only the selected symbols and
+bounded history returned by the API; it does not reproduce a broad,
+delisting-aware research universe.
+
+The public [funding-rate-alpha research repository](https://github.com/OctopusTakopi/funding-rate-alpha)
+publishes code, methods and source manifests testing an X-origin funding-factor
+claim. Its reported directional relationship changes across periods and
+holding horizons. OI/price interactions and an OI-weighted cross-venue funding
+index do not show a stable incremental directional edge; the authors attribute
+the remaining results mainly to carry while holding perpetual price risk. This
+is a reproducible research note, not a peer-reviewed conclusion. The repository
+does not include the full raw data; reproducing its full result requires the
+Binance, OKX and Bybit archives and delisted-contract universe.
+
+Evidence mapping: **directly verifiable** — compare raw and strictly
+prior-history z-score rankings against later prices for selected contracts;
+**needs broader data** — reproduce the 791-contract, delisted-inclusive sample
+and cross-venue funding/OI controls; **X post is a hypothesis** — the
+repository's English rendering is in [`source_tweet.md`](https://github.com/OctopusTakopi/funding-rate-alpha/blob/main/docs/source_tweet.md),
+but the original X post could not be independently read in this run. The
+available evidence does not establish a robust, general short rule.
+
+```bash
+python3 examples/crypto/carry/crypto_funding_cross_section_replay.py \
+  --symbols BTCUSDT,ETHUSDT,SOLUSDT --funding-exchange binance \
+  --price-exchange binance --market perp --interval 4h --days 90 \
+  --horizon-bars 2 --rank-by zscore --zscore-lookback 270 \
+  --min-observations 5
+```
+
+`cross_sectional_funding_candidate` only means that results exceed thresholds
+chosen on the command line; it is not an out-of-sample, cost or multiple-testing
+pass. Check per-symbol JSON coverage before widening the universe. The replay
+does not add OI/price interaction controls, trade-level execution costs,
+leverage or liquidation modelling.
 
 `crypto_funding_carry_accrual_replay.py` is the accounting companion to the
 state replays. For each fixed number of funding events it computes gross

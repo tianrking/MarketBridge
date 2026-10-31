@@ -29,8 +29,28 @@ class FundingCrossSectionTests(unittest.TestCase):
         }
         observations = cross_section_observations(funding, prices, 1, 1, 1.0, 1.5)
         self.assertEqual(len(observations), 1)
-        self.assertEqual(observations[0]["low_funding_symbols"], ["BTCUSDT"])
-        self.assertAlmostEqual(observations[0]["low_minus_high_forward_return_pct"], 3.0)
+        self.assertEqual(observations[0]["low_rank_symbols"], ["BTCUSDT"])
+        self.assertAlmostEqual(observations[0]["low_rank_minus_high_rank_forward_return_pct"], 3.0)
+
+    def test_contract_zscore_rank_uses_only_prior_settlements(self):
+        funding = {
+            "BASE_HIGH": [(1, 0.20, 10_000), (2, 0.21, 10_000),
+                          (3, 0.211, 10_000), (4, 100.0, 10_000)],
+            "BASE_LOW": [(1, 0.0, 10_000), (2, 0.001, 10_000),
+                         (3, 0.01, 10_000), (4, -100.0, 10_000)],
+        }
+        prices = {
+            "BASE_HIGH": [(3, 100.0), (4, 101.0)],
+            "BASE_LOW": [(3, 100.0), (4, 99.0)],
+        }
+        observations = cross_section_observations(
+            funding, prices, 1, 1, 1.0, 1.5, rank_by="zscore", zscore_lookback=2,
+        )
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(observations[0]["low_rank_symbols"], ["BASE_HIGH"])
+        self.assertEqual(observations[0]["high_rank_symbols"], ["BASE_LOW"])
+        self.assertAlmostEqual(observations[0]["low_rank_funding_rates_pct"]["BASE_HIGH"], 21.1)
+        self.assertAlmostEqual(observations[0]["low_rank_values"]["BASE_HIGH"], 1.2)
 
     def test_summary_keeps_insufficient_history_observe_only(self):
         result = summarize([], min_observations=2, min_edge_bps=0.0, paper_cost_bps=0.0)
